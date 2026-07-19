@@ -364,6 +364,14 @@
   letter-spacing: 0.05em;
   color: var(--text-muted);
 }
+/* Pre-existing gap: this class's own display:flex has the same specificity
+   as the UA stylesheet's [hidden]{display:none} and comes later in the
+   cascade, so it was winning -- the status bar (and its "Modify"/"Log Out"
+   button) stayed visibly rendered even while its `hidden` attribute was set
+   whenever no session is resolved. Surfaced by this turn's accordion
+   screenshot check; fixed here since it directly affects the exact
+   resolve/collapse flow being restructured. */
+.checkout-account-status[hidden] { display: none; }
 
 .checkout-account-intro {
   margin: 0 0 1.4rem;
@@ -421,6 +429,186 @@
   .checkout-account-link-btn:hover { color: var(--text-on-dark); border-color: var(--accent-bronze-light); }
 }
 
+/* ---- checkout accordion (checkout.html only): Account -> Shipping ->
+   Payment, single page/URL, one section open at a time. Reuses the same
+   button + rotating-chevron convention as .nav-menu-info-toggle/
+   .nav-menu-info-chevron (css/style.css) for the expand/collapse cue --
+   scaled up into a full section header with a numbered step and (once a
+   section validates) a compact right-aligned summary line. Deliberately NOT
+   the .shop-refund-note <details>/<summary> "+/-" pattern: that one has no
+   slot for dynamic summary text and can't be driven open/closed from JS the
+   way this flow's validation-gated steps need (only one section open at a
+   time, re-opening one collapses whichever is currently open). No
+   max-height/opacity transition on the body itself -- these sections hold
+   full forms whose own height already shifts as inline errors appear/
+   disappear, so an animated cap would fight that instead of complementing
+   it; the chevron rotate is enough of an expand/collapse cue on its own. */
+
+.checkout-accordion-section { border-bottom: 1px solid var(--line); padding-bottom: 1.8rem; margin-bottom: 1.8rem; }
+.checkout-accordion-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+.checkout-accordion-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+.checkout-accordion-header:disabled { cursor: default; }
+
+.checkout-accordion-header-text { display: flex; align-items: center; gap: 0.8rem; flex: 0 0 auto; }
+
+/* Numbered circle, same idea as a typical multi-step checkout indicator --
+   dim/muted until its section is reached (active) or done (completed). */
+.checkout-accordion-step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  transition: border-color 0.3s ease, color 0.3s ease;
+}
+.checkout-accordion-active .checkout-accordion-step-num,
+.checkout-accordion-completed .checkout-accordion-step-num {
+  border-color: var(--accent-bronze-light);
+  color: var(--accent-bronze-light);
+}
+
+.checkout-accordion-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.2rem;
+  color: var(--accent-bronze-light);
+}
+/* A pending (not-yet-reached) section's title reads as locked/inert rather
+   than an equally-inviting heading the user can't actually act on yet. */
+.checkout-accordion-header:disabled .checkout-accordion-title { color: var(--text-muted); }
+
+.checkout-accordion-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.checkout-accordion-chevron { flex-shrink: 0; color: var(--text-muted); transition: transform 0.3s ease; }
+.checkout-accordion-header[aria-expanded="true"] .checkout-accordion-chevron { transform: rotate(180deg); }
+.checkout-accordion-completed .checkout-accordion-chevron { color: var(--accent-bronze-light); }
+
+.checkout-accordion-body { margin-top: 1.6rem; }
+
+.checkout-accordion-next-btn { width: 100%; text-align: center; margin-top: 0.6rem; cursor: pointer; }
+.checkout-accordion-next-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---- account.html: Edit Profile / Saved Address / Preferences / Order
+   History / Delete Account (all via js/account.js's updateAccount()/
+   recordOrder()/getOrders()/deleteAccount()) ---- */
+
+/* Consistent breathing room between account.html's stacked sections --
+   .checkout-field's own margin-bottom already spaces fields WITHIN a
+   section, this is between the sections themselves. */
+.account-section { margin-top: 3rem; }
+
+/* Marketing-preference checkbox: a native control, not a custom-built toggle
+   -- restyling scope kept to accent-color (theming the check itself bronze)
+   plus layout, same "don't rebuild what the platform gives you for free"
+   reasoning as the honeypot/native inputs elsewhere on this site. A custom
+   switch would be pure decoration for a single boolean preference. */
+.account-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  cursor: pointer;
+}
+.account-toggle-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-bronze-light);
+  cursor: pointer;
+}
+.account-toggle-row span {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.account-order-list { list-style: none; margin: 0; padding: 0; }
+
+.account-order-item { padding: 1.4rem 0; border-bottom: 1px solid var(--line); }
+.account-order-item:first-child { padding-top: 0; }
+.account-order-item:last-child { border-bottom: none; }
+
+.account-order-date {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.account-order-product {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--text-on-dark);
+}
+
+.account-order-meta {
+  display: flex;
+  gap: 1.2rem;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--accent-bronze-light);
+}
+
+/* "Delete Account" reuses .checkout-account-link-btn's underlined-mono
+   treatment (same element type/role as "Modify"/"Create an account instead"
+   elsewhere in this flow -- a link-styled button, not a boxed CTA) but in
+   the site's existing muted-rust error tone (see .promo-message-error)
+   instead of the neutral muted-grey those use, so a destructive action reads
+   as visually distinct at rest, not just on hover. */
+.account-delete-btn { color: #b5675c; border-color: #b5675c; }
+@media (hover: hover) and (pointer: fine) {
+  .account-delete-btn:hover { color: #d18276; border-color: #d18276; }
+}
+
+#account-delete-confirm { margin-top: 1rem; }
+
+/* The confirm step's own primary action is still a real .cta-button (same
+   element/sizing as every other secondary-weight action here, via
+   .checkout-account-btn-sm) but recolored to the same rust tone as the
+   trigger above -- confirming a destructive action shouldn't visually read
+   as identical to "Place Order"/"Continue as Guest"'s ordinary bronze CTAs. */
+.account-delete-confirm-btn {
+  border-color: #b5675c;
+  color: #b5675c;
+}
+@media (hover: hover) and (pointer: fine) {
+  .account-delete-confirm-btn:hover { background: #b5675c; color: var(--bg-void); }
+}
+.account-delete-confirm-btn:active { background: #b5675c; color: var(--bg-void); }
+
 /* Payment fields are UI only -- see the HTML comment above them. This note
    makes that explicit to the user too, not just to future developers. */
 .checkout-payment-note {
@@ -429,6 +617,18 @@
   color: var(--text-muted);
   margin: -0.4rem 0 1.6rem;
 }
+
+/* Terms of Sale checkbox (Payment section) -- same native-checkbox
+   restyling as .account-toggle-row (account.html's marketing-opt-in
+   toggle), just overriding its all-caps/small-mono label treatment since
+   this one carries a full sentence + inline link rather than a short
+   preference name. Equal specificity to .account-toggle-row span (one class
+   + descendant selector each), so ordering after it in the cascade is what
+   makes these overrides win, not a stronger selector. */
+.checkout-terms-row { margin: 0.4rem 0 0.6rem; align-items: flex-start; }
+.checkout-terms-row input[type="checkbox"] { margin-top: 0.15rem; flex-shrink: 0; }
+.checkout-terms-row span { text-transform: none; letter-spacing: 0.02em; font-size: 0.78rem; font-family: var(--font-body); font-weight: 300; }
+.checkout-terms-row a { color: var(--accent-bronze-light); }
 
 .checkout-submit { width: 100%; text-align: center; margin-top: 0.6rem; cursor: pointer; }
 .checkout-submit:disabled { opacity: 0.4; cursor: not-allowed; }

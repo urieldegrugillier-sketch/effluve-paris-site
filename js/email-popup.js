@@ -175,10 +175,21 @@
           ? window.MonarkI18n.t('emailPopup.confirmedCopy', { email: EMAIL_TOKEN })
           : `10% off your first bottle -- enter it at checkout. Sent to ${EMAIL_TOKEN} too, for safekeeping.`;
         const copyHtml = copyTemplate.replace(EMAIL_TOKEN, '<span class="email-popup-confirmed-email"></span>');
+        // Separate line, separate key from copyHtml above -- this is the
+        // newsletter subscription disclosure specifically, distinct from
+        // js/account.js's own "confirmation email sent" note for account
+        // creation (that one only ever shows on the account gate, never here).
+        // Reuses .email-popup-consent's small-mono-muted fine-print treatment
+        // (already used for the form state's "you agree to receive..." line)
+        // rather than inventing a second disclosure-text style.
+        const newsletterNote = window.MonarkI18n
+          ? window.MonarkI18n.t('emailPopup.newsletterDisclosure')
+          : "You've also been subscribed to our newsletter.";
         overlay.querySelector('.email-popup-body').innerHTML = `
           <span class="section-label email-popup-kicker">${kicker}</span>
           <h2 class="email-popup-heading">${heading}</h2>
           <p class="email-popup-copy">${copyHtml}</p>
+          <p class="email-popup-consent">${newsletterNote}</p>
         `;
         overlay.querySelector('.email-popup-confirmed-email').textContent = email;
       }

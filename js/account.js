@@ -42,14 +42,39 @@
     return readAccounts().find((acc) => acc.email.toLowerCase() === needle);
   }
 
-  function createAccount(email, password) {
+  function createAccount(email, password, extra) {
     const cleanEmail = String(email || '').trim();
     if (findAccount(cleanEmail)) return { ok: false, error: 'exists' };
     const accounts = readAccounts();
     // PLACEHOLDER: plaintext password, stored as-is -- see the file-level
     // comment above. Fine for a mock with no backend to protect; not fine
     // the moment real accounts exist.
-    accounts.push({ email: cleanEmail, password: String(password || '') });
+    // `extra` carries firstName/lastName, now required at account-creation
+    // time (see accountGateMarkup()'s create form) -- every other field
+    // still starts empty/default, filled in later via updateAccount() (Edit
+    // Profile/Saved Address/Saved Card on account.html, or checkout.html's
+    // silent backfill for an account created before this field existed).
+    // orders starts as an empty array, not omitted, so recordOrder()/
+    // getOrders() never have to special-case an account that's never ordered
+    // yet.
+    extra = extra || {};
+    accounts.push({
+      email: cleanEmail,
+      password: String(password || ''),
+      firstName: extra.firstName || '',
+      lastName: extra.lastName || '',
+      dob: '',
+      address: '',
+      address2: '',
+      city: '',
+      postal: '',
+      phone: '',
+      cardNumber: '',
+      cardExpiry: '',
+      cardName: '',
+      marketingOptIn: true,
+      orders: []
+    });
     writeAccounts(accounts);
     setSession(cleanEmail);
     return { ok: true };
@@ -77,6 +102,85 @@
     const email = localStorage.getItem(SESSION_KEY);
     if (!email) return null;
     return { email, isGuest: !findAccount(email) };
+  }
+
+  /* Generic profile/address/preferences updater -- used by account.html's
+     Edit Profile form, its Saved Shipping Address form, its marketing-opt-in
+     toggle, and checkout.html's silent first/last-name backfill (see that
+     page's own comment on why that one's silent). `patch` is shallow-merged
+     onto the existing record, so a caller only ever needs to pass the fields
+     it's actually changing -- e.g. the address form's patch never touches
+     firstName/lastName, and vice versa.
+
+     Email changes are the one field that needs special handling: it's also
+     the record's own lookup key AND the raw value stored under SESSION_KEY,
+     so renaming it has to (a) reject a collision with a different existing
+     account and (b) repoint the session at the new email afterward, or
+     getSession()/findAccount() would silently stop finding this account on
+     the very next call (reading a session email no account matches anymore
+     reads as "guest", not "logged out" -- a real, confusing regression, not
+     just a cosmetic one). setSession() already dispatches 'account:updated',
+     so the branch below only dispatches it manually for the non-renamed case. */
+  function updateAccount(currentEmail, patch) {
+    const accounts = readAccounts();
+    const needle = String(currentEmail || '').trim().toLowerCase();
+    const idx = accounts.findIndex((acc) => acc.email.toLowerCase() === needle);
+    if (idx === -1) return { ok: false, error: 'not-found' };
+
+    const cleanPatch = Object.assign({}, patch);
+    if (cleanPatch.email !== undefined) {
+      const newEmail = String(cleanPatch.email).trim();
+      const collision = accounts.some((acc, i) => i !== idx && acc.email.toLowerCase() === newEmail.toLowerCase());
+      if (collision) return { ok: false, error: 'email-exists' };
+      cleanPatch.email = newEmail;
+    }
+    // An empty "new password" field means "don't change it", not "set it to
+    // the empty string" -- see account.html's Edit Profile form comment.
+    if (cleanPatch.password === '') delete cleanPatch.password;
+
+    accounts[idx] = Object.assign({}, accounts[idx], cleanPatch);
+    writeAccounts(accounts);
+
+    if (accounts[idx].email.toLowerCase() !== needle) {
+      setSession(accounts[idx].email);
+    } else {
+      document.dispatchEvent(new CustomEvent('account:updated', { detail: { email: accounts[idx].email } }));
+    }
+    return { ok: true, account: accounts[idx] };
+  }
+
+  /* Appends one order record to the account's own `orders` array -- called
+     from checkout.html right as a (non-guest) order is placed, before
+     cart.clearCart() wipes the state it's read from. Guest checkouts never
+     call this: there's no account record to tie the order to, which is the
+     correct behavior for a guest, not a gap -- see checkout.html's own
+     comment at the call site. */
+  function recordOrder(email, order) {
+    const accounts = readAccounts();
+    const needle = String(email || '').trim().toLowerCase();
+    const idx = accounts.findIndex((acc) => acc.email.toLowerCase() === needle);
+    if (idx === -1) return { ok: false };
+    if (!Array.isArray(accounts[idx].orders)) accounts[idx].orders = [];
+    accounts[idx].orders.push(order);
+    writeAccounts(accounts);
+    document.dispatchEvent(new CustomEvent('account:updated', { detail: { email: accounts[idx].email } }));
+    return { ok: true };
+  }
+
+  // Most-recent-first -- recordOrder() above only ever appends (chronological
+  // storage order), so the display-order reversal lives here rather than
+  // complicating the write path.
+  function getOrders(email) {
+    const account = findAccount(email);
+    return (account && Array.isArray(account.orders)) ? account.orders.slice().reverse() : [];
+  }
+
+  function deleteAccount(email) {
+    const needle = String(email || '').trim().toLowerCase();
+    const accounts = readAccounts().filter((acc) => acc.email.toLowerCase() !== needle);
+    writeAccounts(accounts);
+    logOut(); // clears the session too -- a deleted account can't stay "logged in"
+    return { ok: true };
   }
 
   /* ---------------- Shared account-gate UI ----------------
@@ -111,6 +215,11 @@
         <span id="checkout-account-status-text"></span>
         <button type="button" class="checkout-account-link-btn" id="checkout-account-change-btn"></button>
       </p>
+      <!-- Shown once, only right after a successful Create Account & Continue
+           (never for log-in or guest) -- see mountAccountGate()'s createForm
+           submit handler below and resolveSession()'s "no session" branch,
+           which is what clears it back out again once the user logs out. -->
+      <p class="promo-message promo-message-success" id="checkout-account-created-note" aria-live="polite" hidden></p>
 
       <form id="checkout-account-email-form" novalidate>
         <p class="checkout-account-intro" data-i18n="accountGate.intro">Please enter your email to continue as a guest, log in, or create an account.</p>
@@ -139,7 +248,17 @@
           <button type="button" class="checkout-account-link-btn" id="checkout-account-create-toggle" data-i18n="accountGate.createAccountInstead">Create an account instead</button>
         </div>
 
-        <form id="checkout-account-create-form" class="checkout-account-create-form" hidden>
+        <form id="checkout-account-create-form" class="checkout-account-create-form" novalidate hidden>
+          <div class="checkout-field-row">
+            <label class="checkout-field">
+              <span data-i18n="account.firstNameLabel">First Name</span>
+              <input type="text" id="checkout-account-create-firstname" autocomplete="given-name" required>
+            </label>
+            <label class="checkout-field">
+              <span data-i18n="account.lastNameLabel">Last Name</span>
+              <input type="text" id="checkout-account-create-lastname" autocomplete="family-name" required>
+            </label>
+          </div>
           <label class="checkout-field">
             <span data-i18n="accountGate.passwordLabel">Password</span>
             <input type="password" id="checkout-account-create-password" autocomplete="new-password" required>
@@ -194,6 +313,7 @@
     const statusEl = container.querySelector('#checkout-account-status');
     const statusText = container.querySelector('#checkout-account-status-text');
     const changeBtn = container.querySelector('#checkout-account-change-btn');
+    const createdNote = container.querySelector('#checkout-account-created-note');
     changeBtn.textContent = changeLabel();
 
     const emailForm = container.querySelector('#checkout-account-email-form');
@@ -211,6 +331,8 @@
     const createToggle = container.querySelector('#checkout-account-create-toggle');
 
     const createForm = container.querySelector('#checkout-account-create-form');
+    const createFirstNameInput = container.querySelector('#checkout-account-create-firstname');
+    const createLastNameInput = container.querySelector('#checkout-account-create-lastname');
     const createPasswordInput = container.querySelector('#checkout-account-create-password');
     const createConfirmInput = container.querySelector('#checkout-account-create-confirm');
     const createError = container.querySelector('#checkout-account-create-error');
@@ -260,6 +382,10 @@
         showStep('email');
         emailInput.value = '';
         emailError.hidden = true;
+        // Clears the one-time "confirmation email sent" note back out --
+        // it should never survive a log-out into the next session (guest or
+        // otherwise) that happens to resolve afterward.
+        createdNote.hidden = true;
         if (options.onUnresolved) options.onUnresolved();
         return;
       }
@@ -289,6 +415,8 @@
         loginPasswordInput.focus();
       } else {
         newEmailEcho.textContent = email;
+        createFirstNameInput.value = '';
+        createLastNameInput.value = '';
         createPasswordInput.value = '';
         createConfirmInput.value = '';
         createError.hidden = true;
@@ -318,11 +446,16 @@
 
     createForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      // Checked in sequence, each with its own early return, so a password
-      // that's both too weak AND mismatched doesn't have one problem
-      // silently mask the other -- the user always sees whichever is wrong
-      // first, and fixing it surfaces the next one rather than both failing
-      // invisibly.
+      // Checked in sequence, each with its own early return, so multiple
+      // problems (e.g. a missing name AND a too-weak password) don't have one
+      // silently mask another -- the user always sees whichever is wrong
+      // first, and fixing it surfaces the next one rather than all failing
+      // invisibly at once. Name check comes first since those fields are now
+      // the first ones in the form, top to bottom.
+      if (!createFirstNameInput.value.trim() || !createLastNameInput.value.trim()) {
+        showFieldError(createError, 'accountGate.errorNameRequired');
+        return;
+      }
       if (!isValidPassword(createPasswordInput.value)) {
         showFieldError(createError, 'accountGate.errorPasswordWeak');
         return;
@@ -332,8 +465,21 @@
         return;
       }
       createError.hidden = true;
-      const result = createAccount(newEmailEcho.textContent, createPasswordInput.value);
+      const newAccountEmail = newEmailEcho.textContent;
+      const result = createAccount(newAccountEmail, createPasswordInput.value, {
+        firstName: createFirstNameInput.value.trim(),
+        lastName: createLastNameInput.value.trim()
+      });
       if (result.ok) {
+        // Mocked confirmation only -- no email is actually sent, same as
+        // every other "confirmation" on this site (see the file-level
+        // comment at the top of this file). resolveSession() below rebuilds
+        // statusText/statusEl right after this, but never touches
+        // createdNote itself, so it stays visible alongside the new
+        // "Logged in as X" status line until the user logs out (see
+        // resolveSession()'s "no session" branch, which is what clears it).
+        createdNote.textContent = t('accountGate.confirmationEmailSent', { email: newAccountEmail });
+        createdNote.hidden = false;
         resolveSession();
       } else {
         showFieldError(createError, 'accountGate.errorAccountExists');
@@ -368,6 +514,10 @@
     continueAsGuest,
     logOut,
     getSession,
+    updateAccount,
+    recordOrder,
+    getOrders,
+    deleteAccount,
     mountAccountGate
   };
 })(window);

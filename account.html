@@ -60,12 +60,123 @@
       <div id="account-gate"></div>
     </div>
 
-    <div id="account-order-history" hidden>
+    <!-- Edit Profile / Saved Address / Preferences / Delete Account: logged-in
+         (non-guest) only -- a guest session has no account record for any of
+         these to read from or write to, see the inline script below. -->
+    <div id="account-profile" class="account-section" hidden>
+      <h2 class="checkout-section-heading" data-i18n="account.editProfileHeading">Edit Profile</h2>
+      <form id="account-profile-form" novalidate>
+        <label class="checkout-field">
+          <span data-i18n="account.emailLabel">Email</span>
+          <input type="email" name="email" autocomplete="email" required>
+          <p class="promo-message promo-message-error" id="account-profile-email-error" aria-live="polite" hidden></p>
+        </label>
+        <label class="checkout-field">
+          <span data-i18n="account.passwordLabel">New Password</span>
+          <input type="password" name="password" autocomplete="new-password">
+          <p class="checkout-account-email-echo" data-i18n="account.passwordHint">Leave blank to keep your current password.</p>
+          <p class="promo-message promo-message-error" id="account-profile-password-error" aria-live="polite" hidden></p>
+        </label>
+        <div class="checkout-field-row">
+          <label class="checkout-field">
+            <span data-i18n="account.firstNameLabel">First Name</span>
+            <input type="text" name="firstName" autocomplete="given-name">
+          </label>
+          <label class="checkout-field">
+            <span data-i18n="account.lastNameLabel">Last Name</span>
+            <input type="text" name="lastName" autocomplete="family-name">
+          </label>
+        </div>
+        <label class="checkout-field">
+          <span data-i18n="account.dobLabel">Date of Birth</span>
+          <input type="date" name="dob" autocomplete="bday">
+        </label>
+        <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="account.saveProfileBtn">Save Changes</button>
+        <p class="promo-message promo-message-success" id="account-profile-success" aria-live="polite" hidden></p>
+      </form>
+    </div>
+
+    <div id="account-address" class="account-section" hidden>
+      <h2 class="checkout-section-heading" data-i18n="account.addressHeading">Saved Shipping Address</h2>
+      <form id="account-address-form" novalidate>
+        <label class="checkout-field">
+          <span data-i18n="account.addressLabel">Address</span>
+          <!-- Enhanced with Google Places Autocomplete by
+               js/places-autocomplete.js if a real API key is configured
+               there -- degrades to a plain text input otherwise (see that
+               file's own comment). -->
+          <input type="text" name="address" autocomplete="street-address">
+        </label>
+        <label class="checkout-field">
+          <span data-i18n="account.addressLine2Label">Address Line 2</span>
+          <input type="text" name="address2" autocomplete="address-line2">
+        </label>
+        <div class="checkout-field-row">
+          <label class="checkout-field">
+            <span data-i18n="account.cityLabel">City</span>
+            <input type="text" name="city" autocomplete="address-level2">
+          </label>
+          <label class="checkout-field">
+            <span data-i18n="account.postalCodeLabel">Postal Code</span>
+            <input type="text" name="postal" autocomplete="postal-code">
+          </label>
+        </div>
+        <label class="checkout-field">
+          <span data-i18n="account.phoneLabel">Phone Number</span>
+          <input type="tel" name="phone" autocomplete="tel">
+        </label>
+        <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="account.saveAddressBtn">Save Address</button>
+        <p class="promo-message promo-message-success" id="account-address-success" aria-live="polite" hidden></p>
+      </form>
+    </div>
+
+    <div id="account-payment" class="account-section" hidden>
+      <h2 class="checkout-section-heading" data-i18n="account.paymentHeading">Saved Card</h2>
+      <form id="account-payment-form" novalidate>
+        <label class="checkout-field">
+          <span data-i18n="account.cardNameLabel">Name on Card</span>
+          <input type="text" name="cardName" autocomplete="cc-name">
+        </label>
+        <label class="checkout-field">
+          <span data-i18n="account.cardNumberLabel">Card Number</span>
+          <input type="text" name="cardNumber" autocomplete="cc-number" placeholder="4242 4242 4242 4242">
+        </label>
+        <label class="checkout-field">
+          <span data-i18n="account.cardExpiryLabel">Expiry</span>
+          <input type="text" name="cardExpiry" autocomplete="cc-exp" placeholder="MM / YY">
+        </label>
+        <!-- CVC is deliberately never asked for/stored here, mocked or not --
+             same real-world practice as an actual payment processor (see
+             checkout.html's own comment on its own always-blank CVC field). -->
+        <p class="checkout-payment-note" data-i18n="account.paymentMockNote">Mocked for demo purposes — no real card data is stored or processed.</p>
+        <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="account.savePaymentBtn">Save Card</button>
+        <p class="promo-message promo-message-success" id="account-payment-success" aria-live="polite" hidden></p>
+      </form>
+    </div>
+
+    <div id="account-preferences" class="account-section" hidden>
+      <h2 class="checkout-section-heading" data-i18n="account.preferencesHeading">Preferences</h2>
+      <label class="account-toggle-row">
+        <input type="checkbox" id="account-marketing-toggle">
+        <span data-i18n="account.marketingLabel">Receive marketing emails</span>
+      </label>
+    </div>
+
+    <div id="account-order-history" class="account-section" hidden>
       <h2 class="checkout-section-heading" data-i18n="account.orderHistoryHeading">Order History</h2>
-      <!-- PLACEHOLDER: no real order/purchase data model exists yet -- this
-           is a visual placeholder only, not wired to any actual past
-           orders. Replace once real accounts + an orders backend exist. -->
-      <p class="checkout-empty-note" data-i18n="account.noOrdersYet">No orders yet — your past purchases will appear here.</p>
+      <p class="checkout-empty-note" id="account-no-orders" data-i18n="account.noOrdersYet">No orders yet — your past purchases will appear here.</p>
+      <ul class="account-order-list" id="account-order-list" hidden></ul>
+    </div>
+
+    <div id="account-danger" class="account-section" hidden>
+      <button type="button" class="checkout-account-link-btn account-delete-btn" id="account-delete-btn" data-i18n="account.deleteAccountBtn">Delete Account</button>
+      <div id="account-delete-confirm" hidden>
+        <p class="checkout-account-intro" data-i18n="account.deleteConfirmText">Delete your account permanently? This cannot be undone.</p>
+        <div class="checkout-account-options">
+          <button type="button" class="cta-button checkout-account-btn-sm account-delete-confirm-btn" id="account-delete-confirm-btn" data-i18n="account.deleteConfirmBtn">Confirm Delete</button>
+          <button type="button" class="checkout-account-link-btn" id="account-delete-cancel-btn" data-i18n="account.deleteCancelBtn">Cancel</button>
+        </div>
+      </div>
     </div>
   </div>
 </main>
@@ -90,20 +201,283 @@
 <script src="js/cart-widget.js?v=20260719"></script>
 <script src="js/nav-menu.js?v=20260719"></script>
 <script src="js/account.js?v=20260719"></script>
+<script src="js/places-autocomplete.js?v=20260719"></script>
 <script>
 (function () {
-  const orderHistory = document.getElementById('account-order-history');
+  const account = window.MonarkAccount;
   function t(key, vars) { return window.MonarkI18n ? window.MonarkI18n.t(key, vars) : key; }
+  // Same two-decimal €-prefixed formatter as checkout.html's own money() --
+  // duplicated rather than shared since the two pages don't share a script.
+  function money(n) {
+    return '€' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function isValidEmail(value) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
+  // Same floor as js/account.js's own createAccount() password rule (8+
+  // chars, at least one letter and one number) -- Edit Profile's "same
+  // validation as account creation" requirement, duplicated here rather than
+  // exported from account.js since it's also re-declared privately inside
+  // that file's own mountAccountGate() closure, not part of its public API.
+  function isValidPassword(value) { return value.length >= 8 && /[A-Za-z]/.test(value) && /[0-9]/.test(value); }
+
+  const profileSection = document.getElementById('account-profile');
+  const profileForm = document.getElementById('account-profile-form');
+  const profileEmailInput = profileForm.querySelector('[name="email"]');
+  const profilePasswordInput = profileForm.querySelector('[name="password"]');
+  const profileFirstNameInput = profileForm.querySelector('[name="firstName"]');
+  const profileLastNameInput = profileForm.querySelector('[name="lastName"]');
+  const profileDobInput = profileForm.querySelector('[name="dob"]');
+  const profileEmailError = document.getElementById('account-profile-email-error');
+  const profilePasswordError = document.getElementById('account-profile-password-error');
+  const profileSuccess = document.getElementById('account-profile-success');
+
+  const addressSection = document.getElementById('account-address');
+  const addressForm = document.getElementById('account-address-form');
+  const addressInput = addressForm.querySelector('[name="address"]');
+  const address2Input = addressForm.querySelector('[name="address2"]');
+  const cityInput = addressForm.querySelector('[name="city"]');
+  const postalInput = addressForm.querySelector('[name="postal"]');
+  const phoneInput = addressForm.querySelector('[name="phone"]');
+  const addressSuccess = document.getElementById('account-address-success');
+
+  const paymentSection = document.getElementById('account-payment');
+  const paymentForm = document.getElementById('account-payment-form');
+  const cardNameInput = paymentForm.querySelector('[name="cardName"]');
+  const cardNumberInput = paymentForm.querySelector('[name="cardNumber"]');
+  const cardExpiryInput = paymentForm.querySelector('[name="cardExpiry"]');
+  const paymentSuccess = document.getElementById('account-payment-success');
+
+  const preferencesSection = document.getElementById('account-preferences');
+  const marketingToggle = document.getElementById('account-marketing-toggle');
+
+  const orderHistory = document.getElementById('account-order-history');
+  const noOrdersNote = document.getElementById('account-no-orders');
+  const orderList = document.getElementById('account-order-list');
+
+  const dangerSection = document.getElementById('account-danger');
+  const deleteBtn = document.getElementById('account-delete-btn');
+  const deleteConfirmBlock = document.getElementById('account-delete-confirm');
+  const deleteConfirmBtn = document.getElementById('account-delete-confirm-btn');
+  const deleteCancelBtn = document.getElementById('account-delete-cancel-btn');
+
+  function resetDeleteConfirm() { deleteConfirmBlock.hidden = true; }
+
+  // Order History is the one section shown for EVERY resolved session,
+  // guest included -- account.getOrders() naturally returns [] for a guest
+  // (there's no account record to look it up against), so "No orders yet"
+  // is exactly what a guest should see here, with no special-casing needed.
+  function renderOrders(email) {
+    const orders = account.getOrders(email);
+    if (!orders.length) {
+      noOrdersNote.hidden = false;
+      orderList.hidden = true;
+      orderList.innerHTML = '';
+      return;
+    }
+    noOrdersNote.hidden = true;
+    orderList.hidden = false;
+    const locale = window.MonarkI18n && window.MonarkI18n.getLang() === 'fr' ? 'fr-FR' : 'en-US';
+    // Most-recent-first is already account.getOrders()'s own contract (see
+    // that function's comment) -- this just renders in the order it's given.
+    orderList.innerHTML = orders.map((order) => {
+      const dateStr = new Date(order.date).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+      return `
+        <li class="account-order-item">
+          <p class="account-order-date">${t('account.orderDate', { date: dateStr })}</p>
+          <p class="account-order-product">${order.productName}</p>
+          <p class="account-order-meta">
+            <span>${t('account.orderQty', { qty: order.quantity })}</span>
+            <span>${t('account.orderTotalLine', { total: money(order.total) })}</span>
+          </p>
+        </li>
+      `;
+    }).join('');
+  }
+
+  // Populates Edit Profile/Address/Preferences from the account's current
+  // stored values -- called fresh every time the gate resolves to a
+  // non-guest session (mount, and after every log-in/guest-to-account
+  // switch/create), so it's never showing stale data left over from a
+  // previously logged-in account on a shared machine.
+  function renderProfile(email) {
+    const acc = account.findAccount(email);
+    if (!acc) return;
+    profileEmailInput.value = acc.email;
+    profilePasswordInput.value = '';
+    profileFirstNameInput.value = acc.firstName || '';
+    profileLastNameInput.value = acc.lastName || '';
+    profileDobInput.value = acc.dob || '';
+    profileEmailError.hidden = true;
+    profilePasswordError.hidden = true;
+    profileSuccess.hidden = true;
+
+    addressInput.value = acc.address || '';
+    address2Input.value = acc.address2 || '';
+    cityInput.value = acc.city || '';
+    postalInput.value = acc.postal || '';
+    phoneInput.value = acc.phone || '';
+    addressSuccess.hidden = true;
+
+    cardNameInput.value = acc.cardName || '';
+    cardNumberInput.value = acc.cardNumber || '';
+    cardExpiryInput.value = acc.cardExpiry || '';
+    paymentSuccess.hidden = true;
+
+    // acc.marketingOptIn defaults true for every account created since this
+    // feature shipped (see account.js's createAccount()) -- the `!== false`
+    // check is only for accounts that predate it, so an old record without
+    // the field at all still reads as opted-in rather than silently opted-out.
+    marketingToggle.checked = acc.marketingOptIn !== false;
+  }
+
+  function showExtras(session) {
+    renderOrders(session.email);
+    orderHistory.hidden = false;
+
+    if (session.isGuest) {
+      profileSection.hidden = true;
+      addressSection.hidden = true;
+      paymentSection.hidden = true;
+      preferencesSection.hidden = true;
+      dangerSection.hidden = true;
+      return;
+    }
+    renderProfile(session.email);
+    resetDeleteConfirm();
+    profileSection.hidden = false;
+    addressSection.hidden = false;
+    paymentSection.hidden = false;
+    preferencesSection.hidden = false;
+    dangerSection.hidden = false;
+  }
+
+  function hideExtras() {
+    orderHistory.hidden = true;
+    profileSection.hidden = true;
+    addressSection.hidden = true;
+    paymentSection.hidden = true;
+    preferencesSection.hidden = true;
+    dangerSection.hidden = true;
+    resetDeleteConfirm();
+  }
+
+  profileForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const session = account.getSession();
+    if (!session || session.isGuest) return;
+    const email = profileEmailInput.value.trim();
+    if (!email) {
+      profileEmailError.textContent = t('accountGate.errorEmailEmpty');
+      profileEmailError.hidden = false;
+      return;
+    }
+    if (!isValidEmail(email)) {
+      profileEmailError.textContent = t('accountGate.errorEmailInvalid');
+      profileEmailError.hidden = false;
+      return;
+    }
+    profileEmailError.hidden = true;
+
+    const password = profilePasswordInput.value;
+    if (password && !isValidPassword(password)) {
+      profilePasswordError.textContent = t('accountGate.errorPasswordWeak');
+      profilePasswordError.hidden = false;
+      return;
+    }
+    profilePasswordError.hidden = true;
+
+    const patch = {
+      email,
+      firstName: profileFirstNameInput.value.trim(),
+      lastName: profileLastNameInput.value.trim(),
+      dob: profileDobInput.value
+    };
+    // Empty string, not omitted -- updateAccount() itself treats an empty
+    // password as "don't change it" (see its own comment), so this is only
+    // here to skip that check entirely when the field was left blank.
+    if (password) patch.password = password;
+
+    const result = account.updateAccount(session.email, patch);
+    if (!result.ok) {
+      // The only failure mode updateAccount() returns here is an email
+      // collision with a DIFFERENT existing account -- same error copy as
+      // the account-gate's own create-account step for the identical
+      // condition.
+      profileEmailError.textContent = t('accountGate.errorAccountExists');
+      profileEmailError.hidden = false;
+      return;
+    }
+    profilePasswordInput.value = '';
+    profileSuccess.textContent = t('account.profileUpdated');
+    profileSuccess.hidden = false;
+  });
+
+  addressForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const session = account.getSession();
+    if (!session || session.isGuest) return;
+    account.updateAccount(session.email, {
+      address: addressInput.value.trim(),
+      address2: address2Input.value.trim(),
+      city: cityInput.value.trim(),
+      postal: postalInput.value.trim(),
+      phone: phoneInput.value.trim()
+    });
+    addressSuccess.textContent = t('account.addressUpdated');
+    addressSuccess.hidden = false;
+  });
+
+  // Purely mocked/cosmetic, same spirit as checkout.html's own disabled
+  // Payment fields -- no real card data is ever validated, processed, or
+  // transmitted anywhere. CVC is deliberately not part of this form at all
+  // (see the HTML comment on account-payment's markup).
+  paymentForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const session = account.getSession();
+    if (!session || session.isGuest) return;
+    account.updateAccount(session.email, {
+      cardName: cardNameInput.value.trim(),
+      cardNumber: cardNumberInput.value.trim(),
+      cardExpiry: cardExpiryInput.value.trim()
+    });
+    paymentSuccess.textContent = t('account.paymentUpdated');
+    paymentSuccess.hidden = false;
+  });
+
+  // Instant save on toggle, no separate submit button -- the checkbox's own
+  // new state already reads as the confirmation for a plain on/off
+  // preference like this one.
+  marketingToggle.addEventListener('change', () => {
+    const session = account.getSession();
+    if (!session || session.isGuest) return;
+    account.updateAccount(session.email, { marketingOptIn: marketingToggle.checked });
+  });
+
+  deleteBtn.addEventListener('click', () => { deleteConfirmBlock.hidden = false; });
+  deleteCancelBtn.addEventListener('click', resetDeleteConfirm);
+  deleteConfirmBtn.addEventListener('click', () => {
+    const session = account.getSession();
+    if (!session || session.isGuest) return;
+    account.deleteAccount(session.email);
+    // deleteAccount() already calls logOut() internally (clears the session
+    // + fires 'account:updated'), but the gate instance below only reacts to
+    // 'monark:langchange', not that event -- gate.resolveSession() below is
+    // what actually flips its own UI back to the logged-out email-entry step
+    // immediately, rather than leaving it showing the just-deleted account's
+    // stale "Logged in as X" status until some unrelated event forces a
+    // re-check.
+    gate.resolveSession();
+  });
+
   // statusLabel/changeLabel passed as functions, not plain strings -- see
   // js/account.js's mountAccountGate() comment on why (re-invoked fresh on
   // every 'monark:langchange' so a language switch updates them in place).
-  window.MonarkAccount.mountAccountGate(document.getElementById('account-gate'), {
+  const gate = window.MonarkAccount.mountAccountGate(document.getElementById('account-gate'), {
     statusLabel: (session) => session.isGuest
       ? t('account.statusGuest', { email: session.email })
       : t('accountGate.loggedInAs', { email: session.email }),
     changeLabel: () => t('account.logOut'),
-    onResolved: () => { orderHistory.hidden = false; },
-    onUnresolved: () => { orderHistory.hidden = true; }
+    onResolved: (session) => { showExtras(session); },
+    onUnresolved: () => { hideExtras(); }
   });
 })();
 </script>

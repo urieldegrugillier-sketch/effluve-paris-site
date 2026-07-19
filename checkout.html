@@ -74,61 +74,147 @@
           </form>
         </div>
         <div class="checkout-col checkout-details-col">
-          <div id="checkout-account-step">
-            <h2 class="checkout-section-heading" data-i18n="common.account">Account</h2>
-            <!-- Filled by window.MonarkAccount.mountAccountGate() below --
-                 same shared email/log-in/create-account flow account.html
-                 uses, see js/account.js. -->
-            <div id="checkout-account-gate"></div>
+          <!-- Single-page accordion: Account -> Shipping -> Payment, one open
+               section at a time, same page/URL throughout (no multi-step
+               navigation). Each completed section collapses to a compact
+               summary line and can be re-opened by clicking its own header;
+               see the inline script below for the state machine driving
+               aria-expanded/hidden on every section here. -->
+          <div class="checkout-accordion" id="checkout-accordion">
+
+            <section class="checkout-accordion-section" id="checkout-section-account" data-step="account">
+              <button type="button" class="checkout-accordion-header" id="checkout-account-header" aria-expanded="true" aria-controls="checkout-account-body">
+                <span class="checkout-accordion-header-text">
+                  <span class="checkout-accordion-step-num">1</span>
+                  <span class="checkout-accordion-title" data-i18n="common.account">Account</span>
+                </span>
+                <span class="checkout-accordion-summary" id="checkout-account-header-summary"></span>
+                <svg class="checkout-accordion-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M2 4L7 9L12 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="checkout-accordion-body" id="checkout-account-body">
+                <!-- Filled by window.MonarkAccount.mountAccountGate() below --
+                     same shared email/log-in/create-account flow account.html
+                     uses, see js/account.js. -->
+                <div id="checkout-account-gate"></div>
+              </div>
+            </section>
+
+            <!-- Shipping + Payment share one <form> (submit = Place Order,
+                 fired only from Payment's button) same as before the
+                 accordion split -- Account isn't part of it (its own steps
+                 are separate <form> elements nested inside
+                 accountGateMarkup(), and forms can't nest). -->
+            <form id="checkout-form" novalidate hidden>
+              <section class="checkout-accordion-section" id="checkout-section-shipping" data-step="shipping">
+                <button type="button" class="checkout-accordion-header" id="checkout-shipping-header" aria-expanded="false" aria-controls="checkout-shipping-body" disabled>
+                  <span class="checkout-accordion-header-text">
+                    <span class="checkout-accordion-step-num">2</span>
+                    <span class="checkout-accordion-title" data-i18n="checkout.shippingInformation">Shipping Information</span>
+                  </span>
+                  <span class="checkout-accordion-summary" id="checkout-shipping-header-summary"></span>
+                  <svg class="checkout-accordion-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <path d="M2 4L7 9L12 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+                <div class="checkout-accordion-body" id="checkout-shipping-body" hidden>
+                  <div class="checkout-field-row">
+                    <label class="checkout-field">
+                      <span data-i18n="checkout.firstName">First Name</span>
+                      <input type="text" name="firstName" autocomplete="given-name" required>
+                      <p class="promo-message promo-message-error" id="checkout-error-firstName" data-i18n="checkout.errorFirstName" aria-live="polite" hidden>Please enter your first name.</p>
+                    </label>
+                    <label class="checkout-field">
+                      <span data-i18n="checkout.lastName">Last Name</span>
+                      <input type="text" name="lastName" autocomplete="family-name" required>
+                      <p class="promo-message promo-message-error" id="checkout-error-lastName" data-i18n="checkout.errorLastName" aria-live="polite" hidden>Please enter your last name.</p>
+                    </label>
+                  </div>
+                  <label class="checkout-field">
+                    <span data-i18n="checkout.address">Address</span>
+                    <!-- Enhanced with Google Places Autocomplete by
+                         js/places-autocomplete.js if a real API key is
+                         configured there -- degrades to a plain text input
+                         otherwise (see that file's own comment). -->
+                    <input type="text" name="address" autocomplete="street-address" required>
+                    <p class="promo-message promo-message-error" id="checkout-error-address" data-i18n="checkout.errorAddress" aria-live="polite" hidden>Please enter your address.</p>
+                  </label>
+                  <label class="checkout-field">
+                    <span data-i18n="checkout.addressLine2">Address Line 2 (optional)</span>
+                    <input type="text" name="address2" autocomplete="address-line2">
+                  </label>
+                  <div class="checkout-field-row">
+                    <label class="checkout-field">
+                      <span data-i18n="checkout.city">City</span>
+                      <input type="text" name="city" autocomplete="address-level2" required>
+                      <p class="promo-message promo-message-error" id="checkout-error-city" data-i18n="checkout.errorCity" aria-live="polite" hidden>Please enter your city.</p>
+                    </label>
+                    <label class="checkout-field">
+                      <span data-i18n="checkout.postalCode">Postal Code</span>
+                      <input type="text" name="postal" autocomplete="postal-code" required>
+                      <p class="promo-message promo-message-error" id="checkout-error-postal" data-i18n="checkout.errorPostal" aria-live="polite" hidden>Please enter your postal code.</p>
+                    </label>
+                  </div>
+                  <label class="checkout-field">
+                    <span data-i18n="checkout.phone">Phone Number (optional)</span>
+                    <input type="tel" name="phone" autocomplete="tel">
+                  </label>
+                  <button type="button" class="cta-button checkout-accordion-next-btn" id="checkout-shipping-next-btn" data-i18n="checkout.nextStep" disabled>Next Step</button>
+                </div>
+              </section>
+
+              <section class="checkout-accordion-section" id="checkout-section-payment" data-step="payment">
+                <button type="button" class="checkout-accordion-header" id="checkout-payment-header" aria-expanded="false" aria-controls="checkout-payment-body" disabled>
+                  <span class="checkout-accordion-header-text">
+                    <span class="checkout-accordion-step-num">3</span>
+                    <span class="checkout-accordion-title" data-i18n="checkout.payment">Payment</span>
+                  </span>
+                  <span class="checkout-accordion-summary" id="checkout-payment-header-summary"></span>
+                  <svg class="checkout-accordion-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <path d="M2 4L7 9L12 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+                <div class="checkout-accordion-body" id="checkout-payment-body" hidden>
+                  <!-- Placeholder for real Stripe Checkout integration later. These
+                       fields are visual only: disabled, never read, never submitted,
+                       never stored anywhere -- Name on Card/Card Number/Expiry are
+                       pre-filled (still read-only) from the account's own Saved Card
+                       on account.html for a logged-in non-guest session, see this
+                       page's own inline script below. CVC is never saved/prefilled
+                       anywhere, mock or not -- same real-world practice as an actual
+                       payment processor. -->
+                  <label class="checkout-field">
+                    <span data-i18n="checkout.nameOnCard">Name on Card</span>
+                    <input type="text" name="cardName" placeholder="Jane Doe" disabled>
+                  </label>
+                  <label class="checkout-field">
+                    <span data-i18n="checkout.cardNumber">Card Number</span>
+                    <input type="text" name="cardNumber" placeholder="4242 4242 4242 4242" disabled>
+                  </label>
+                  <div class="checkout-field-row">
+                    <label class="checkout-field">
+                      <span data-i18n="checkout.expiry">Expiry</span>
+                      <input type="text" name="cardExpiry" placeholder="MM / YY" disabled>
+                    </label>
+                    <label class="checkout-field">
+                      <span data-i18n="checkout.cvc">CVC</span>
+                      <input type="text" placeholder="123" disabled>
+                    </label>
+                  </div>
+                  <p class="checkout-payment-note" data-i18n="checkout.paymentNote">Payment processing isn't connected yet — this is a visual placeholder only.</p>
+
+                  <label class="account-toggle-row checkout-terms-row">
+                    <input type="checkbox" id="checkout-terms-checkbox">
+                    <span data-i18n-html="checkout.termsLabel">I accept the <a href="cgv.html" target="_blank" rel="noopener">Terms &amp; Conditions of Sale</a>.</span>
+                  </label>
+                  <p class="promo-message promo-message-error" id="checkout-terms-error" data-i18n="checkout.errorTerms" aria-live="polite" hidden>Please accept the Terms &amp; Conditions of Sale to continue.</p>
+
+                  <button type="submit" class="cta-button checkout-submit" id="checkout-submit-btn" data-i18n="checkout.placeOrder">Place Order</button>
+                </div>
+              </section>
+            </form>
           </div>
-
-          <form id="checkout-form" novalidate hidden>
-            <h2 class="checkout-section-heading" data-i18n="checkout.shippingInformation">Shipping Information</h2>
-            <label class="checkout-field">
-              <span data-i18n="checkout.fullName">Full Name</span>
-              <input type="text" name="name" autocomplete="name" required>
-              <p class="promo-message promo-message-error" id="checkout-error-name" data-i18n="checkout.errorFullName" aria-live="polite" hidden>Please enter your full name.</p>
-            </label>
-            <label class="checkout-field">
-              <span data-i18n="checkout.address">Address</span>
-              <input type="text" name="address" autocomplete="street-address" required>
-              <p class="promo-message promo-message-error" id="checkout-error-address" data-i18n="checkout.errorAddress" aria-live="polite" hidden>Please enter your address.</p>
-            </label>
-            <div class="checkout-field-row">
-              <label class="checkout-field">
-                <span data-i18n="checkout.city">City</span>
-                <input type="text" name="city" autocomplete="address-level2" required>
-                <p class="promo-message promo-message-error" id="checkout-error-city" data-i18n="checkout.errorCity" aria-live="polite" hidden>Please enter your city.</p>
-              </label>
-              <label class="checkout-field">
-                <span data-i18n="checkout.postalCode">Postal Code</span>
-                <input type="text" name="postal" autocomplete="postal-code" required>
-                <p class="promo-message promo-message-error" id="checkout-error-postal" data-i18n="checkout.errorPostal" aria-live="polite" hidden>Please enter your postal code.</p>
-              </label>
-            </div>
-
-            <h2 class="checkout-section-heading" data-i18n="checkout.payment">Payment</h2>
-            <!-- Placeholder for real Stripe Checkout integration later. These
-                 fields are visual only: disabled, never read, never submitted,
-                 never stored anywhere. -->
-            <label class="checkout-field">
-              <span data-i18n="checkout.cardNumber">Card Number</span>
-              <input type="text" placeholder="4242 4242 4242 4242" disabled>
-            </label>
-            <div class="checkout-field-row">
-              <label class="checkout-field">
-                <span data-i18n="checkout.expiry">Expiry</span>
-                <input type="text" placeholder="MM / YY" disabled>
-              </label>
-              <label class="checkout-field">
-                <span data-i18n="checkout.cvc">CVC</span>
-                <input type="text" placeholder="123" disabled>
-              </label>
-            </div>
-            <p class="checkout-payment-note" data-i18n="checkout.paymentNote">Payment processing isn't connected yet — this is a visual placeholder only.</p>
-
-            <button type="submit" class="cta-button checkout-submit" id="checkout-submit-btn" data-i18n="checkout.placeOrder">Place Order</button>
-          </form>
         </div>
       </div>
     </div>
@@ -162,10 +248,76 @@
 <script src="js/cart-widget.js?v=20260719"></script>
 <script src="js/nav-menu.js?v=20260719"></script>
 <script src="js/account.js?v=20260719"></script>
+<script src="js/places-autocomplete.js?v=20260719"></script>
 <script>
 (function () {
   const shippingForm = document.getElementById('checkout-form');
   function t(key, vars) { return window.MonarkI18n ? window.MonarkI18n.t(key, vars) : key; }
+
+  /* ---------------- Accordion state machine ----------------
+     Three sections (account/shipping/payment), only one ever "active"
+     (expanded) at a time. A section that's been successfully validated once
+     collapses to 'completed' (compact summary line in its own header,
+     clickable to re-open); a section not yet reached stays 'pending'
+     (collapsed, header disabled -- can't jump ahead of the flow). Payment
+     never itself becomes 'completed' -- it's the last step, and a successful
+     submit replaces the whole accordion with the confirmation view instead
+     of collapsing back down. */
+  const STEP_ORDER = ['account', 'shipping', 'payment'];
+  const sectionEls = {};
+  STEP_ORDER.forEach((step) => {
+    sectionEls[step] = {
+      root: document.getElementById('checkout-section-' + step),
+      header: document.getElementById('checkout-' + step + '-header'),
+      body: document.getElementById('checkout-' + step + '-body'),
+      summary: document.getElementById('checkout-' + step + '-header-summary')
+    };
+  });
+  const sectionState = { account: 'active', shipping: 'pending', payment: 'pending' };
+  const completedFlags = { account: false, shipping: false, payment: false };
+
+  function applyAccordionState() {
+    STEP_ORDER.forEach((step) => {
+      const { root, header, body } = sectionEls[step];
+      const state = sectionState[step];
+      body.hidden = state !== 'active';
+      header.setAttribute('aria-expanded', String(state === 'active'));
+      header.disabled = state === 'pending';
+      root.classList.toggle('checkout-accordion-active', state === 'active');
+      root.classList.toggle('checkout-accordion-completed', state === 'completed');
+    });
+  }
+
+  // Opens `step`, collapsing whichever section was open -- back to
+  // 'completed' if it already has a valid summary on file, or 'pending'
+  // (locked again) if it doesn't (e.g. reopening Shipping while Payment was
+  // active but never actually submitted).
+  function openAccordionSection(step) {
+    STEP_ORDER.forEach((s) => {
+      if (s === step) {
+        sectionState[s] = 'active';
+      } else if (sectionState[s] === 'active') {
+        sectionState[s] = completedFlags[s] ? 'completed' : 'pending';
+      }
+    });
+    applyAccordionState();
+  }
+
+  function completeAccordionSection(step, summaryText) {
+    completedFlags[step] = true;
+    sectionEls[step].summary.textContent = summaryText;
+  }
+
+  // Clicking a header only ever re-opens an already-completed (collapsed)
+  // section -- pending headers are disabled outright, and clicking the
+  // currently-active section's own header is a harmless no-op (nothing to
+  // collapse it into).
+  STEP_ORDER.forEach((step) => {
+    sectionEls[step].header.addEventListener('click', () => {
+      if (sectionState[step] === 'completed') openAccordionSection(step);
+    });
+  });
+
   // See js/account.js's mountAccountGate() -- same email/log-in/create-
   // account flow account.html uses, extracted there so this page and that
   // one share one implementation instead of two that can drift apart.
@@ -173,18 +325,70 @@
   // mountAccountGate() can re-invoke them fresh on every 'monark:langchange'
   // -- see that file's own comment on why a plain string captured once at
   // mount time can't respond to a later language switch.
+  // Pre-fills First/Last Name + Address/Address Line 2/City/Postal Code/Phone
+  // from the account's own saved profile/address (js/account.js's
+  // updateAccount()), and Name on Card/Card Number/Expiry from its Saved Card,
+  // whenever a logged-in (non-guest) session resolves -- guests have no
+  // account record to read from, so this is a no-op for them, same as it
+  // always was. Only fills fields the account actually has a value for, and
+  // only once (right when the gate resolves, before the user's typed
+  // anything), so it can never clobber something the user is mid-typing.
+  function prefillShippingFromAccount(session) {
+    if (session.isGuest) return;
+    const account = window.MonarkAccount.findAccount(session.email);
+    if (!account) return;
+    const fieldMap = {
+      firstName: account.firstName,
+      lastName: account.lastName,
+      address: account.address,
+      address2: account.address2,
+      city: account.city,
+      postal: account.postal,
+      phone: account.phone,
+      cardName: account.cardName,
+      cardNumber: account.cardNumber,
+      cardExpiry: account.cardExpiry
+    };
+    Object.keys(fieldMap).forEach((name) => {
+      const value = fieldMap[name];
+      const input = shippingForm.querySelector(`[name="${name}"]`);
+      if (input && value) input.value = value;
+    });
+  }
+
+  // Account section's own "Next Step" is whatever action resolves the gate
+  // (guest continue / log in / create account) -- adapting that existing
+  // behavior into the accordion pattern rather than replacing it with a
+  // second, redundant button.
+  function accountSummaryText(session) {
+    return session.isGuest
+      ? t('checkout.accordionAccountSummaryGuest', { email: session.email })
+      : session.email;
+  }
+
   window.MonarkAccount.mountAccountGate(document.getElementById('checkout-account-gate'), {
     statusLabel: (session) => session.isGuest
       ? t('checkout.statusGuest', { email: session.email })
       : t('accountGate.loggedInAs', { email: session.email }),
     changeLabel: () => t('accountGate.modify'),
-    onResolved: () => { shippingForm.hidden = false; },
-    onUnresolved: () => { shippingForm.hidden = true; }
+    onResolved: (session) => {
+      shippingForm.hidden = false;
+      prefillShippingFromAccount(session);
+      completeAccordionSection('account', accountSummaryText(session));
+      openAccordionSection('shipping');
+    },
+    onUnresolved: () => {
+      shippingForm.hidden = true;
+      completedFlags.account = false;
+      completedFlags.shipping = false;
+      completedFlags.payment = false;
+      sectionState.account = 'active';
+      sectionState.shipping = 'pending';
+      sectionState.payment = 'pending';
+      applyAccordionState();
+    }
   });
-})();
-</script>
-<script>
-(function () {
+
   const cart = window.MonarkCart;
   const summaryEl = document.getElementById('checkout-summary');
   const form = document.getElementById('checkout-form');
@@ -198,8 +402,6 @@
   const promoInput = document.getElementById('checkout-promo-input');
   const promoMessage = document.getElementById('checkout-promo-message');
 
-  function t(key, vars) { return window.MonarkI18n ? window.MonarkI18n.t(key, vars) : key; }
-
   // Custom validation for the four required shipping fields, shown with the
   // same .promo-message-error visual language as everywhere else on this
   // page -- native `required` alone falls back to the browser's own tooltip
@@ -207,11 +409,12 @@
   // every browser. `novalidate` on the form (see the HTML) suppresses that
   // default so this is the only validation UI shown.
   // No per-field `message` here anymore -- each error <p> already carries its
-  // own data-i18n tag in the HTML (checkout.errorFullName/errorAddress/
-  // errorCity/errorPostal), so MonarkI18n keeps its text correct on its own,
-  // including across a language switch. This just toggles visibility.
+  // own data-i18n tag in the HTML (checkout.errorFirstName/errorLastName/
+  // errorAddress/errorCity/errorPostal), so MonarkI18n keeps its text correct
+  // on its own, including across a language switch. This just toggles visibility.
   const shippingFields = [
-    { input: form.querySelector('[name="name"]'), error: document.getElementById('checkout-error-name') },
+    { input: form.querySelector('[name="firstName"]'), error: document.getElementById('checkout-error-firstName') },
+    { input: form.querySelector('[name="lastName"]'), error: document.getElementById('checkout-error-lastName') },
     { input: form.querySelector('[name="address"]'), error: document.getElementById('checkout-error-address') },
     { input: form.querySelector('[name="city"]'), error: document.getElementById('checkout-error-city') },
     { input: form.querySelector('[name="postal"]'), error: document.getElementById('checkout-error-postal') }
@@ -221,8 +424,18 @@
   // leaving a stale "Please enter..." message sitting there after they've
   // already fixed it -- the next full validateShippingForm() re-checks
   // everything anyway, this just keeps the UI from lying in the meantime.
+  // Also keeps the Next Step button's enabled state live as the user types,
+  // per this section's own "shows a Next Step button once its required
+  // fields are validly filled" spec -- the button stays visible throughout
+  // (not hidden outright), just disabled until every required field has
+  // something in it, so it's always discoverable rather than appearing out
+  // of nowhere.
+  const shippingNextBtn = document.getElementById('checkout-shipping-next-btn');
+  function updateShippingNextBtnState() {
+    shippingNextBtn.disabled = !shippingFields.every(({ input }) => input.value.trim());
+  }
   shippingFields.forEach(({ input, error }) => {
-    input.addEventListener('input', () => { error.hidden = true; });
+    input.addEventListener('input', () => { error.hidden = true; updateShippingNextBtnState(); });
   });
 
   function validateShippingForm() {
@@ -236,8 +449,21 @@
       }
     });
     if (firstInvalid) firstInvalid.focus();
+    updateShippingNextBtnState();
     return !firstInvalid;
   }
+
+  function shippingSummaryText() {
+    const name = `${form.querySelector('[name="firstName"]').value.trim()} ${form.querySelector('[name="lastName"]').value.trim()}`.trim();
+    const city = form.querySelector('[name="city"]').value.trim();
+    return t('checkout.accordionShippingSummary', { name, city });
+  }
+
+  shippingNextBtn.addEventListener('click', () => {
+    if (!validateShippingForm()) return;
+    completeAccordionSection('shipping', shippingSummaryText());
+    openAccordionSection('payment');
+  });
 
   // One consistent two-decimal formatter for every price on this page --
   // was a whole-euro money() plus a separate moneyCents() only for the
@@ -349,6 +575,10 @@
   document.addEventListener('monark:langchange', renderSummary);
   renderSummary();
 
+  const termsCheckbox = document.getElementById('checkout-terms-checkbox');
+  const termsError = document.getElementById('checkout-terms-error');
+  termsCheckbox.addEventListener('change', () => { termsError.hidden = true; });
+
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     if (!cart.getCart().length) return;
@@ -357,8 +587,21 @@
     // validated it, so it isn't asked twice. This form is hidden until that
     // step resolves, but the guard costs nothing and reads better than
     // assuming a session must exist by the time submit fires.
-    if (!window.MonarkAccount.getSession()) return;
-    if (!validateShippingForm()) return;
+    const session = window.MonarkAccount.getSession();
+    if (!session) return;
+    // Re-validated here too, not just gating the Next Step button -- Shipping
+    // and Payment share this one <form>, so pressing Enter inside a shipping
+    // field submits it directly, bypassing Next Step entirely.
+    if (!validateShippingForm()) {
+      openAccordionSection('shipping');
+      return;
+    }
+    if (!termsCheckbox.checked) {
+      termsError.hidden = false;
+      termsCheckbox.focus();
+      return;
+    }
+    termsError.hidden = true;
     // Mock success only -- no backend, no real order, no email. Captured before
     // clearCart()/removePromoCode() wipe the state they're read from, so the
     // discount the user applied still shows up in this confirmation total.
@@ -368,8 +611,38 @@
     // if non-empty) and rate-limit submissions per IP/session server-side
     // before this ever talks to a real order-processing endpoint. See
     // README.md's "Forms" section.
+    const items = cart.getCart();
     const finalTotal = cart.getFinalTotal();
     const appliedCode = cart.getAppliedPromoCode();
+
+    // Non-guest only, same reasoning both places: a guest has no account
+    // record to write against.
+    if (!session.isGuest) {
+      const firstNameTyped = form.querySelector('[name="firstName"]').value.trim();
+      const lastNameTyped = form.querySelector('[name="lastName"]').value.trim();
+      const account = window.MonarkAccount.findAccount(session.email);
+      // Silent background fill of MISSING profile data only -- never
+      // overwrites a first/last name the account already has on file, per
+      // this feature's own spec. No UI, no confirmation message; the next
+      // visit to account.html's Edit Profile just already shows it filled in.
+      const namePatch = {};
+      if (account && !account.firstName && firstNameTyped) namePatch.firstName = firstNameTyped;
+      if (account && !account.lastName && lastNameTyped) namePatch.lastName = lastNameTyped;
+      if (Object.keys(namePatch).length) window.MonarkAccount.updateAccount(session.email, namePatch);
+
+      // One order-history entry per completed checkout, tied to the account
+      // (see js/account.js's recordOrder()/getOrders(), and account.html's
+      // own rendering of this list) -- single product line for now, matching
+      // every other "single product for now" comment already in this file.
+      window.MonarkAccount.recordOrder(session.email, {
+        date: new Date().toISOString(),
+        productName: cart.PRODUCT.name,
+        quantity: items[0].quantity,
+        total: finalTotal,
+        promoCode: appliedCode || null
+      });
+    }
+
     cart.clearCart();
     cart.removePromoCode();
     formState.hidden = true;
