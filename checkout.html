@@ -1,0 +1,398 @@
+<!-- Checkout page — shipping, payment, and order review flow -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Matches --bg-void (css/style.css) -- explicit color for iOS/Android's
+     status-bar/chrome tint instead of leaving it to auto-sample from page content. -->
+<meta name="theme-color" content="#0a0908">
+<title>MONARK — Checkout</title>
+<meta name="description" content="Complete your MONARK Eau de Parfum order — shipping details and secure checkout.">
+
+<!-- Favicon (bronze "M" monogram on dark) -->
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<!-- Referrer-Policy is the one HTTP security header a meta tag can actually
+     set; CSP / X-Frame-Options / X-Content-Type-Options need real HTTP
+     headers at the hosting level -- see README.md's Security section. -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<!-- Transactional page, no unique content -- excluded from search indexing
+     (see the note on sitemap.xml's inclusion of it anyway, in README.md). -->
+<meta name="robots" content="noindex, nofollow">
+
+<!-- PLACEHOLDER DOMAIN -- replace https://YOUR-DOMAIN-HERE.com with the real
+     production domain once it's set, before launch. -->
+<link rel="canonical" href="https://YOUR-DOMAIN-HERE.com/checkout.html">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=20260719">
+<link rel="stylesheet" href="css/cart.css?v=20260719">
+</head>
+<body class="shop-page">
+
+<!-- FIXED HEADER -->
+<header class="site-header">
+  <nav class="site-nav">
+    <a href="index.html" class="nav-logo">MONARK</a>
+    <div class="nav-links">
+      <a href="index.html" data-i18n="nav.experience">The Experience</a>
+    </div>
+  </nav>
+</header>
+
+<main class="checkout-page">
+  <div class="checkout-inner">
+    <a href="product.html" class="checkout-back-link" data-i18n="common.backToShop">&larr; Back to Shop</a>
+    <h1 class="checkout-title" id="checkout-title" data-i18n="checkout.title">Checkout</h1>
+
+    <div id="checkout-form-state">
+      <div class="checkout-grid">
+        <div class="checkout-col checkout-summary-col">
+          <h2 class="checkout-section-heading" data-i18n="checkout.orderSummary">Order Summary</h2>
+          <div id="checkout-summary"><!-- populated by inline script below --></div>
+          <!-- Kept as a stable element outside #checkout-summary (which gets fully
+               replaced on every cart:updated re-render) so applying a code doesn't
+               wipe out the input/message it's showing feedback in. Reuses the same
+               .checkout-field input styling as the shipping form (bottom-border,
+               dark, mono label) and the same .cta-button convention for Apply,
+               rather than a separate one-off look. -->
+          <form class="promo-box" id="checkout-promo-form">
+            <label class="checkout-field promo-field">
+              <span data-i18n="checkout.promoCodeLabel">Promo Code</span>
+              <div class="promo-input-row">
+                <input type="text" id="checkout-promo-input" autocomplete="off" placeholder="Enter code" data-i18n-attr="placeholder:checkout.promoPlaceholder">
+                <button type="submit" class="cta-button promo-apply-btn" data-i18n="checkout.apply">Apply</button>
+              </div>
+            </label>
+            <p class="promo-message" id="checkout-promo-message" aria-live="polite" hidden></p>
+          </form>
+        </div>
+        <div class="checkout-col checkout-details-col">
+          <div id="checkout-account-step">
+            <h2 class="checkout-section-heading" data-i18n="common.account">Account</h2>
+            <!-- Filled by window.MonarkAccount.mountAccountGate() below --
+                 same shared email/log-in/create-account flow account.html
+                 uses, see js/account.js. -->
+            <div id="checkout-account-gate"></div>
+          </div>
+
+          <form id="checkout-form" novalidate hidden>
+            <h2 class="checkout-section-heading" data-i18n="checkout.shippingInformation">Shipping Information</h2>
+            <label class="checkout-field">
+              <span data-i18n="checkout.fullName">Full Name</span>
+              <input type="text" name="name" autocomplete="name" required>
+              <p class="promo-message promo-message-error" id="checkout-error-name" data-i18n="checkout.errorFullName" aria-live="polite" hidden>Please enter your full name.</p>
+            </label>
+            <label class="checkout-field">
+              <span data-i18n="checkout.address">Address</span>
+              <input type="text" name="address" autocomplete="street-address" required>
+              <p class="promo-message promo-message-error" id="checkout-error-address" data-i18n="checkout.errorAddress" aria-live="polite" hidden>Please enter your address.</p>
+            </label>
+            <div class="checkout-field-row">
+              <label class="checkout-field">
+                <span data-i18n="checkout.city">City</span>
+                <input type="text" name="city" autocomplete="address-level2" required>
+                <p class="promo-message promo-message-error" id="checkout-error-city" data-i18n="checkout.errorCity" aria-live="polite" hidden>Please enter your city.</p>
+              </label>
+              <label class="checkout-field">
+                <span data-i18n="checkout.postalCode">Postal Code</span>
+                <input type="text" name="postal" autocomplete="postal-code" required>
+                <p class="promo-message promo-message-error" id="checkout-error-postal" data-i18n="checkout.errorPostal" aria-live="polite" hidden>Please enter your postal code.</p>
+              </label>
+            </div>
+
+            <h2 class="checkout-section-heading" data-i18n="checkout.payment">Payment</h2>
+            <!-- Placeholder for real Stripe Checkout integration later. These
+                 fields are visual only: disabled, never read, never submitted,
+                 never stored anywhere. -->
+            <label class="checkout-field">
+              <span data-i18n="checkout.cardNumber">Card Number</span>
+              <input type="text" placeholder="4242 4242 4242 4242" disabled>
+            </label>
+            <div class="checkout-field-row">
+              <label class="checkout-field">
+                <span data-i18n="checkout.expiry">Expiry</span>
+                <input type="text" placeholder="MM / YY" disabled>
+              </label>
+              <label class="checkout-field">
+                <span data-i18n="checkout.cvc">CVC</span>
+                <input type="text" placeholder="123" disabled>
+              </label>
+            </div>
+            <p class="checkout-payment-note" data-i18n="checkout.paymentNote">Payment processing isn't connected yet — this is a visual placeholder only.</p>
+
+            <button type="submit" class="cta-button checkout-submit" id="checkout-submit-btn" data-i18n="checkout.placeOrder">Place Order</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="checkout-confirmation" id="checkout-confirmation" hidden>
+      <h2 class="checkout-confirmation-title" data-i18n="checkout.orderReceived">Order Received</h2>
+      <p class="checkout-confirmation-text" data-i18n="checkout.confirmationText">This is a demo confirmation — no real order has been placed, no payment was processed, and no email was sent.</p>
+      <p class="checkout-confirmation-total" id="checkout-confirmation-total"><!-- populated by inline script below --></p>
+      <a href="index.html" class="cta-button" data-i18n="checkout.backToTheExperience">Back to The Experience</a>
+    </div>
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer class="shop-footer">
+  <a href="index.html" class="shop-footer-wordmark">MONARK</a>
+  <p class="shop-footer-copy" data-i18n="footer.copyright">&copy; 2025 MONARK. All rights reserved.</p>
+  <nav class="footer-legal-links">
+    <a href="faq.html" data-i18n="footer.faq">FAQ</a>
+    <a href="contact.html" data-i18n="footer.contact">Contact</a>
+    <a href="mentions-legales.html" data-i18n="footer.legalNotice">Legal Notice</a>
+    <a href="cgv.html" data-i18n="footer.termsOfSale">Terms of Sale</a>
+    <a href="confidentialite.html" data-i18n="footer.privacyPolicy">Privacy Policy</a>
+  </nav>
+</footer>
+
+<script src="js/i18n.js?v=20260719"></script>
+<script src="js/header-position-fix.js?v=20260719"></script>
+<script src="js/footer-active-page.js?v=20260719"></script>
+<script src="js/cart.js?v=20260719"></script>
+<script src="js/cart-widget.js?v=20260719"></script>
+<script src="js/nav-menu.js?v=20260719"></script>
+<script src="js/account.js?v=20260719"></script>
+<script>
+(function () {
+  const shippingForm = document.getElementById('checkout-form');
+  function t(key, vars) { return window.MonarkI18n ? window.MonarkI18n.t(key, vars) : key; }
+  // See js/account.js's mountAccountGate() -- same email/log-in/create-
+  // account flow account.html uses, extracted there so this page and that
+  // one share one implementation instead of two that can drift apart.
+  // statusLabel/changeLabel are passed as functions (not plain strings) so
+  // mountAccountGate() can re-invoke them fresh on every 'monark:langchange'
+  // -- see that file's own comment on why a plain string captured once at
+  // mount time can't respond to a later language switch.
+  window.MonarkAccount.mountAccountGate(document.getElementById('checkout-account-gate'), {
+    statusLabel: (session) => session.isGuest
+      ? t('checkout.statusGuest', { email: session.email })
+      : t('accountGate.loggedInAs', { email: session.email }),
+    changeLabel: () => t('accountGate.modify'),
+    onResolved: () => { shippingForm.hidden = false; },
+    onUnresolved: () => { shippingForm.hidden = true; }
+  });
+})();
+</script>
+<script>
+(function () {
+  const cart = window.MonarkCart;
+  const summaryEl = document.getElementById('checkout-summary');
+  const form = document.getElementById('checkout-form');
+  const submitBtn = document.getElementById('checkout-submit-btn');
+  const formState = document.getElementById('checkout-form-state');
+  const confirmation = document.getElementById('checkout-confirmation');
+  const confirmationTotal = document.getElementById('checkout-confirmation-total');
+  const title = document.getElementById('checkout-title');
+
+  const promoForm = document.getElementById('checkout-promo-form');
+  const promoInput = document.getElementById('checkout-promo-input');
+  const promoMessage = document.getElementById('checkout-promo-message');
+
+  function t(key, vars) { return window.MonarkI18n ? window.MonarkI18n.t(key, vars) : key; }
+
+  // Custom validation for the four required shipping fields, shown with the
+  // same .promo-message-error visual language as everywhere else on this
+  // page -- native `required` alone falls back to the browser's own tooltip
+  // styling, which doesn't match the site's design and looks different in
+  // every browser. `novalidate` on the form (see the HTML) suppresses that
+  // default so this is the only validation UI shown.
+  // No per-field `message` here anymore -- each error <p> already carries its
+  // own data-i18n tag in the HTML (checkout.errorFullName/errorAddress/
+  // errorCity/errorPostal), so MonarkI18n keeps its text correct on its own,
+  // including across a language switch. This just toggles visibility.
+  const shippingFields = [
+    { input: form.querySelector('[name="name"]'), error: document.getElementById('checkout-error-name') },
+    { input: form.querySelector('[name="address"]'), error: document.getElementById('checkout-error-address') },
+    { input: form.querySelector('[name="city"]'), error: document.getElementById('checkout-error-city') },
+    { input: form.querySelector('[name="postal"]'), error: document.getElementById('checkout-error-postal') }
+  ];
+
+  // Clears a field's error as soon as the user acts on it, rather than
+  // leaving a stale "Please enter..." message sitting there after they've
+  // already fixed it -- the next full validateShippingForm() re-checks
+  // everything anyway, this just keeps the UI from lying in the meantime.
+  shippingFields.forEach(({ input, error }) => {
+    input.addEventListener('input', () => { error.hidden = true; });
+  });
+
+  function validateShippingForm() {
+    let firstInvalid = null;
+    shippingFields.forEach(({ input, error }) => {
+      if (!input.value.trim()) {
+        error.hidden = false;
+        if (!firstInvalid) firstInvalid = input;
+      } else {
+        error.hidden = true;
+      }
+    });
+    if (firstInvalid) firstInvalid.focus();
+    return !firstInvalid;
+  }
+
+  // One consistent two-decimal formatter for every price on this page --
+  // was a whole-euro money() plus a separate moneyCents() only for the
+  // shipping fee, which made every other line (Subtotal, discounts, Total)
+  // silently round to the nearest euro instead of showing exact figures.
+  // €-prefix + period-decimal matches product.html's own .shop-price
+  // convention (see css/shop.css); toLocaleString adds a thousands comma
+  // too, for whenever a quantity pushes a total into four figures.
+  function money(n) {
+    return '€' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // Flat, mocked shipping fee -- always waived (France-only, no threshold).
+  // Shown struck through next to "Free" so the waived cost is visible, and
+  // folded into the struck-through original total below -- never added to
+  // any actual charged total.
+  const SHIPPING_FEE = 5.90;
+
+  function showPromoMessage(text, kind) {
+    promoMessage.textContent = text;
+    promoMessage.className = 'promo-message promo-message-' + kind;
+    promoMessage.hidden = false;
+  }
+
+  function renderSummary() {
+    const items = cart.getCart();
+
+    if (!items.length) {
+      summaryEl.innerHTML = `<p class="checkout-empty-note">${t('checkout.emptyCartNote')}</p>`;
+      submitBtn.disabled = true;
+      promoForm.hidden = true;
+      return;
+    }
+
+    submitBtn.disabled = false;
+    promoForm.hidden = false;
+
+    const item = items[0]; // single product for now
+    const subtotal = item.quantity * cart.PRODUCT.price;
+    const promoCode = cart.getAppliedPromoCode();
+    const discount = cart.getDiscountAmount();
+    const total = cart.getFinalTotal();
+    // Site-wide -17% offer is already baked into cart.PRODUCT.price itself
+    // (subtotal above is the discounted figure) -- this is purely the
+    // informational savings amount, not a further deduction from total.
+    const siteDiscount = cart.getSiteDiscountAmount();
+    // The "if you'd paid full price" reference total: original (undiscounted)
+    // product price + the real (waived) shipping fee, deliberately ignoring
+    // any promo code -- that's a further discount on top of, not part of,
+    // "original" pricing.
+    const originalTotal = cart.getOriginalCartTotal() + SHIPPING_FEE;
+
+    const discountLine = promoCode ? `
+      <div class="checkout-summary-line checkout-summary-discount">
+        <span>${t('checkout.promoLabel', { code: promoCode })}</span>
+        <span>&minus;${money(discount)}</span>
+      </div>
+    ` : '';
+
+    summaryEl.innerHTML = `
+      <div class="checkout-summary-item">
+        <img class="checkout-summary-thumb" src="${cart.PRODUCT.image}" alt="${cart.PRODUCT.name}" width="2880" height="2880" loading="lazy">
+        <div class="checkout-summary-item-details">
+          <p class="checkout-summary-item-name">${cart.PRODUCT.name}</p>
+          <p class="checkout-summary-item-qty">${t('checkout.qty')} ${item.quantity}</p>
+        </div>
+      </div>
+      <div class="checkout-summary-line">
+        <span>${t('checkout.subtotal')}</span>
+        <span>${money(subtotal)}</span>
+      </div>
+      <div class="checkout-summary-line">
+        <span>${t('checkout.shipping')}</span>
+        <span><span class="checkout-summary-strike">${money(SHIPPING_FEE)}</span> <span class="checkout-summary-shipping-free">${t('checkout.free')}</span></span>
+      </div>
+      <div class="checkout-summary-line checkout-summary-discount">
+        <span>${t('checkout.limitedTimeOffer')}</span>
+        <span>&minus;${money(siteDiscount)}</span>
+      </div>
+      ${discountLine}
+      <div class="checkout-summary-line checkout-summary-total">
+        <span>${t('checkout.total')}</span>
+        <span><span class="checkout-summary-strike">${money(originalTotal)}</span> ${money(total)}</span>
+      </div>
+    `;
+  }
+
+  // Reflects a code already applied in a previous visit (it persists in
+  // localStorage, see js/cart.js) without clobbering it on every later
+  // re-render -- set once, at load, only.
+  if (cart.getAppliedPromoCode()) promoInput.value = cart.getAppliedPromoCode();
+
+  promoForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const result = cart.applyPromoCode(promoInput.value);
+    if (result.ok) {
+      promoInput.value = result.code;
+      showPromoMessage(t('checkout.promoSuccess', { percent: Math.round(result.rate * 100) }), 'success');
+    } else {
+      showPromoMessage(t('checkout.promoInvalid'), 'error');
+    }
+  });
+
+  document.addEventListener('cart:updated', renderSummary);
+  // Rebuilds the whole summary (its labels are baked into the template
+  // string above, not data-i18n-tagged elements MonarkI18n.apply() could
+  // re-walk on its own) -- same pattern js/cart-widget.js's render() already
+  // uses for its own template-string content.
+  document.addEventListener('monark:langchange', renderSummary);
+  renderSummary();
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!cart.getCart().length) return;
+    // The buyer's email lives in the account session (js/account.js), not a
+    // shipping-form field -- the account step above already collected and
+    // validated it, so it isn't asked twice. This form is hidden until that
+    // step resolves, but the guard costs nothing and reads better than
+    // assuming a session must exist by the time submit fires.
+    if (!window.MonarkAccount.getSession()) return;
+    if (!validateShippingForm()) return;
+    // Mock success only -- no backend, no real order, no email. Captured before
+    // clearCart()/removePromoCode() wipe the state they're read from, so the
+    // discount the user applied still shows up in this confirmation total.
+    // SECURITY (placeholder, once a real backend exists): this form has no
+    // spam/abuse protection because there's nothing yet to abuse -- add a
+    // honeypot field (hidden input real users never fill in; silently reject
+    // if non-empty) and rate-limit submissions per IP/session server-side
+    // before this ever talks to a real order-processing endpoint. See
+    // README.md's "Forms" section.
+    const finalTotal = cart.getFinalTotal();
+    const appliedCode = cart.getAppliedPromoCode();
+    cart.clearCart();
+    cart.removePromoCode();
+    formState.hidden = true;
+    confirmation.hidden = false;
+    // Overwrites the h1's own data-i18n="checkout.title" content directly --
+    // removeAttribute keeps a later language switch (MonarkI18n.apply(document))
+    // from stomping this back to "Checkout"/"Commande" once the order's
+    // already been placed.
+    title.removeAttribute('data-i18n');
+    title.textContent = t('checkout.thankYou');
+    confirmationTotal.textContent = appliedCode
+      ? t('checkout.confirmationTotalWithCode', { total: money(finalTotal), code: appliedCode })
+      : t('checkout.confirmationTotal', { total: money(finalTotal) });
+    // Swapping to the confirmation state doesn't itself move the viewport, so if
+    // the user had scrolled down to fill in the lower parts of the form, the
+    // title/confirmation would render wherever that scroll position happened to
+    // land -- sometimes cutting the title off above the fold.
+    window.scrollTo(0, 0);
+  });
+})();
+</script>
+<script src="js/promo-banner.js?v=20260719"></script>
+<script src="js/cookie-consent.js?v=20260719"></script>
+<script src="js/email-popup.js?v=20260719"></script>
+</body>
+</html>

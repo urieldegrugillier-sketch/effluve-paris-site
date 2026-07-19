@@ -1,0 +1,593 @@
+/* ===================================================================
+   MONARK — Shop (single-product page)
+   Reuses the CSS variables and type system defined in css/style.css.
+=================================================================== */
+
+body.shop-page { background: var(--bg-void); }
+
+/* .shop-page .site-header's mix-blend-mode:normal override now lives in
+   css/style.css (shared with every other non-homepage page, not just this
+   one) -- see the comment there. */
+
+/* ================= HERO ================= */
+
+.shop-hero {
+  /* calc(100vh - 300px) left ~220px of untouched space below the hero, which is
+     exactly enough for .shop-details-strip to peek into the initial viewport —
+     the opposite problem from before. The hero now claims nearly the entire
+     remaining viewport (just 20px of breathing room past the 80px header) so the
+     strip starts below the fold; the .shop-carousel max-height below (not this
+     min-height) is what now controls the product image's own size. */
+  min-height: calc(100vh - 80px - var(--promo-banner-h));
+  width: 100%;
+  display: flex;
+  align-items: stretch;
+  /* 80px = header bar's own exact rendered height (top of page to bottom of header),
+     applied as margin (not padding) so the hero starts exactly that far below the
+     fixed nav with no risk of overlap, regardless of the image's own height.
+     (Measured after centering the logo — removing it from the header's flex flow via
+     position:absolute shortened the header's own height from 91px to 80px, since the
+     row height is now set by "The Experience" link's smaller font instead of the logo.)
+     +var(--promo-banner-h): the header itself shifts down by that same amount
+     when js/promo-banner.js's banner is showing (see --promo-banner-h's
+     comment in css/style.css's :root) -- this keeps the hero starting exactly
+     at the header's bottom edge either way, instead of overlapping it. */
+  margin-top: calc(80px + var(--promo-banner-h));
+  padding-bottom: 0; /* zero gap: the strip must land fully below the fold, not peek in */
+}
+
+.shop-hero-image {
+  flex: 0 0 50%;
+  max-width: 50%;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0 4vw 4vh;
+}
+
+.shop-hero-image::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(156, 107, 46, 0.1), transparent 65%);
+}
+
+/* ---- Product image carousel ---- */
+
+.shop-carousel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  /* The product photo is square, so height:100% alone lets it grow as tall as the
+     column is WIDE (width-driven) — on wide/short viewports that exceeds the
+     available viewport height regardless of .shop-hero's min-height, since
+     min-height is only a floor and content was already exceeding it. This caps
+     it with a real ceiling tied to the same vertical budget. */
+  max-height: calc(100vh - 140px);
+  overflow: hidden;
+  z-index: 1;
+}
+
+.shop-carousel:focus { outline: none; }
+.shop-carousel:focus-visible { outline: 1px solid var(--accent-bronze-light); outline-offset: 6px; }
+
+.shop-carousel-track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.shop-carousel-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shop-product-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  color: var(--accent-bronze);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.35s ease, color 0.3s ease;
+  z-index: 3;
+}
+
+/* Left unguarded, unlike this file's other :hover rules (see the note on
+   .shop-back-link:hover below) -- touch browsers' tap-simulated :hover is
+   this reveal's only path to showing/using the arrows at all on a touch
+   device (swipe is the other way to change slides, but is a separate,
+   already-working path, not a substitute for this one); gating it behind
+   (hover: hover) would silently remove arrow access on touch instead of just
+   fixing a stuck-color bug. :focus-within already covers keyboard access. */
+.shop-carousel:hover .carousel-arrow,
+.shop-carousel:focus-within .carousel-arrow { opacity: 1; }
+
+/* Touch devices simulate :hover on tap and don't clear it without a second,
+   unrelated tap elsewhere -- every plain color/background :hover rule below
+   is scoped to real hover-capable pointers for that reason (the reveal rule
+   just above is the one deliberate exception -- see its own comment). */
+@media (hover: hover) and (pointer: fine) {
+  .carousel-arrow:hover { color: var(--accent-bronze-light); }
+}
+.carousel-arrow-prev { left: 0.5vw; }
+.carousel-arrow-next { right: 0.5vw; }
+
+.carousel-dots {
+  position: absolute;
+  bottom: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  z-index: 3;
+}
+
+.carousel-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  opacity: 0.45;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.carousel-dot.active {
+  width: 9px;
+  height: 9px;
+  background: var(--accent-bronze);
+  opacity: 1;
+}
+
+.shop-hero-details {
+  flex: 1 1 50%;
+  max-width: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 4vh 6vw;
+  border-left: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.shop-kicker { margin-bottom: 1.5rem; }
+
+.shop-wordmark {
+  margin: 0 0 0.7rem;
+  /* --font-wordmark (Poppins), not --font-display -- this is the literal
+     "MONARK" brand mark, same treatment as .nav-logo/.hero-heading/
+     .loader-brand/.shop-footer-wordmark. See --font-wordmark's comment in
+     css/style.css's :root. */
+  font-family: var(--font-wordmark);
+  font-weight: 600;
+  font-size: clamp(3rem, 6.4vw, 5.4rem);
+  letter-spacing: 0.03em;
+  line-height: 0.95;
+  color: var(--text-on-dark);
+}
+
+.shop-subtitle {
+  margin: 0 0 0.8rem;
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-style: italic;
+  font-size: 1.05rem;
+  color: var(--text-muted);
+}
+
+/* One representative note per pyramid tier (top/heart/base), giving a
+   glance-level read on scent character right under the tagline -- full
+   breakdown lives further down the page (see the notes/pyramid details). */
+.shop-scent-notes {
+  margin: 0 0 1.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* FAKE/PLACEHOLDER promotional pricing -- see the comment on the markup itself
+   in product.html. .shop-price-original is the struck-through "before" price;
+   .shop-price-current keeps the exact look the single price span always had. */
+.shop-price {
+  margin: 0 0 0.4rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+}
+
+.shop-price-original {
+  font-family: Georgia, serif;
+  font-size: clamp(1.1rem, 1.6vw, 1.4rem);
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.shop-price-current {
+  font-family: Georgia, serif;
+  font-weight: 500;
+  font-size: clamp(1.8rem, 2.8vw, 2.3rem);
+  color: var(--accent-bronze-light);
+}
+
+.shop-price-note {
+  margin: 0 0 1.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-bronze-light);
+}
+
+.shop-stock {
+  margin: 0 0 1.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.shop-cta-row {
+  display: flex;
+  align-items: stretch;
+  gap: 1rem;
+  margin-top: 2.2rem;
+  margin-bottom: 1.4rem;
+}
+
+.shop-cta-row .cta-button { margin-top: 0; text-align: center; flex: 1 1 auto; white-space: nowrap; }
+
+/* Filled-bronze treatment (matches .cart-preview-buy's already-established "this is
+   the fast-track purchase action" convention) to visually rank it above the
+   outlined Add to Cart, which stays the default .cta-button look. Text is pure
+   black, not --bg-void -- var(--bg-void) on this background measures ~4.32:1,
+   just under WCAG AA's 4.5:1 for normal text; true black clears it (~4.56:1)
+   and is visually indistinguishable from --bg-void. */
+.shop-buy-now { background: var(--accent-bronze); border-color: var(--accent-bronze); color: #000; }
+
+.shop-refund-note {
+  margin: 0 0 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.shop-refund-note summary {
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-bronze-light);
+  list-style: none;
+}
+
+.shop-refund-note summary::-webkit-details-marker { display: none; }
+.shop-refund-note summary::before { content: "+ "; }
+.shop-refund-note[open] summary::before { content: "\2212 "; }
+
+.shop-refund-note p {
+  margin: 0.8rem 0 0;
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  max-width: 40ch;
+}
+
+.shop-refund-note a { color: var(--accent-bronze-light); }
+
+/* Flags the ingredients list (below the refund policy) as fictional/placeholder
+   content -- same bronze-mono treatment .legal-content .placeholder already
+   uses for placeholder text elsewhere, just not nested under .legal-content here. */
+.shop-ingredients-flag {
+  color: var(--accent-bronze-light);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.shop-back-link {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 3px;
+  transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .shop-back-link:hover { color: var(--text-on-dark); border-color: var(--accent-bronze-light); }
+}
+
+/* ================= DETAILS STRIP ================= */
+
+.shop-details-strip {
+  display: flex;
+  align-items: stretch;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.shop-detail-col {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 3.2rem 2rem;
+  text-align: center;
+}
+
+.shop-detail-divider {
+  flex: 0 0 1px;
+  align-self: stretch;
+  background: linear-gradient(to bottom, transparent, rgba(156, 107, 46, 0.4) 20%, rgba(156, 107, 46, 0.4) 80%, transparent);
+}
+
+.shop-detail-primary {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-on-dark);
+}
+
+.shop-detail-secondary {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ================= OLFACTORY NOTES ================= */
+
+.shop-notes {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 9vh 6vw;
+}
+
+.shop-notes-kicker { display: block; text-align: center; margin-bottom: 3.2rem; }
+
+.shop-notes-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 1.7rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.shop-notes-row:last-child { border-bottom: none; }
+
+.shop-notes-label {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-bronze-light);
+}
+
+.shop-notes-names {
+  font-family: var(--font-display);
+  font-size: clamp(1.05rem, 2vw, 1.6rem);
+  color: var(--text-on-dark);
+  text-align: right;
+}
+
+/* ================= HOW TO WEAR ================= */
+/* The <details> itself is a plain .shop-refund-note now (same element, same
+   class, same "+"/"−" summary::before toggle) -- nothing shop-specific left
+   to style at that level. Only the numbered-step content inside still needs
+   its own rules, sized to match .shop-refund-note p's own scale/spacing. */
+
+.shop-howto-list {
+  list-style: none;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  max-width: 40ch;
+}
+
+.shop-howto-step {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.shop-howto-step:first-child { padding-top: 0; }
+.shop-howto-step:last-child { padding-bottom: 0; border-bottom: none; }
+
+.shop-howto-number {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  color: var(--accent-bronze-light);
+}
+
+.shop-howto-text {
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* Footer styling (.shop-footer, .shop-footer-wordmark, .shop-footer-copy) now
+   lives in the shared css/style.css, since every page's footer reuses this
+   same markup — not just product.html, which is the only page that loads
+   this stylesheet. See css/style.css's FOOTER section. */
+
+/* ================= LIGHTBOX (zoom / pan viewer) ================= */
+
+/* Sits above the cookie banner (z-index:300, css/style.css) — a modal-like
+   overlay should always win over any other fixed UI on the page. */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.lightbox.lightbox-open { display: flex; }
+.lightbox.lightbox-visible { opacity: 1; }
+
+.lightbox-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none; /* pinch/pan is handled manually via Pointer Events, not native scroll/zoom */
+}
+
+.lightbox-image {
+  max-width: 82vw;
+  max-height: 82vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  cursor: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 2vh;
+  right: 2vw;
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--text-on-dark);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.3s ease, color 0.3s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lightbox-close:hover { border-color: var(--accent-bronze-light); color: var(--accent-bronze-light); }
+}
+
+/* Same chevron treatment as .carousel-arrow, just always-visible (no hover-to-reveal —
+   there's no ambiguity about a modal viewer's own controls being interactive). */
+.lightbox .lightbox-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0.6rem;
+  color: var(--accent-bronze);
+  opacity: 0.85;
+  cursor: pointer;
+  transition: color 0.3s ease, opacity 0.3s ease;
+  z-index: 3;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lightbox .lightbox-arrow:hover { color: var(--accent-bronze-light); opacity: 1; }
+}
+.lightbox .lightbox-arrow-prev { left: 1.5vw; }
+.lightbox .lightbox-arrow-next { right: 1.5vw; }
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 768px) {
+  .shop-hero { flex-direction: column; height: auto; min-height: 100vh; overflow: visible; }
+
+  .shop-hero-image,
+  .shop-hero-details { flex: 1 1 auto; max-width: 100%; height: auto; overflow: visible; }
+
+  .shop-hero-image { padding: 6vh 10vw 2vh; }
+  .shop-carousel { height: 44vh; } /* auto-height parent on mobile can't resolve a percentage height */
+
+  .shop-hero-details {
+    border-left: none;
+    border-top: 1px solid var(--line);
+    align-items: center;
+    text-align: center;
+    padding: 4vh 8vw 6vh;
+  }
+
+  /* Side-by-side (the desktop layout) forced both buttons' own min-content width
+     (~257px + ~144px + 1rem gap = ~417px) into whatever's left of this column
+     after its own 8vw padding (~328px at 390px wide) -- confirmed via direct
+     measurement: the row rendered 13px wider on each side than its container,
+     overflowing both the column and the viewport itself (buttons visibly flush
+     against/past the screen edges, not just "close" to them). Stacking instead
+     gives each button the column's full width, comfortably fitting the longer
+     "Add to Cart — 100ML" label with room to spare, and naturally inherits this
+     column's own edge padding instead of needing its own. white-space:normal is
+     a safety net (not the primary fix) in case a real device's font metrics
+     render even a little wider than tested here. */
+  .shop-cta-row { flex-direction: column; }
+  .shop-cta-row .cta-button { width: 100%; white-space: normal; }
+
+  .shop-details-strip { flex-direction: column; }
+  .shop-detail-divider {
+    flex: 0 0 1px;
+    align-self: center;
+    width: 60%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(156, 107, 46, 0.4), transparent);
+  }
+  .shop-detail-col { padding: 2.2rem 1.4rem; }
+
+  .shop-notes { padding: 6vh 8vw; }
+  .shop-notes-row { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+  .shop-notes-names { text-align: left; }
+
+  .lightbox-image { max-width: 92vw; max-height: 76vh; }
+  .lightbox-close { top: 1.5vh; right: 4vw; }
+}

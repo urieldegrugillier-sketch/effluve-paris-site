@@ -1,0 +1,844 @@
+/* MONARK — bilingual FR/EN infrastructure.
+   Phase 1: engine + full index.html translation. Other pages don't carry
+   data-i18n attributes yet, so apply() is a no-op on them until they're
+   rolled in — safe to include there early once that happens.
+
+   Pattern: every translatable element carries data-i18n="namespaced.key"
+   (textContent swap) or data-i18n-html="namespaced.key" (innerHTML swap,
+   only for our own authored strings with markup like <br> — never for
+   anything derived from user input). data-i18n-attr="attr:key;attr2:key2"
+   covers attributes (aria-label, placeholder, etc). TRANSLATIONS is the
+   single source of truth both index.html and the shared widget scripts
+   (nav-menu.js, cookie-consent.js, email-popup.js, promo-banner.js,
+   cart-widget.js) read from — those inject their own markup at runtime, so
+   each calls MonarkI18n.apply() on its own container after building it,
+   rather than relying on a single DOMContentLoaded pass over static HTML. */
+(function () {
+  const STORAGE_KEY = 'monark_lang';
+  const DEFAULT_LANG = 'fr';
+
+  const TRANSLATIONS = {
+    en: {
+      a11y: {
+        skipToContent: 'Skip to content',
+        previousImage: 'Previous image',
+        nextImage: 'Next image'
+      },
+      nav: {
+        experience: 'The Experience',
+        acquire: 'Acquire'
+      },
+      hero: {
+        label: 'Eau de Parfum — First Decree',
+        tagline: 'A scent built for men who rule rooms without entering them.',
+        scroll: 'Scroll to Begin the Reign'
+      },
+      s1: {
+        label: '001 / The Signature',
+        heading: 'Composure Is the Loudest Thing a Man Can Wear.',
+        body: 'MONARK is not sprayed — it is declared. A single breath of bergamot and pink pepper cuts the air first, sharp as a decision made and never revisited. What follows is not softness. It is restraint with teeth.'
+      },
+      s2: {
+        label: '002 / The Genesis',
+        heading: 'The Shell Was Never the Point.',
+        body: "Glass cracks. Shards scatter into the dark, and what's left behind is not ruin — a single black core, molten and whole, the true shape that was always beneath the bottle. MONARK was built on the same law: strip a man of the armor he performs, and what remains isn't weaker. It's undiluted."
+      },
+      s3: {
+        label: '003 / The Composition',
+        heading: 'What the Breaking Reveals.',
+        tier1: {
+          label: 'Opening — The First Strike',
+          heading: 'Bergamot. Lemon.<br>Pink Pepper.',
+          body: 'The introduction is a blade, not a handshake. Italian bergamot and bright lemon arrive first, cut through with the dry heat of pink pepper — a greeting that ends conversations before they start.'
+        },
+        tier2: {
+          label: 'The Heart — What Remains',
+          heading: 'Lavender. Geranium.<br>Incense.',
+          body: 'Beneath the strike, something older settles in. Lavender and geranium soften only enough to let incense rise — smoke curling off a private ritual no one else is invited to witness.'
+        },
+        tier3: {
+          label: 'The Base — What Lasts',
+          heading: 'Ambergris. Cedarwood.<br>Musk.',
+          body: 'This is the part that stays on the skin long after the room has emptied. Ambergris and cedarwood root the composition in something ancient; musk closes the door behind it. This is not a scent you wear. It is one you leave behind.'
+        }
+      },
+      s4: {
+        label: '004 / The Provenance',
+        heading: 'Sourced Like a Crown Is Forged — Rarely, and Without Compromise.',
+        body: 'Cedarwood cut from single-forest stands in the Atlas Mountains. Ambergris aged before it ever meets the blend. Every batch of MONARK is mixed by hand in lots too small to rush and too exact to repeat perfectly — which is precisely the point.'
+      },
+      s5: {
+        label: '005 / In Numbers',
+        stat1: 'Sillage that lingers past midnight',
+        stat2: 'Eau de Parfum concentration',
+        stat3: 'Countries of origin, for nine raw materials',
+        stat4: 'Bottles per numbered edition'
+      },
+      s6: {
+        label: '006 / The Acquisition',
+        heading: 'The Reign Is Bottled. Claim Yours.',
+        body: 'MONARK Eau de Parfum. 100ml. Numbered, not mass-produced. Once a batch is gone, it does not return.',
+        badge: 'Limited-Time −17% Off',
+        button: 'Acquire MONARK — 100ml',
+        note: 'Ships in matte black, wax-sealed packaging.'
+      },
+      footer: {
+        copyright: '© 2025 MONARK. All rights reserved.',
+        faq: 'FAQ',
+        contact: 'Contact',
+        legalNotice: 'Legal Notice',
+        termsOfSale: 'Terms of Sale',
+        privacyPolicy: 'Privacy Policy'
+      },
+      navMenu: {
+        openMenu: 'Open menu',
+        closeMenu: 'Close menu',
+        siteMenu: 'Site menu',
+        homepage: 'Homepage',
+        checkout: 'Checkout',
+        info: 'Info',
+        account: 'Account',
+        langSwitchToFr: 'Switch to French',
+        langSwitchToEn: 'Switch to English',
+        faq: 'FAQ',
+        contact: 'Contact',
+        legalNotice: 'Legal Notice',
+        termsOfSale: 'Terms of Sale',
+        privacyPolicy: 'Privacy Policy'
+      },
+      cookie: {
+        ariaLabel: 'Cookie consent',
+        text: 'We use cookies to improve your experience and analyze site traffic. Read our <a href="confidentialite.html">privacy policy</a> to learn more.',
+        reject: 'Reject',
+        accept: 'Accept'
+      },
+      emailPopup: {
+        ariaLabel: 'Email signup offer',
+        close: 'Close',
+        kicker: 'A Small Concession',
+        heading: 'Get 10% Off Your First Bottle',
+        copy: 'Join the list before the next numbered batch sells out.',
+        emailPlaceholder: 'you@email.com',
+        emailAriaLabel: 'Email address',
+        consent: 'By submitting, you agree to receive marketing emails from MONARK.',
+        submit: 'Claim My 10%',
+        errorEmpty: 'Please enter your email.',
+        errorInvalid: 'Please enter a valid email address.',
+        confirmedKicker: 'Confirmed',
+        confirmedHeading: 'Your Code: {code}',
+        confirmedCopy: '10% off your first bottle — enter it at checkout. Sent to {email} too, for safekeeping.'
+      },
+      promoBanner: {
+        ariaLabel: 'Promotional offer',
+        offer: 'Limited-Time Offer −17% Off',
+        endsIn: 'Ends in ',
+        dismiss: 'Dismiss'
+      },
+      cartWidget: {
+        viewCart: 'View cart',
+        viewCartCount: 'View cart, {count} item',
+        viewCartCountPlural: 'View cart, {count} items',
+        previewDialogLabel: 'Shopping cart preview',
+        closePreview: 'Close cart preview',
+        empty: 'Your cart is empty.',
+        decreaseQty: 'Decrease quantity',
+        increaseQty: 'Increase quantity',
+        quantity: 'Quantity',
+        removeItem: 'Remove item from cart',
+        addAnother: 'Add Another',
+        buyNow: 'Buy Now'
+      },
+      common: {
+        backToShop: '← Back to Shop',
+        account: 'Account'
+      },
+      product: {
+        carouselAriaLabel: 'MONARK bottle image carousel',
+        imgAltStudio: 'MONARK Eau de Parfum bottle — studio view',
+        imgAltDetail: 'MONARK Eau de Parfum bottle — detail view',
+        zoomStudio: 'Zoom in on studio view',
+        zoomDetail: 'Zoom in on detail view',
+        dotStudio: 'Show studio view',
+        dotDetail: 'Show detail view',
+        closeLightbox: 'Close lightbox',
+        imageViewerAriaLabel: 'Image viewer',
+        kicker: 'Eau de Parfum — 100ml',
+        scentNotes: 'Bergamot · Incense · Amber',
+        priceNote: 'Limited-time offer — 17% off',
+        bottlesRemaining: 'bottles remaining',
+        addToCart: 'Add to Cart — 100ML',
+        returnPolicy: {
+          summary: '14-Day Return Policy',
+          body: 'You may return your sealed, unopened MONARK bottle within 14 days of delivery for a full refund, no questions asked. Once the security seal is broken, the bottle can no longer be returned for hygiene reasons, per EU consumer protection law. Read the full terms in our <a href="cgv.html">Terms &amp; Conditions of Sale</a>.'
+        },
+        howToWear: {
+          summary: 'How to Wear',
+          step1: "Apply to pulse points — wrists, neck — right after showering, while skin is still damp.",
+          step2: "Don't rub wrists together. It breaks the scent down before it has a chance to open.",
+          step3: 'Two to three sprays for daytime. Layer sparingly for an evening presence.',
+          step4: 'Reapply after 6–8 hours if the moment calls for it.'
+        },
+        ingredients: {
+          summary: 'Full Ingredients List (INCI)',
+          placeholderFlag: '[FICTIONAL / PLACEHOLDER — replace with the real, lab-verified formulation before launch]',
+          allergensNote: 'Contains fragrance allergens regulated under EU cosmetics law (Limonene, Linalool, Citronellol, Geraniol). If you have known fragrance sensitivities, patch-test on skin before full application — see our <a href="faq.html">FAQ</a> for more on ingredients and storage.'
+        },
+        backToExperience: 'Back to experience',
+        shippingFaqLink: 'Shipping, returns & more — FAQ',
+        numberedBatch: 'Numbered Batch',
+        notMassProduced: 'Not Mass-Produced',
+        shipsIn: 'Ships In',
+        matteBlackPackaging: 'Matte Black, Wax-Sealed Packaging',
+        notesKicker: 'The Composition',
+        topNotes: 'Top Notes',
+        topNotesNames: 'Bergamot · Lemon · Pink Pepper',
+        heartNotes: 'Heart Notes',
+        heartNotesNames: 'Lavender · Geranium · Incense',
+        baseNotes: 'Base Notes',
+        baseNotesNames: 'Ambergris · Cedarwood · Musk'
+      },
+      checkout: {
+        title: 'Checkout',
+        thankYou: 'Thank You',
+        orderSummary: 'Order Summary',
+        promoCodeLabel: 'Promo Code',
+        promoPlaceholder: 'Enter code',
+        apply: 'Apply',
+        shippingInformation: 'Shipping Information',
+        fullName: 'Full Name',
+        address: 'Address',
+        city: 'City',
+        postalCode: 'Postal Code',
+        payment: 'Payment',
+        cardNumber: 'Card Number',
+        expiry: 'Expiry',
+        cvc: 'CVC',
+        paymentNote: "Payment processing isn't connected yet — this is a visual placeholder only.",
+        placeOrder: 'Place Order',
+        orderReceived: 'Order Received',
+        confirmationText: 'This is a demo confirmation — no real order has been placed, no payment was processed, and no email was sent.',
+        backToTheExperience: 'Back to The Experience',
+        errorFullName: 'Please enter your full name.',
+        errorAddress: 'Please enter your address.',
+        errorCity: 'Please enter your city.',
+        errorPostal: 'Please enter your postal code.',
+        emptyCartNote: 'Your cart is empty. <a href="product.html">Shop MONARK</a> first.',
+        qty: 'Qty',
+        subtotal: 'Subtotal',
+        shipping: 'Shipping',
+        free: 'Free',
+        limitedTimeOffer: 'Limited-Time Offer (−17%)',
+        promoLabel: 'Promo ({code})',
+        total: 'Total',
+        promoSuccess: 'Applied ✓ {percent}% off',
+        promoInvalid: 'Invalid code',
+        confirmationTotalWithCode: 'Total charged: {total} (promo {code} applied)',
+        confirmationTotal: 'Total charged: {total}',
+        statusGuest: 'Checking out as {email} (Guest)'
+      },
+      accountGate: {
+        modify: 'Modify',
+        loggedInAs: 'Logged in as {email}',
+        guestDefault: 'Continuing as {email} (Guest)',
+        intro: 'Please enter your email to continue as a guest, log in, or create an account.',
+        emailLabel: 'Email',
+        continueBtn: 'Continue',
+        passwordLabel: 'Password',
+        logInBtn: 'Log In',
+        continueAsGuest: 'Continue as Guest',
+        createAccountInstead: 'Create an account instead',
+        confirmPasswordLabel: 'Confirm Password',
+        createAccountAndContinue: 'Create Account & Continue',
+        errorEmailEmpty: 'Please enter your email.',
+        errorEmailInvalid: 'Please enter a valid email address.',
+        errorWrongPassword: 'Incorrect password.',
+        errorAccountNotFound: 'Account not found.',
+        errorPasswordWeak: 'Password must be at least 8 characters and include a letter and a number.',
+        errorPasswordMismatch: 'Passwords do not match.',
+        errorAccountExists: 'An account with this email already exists.'
+      },
+      account: {
+        pageTitle: 'My Account',
+        statusGuest: 'Browsing as guest ({email})',
+        logOut: 'Log Out',
+        orderHistoryHeading: 'Order History',
+        noOrdersYet: 'No orders yet — your past purchases will appear here.'
+      },
+      faq: {
+        pageTitle: 'Frequently Asked Questions',
+        intro: 'Everything you need to know before, during, and after you acquire MONARK.',
+        shipping: {
+          heading: 'Shipping & Delivery',
+          body: 'Orders currently ship within <span class="placeholder">[3–5 business days — PLACEHOLDER, confirm real fulfillment timeline before launch]</span>, to <span class="placeholder">[France and the EU — PLACEHOLDER, confirm real delivery zones before launch]</span>. Every bottle travels in matte black, wax-sealed packaging, designed to arrive exactly as it left us.'
+        },
+        returns: {
+          heading: 'Returns & Refunds',
+          body: 'You have 14 days from delivery to return your MONARK bottle for a full refund, provided the security seal is still intact — once broken, the bottle can no longer be returned for hygiene reasons, per EU consumer protection law. Full terms, including how to initiate a return, are set out in our <a href="cgv.html">Terms & Conditions of Sale</a>.'
+        },
+        authenticity: {
+          heading: 'How do I know my bottle is genuine?',
+          body: 'Every MONARK bottle belongs to a numbered batch, capped at 500 bottles per edition. That number is your assurance: it means the bottle in your hands was never mass-produced, and that its fragrance load was mixed and inspected in a lot small enough to check by hand. MONARK is not sold through third-party marketplaces or resellers — the only way to acquire an authentic bottle is directly through this site.'
+        },
+        ingredients: {
+          heading: 'Ingredients & Allergens',
+          body: 'The full olfactory composition — top, heart, and base notes — is listed on the <a href="product.html">product page</a>. As with any fine fragrance, MONARK contains natural and synthetic aromatic compounds that can trigger sensitivities in some people, including common fragrance allergens regulated under EU cosmetics law (e.g. linalool, limonene). If you have known fragrance sensitivities, we recommend testing a small amount on skin before full application.'
+        },
+        storage: {
+          heading: 'How should I store my MONARK bottle?',
+          body: 'Keep it upright, away from direct sunlight and heat, ideally somewhere with a stable, cool temperature — a drawer or cabinet works better than a bathroom shelf or windowsill. Light and heat are what actually degrade a fragrance over time, not age alone. Stored properly, MONARK holds its character for years.'
+        },
+        numberedBatch: {
+          heading: 'What does "numbered batch" actually mean?',
+          body: 'Each MONARK edition is limited to 500 bottles, and the counter on the product page counts down from there as bottles are acquired — it reflects how many remain in the current batch, not a marketing gimmick. Once a batch sells out, it does not return; the next numbered batch is a new mix, not a reprint.'
+        },
+        promoCode: {
+          heading: 'How do I use a promo code?',
+          body: 'Enter your code in the Promo Code field on the checkout page and select Apply — the discount is calculated automatically and reflected in your order total before you place your order. Only one code can be applied per order.'
+        }
+      },
+      contact: {
+        pageTitle: 'Contact',
+        intro: 'Questions about an order, the composition, or a wholesale inquiry — we read every message personally.',
+        reachUs: 'Reach us directly at <span class="placeholder">[CONTACT EMAIL — TO BE COMPLETED]</span>, or use the form below.',
+        honeypotLabel: 'Leave this field blank',
+        nameLabel: 'Name',
+        emailLabel: 'Email',
+        reasonLabel: 'Reason',
+        reasonPlaceholder: 'Select one',
+        reasonOrder: 'Order Inquiry',
+        reasonWholesale: 'Wholesale',
+        reasonPress: 'Press',
+        reasonOther: 'Other',
+        reasonError: 'Please select a reason.',
+        messageLabel: 'Message',
+        submitBtn: 'Send Message',
+        successMessage: "Thank you — your message has been received. We'll get back to you shortly. (This is a mocked confirmation; no message was actually sent yet.)"
+      },
+      notFound: {
+        heading: "This Room Doesn't Exist",
+        body: "Some doors in this house lead nowhere — deliberately. The page you were looking for isn't one we've built, or it's since moved on. Nothing here to reign over.",
+        backToExperience: 'Back to The Experience',
+        acquireMonark: 'Acquire MONARK'
+      },
+      legalNotice: {
+        pageTitle: 'Legal Notice',
+        publisherHeading: 'Site Publisher',
+        publisherBody1: 'The MONARK website is published by <span class="placeholder">[COMPANY NAME — TO BE COMPLETED]</span>, <span class="placeholder">[LEGAL STRUCTURE — TO BE COMPLETED]</span> with share capital of <span class="placeholder">[SHARE CAPITAL — TO BE COMPLETED]</span>, registered with the Trade and Companies Register under SIRET number <span class="placeholder">[SIRET — TO BE COMPLETED]</span>.',
+        publisherBody2: 'Registered office: <span class="placeholder">[ADDRESS — TO BE COMPLETED]</span><br>Intra-Community VAT number: <span class="placeholder">[VAT NUMBER — TO BE COMPLETED]</span>',
+        directorHeading: 'Publication Director',
+        directorBody: '<span class="placeholder">[PUBLICATION DIRECTOR NAME — TO BE COMPLETED]</span>',
+        contactHeading: 'Contact',
+        contactBody: 'For any questions regarding the site or this legal notice, you may contact us at the following address: <span class="placeholder">[CONTACT EMAIL — TO BE COMPLETED]</span>',
+        hostingHeading: 'Hosting',
+        hostingBody: '<span class="placeholder">[HOSTING PROVIDER — TO BE COMPLETED]</span>',
+        ipHeading: 'Intellectual Property',
+        ipBody: 'All elements making up this site (text, images, logos, graphics, videos) are the exclusive property of MONARK or its partners, unless otherwise stated, and are protected by intellectual property law. Any reproduction, representation, modification, or use, in whole or in part, without prior authorization is prohibited.',
+        dataHeading: 'Personal Data',
+        dataBody: 'The processing of your personal data is described in our <a href="confidentialite.html">privacy policy</a>.'
+      },
+      termsOfSale: {
+        pageTitle: 'Terms & Conditions of Sale',
+        intro: "These Terms & Conditions of Sale (\"Terms\") govern the sale of products made on the MONARK website. Any order placed on this site implies the customer's unconditional acceptance of these Terms.",
+        s1Heading: '1. Purpose',
+        s1Body: 'These Terms are intended to define the rights and obligations of the parties in connection with the online sale of products offered by MONARK, namely perfumes and related products.',
+        s2Heading: '2. Price',
+        s2Body: 'Product prices are shown in euros (€), all taxes included. MONARK reserves the right to modify its prices at any time, it being understood that the price shown on the order at the time it is confirmed by the customer will be the only price applicable to that order.',
+        s3Heading: '3. Order',
+        s3Body: 'The customer selects the products they wish to order, adds them to their cart, then confirms the order after reviewing the summary. The order is only final once payment has been confirmed.',
+        s4Heading: '4. Payment',
+        s4Body: 'Payment is made online, at the time of ordering, by credit card or any other payment method offered on the site, via a secure payment provider: <span class="placeholder">[PAYMENT PROVIDER — TO BE COMPLETED]</span>.',
+        s5Heading: '5. Delivery',
+        s5Body1: 'Products are delivered to the address provided by the customer when placing the order.',
+        s5Body2: 'Delivery zones: <span class="placeholder">[DELIVERY ZONES — TO BE COMPLETED]</span><br>Estimated delivery times: <span class="placeholder">[DELIVERY TIMES — TO BE COMPLETED]</span><br>Delivery fees: <span class="placeholder">[DELIVERY FEES — TO BE COMPLETED]</span>',
+        s6Heading: '6. Right of Withdrawal',
+        s6Body1: 'In accordance with Articles L221-18 et seq. of the French Consumer Code, the customer has a period of fourteen (14) clear days from receipt of the product to exercise their right of withdrawal with MONARK, without having to state any reason or pay any penalty, except, where applicable, for return shipping costs.',
+        s6Body2: 'To exercise this right, the customer must notify their decision to withdraw by means of an unambiguous statement (postal mail, email, or withdrawal form) sent to <span class="placeholder">[EMAIL / CONTACT ADDRESS — TO BE COMPLETED]</span> before the 14-day period expires.',
+        s6Body3: 'The customer then has a period of fourteen (14) days from the date they communicate their decision to withdraw to return the product. MONARK will refund the full amount paid, including standard delivery costs, no later than fourteen (14) days after being informed of the decision to withdraw, unless MONARK offers to collect the item itself or the customer does not provide proof of shipment, in which case the refund may be deferred until the item is received or proof of its shipment is provided, whichever occurs first.',
+        s6Body4: '<strong>Exception:</strong> in accordance with Article L221-28 of the French Consumer Code, the right of withdrawal cannot be exercised for products unsealed by the customer after delivery that cannot be returned for hygiene or health protection reasons. A perfume bottle whose security seal has been removed or whose contents have been opened therefore cannot be the subject of a right of withdrawal, except in the case of non-conformity or a product defect.',
+        s7Heading: '7. Returns and Refunds',
+        s7Body: "Returns must be made in their original packaging, unsealed, accompanied by proof of purchase. Return shipping costs are the customer's responsibility, except in the case of a non-conforming or defective product. Refunds are issued using the same payment method used when placing the order.",
+        s8Heading: '8. Warranties',
+        s8Body: 'All products sold on the site benefit from the legal guarantee of conformity (Articles L217-3 et seq. of the French Consumer Code) and the legal guarantee against hidden defects (Articles 1641 et seq. of the French Civil Code).',
+        s9Heading: '9. Disputes and Jurisdiction',
+        s9Body: 'These Terms are governed by <span class="placeholder">[GOVERNING LAW — TO BE COMPLETED]</span>. In the event of a dispute, an amicable solution will be sought before any legal action, in particular via the consumer mediator <span class="placeholder">[MEDIATOR — TO BE COMPLETED]</span>. Failing an amicable agreement, the courts of <span class="placeholder">[COMPETENT JURISDICTION — TO BE COMPLETED]</span> shall have sole jurisdiction.'
+      },
+      privacyPolicy: {
+        pageTitle: 'Privacy Policy',
+        intro: 'This privacy policy describes how MONARK collects, uses, and protects the personal data of users of this site, in accordance with the General Data Protection Regulation (GDPR — Regulation (EU) 2016/679) and the French Data Protection Act (Loi Informatique et Libertés).',
+        s1Heading: '1. Data Collected',
+        s1Intro: 'As part of your browsing and orders on the site, we may collect the following data:',
+        s1Item1: 'Identity: first and last name',
+        s1Item2: 'Contact details: email address, postal address, phone number',
+        s1Item3: 'Order data: purchase history, products viewed',
+        s1Item4: 'Payment data: processed directly by our payment provider; MONARK does not have access to full banking details',
+        s1Item5: 'Browsing data: IP address, cookies (see section 7)',
+        s2Heading: '2. Purposes of Processing',
+        s2Body: 'This data is collected for the following purposes: processing and tracking orders, managing the customer relationship, fraud prevention, improving the site and user experience, and, subject to your consent, sending marketing communications.',
+        s3Heading: '3. Legal Basis for Processing',
+        s3Body: "The processing of your data is based, depending on the case, on: performance of the sales contract (for order processing), consent (for the newsletter and non-essential cookies), MONARK's legitimate interest (service improvement, security), and compliance with legal obligations (invoicing, accounting).",
+        s4Heading: '4. Data Retention Period',
+        s4Body: 'Your data is retained for the period necessary to fulfill the purposes for which it was collected, and in particular: order-related data is retained for the period required by accounting and tax obligations (<span class="placeholder">[PERIOD — TO BE COMPLETED]</span>); prospect data is retained <span class="placeholder">[PERIOD — TO BE COMPLETED]</span> from the last contact.',
+        s5Heading: '5. Your Rights',
+        s5Intro: 'In accordance with Articles 15 to 22 of the GDPR, you have the following rights over your personal data:',
+        s5Right1: '<strong>Right of access</strong>: to obtain confirmation that your data is being processed and to obtain a copy of it;',
+        s5Right2: '<strong>Right to rectification</strong>: to have inaccurate or incomplete data corrected;',
+        s5Right3: '<strong>Right to erasure</strong> ("right to be forgotten"): to request the deletion of your data, under the conditions provided for by the GDPR;',
+        s5Right4: '<strong>Right to restriction of processing</strong>;',
+        s5Right5: '<strong>Right to data portability</strong>: to receive your data in a structured, commonly used, machine-readable format, and to transmit it to another data controller;',
+        s5Right6: '<strong>Right to object</strong>, in particular to processing for prospecting purposes;',
+        s5Right7: '<strong>Right to withdraw your consent</strong> at any time, where processing is based on it.',
+        s5Cnil: 'You also have the right to lodge a complaint with the French Data Protection Authority (CNIL) if you believe that the processing of your personal data constitutes a breach of the GDPR.',
+        s6Heading: '6. Recipients and Third Parties',
+        s6Body: 'Your data may be shared with the following recipients, strictly limited to their respective needs: our payment provider for processing transactions (<span class="placeholder">[PAYMENT PROVIDER — TO BE COMPLETED]</span>), our hosting provider (<span class="placeholder">[HOSTING PROVIDER — TO BE COMPLETED]</span>), and our delivery providers. These third parties are required to respect the confidentiality and security of your data.',
+        s7Heading: '7. Cookies',
+        s7Body: 'This site uses cookies to improve your browsing experience, measure site traffic, and, subject to your consent, for personalization purposes. You can accept or reject non-essential cookies via the consent banner shown on your first visit. You can also change your preferences at any time by clearing the browsing data stored by your browser for this site.',
+        s8Heading: '8. Contact',
+        s8Body: 'For any questions regarding your personal data or to exercise your rights, you may contact us at the following address: <span class="placeholder">[DPO EMAIL / DATA CONTACT — TO BE COMPLETED]</span>'
+      }
+    },
+    fr: {
+      a11y: {
+        skipToContent: 'Aller au contenu',
+        previousImage: 'Image précédente',
+        nextImage: 'Image suivante'
+      },
+      nav: {
+        experience: "L'Expérience",
+        acquire: 'Acquérir'
+      },
+      hero: {
+        label: 'Eau de Parfum — Premier Décret',
+        tagline: "Un parfum conçu pour les hommes qui règnent sur une pièce sans jamais y entrer.",
+        scroll: 'Défilez pour que le Règne commence'
+      },
+      s1: {
+        label: '001 / La Signature',
+        heading: "Le Sang-Froid Est Ce Qu'un Homme Peut Porter de Plus Éclatant.",
+        body: "MONARK ne se vaporise pas — il se déclare. Un premier souffle de bergamote et de poivre rose fend l'air, tranchant comme une décision prise et jamais reconsidérée. Ce qui suit n'est pas de la douceur. C'est une retenue qui mord."
+      },
+      s2: {
+        label: '002 / La Genèse',
+        heading: "La Coquille N'a Jamais Été l'Essentiel.",
+        body: "Le verre se fissure. Les éclats se dispersent dans l'obscurité, et ce qui reste n'est pas une ruine — un noyau noir unique, fondu et entier, la forme véritable qui se cachait toujours sous le flacon. MONARK repose sur la même loi : dépouillez un homme de l'armure qu'il affiche, et ce qui subsiste n'est pas plus faible. C'est lui, sans dilution."
+      },
+      s3: {
+        label: '003 / La Composition',
+        heading: 'Ce Que la Brisure Révèle.',
+        tier1: {
+          label: 'Tête — La Première Frappe',
+          heading: 'Bergamote. Citron.<br>Poivre Rose.',
+          body: "L'introduction est une lame, pas une poignée de main. La bergamote italienne et le citron éclatant arrivent en premier, tranchés par la chaleur sèche du poivre rose — un salut qui met fin aux conversations avant qu'elles ne commencent."
+        },
+        tier2: {
+          label: 'Le Cœur — Ce Qui Demeure',
+          heading: 'Lavande. Géranium.<br>Encens.',
+          body: "Sous la frappe, quelque chose de plus ancien s'installe. La lavande et le géranium n'adoucissent que le strict nécessaire pour laisser l'encens s'élever — une fumée qui s'échappe d'un rituel privé auquel personne d'autre n'est convié."
+        },
+        tier3: {
+          label: 'Le Fond — Ce Qui Persiste',
+          heading: 'Ambre Gris. Bois de Cèdre.<br>Musc.',
+          body: "C'est la part qui demeure sur la peau bien après que la pièce s'est vidée. L'ambre gris et le bois de cèdre ancrent la composition dans quelque chose d'ancien ; le musc referme la porte derrière elle. Ce n'est pas un parfum que l'on porte. C'est un parfum que l'on laisse derrière soi."
+        }
+      },
+      s4: {
+        label: '004 / La Provenance',
+        heading: "Sourcé Comme Se Forge Une Couronne — Rarement, et Sans Compromis.",
+        body: "Le bois de cèdre est coupé dans des futaies uniques des montagnes de l'Atlas. L'ambre gris est vieilli bien avant de rejoindre l'assemblage. Chaque lot de MONARK est mélangé à la main, en quantités trop restreintes pour être précipitées et trop précises pour être reproduites à l'identique — ce qui est précisément le but."
+      },
+      s5: {
+        label: '005 / En Chiffres',
+        stat1: 'Un sillage qui persiste après minuit',
+        stat2: 'Concentration en Eau de Parfum',
+        stat3: "Pays d'origine, pour neuf matières premières",
+        stat4: 'Flacons par édition numérotée'
+      },
+      s6: {
+        label: "006 / L'Acquisition",
+        heading: 'Le Règne Est Mis en Flacon. Réclamez le Vôtre.',
+        body: "MONARK Eau de Parfum. 100ml. Numéroté, non produit en série. Une fois un lot épuisé, il ne revient pas.",
+        badge: 'Offre Limitée −17%',
+        button: 'Acquérir MONARK — 100ml',
+        note: 'Expédié dans un emballage noir mat, scellé à la cire.'
+      },
+      footer: {
+        copyright: '© 2025 MONARK. Tous droits réservés.',
+        faq: 'FAQ',
+        contact: 'Contact',
+        legalNotice: 'Mentions Légales',
+        termsOfSale: 'Conditions de Vente',
+        privacyPolicy: 'Politique de Confidentialité'
+      },
+      navMenu: {
+        openMenu: 'Ouvrir le menu',
+        closeMenu: 'Fermer le menu',
+        siteMenu: 'Menu du site',
+        homepage: 'Accueil',
+        checkout: 'Commande',
+        info: 'Info',
+        account: 'Compte',
+        langSwitchToFr: 'Passer en français',
+        langSwitchToEn: 'Switch to English',
+        faq: 'FAQ',
+        contact: 'Contact',
+        legalNotice: 'Mentions Légales',
+        termsOfSale: 'Conditions de Vente',
+        privacyPolicy: 'Politique de Confidentialité'
+      },
+      cookie: {
+        ariaLabel: 'Consentement aux cookies',
+        text: 'Nous utilisons des cookies pour améliorer votre expérience et analyser le trafic du site. Consultez notre <a href="confidentialite.html">politique de confidentialité</a> pour en savoir plus.',
+        reject: 'Refuser',
+        accept: 'Accepter'
+      },
+      emailPopup: {
+        ariaLabel: "Offre d'inscription par e-mail",
+        close: 'Fermer',
+        kicker: 'Une Petite Concession',
+        heading: '10% de Réduction sur Votre Premier Flacon',
+        copy: "Inscrivez-vous avant que le prochain lot numéroté ne s'épuise.",
+        emailPlaceholder: 'vous@email.com',
+        emailAriaLabel: 'Adresse e-mail',
+        consent: 'En soumettant ce formulaire, vous acceptez de recevoir des e-mails marketing de MONARK.',
+        submit: 'Obtenir Mes 10%',
+        errorEmpty: 'Veuillez saisir votre e-mail.',
+        errorInvalid: 'Veuillez saisir une adresse e-mail valide.',
+        confirmedKicker: 'Confirmé',
+        confirmedHeading: 'Votre Code : {code}',
+        confirmedCopy: '10% de réduction sur votre premier flacon — à saisir lors du paiement. Également envoyé à {email}, pour vos archives.'
+      },
+      promoBanner: {
+        ariaLabel: 'Offre promotionnelle',
+        offer: 'Offre Limitée −17%',
+        endsIn: 'Se termine dans ',
+        dismiss: 'Fermer'
+      },
+      cartWidget: {
+        viewCart: 'Voir le panier',
+        viewCartCount: 'Voir le panier, {count} article',
+        viewCartCountPlural: 'Voir le panier, {count} articles',
+        previewDialogLabel: "Aperçu du panier",
+        closePreview: "Fermer l'aperçu du panier",
+        empty: 'Votre panier est vide.',
+        decreaseQty: 'Diminuer la quantité',
+        increaseQty: 'Augmenter la quantité',
+        quantity: 'Quantité',
+        removeItem: "Retirer l'article du panier",
+        addAnother: 'Ajouter un Autre',
+        buyNow: 'Acheter'
+      },
+      common: {
+        backToShop: '← Retour à la Boutique',
+        account: 'Compte'
+      },
+      product: {
+        carouselAriaLabel: "Carrousel d'images du flacon MONARK",
+        imgAltStudio: 'Flacon MONARK Eau de Parfum — vue studio',
+        imgAltDetail: 'Flacon MONARK Eau de Parfum — vue détaillée',
+        zoomStudio: 'Zoomer sur la vue studio',
+        zoomDetail: 'Zoomer sur la vue détaillée',
+        dotStudio: 'Afficher la vue studio',
+        dotDetail: 'Afficher la vue détaillée',
+        closeLightbox: 'Fermer la visionneuse',
+        imageViewerAriaLabel: "Visionneuse d'image",
+        kicker: 'Eau de Parfum — 100ml',
+        scentNotes: 'Bergamote · Encens · Ambre',
+        priceNote: 'Offre à durée limitée — 17 % de réduction',
+        bottlesRemaining: 'flacons restants',
+        addToCart: 'Ajouter au Panier — 100ML',
+        returnPolicy: {
+          summary: 'Retours sous 14 Jours',
+          body: "Vous pouvez retourner votre flacon MONARK scellé et non ouvert dans les 14 jours suivant la livraison pour un remboursement intégral, sans questions. Une fois le sceau de sécurité brisé, le flacon ne peut plus être retourné pour des raisons d'hygiène, conformément au droit européen de la consommation. Consultez les conditions complètes dans nos <a href=\"cgv.html\">Conditions Générales de Vente</a>."
+        },
+        howToWear: {
+          summary: 'Comment le Porter',
+          step1: 'Appliquez sur les points de pulsation — poignets, cou — juste après la douche, pendant que la peau est encore humide.',
+          step2: "Ne frottez pas les poignets l'un contre l'autre. Cela dégrade le parfum avant même qu'il ait pu s'ouvrir.",
+          step3: 'Deux à trois vaporisations pour la journée. Superposez avec parcimonie pour une présence en soirée.',
+          step4: "Réappliquez après 6 à 8 heures si l'occasion le demande."
+        },
+        ingredients: {
+          summary: 'Liste Complète des Ingrédients (INCI)',
+          placeholderFlag: '[FICTIF / MARQUEUR — à remplacer par la formulation réelle et vérifiée en laboratoire avant le lancement]',
+          allergensNote: "Contient des allergènes de parfum réglementés par la législation cosmétique européenne (Limonène, Linalol, Citronellol, Géraniol). Si vous avez des sensibilités connues aux parfums, effectuez un test cutané avant application complète — consultez notre <a href=\"faq.html\">FAQ</a> pour en savoir plus sur les ingrédients et la conservation."
+        },
+        backToExperience: "Retour à l'expérience",
+        shippingFaqLink: 'Livraison, retours et plus — FAQ',
+        numberedBatch: 'Lot Numéroté',
+        notMassProduced: 'Non Produit en Série',
+        shipsIn: 'Expédié Dans',
+        matteBlackPackaging: 'Emballage Noir Mat, Scellé à la Cire',
+        notesKicker: 'La Composition',
+        topNotes: 'Notes de Tête',
+        topNotesNames: 'Bergamote · Citron · Poivre Rose',
+        heartNotes: 'Notes de Cœur',
+        heartNotesNames: 'Lavande · Géranium · Encens',
+        baseNotes: 'Notes de Fond',
+        baseNotesNames: 'Ambre Gris · Bois de Cèdre · Musc'
+      },
+      checkout: {
+        title: 'Commande',
+        thankYou: 'Merci',
+        orderSummary: 'Récapitulatif de la Commande',
+        promoCodeLabel: 'Code Promo',
+        promoPlaceholder: 'Entrez le code',
+        apply: 'Appliquer',
+        shippingInformation: 'Informations de Livraison',
+        fullName: 'Nom Complet',
+        address: 'Adresse',
+        city: 'Ville',
+        postalCode: 'Code Postal',
+        payment: 'Paiement',
+        cardNumber: 'Numéro de Carte',
+        expiry: 'Expiration',
+        cvc: 'CVC',
+        paymentNote: "Le traitement des paiements n'est pas encore connecté — ceci est un espace réservé visuel uniquement.",
+        placeOrder: 'Passer la Commande',
+        orderReceived: 'Commande Reçue',
+        confirmationText: "Ceci est une confirmation de démonstration — aucune commande réelle n'a été passée, aucun paiement n'a été traité et aucun e-mail n'a été envoyé.",
+        backToTheExperience: "Retour à L'Expérience",
+        errorFullName: 'Veuillez saisir votre nom complet.',
+        errorAddress: 'Veuillez saisir votre adresse.',
+        errorCity: 'Veuillez saisir votre ville.',
+        errorPostal: 'Veuillez saisir votre code postal.',
+        emptyCartNote: 'Votre panier est vide. <a href="product.html">Découvrez MONARK</a> avant de continuer.',
+        qty: 'Qté',
+        subtotal: 'Sous-total',
+        shipping: 'Livraison',
+        free: 'Gratuite',
+        limitedTimeOffer: 'Offre à Durée Limitée (−17%)',
+        promoLabel: 'Promo ({code})',
+        total: 'Total',
+        promoSuccess: 'Appliqué ✓ {percent}% de réduction',
+        promoInvalid: 'Code invalide',
+        confirmationTotalWithCode: 'Total facturé : {total} (code promo {code} appliqué)',
+        confirmationTotal: 'Total facturé : {total}',
+        statusGuest: "Commande en tant qu'invité : {email}"
+      },
+      accountGate: {
+        modify: 'Modifier',
+        loggedInAs: 'Connecté en tant que {email}',
+        guestDefault: 'Poursuite en tant que {email} (Invité)',
+        intro: "Veuillez saisir votre e-mail pour continuer en tant qu'invité, vous connecter ou créer un compte.",
+        emailLabel: 'E-mail',
+        continueBtn: 'Continuer',
+        passwordLabel: 'Mot de Passe',
+        logInBtn: 'Se Connecter',
+        continueAsGuest: 'Continuer en tant qu\'Invité',
+        createAccountInstead: 'Créer un compte à la place',
+        confirmPasswordLabel: 'Confirmer le Mot de Passe',
+        createAccountAndContinue: 'Créer un Compte et Continuer',
+        errorEmailEmpty: 'Veuillez saisir votre e-mail.',
+        errorEmailInvalid: 'Veuillez saisir une adresse e-mail valide.',
+        errorWrongPassword: 'Mot de passe incorrect.',
+        errorAccountNotFound: 'Compte introuvable.',
+        errorPasswordWeak: 'Le mot de passe doit contenir au moins 8 caractères, dont une lettre et un chiffre.',
+        errorPasswordMismatch: 'Les mots de passe ne correspondent pas.',
+        errorAccountExists: 'Un compte avec cet e-mail existe déjà.'
+      },
+      account: {
+        pageTitle: 'Mon Compte',
+        statusGuest: "Navigation en tant qu'invité ({email})",
+        logOut: 'Se Déconnecter',
+        orderHistoryHeading: 'Historique des Commandes',
+        noOrdersYet: 'Aucune commande pour l\'instant — vos achats passés apparaîtront ici.'
+      },
+      faq: {
+        pageTitle: 'Foire Aux Questions',
+        intro: "Tout ce qu'il faut savoir avant, pendant et après l'acquisition de MONARK.",
+        shipping: {
+          heading: 'Expédition et Livraison',
+          body: 'Les commandes sont actuellement expédiées sous <span class="placeholder">[3 à 5 jours ouvrés — MARQUEUR, à confirmer avant le lancement]</span>, vers <span class="placeholder">[la France et l\'UE — MARQUEUR, à confirmer avant le lancement]</span>. Chaque flacon voyage dans un emballage noir mat, scellé à la cire, conçu pour arriver exactement tel qu\'il nous a quittés.'
+        },
+        returns: {
+          heading: 'Retours et Remboursements',
+          body: 'Vous disposez de 14 jours à compter de la livraison pour retourner votre flacon MONARK et obtenir un remboursement intégral, à condition que le sceau de sécurité soit encore intact — une fois brisé, le flacon ne peut plus être retourné pour des raisons d\'hygiène, conformément au droit européen de la consommation. Les conditions complètes, y compris la marche à suivre pour un retour, figurent dans nos <a href="cgv.html">Conditions Générales de Vente</a>.'
+        },
+        authenticity: {
+          heading: 'Comment savoir si mon flacon est authentique ?',
+          body: "Chaque flacon MONARK appartient à un lot numéroté, limité à 500 flacons par édition. Ce numéro est votre garantie : il signifie que le flacon entre vos mains n'a jamais été produit en série, et que sa formule a été mélangée et contrôlée dans un lot assez restreint pour être vérifié à la main. MONARK n'est vendu sur aucune place de marché ni par aucun revendeur tiers — la seule façon d'acquérir un flacon authentique est de passer directement par ce site."
+        },
+        ingredients: {
+          heading: 'Ingrédients et Allergènes',
+          body: 'La composition olfactive complète — notes de tête, de cœur et de fond — est détaillée sur la <a href="product.html">page produit</a>. Comme tout parfum de qualité, MONARK contient des composés aromatiques naturels et synthétiques susceptibles de provoquer des sensibilités chez certaines personnes, dont des allergènes de parfum courants réglementés par la législation cosmétique européenne (par exemple le linalol, le limonène). Si vous avez des sensibilités connues aux parfums, nous recommandons un test sur une petite zone de peau avant application complète.'
+        },
+        storage: {
+          heading: 'Comment conserver mon flacon MONARK ?',
+          body: "Conservez-le debout, à l'abri de la lumière directe et de la chaleur, idéalement dans un endroit à température stable et fraîche — un tiroir ou un placard convient mieux qu'une étagère de salle de bain ou un rebord de fenêtre. Ce sont la lumière et la chaleur qui altèrent réellement un parfum avec le temps, pas l'âge seul. Bien conservé, MONARK garde son caractère pendant des années."
+        },
+        numberedBatch: {
+          heading: 'Que signifie réellement « lot numéroté » ?',
+          body: "Chaque édition MONARK est limitée à 500 flacons, et le compteur sur la page produit décompte à partir de ce chiffre au fur et à mesure des acquisitions — il reflète le nombre de flacons restants dans le lot actuel, pas un argument marketing. Une fois un lot épuisé, il ne revient pas ; le prochain lot numéroté est un nouveau mélange, pas une réédition."
+        },
+        promoCode: {
+          heading: 'Comment utiliser un code promo ?',
+          body: 'Saisissez votre code dans le champ Code Promo de la page de commande, puis sélectionnez Appliquer — la réduction est calculée automatiquement et répercutée sur le total de votre commande avant que vous ne la validiez. Un seul code peut être appliqué par commande.'
+        }
+      },
+      contact: {
+        pageTitle: 'Contact',
+        intro: 'Une question sur une commande, la composition, ou une demande de revente en gros — nous lisons chaque message personnellement.',
+        reachUs: 'Contactez-nous directement à <span class="placeholder">[E-MAIL DE CONTACT — À COMPLÉTER]</span>, ou utilisez le formulaire ci-dessous.',
+        honeypotLabel: 'Laissez ce champ vide',
+        nameLabel: 'Nom',
+        emailLabel: 'E-mail',
+        reasonLabel: 'Motif',
+        reasonPlaceholder: 'Sélectionner',
+        reasonOrder: 'Question sur une commande',
+        reasonWholesale: 'Revente en Gros',
+        reasonPress: 'Presse',
+        reasonOther: 'Autre',
+        reasonError: 'Veuillez sélectionner un motif.',
+        messageLabel: 'Message',
+        submitBtn: 'Envoyer le Message',
+        successMessage: "Merci — votre message a bien été reçu. Nous vous répondrons sous peu. (Ceci est une confirmation simulée ; aucun message n'a encore été réellement envoyé.)"
+      },
+      notFound: {
+        heading: "Cette Pièce N'existe Pas",
+        body: 'Certaines portes de cette maison ne mènent nulle part — volontairement. La page que vous cherchiez n\'a jamais été construite, ou elle a depuis disparu. Rien ici sur quoi régner.',
+        backToExperience: "Retour à L'Expérience",
+        acquireMonark: 'Acquérir MONARK'
+      },
+      legalNotice: {
+        pageTitle: 'Mentions Légales',
+        publisherHeading: 'Éditeur du Site',
+        publisherBody1: 'Le site MONARK est édité par <span class="placeholder">[NOM DE LA SOCIÉTÉ — À COMPLÉTER]</span>, <span class="placeholder">[FORME JURIDIQUE — À COMPLÉTER]</span> au capital social de <span class="placeholder">[CAPITAL SOCIAL — À COMPLÉTER]</span>, immatriculée au Registre du Commerce et des Sociétés sous le numéro SIRET <span class="placeholder">[SIRET — À COMPLÉTER]</span>.',
+        publisherBody2: 'Siège social : <span class="placeholder">[ADRESSE — À COMPLÉTER]</span><br>Numéro de TVA intracommunautaire : <span class="placeholder">[NUMÉRO DE TVA — À COMPLÉTER]</span>',
+        directorHeading: 'Directeur de la Publication',
+        directorBody: '<span class="placeholder">[NOM DU DIRECTEUR DE LA PUBLICATION — À COMPLÉTER]</span>',
+        contactHeading: 'Contact',
+        contactBody: 'Pour toute question relative au site ou aux présentes mentions légales, vous pouvez nous contacter à l\'adresse suivante : <span class="placeholder">[E-MAIL DE CONTACT — À COMPLÉTER]</span>',
+        hostingHeading: 'Hébergement',
+        hostingBody: '<span class="placeholder">[HÉBERGEUR — À COMPLÉTER]</span>',
+        ipHeading: 'Propriété Intellectuelle',
+        ipBody: 'Tous les éléments composant ce site (textes, images, logos, graphismes, vidéos) sont la propriété exclusive de MONARK ou de ses partenaires, sauf mention contraire, et sont protégés par le droit de la propriété intellectuelle. Toute reproduction, représentation, modification ou utilisation, totale ou partielle, sans autorisation préalable, est interdite.',
+        dataHeading: 'Données Personnelles',
+        dataBody: 'Le traitement de vos données personnelles est décrit dans notre <a href="confidentialite.html">politique de confidentialité</a>.'
+      },
+      termsOfSale: {
+        pageTitle: 'Conditions Générales de Vente',
+        intro: "Les présentes Conditions Générales de Vente (les « Conditions ») régissent la vente des produits proposés sur le site MONARK. Toute commande passée sur ce site implique l'acceptation sans réserve de ces Conditions par le client.",
+        s1Heading: '1. Objet',
+        s1Body: "Les présentes Conditions ont pour objet de définir les droits et obligations des parties dans le cadre de la vente en ligne des produits proposés par MONARK, à savoir des parfums et produits dérivés.",
+        s2Heading: '2. Prix',
+        s2Body: 'Les prix des produits sont indiqués en euros (€), toutes taxes comprises. MONARK se réserve le droit de modifier ses prix à tout moment, étant entendu que le prix affiché sur la commande au moment de sa confirmation par le client est le seul prix applicable à cette commande.',
+        s3Heading: '3. Commande',
+        s3Body: "Le client sélectionne les produits qu'il souhaite commander, les ajoute à son panier, puis confirme la commande après avoir vérifié le récapitulatif. La commande n'est définitive qu'une fois le paiement confirmé.",
+        s4Heading: '4. Paiement',
+        s4Body: 'Le paiement s\'effectue en ligne, au moment de la commande, par carte bancaire ou tout autre moyen de paiement proposé sur le site, via un prestataire de paiement sécurisé : <span class="placeholder">[PRESTATAIRE DE PAIEMENT — À COMPLÉTER]</span>.',
+        s5Heading: '5. Livraison',
+        s5Body1: 'Les produits sont livrés à l\'adresse indiquée par le client lors de la commande.',
+        s5Body2: 'Zones de livraison : <span class="placeholder">[ZONES DE LIVRAISON — À COMPLÉTER]</span><br>Délais de livraison estimés : <span class="placeholder">[DÉLAIS DE LIVRAISON — À COMPLÉTER]</span><br>Frais de livraison : <span class="placeholder">[FRAIS DE LIVRAISON — À COMPLÉTER]</span>',
+        s6Heading: '6. Droit de Rétractation',
+        s6Body1: "Conformément aux articles L221-18 et suivants du Code de la consommation, le client dispose d'un délai de quatorze (14) jours francs à compter de la réception du produit pour exercer son droit de rétractation auprès de MONARK, sans avoir à justifier de motifs ni à payer de pénalités, à l'exception, le cas échéant, des frais de retour.",
+        s6Body2: 'Pour exercer ce droit, le client doit notifier sa décision de rétractation au moyen d\'une déclaration dénuée d\'ambiguïté (courrier postal, e-mail, ou formulaire de rétractation) envoyée à <span class="placeholder">[E-MAIL / ADRESSE DE CONTACT — À COMPLÉTER]</span> avant l\'expiration du délai de 14 jours.',
+        s6Body3: "Le client dispose ensuite d'un délai de quatorze (14) jours à compter de la communication de sa décision de rétractation pour retourner le produit. MONARK remboursera l'intégralité des sommes versées, y compris les frais de livraison standard, au plus tard quatorze (14) jours après avoir été informé de la décision de rétractation, sauf si MONARK propose de récupérer le bien lui-même ou si le client ne fournit pas de justificatif d'expédition, auquel cas le remboursement pourra être différé jusqu'à réception du bien ou jusqu'à ce que le client ait fourni une preuve de son expédition, la date retenue étant celle du premier de ces faits.",
+        s6Body4: '<strong>Exception :</strong> conformément à l\'article L221-28 du Code de la consommation, le droit de rétractation ne peut être exercé pour les produits descellés par le client après la livraison et qui ne peuvent être renvoyés pour des raisons d\'hygiène ou de protection de la santé. Un flacon de parfum dont le sceau de sécurité a été retiré ou dont le contenu a été ouvert ne peut donc faire l\'objet d\'un droit de rétractation, sauf en cas de non-conformité ou de défaut du produit.',
+        s7Heading: '7. Retours et Remboursements',
+        s7Body: "Les retours doivent être effectués dans leur emballage d'origine, non descellé, accompagnés d'un justificatif d'achat. Les frais de retour sont à la charge du client, sauf en cas de produit non conforme ou défectueux. Les remboursements sont effectués selon le même moyen de paiement que celui utilisé lors de la commande.",
+        s8Heading: '8. Garanties',
+        s8Body: 'Tous les produits vendus sur le site bénéficient de la garantie légale de conformité (articles L217-3 et suivants du Code de la consommation) et de la garantie légale des vices cachés (articles 1641 et suivants du Code civil).',
+        s9Heading: '9. Litiges et Juridiction',
+        s9Body: 'Les présentes Conditions sont soumises à <span class="placeholder">[DROIT APPLICABLE — À COMPLÉTER]</span>. En cas de litige, une solution amiable sera recherchée avant toute action judiciaire, notamment auprès du médiateur de la consommation <span class="placeholder">[MÉDIATEUR — À COMPLÉTER]</span>. À défaut d\'accord amiable, les tribunaux de <span class="placeholder">[JURIDICTION COMPÉTENTE — À COMPLÉTER]</span> seront seuls compétents.'
+      },
+      privacyPolicy: {
+        pageTitle: 'Politique de Confidentialité',
+        intro: 'Cette politique de confidentialité décrit la manière dont MONARK collecte, utilise et protège les données personnelles des utilisateurs de ce site, conformément au Règlement Général sur la Protection des Données (RGPD — Règlement (UE) 2016/679) et à la Loi Informatique et Libertés.',
+        s1Heading: '1. Données Collectées',
+        s1Intro: 'Dans le cadre de votre navigation et de vos commandes sur le site, nous sommes susceptibles de collecter les données suivantes :',
+        s1Item1: 'Identité : nom et prénom',
+        s1Item2: 'Coordonnées : adresse e-mail, adresse postale, numéro de téléphone',
+        s1Item3: "Données de commande : historique d'achats, produits consultés",
+        s1Item4: "Données de paiement : traitées directement par notre prestataire de paiement ; MONARK n'a pas accès aux coordonnées bancaires complètes",
+        s1Item5: 'Données de navigation : adresse IP, cookies (voir section 7)',
+        s2Heading: '2. Finalités du Traitement',
+        s2Body: 'Ces données sont collectées pour les finalités suivantes : traitement et suivi des commandes, gestion de la relation client, prévention de la fraude, amélioration du site et de l\'expérience utilisateur, et, sous réserve de votre consentement, envoi de communications marketing.',
+        s3Heading: '3. Base Légale du Traitement',
+        s3Body: 'Le traitement de vos données repose, selon les cas, sur : l\'exécution du contrat de vente (pour le traitement des commandes), le consentement (pour la newsletter et les cookies non essentiels), l\'intérêt légitime de MONARK (amélioration du service, sécurité), et le respect d\'obligations légales (facturation, comptabilité).',
+        s4Heading: '4. Durée de Conservation des Données',
+        s4Body: 'Vos données sont conservées pendant la durée nécessaire à la réalisation des finalités pour lesquelles elles ont été collectées, et notamment : les données liées aux commandes sont conservées pendant la durée imposée par les obligations comptables et fiscales (<span class="placeholder">[DURÉE — À COMPLÉTER]</span>) ; les données prospects sont conservées <span class="placeholder">[DURÉE — À COMPLÉTER]</span> à compter du dernier contact.',
+        s5Heading: '5. Vos Droits',
+        s5Intro: 'Conformément aux articles 15 à 22 du RGPD, vous disposez des droits suivants sur vos données personnelles :',
+        s5Right1: '<strong>Droit d\'accès</strong> : obtenir la confirmation que vos données sont traitées et en obtenir une copie ;',
+        s5Right2: '<strong>Droit de rectification</strong> : faire corriger des données inexactes ou incomplètes ;',
+        s5Right3: '<strong>Droit à l\'effacement</strong> (« droit à l\'oubli ») : demander la suppression de vos données, dans les conditions prévues par le RGPD ;',
+        s5Right4: '<strong>Droit à la limitation du traitement</strong> ;',
+        s5Right5: '<strong>Droit à la portabilité des données</strong> : recevoir vos données dans un format structuré, couramment utilisé et lisible par machine, et les transmettre à un autre responsable de traitement ;',
+        s5Right6: '<strong>Droit d\'opposition</strong>, notamment au traitement à des fins de prospection ;',
+        s5Right7: '<strong>Droit de retirer votre consentement</strong> à tout moment, lorsque le traitement est fondé sur celui-ci.',
+        s5Cnil: 'Vous disposez également du droit d\'introduire une réclamation auprès de la Commission Nationale de l\'Informatique et des Libertés (CNIL) si vous estimez que le traitement de vos données personnelles constitue une violation du RGPD.',
+        s6Heading: '6. Destinataires et Tiers',
+        s6Body: 'Vos données peuvent être communiquées aux destinataires suivants, strictement limités à leurs besoins respectifs : notre prestataire de paiement pour le traitement des transactions (<span class="placeholder">[PRESTATAIRE DE PAIEMENT — À COMPLÉTER]</span>), notre hébergeur (<span class="placeholder">[HÉBERGEUR — À COMPLÉTER]</span>), et nos prestataires de livraison. Ces tiers sont tenus de respecter la confidentialité et la sécurité de vos données.',
+        s7Heading: '7. Cookies',
+        s7Body: 'Ce site utilise des cookies pour améliorer votre expérience de navigation, mesurer l\'audience du site et, sous réserve de votre consentement, à des fins de personnalisation. Vous pouvez accepter ou refuser les cookies non essentiels via la bannière de consentement affichée lors de votre première visite. Vous pouvez également modifier vos préférences à tout moment en supprimant les données de navigation stockées par votre navigateur pour ce site.',
+        s8Heading: '8. Contact',
+        s8Body: 'Pour toute question relative à vos données personnelles ou pour exercer vos droits, vous pouvez nous contacter à l\'adresse suivante : <span class="placeholder">[E-MAIL DPO / CONTACT DONNÉES — À COMPLÉTER]</span>'
+      }
+    }
+  };
+
+  function resolveKey(dict, key) {
+    return key.split('.').reduce((acc, part) => (acc && acc[part] !== undefined ? acc[part] : undefined), dict);
+  }
+
+  function getLang() {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored === 'en' || stored === 'fr' ? stored : DEFAULT_LANG;
+  }
+
+  // {name} placeholder substitution — used by callers that need a dynamic
+  // value (item count, promo code, captured email) inside an otherwise
+  // translated string, since those values can't live in the static dictionary.
+  function t(key, vars) {
+    const lang = getLang();
+    let str = resolveKey(TRANSLATIONS[lang], key);
+    if (str === undefined) str = resolveKey(TRANSLATIONS[DEFAULT_LANG], key);
+    if (str === undefined) return key;
+    if (vars) {
+      Object.keys(vars).forEach((k) => {
+        str = str.replace(new RegExp('\\{' + k + '\\}', 'g'), vars[k]);
+      });
+    }
+    return str;
+  }
+
+  // root defaults to the whole document — pass a detached/just-inserted
+  // container when a widget script builds its own markup at runtime, so the
+  // pass doesn't have to wait for (or re-walk) the entire page.
+  function apply(root) {
+    const scope = root || document;
+    const lang = getLang();
+    const dict = TRANSLATIONS[lang] || TRANSLATIONS[DEFAULT_LANG];
+
+    scope.querySelectorAll('[data-i18n]').forEach((el) => {
+      const val = resolveKey(dict, el.getAttribute('data-i18n'));
+      if (val !== undefined) el.textContent = val;
+    });
+    scope.querySelectorAll('[data-i18n-html]').forEach((el) => {
+      const val = resolveKey(dict, el.getAttribute('data-i18n-html'));
+      if (val !== undefined) el.innerHTML = val;
+    });
+    // data-i18n-attr="aria-label:navMenu.openMenu;title:foo.bar" — semicolon-
+    // separated attr:key pairs, for attributes rather than element content.
+    scope.querySelectorAll('[data-i18n-attr]').forEach((el) => {
+      el.getAttribute('data-i18n-attr').split(';').forEach((pair) => {
+        const [attr, key] = pair.split(':').map((s) => s && s.trim());
+        if (!attr || !key) return;
+        const val = resolveKey(dict, key);
+        if (val !== undefined) el.setAttribute(attr, val);
+      });
+    });
+  }
+
+  function setLang(lang) {
+    if (lang !== 'en' && lang !== 'fr') return;
+    localStorage.setItem(STORAGE_KEY, lang);
+    document.documentElement.lang = lang;
+    apply(document);
+    document.dispatchEvent(new CustomEvent('monark:langchange', { detail: { lang } }));
+  }
+
+  document.documentElement.lang = getLang();
+  apply(document);
+
+  window.MonarkI18n = { getLang, setLang, t, apply, DEFAULT_LANG, STORAGE_KEY };
+})();

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Matches --bg-void (css/style.css) -- explicit color for iOS/Android's
+     status-bar/chrome tint instead of leaving it to auto-sample from page content. -->
+<meta name="theme-color" content="#0a0908">
+<title>MONARK — Eau de Parfum | Shop</title>
+<meta name="description" content="Acquire MONARK Eau de Parfum. 100ml, numbered batch, matte black wax-sealed packaging. Bergamot, Lemon, Pink Pepper. Lavender, Geranium, Incense. Ambergris, Cedarwood, Musk.">
+
+<!-- Favicon (bronze "M" monogram on dark) -->
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<!-- Referrer-Policy is the one HTTP security header a meta tag can actually
+     set; CSP / X-Frame-Options / X-Content-Type-Options need real HTTP
+     headers at the hosting level -- see README.md's Security section. -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
+
+<!-- PLACEHOLDER DOMAIN -- replace https://YOUR-DOMAIN-HERE.com with the real
+     production domain once it's set, before launch (applies to this canonical
+     link and every og:url / og:image / twitter:image below). -->
+<link rel="canonical" href="https://YOUR-DOMAIN-HERE.com/product.html">
+
+<!-- Open Graph -->
+<meta property="og:type" content="product">
+<meta property="og:title" content="MONARK Eau de Parfum — 100ml">
+<meta property="og:description" content="Acquire MONARK Eau de Parfum. 100ml, numbered batch, matte black wax-sealed packaging. Bergamot, Lemon, Pink Pepper. Lavender, Geranium, Incense. Ambergris, Cedarwood, Musk.">
+<meta property="og:image" content="https://YOUR-DOMAIN-HERE.com/assets/images/F01_V4_OnlineRef.webp">
+<meta property="og:url" content="https://YOUR-DOMAIN-HERE.com/product.html"><!-- placeholder domain -->
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="MONARK Eau de Parfum — 100ml">
+<meta name="twitter:description" content="Numbered batch, matte black wax-sealed packaging. Bergamot, Lemon, Pink Pepper. Lavender, Geranium, Incense. Ambergris, Cedarwood, Musk.">
+<meta name="twitter:image" content="https://YOUR-DOMAIN-HERE.com/assets/images/F01_V4_OnlineRef.webp">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=20260719">
+<link rel="stylesheet" href="css/shop.css?v=20260719">
+</head>
+<body class="shop-page">
+
+<a href="#main-content" class="skip-link" data-i18n="a11y.skipToContent">Skip to content</a>
+
+<!-- FIXED HEADER -->
+<header class="site-header">
+  <nav class="site-nav">
+    <a href="index.html" class="nav-logo">MONARK</a>
+    <div class="nav-links">
+      <a href="index.html" data-i18n="nav.experience">The Experience</a>
+    </div>
+  </nav>
+</header>
+
+<!-- HERO -->
+<section class="shop-hero" id="main-content" tabindex="-1">
+  <div class="shop-hero-image">
+    <div class="shop-carousel" id="shop-carousel" tabindex="0" aria-label="MONARK bottle image carousel" data-i18n-attr="aria-label:product.carouselAriaLabel">
+      <div class="shop-carousel-track">
+        <div class="shop-carousel-slide">
+          <img class="shop-product-image" src="assets/images/02_fully_edited.webp" alt="MONARK Eau de Parfum bottle — studio view" width="2880" height="2880" tabindex="0" role="button" aria-label="Zoom in on studio view" data-i18n-attr="alt:product.imgAltStudio;aria-label:product.zoomStudio">
+        </div>
+        <div class="shop-carousel-slide">
+          <!-- Off-screen (translateX) until the user navigates the carousel -- lazy is safe here. -->
+          <img class="shop-product-image" src="assets/images/F01_V4_OnlineRef.webp" alt="MONARK Eau de Parfum bottle — detail view" width="1024" height="1024" loading="lazy" tabindex="0" role="button" aria-label="Zoom in on detail view" data-i18n-attr="alt:product.imgAltDetail;aria-label:product.zoomDetail">
+        </div>
+      </div>
+
+      <button class="carousel-arrow carousel-arrow-prev" type="button" aria-label="Previous image" data-i18n-attr="aria-label:a11y.previousImage">
+        <svg width="14" height="24" viewBox="0 0 14 24" fill="none"><path d="M12 2L2 12L12 22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="carousel-arrow carousel-arrow-next" type="button" aria-label="Next image" data-i18n-attr="aria-label:a11y.nextImage">
+        <svg width="14" height="24" viewBox="0 0 14 24" fill="none"><path d="M2 2L12 12L2 22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+
+      <div class="carousel-dots">
+        <button class="carousel-dot active" type="button" data-slide="0" aria-label="Show studio view" data-i18n-attr="aria-label:product.dotStudio"></button>
+        <button class="carousel-dot" type="button" data-slide="1" aria-label="Show detail view" data-i18n-attr="aria-label:product.dotDetail"></button>
+      </div>
+    </div>
+  </div>
+  <div class="shop-hero-details">
+    <span class="section-label shop-kicker" data-i18n="product.kicker">Eau de Parfum &mdash; 100ml</span>
+    <h1 class="shop-wordmark">MONARK</h1>
+    <p class="shop-subtitle" data-i18n="hero.tagline">A scent built for men who rule rooms without entering them.</p>
+    <p class="shop-scent-notes" data-i18n="product.scentNotes">Bergamot &middot; Incense &middot; Amber</p>
+    <!-- FAKE/PLACEHOLDER promotional pricing -- 179 struck through vs the real
+         149 price, purely cosmetic to imply a discount for now. Replace both
+         numbers with real price + promotion data once there's an actual
+         pricing/promotions backend; the real transactional price stays 149,
+         matching js/cart.js's PRODUCT.price, which this does not touch. -->
+    <p class="shop-price"><span class="shop-price-original">&euro;179</span><span class="shop-price-current">&euro;149</span></p>
+    <p class="shop-price-note" data-i18n="product.priceNote">Limited-time offer &mdash; 17% off</p>
+    <p class="shop-stock"><span id="stock-count">347</span> / 500 <span data-i18n="product.bottlesRemaining">bottles remaining</span></p>
+    <div class="shop-cta-row">
+      <button class="cta-button shop-add-to-cart" type="button" id="add-to-cart-btn" data-i18n="product.addToCart">Add to Cart &mdash; 100ML</button>
+      <button class="cta-button shop-buy-now" type="button" id="buy-now-btn" data-i18n="cartWidget.buyNow">Buy Now</button>
+    </div>
+    <details class="shop-refund-note">
+      <summary data-i18n="product.returnPolicy.summary">14-Day Return Policy</summary>
+      <p data-i18n-html="product.returnPolicy.body">You may return your sealed, unopened MONARK bottle within 14 days of delivery for a full
+         refund, no questions asked. Once the security seal is broken, the bottle can no longer be
+         returned for hygiene reasons, per EU consumer protection law. Read the full terms in our
+         <a href="cgv.html">Terms &amp; Conditions of Sale</a>.</p>
+    </details>
+    <!-- HOW TO WEAR -- PLACEHOLDER copy, same mocked-content status as the rest
+         of the site's product-page text. Replace before launch if a real
+         brand-voice pass is done on application guidance. Same native
+         <details>/<summary> element (same class, same "+"/"−" toggle via
+         css/shop.css's .shop-refund-note summary::before rule) as the
+         Return Policy/Ingredients details on either side of it -- no
+         separate JS or chevron-rotate CSS of its own anymore, so there's
+         nothing left to drift out of sync with those two mechanically or
+         spacing-wise. -->
+    <details class="shop-refund-note">
+      <summary data-i18n="product.howToWear.summary">How to Wear</summary>
+      <ol class="shop-howto-list">
+        <li class="shop-howto-step">
+          <span class="shop-howto-number">01</span>
+          <span class="shop-howto-text" data-i18n="product.howToWear.step1">Apply to pulse points &mdash; wrists, neck &mdash; right after showering, while skin is still damp.</span>
+        </li>
+        <li class="shop-howto-step">
+          <span class="shop-howto-number">02</span>
+          <span class="shop-howto-text" data-i18n="product.howToWear.step2">Don&rsquo;t rub wrists together. It breaks the scent down before it has a chance to open.</span>
+        </li>
+        <li class="shop-howto-step">
+          <span class="shop-howto-number">03</span>
+          <span class="shop-howto-text" data-i18n="product.howToWear.step3">Two to three sprays for daytime. Layer sparingly for an evening presence.</span>
+        </li>
+        <li class="shop-howto-step">
+          <span class="shop-howto-number">04</span>
+          <span class="shop-howto-text" data-i18n="product.howToWear.step4">Reapply after 6&ndash;8 hours if the moment calls for it.</span>
+        </li>
+      </ol>
+    </details>
+    <!-- FICTIONAL/PLACEHOLDER ingredients (INCI) list -- not the real formulation.
+         Replace with the actual, lab-verified ingredient declaration before launch. -->
+    <details class="shop-refund-note">
+      <summary data-i18n="product.ingredients.summary">Full Ingredients List (INCI)</summary>
+      <p class="shop-ingredients-flag" data-i18n="product.ingredients.placeholderFlag">[FICTIONAL / PLACEHOLDER &mdash; replace with the real, lab-verified formulation before launch]</p>
+      <!-- INCI ingredient names are standardized international nomenclature --
+           deliberately NOT translated (same list, same order, in every market)
+           per the site's own "proper nouns stay as-is" rule. -->
+      <p>Alcohol Denat., Parfum (Fragrance), Aqua (Water), Limonene, Linalool, Citronellol, Geraniol,
+         Coumarin, Benzyl Benzoate, Hexyl Cinnamal.</p>
+      <p data-i18n-html="product.ingredients.allergensNote">Contains fragrance allergens regulated under EU cosmetics law (Limonene, Linalool,
+         Citronellol, Geraniol). If you have known fragrance sensitivities, patch-test on skin before
+         full application &mdash; see our <a href="faq.html">FAQ</a> for more on ingredients and storage.</p>
+    </details>
+    <a href="index.html" class="shop-back-link" data-i18n="product.backToExperience">Back to experience</a>
+    <a href="faq.html" class="shop-back-link" data-i18n="product.shippingFaqLink">Shipping, returns &amp; more &mdash; FAQ</a>
+  </div>
+</section>
+
+<!-- LIGHTBOX (zoom / pan viewer for the carousel images) -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Image viewer" aria-hidden="true" data-i18n-attr="aria-label:product.imageViewerAriaLabel">
+  <button class="lightbox-close" type="button" aria-label="Close lightbox" data-i18n-attr="aria-label:product.closeLightbox">&times;</button>
+  <button class="lightbox-arrow lightbox-arrow-prev" type="button" aria-label="Previous image" data-i18n-attr="aria-label:a11y.previousImage">
+    <svg width="14" height="24" viewBox="0 0 14 24" fill="none"><path d="M12 2L2 12L12 22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="lightbox-arrow lightbox-arrow-next" type="button" aria-label="Next image" data-i18n-attr="aria-label:a11y.nextImage">
+    <svg width="14" height="24" viewBox="0 0 14 24" fill="none"><path d="M2 2L12 12L2 22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <div class="lightbox-stage" id="lightbox-stage">
+    <img class="lightbox-image" id="lightbox-image" src="" alt="">
+  </div>
+</div>
+
+<!-- DETAILS STRIP -->
+<section class="shop-details-strip">
+  <div class="shop-detail-col">
+    <span class="shop-detail-primary">100ml</span>
+    <span class="shop-detail-secondary">Eau de Parfum</span>
+  </div>
+  <div class="shop-detail-divider"></div>
+  <div class="shop-detail-col">
+    <span class="shop-detail-primary" data-i18n="product.numberedBatch">Numbered Batch</span>
+    <span class="shop-detail-secondary" data-i18n="product.notMassProduced">Not Mass-Produced</span>
+  </div>
+  <div class="shop-detail-divider"></div>
+  <div class="shop-detail-col">
+    <span class="shop-detail-primary" data-i18n="product.shipsIn">Ships In</span>
+    <span class="shop-detail-secondary" data-i18n="product.matteBlackPackaging">Matte Black, Wax-Sealed Packaging</span>
+  </div>
+</section>
+
+<!-- OLFACTORY NOTES -->
+<section class="shop-notes">
+  <span class="section-label shop-notes-kicker" data-i18n="product.notesKicker">The Composition</span>
+  <div class="shop-notes-row">
+    <span class="shop-notes-label" data-i18n="product.topNotes">Top Notes</span>
+    <span class="shop-notes-names" data-i18n="product.topNotesNames">Bergamot &middot; Lemon &middot; Pink Pepper</span>
+  </div>
+  <div class="shop-notes-row">
+    <span class="shop-notes-label" data-i18n="product.heartNotes">Heart Notes</span>
+    <span class="shop-notes-names" data-i18n="product.heartNotesNames">Lavender &middot; Geranium &middot; Incense</span>
+  </div>
+  <div class="shop-notes-row">
+    <span class="shop-notes-label" data-i18n="product.baseNotes">Base Notes</span>
+    <span class="shop-notes-names" data-i18n="product.baseNotesNames">Ambergris &middot; Cedarwood &middot; Musk</span>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="shop-footer">
+  <a href="index.html" class="shop-footer-wordmark">MONARK</a>
+  <p class="shop-footer-copy" data-i18n="footer.copyright">&copy; 2025 MONARK. All rights reserved.</p>
+  <nav class="footer-legal-links">
+    <a href="faq.html" data-i18n="footer.faq">FAQ</a>
+    <a href="contact.html" data-i18n="footer.contact">Contact</a>
+    <a href="mentions-legales.html" data-i18n="footer.legalNotice">Legal Notice</a>
+    <a href="cgv.html" data-i18n="footer.termsOfSale">Terms of Sale</a>
+    <a href="confidentialite.html" data-i18n="footer.privacyPolicy">Privacy Policy</a>
+  </nav>
+</footer>
+
+<div class="grain"></div>
+
+<script src="js/i18n.js?v=20260719"></script>
+<script src="js/header-position-fix.js?v=20260719"></script>
+<script src="js/footer-active-page.js?v=20260719"></script>
+<script src="js/cart.js?v=20260719"></script>
+<script src="js/cart-widget.js?v=20260719"></script>
+<script src="js/nav-menu.js?v=20260719"></script>
+<script>
+(function () {
+  const carousel = document.getElementById('shop-carousel');
+  if (!carousel) return;
+  const track = carousel.querySelector('.shop-carousel-track');
+  const slides = carousel.querySelectorAll('.shop-carousel-slide');
+  const dots = carousel.querySelectorAll('.carousel-dot');
+  const prevBtn = carousel.querySelector('.carousel-arrow-prev');
+  const nextBtn = carousel.querySelector('.carousel-arrow-next');
+  const count = slides.length;
+  let current = 0;
+
+  function goTo(index) {
+    current = (index + count) % count;
+    track.style.transform = `translateX(-${current * 100}%)`;
+    dots.forEach((dot, i) => dot.classList.toggle('active', i === current));
+    if (lightboxOpen) updateLightboxImage();
+  }
+
+  prevBtn.addEventListener('click', () => goTo(current - 1));
+  nextBtn.addEventListener('click', () => goTo(current + 1));
+  dots.forEach((dot, i) => dot.addEventListener('click', () => goTo(i)));
+
+  /* Touch swipe left/right to change slides. The axis is decided once, the
+     first time movement clears a small deadzone (10px) -- comparing raw
+     per-event deltas instead would flip-flop mid-gesture on a diagonal
+     swipe. Only once it's decided horizontal do we preventDefault() on
+     touchmove (blocking the page's own vertical scroll for the rest of that
+     gesture) -- a gesture decided vertical is never touched at all, so
+     normal page scrolling through this carousel is unaffected. Distance and
+     duration thresholds on touchend guard against a slow drag or a stray
+     few-px wobble registering as a swipe. */
+  const SWIPE_MIN_DISTANCE = 40;
+  const SWIPE_MAX_DURATION = 600;
+  const SWIPE_AXIS_DEADZONE = 10;
+  let touchStartX = 0, touchStartY = 0, touchStartTime = 0, swipeAxis = null;
+
+  carousel.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchStartTime = Date.now();
+    swipeAxis = null;
+  }, { passive: true });
+
+  carousel.addEventListener('touchmove', (e) => {
+    if (e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+    if (swipeAxis === null && (Math.abs(dx) > SWIPE_AXIS_DEADZONE || Math.abs(dy) > SWIPE_AXIS_DEADZONE)) {
+      swipeAxis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    }
+    if (swipeAxis === 'x') e.preventDefault();
+  }, { passive: false });
+
+  carousel.addEventListener('touchend', (e) => {
+    const axis = swipeAxis;
+    swipeAxis = null;
+    if (axis !== 'x') return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const elapsed = Date.now() - touchStartTime;
+    if (Math.abs(dx) < SWIPE_MIN_DISTANCE || elapsed > SWIPE_MAX_DURATION) return;
+    goTo(current + (dx < 0 ? 1 : -1));
+  });
+
+  let isCarouselHovered = false;
+  carousel.addEventListener('mouseenter', () => { isCarouselHovered = true; });
+  carousel.addEventListener('mouseleave', () => { isCarouselHovered = false; });
+
+  // Single document-level listener covers both mouse-hover (no focus needed) and
+  // keyboard-tab focus, so a hovered + focused carousel doesn't fire goTo() twice.
+  // When the lightbox is open it takes over left/right entirely, regardless of
+  // hover/focus state on the (now visually hidden-behind-it) main carousel.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    if (lightboxOpen) {
+      e.preventDefault();
+      goTo(current + (e.key === 'ArrowRight' ? 1 : -1));
+      return;
+    }
+    if (!isCarouselHovered && !carousel.contains(document.activeElement)) return;
+    e.preventDefault();
+    goTo(current + (e.key === 'ArrowRight' ? 1 : -1));
+  });
+
+  /* ---------------- Lightbox: zoom / pan viewer ----------------
+     Reuses this same closure's `slides`/`current`/`goTo` so the lightbox and the
+     main carousel can never drift out of sync — navigating inside the lightbox
+     moves the real carousel too (goTo already updates the track + dots), and
+     closing it just leaves the main carousel wherever the user browsed to. */
+  const lightbox = document.getElementById('lightbox');
+  if (!lightbox) return;
+  const stage = document.getElementById('lightbox-stage');
+  const lbImage = document.getElementById('lightbox-image');
+  const lbClose = lightbox.querySelector('.lightbox-close');
+  const lbPrev = lightbox.querySelector('.lightbox-arrow-prev');
+  const lbNext = lightbox.querySelector('.lightbox-arrow-next');
+
+  let lightboxOpen = false;
+  let scale = 1, tx = 0, ty = 0;
+  const MIN_SCALE = 1, MAX_SCALE = 4;
+  const pointers = new Map(); // pointerId -> {x, y}, tracks up to 2 for pinch
+  let dragLast = null;
+  let pinchStartDist = null;
+
+  function applyTransform() {
+    lbImage.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    lbImage.style.cursor = scale > 1 ? 'grab' : 'auto';
+  }
+
+  function resetZoom() {
+    scale = 1; tx = 0; ty = 0;
+    applyTransform();
+  }
+
+  function updateLightboxImage() {
+    const img = slides[current].querySelector('.shop-product-image');
+    lbImage.src = img.src;
+    lbImage.alt = img.alt;
+  }
+
+  let lightboxOpener = null; // whatever had focus (or was clicked) before opening -- restored on close
+
+  function openLightbox(index) {
+    lightboxOpener = document.activeElement;
+    goTo(index);
+    updateLightboxImage();
+    resetZoom();
+    lightboxOpen = true;
+    lightbox.setAttribute('aria-hidden', 'false');
+    lightbox.classList.add('lightbox-open');
+    requestAnimationFrame(() => lightbox.classList.add('lightbox-visible'));
+    document.body.style.overflow = 'hidden';
+    lbClose.focus();
+  }
+
+  function closeLightbox() {
+    lightboxOpen = false;
+    lightbox.classList.remove('lightbox-visible');
+    lightbox.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    resetZoom();
+    setTimeout(() => { if (!lightboxOpen) lightbox.classList.remove('lightbox-open'); }, 250);
+    if (lightboxOpener && typeof lightboxOpener.focus === 'function') lightboxOpener.focus();
+  }
+
+  // Keeps Tab/Shift+Tab cycling within the lightbox's own controls instead of
+  // leaking out to the (still-present-in-the-DOM, just visually covered) page
+  // behind it.
+  function trapLightboxTab(e) {
+    if (e.key !== 'Tab' || !lightboxOpen) return;
+    const focusable = [lbClose, lbPrev, lbNext];
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
+  slides.forEach((slide, i) => {
+    const img = slide.querySelector('.shop-product-image');
+    img.style.cursor = 'zoom-in';
+    img.addEventListener('click', () => openLightbox(i));
+    img.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLightbox(i); }
+    });
+  });
+
+  lbClose.addEventListener('click', closeLightbox);
+  lbPrev.addEventListener('click', () => goTo(current - 1));
+  lbNext.addEventListener('click', () => goTo(current + 1));
+  lightbox.addEventListener('keydown', trapLightboxTab);
+
+  // Backdrop-close and tap-to-zoom (below) are both driven from the same pointer
+  // tracking rather than a plain native `click` listener: stage.setPointerCapture()
+  // (needed for pinch/pan) retargets the pointerup AND the resulting click event's
+  // target to `stage` itself for the ENTIRE gesture, even when it started on the
+  // image -- so an `e.target === stage` check on a `click` listener would fire on
+  // every tap inside the lightbox, image included, and always close it. Tracking
+  // where the gesture *started* (in pointerdown, before any capture applies)
+  // avoids that entirely.
+
+  document.addEventListener('keydown', (e) => {
+    if (lightboxOpen && e.key === 'Escape') closeLightbox();
+  });
+
+  // Keeps whatever content point is under (clientX, clientY) visually fixed in
+  // place while scale changes -- standard "zoom toward cursor/pinch-midpoint" math.
+  function zoomAt(clientX, clientY, factor) {
+    const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * factor));
+    if (newScale === scale) return;
+    const f = newScale / scale;
+    const rect = stage.getBoundingClientRect(); // stage itself never transforms, a stable reference frame
+    const dx = clientX - (rect.left + rect.width / 2);
+    const dy = clientY - (rect.top + rect.height / 2);
+    tx = dx * (1 - f) + f * tx;
+    ty = dy * (1 - f) + f * ty;
+    scale = newScale;
+    if (scale === MIN_SCALE) { tx = 0; ty = 0; }
+    applyTransform();
+  }
+
+  stage.addEventListener('wheel', (e) => {
+    if (!lightboxOpen) return;
+    e.preventDefault();
+    const factor = Math.exp(-e.deltaY * 0.0018);
+    zoomAt(e.clientX, e.clientY, factor);
+  }, { passive: false });
+
+  // Click/tap-to-zoom: a quick, simple alternative to wheel/pinch -- toggles
+  // between "fit" (scale 1) and a fixed CLICK_ZOOM_SCALE, centered on wherever
+  // was pressed. Built on the same pointer tracking as pan/pinch (not a plain
+  // native `click` listener) so a real drag never gets misread as a tap-to-zoom:
+  // TAP_MOVE_TOLERANCE px of movement between pointerdown and pointerup cancels
+  // the tap, same distinction most touch UIs make between a tap and a drag.
+  const CLICK_ZOOM_SCALE = 2;
+  const TAP_MOVE_TOLERANCE = 6;
+  let tapCandidate = null;
+
+  function toggleZoomAt(clientX, clientY) {
+    if (scale > MIN_SCALE) {
+      resetZoom();
+    } else {
+      zoomAt(clientX, clientY, CLICK_ZOOM_SCALE / scale);
+    }
+  }
+
+  stage.addEventListener('pointerdown', (e) => {
+    if (!lightboxOpen) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    // Throws NotFoundError in edge cases where the browser no longer considers
+    // this pointer id active by the time capture is requested -- harmless to
+    // skip capture then (pan/pinch just won't engage for that gesture), but it
+    // must not abort the tap-tracking below, which drives close/zoom-toggle.
+    try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+    if (pointers.size === 1) {
+      // onImage records where the gesture STARTED, before pointer capture can
+      // retarget anything -- a clean (non-moved) tap replays that as either a
+      // zoom toggle (started on the image) or a close (started on the bare
+      // dimmed backdrop), decided in the pointerup handler below.
+      tapCandidate = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, onImage: e.target === lbImage };
+      if (scale > 1) dragLast = { x: e.clientX, y: e.clientY };
+    } else if (pointers.size === 2) {
+      tapCandidate = null; // a 2nd finger joining means this is a pinch, not a tap
+      const pts = Array.from(pointers.values());
+      pinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    }
+  });
+
+  stage.addEventListener('pointermove', (e) => {
+    if (!lightboxOpen || !pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (tapCandidate && tapCandidate.id === e.pointerId) {
+      const moved = Math.hypot(e.clientX - tapCandidate.x, e.clientY - tapCandidate.y);
+      if (moved > TAP_MOVE_TOLERANCE) tapCandidate.moved = true;
+    }
+
+    if (pointers.size === 2) {
+      const pts = Array.from(pointers.values());
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      if (pinchStartDist) {
+        const factor = dist / pinchStartDist;
+        const midX = (pts[0].x + pts[1].x) / 2;
+        const midY = (pts[0].y + pts[1].y) / 2;
+        zoomAt(midX, midY, factor);
+      }
+      pinchStartDist = dist;
+    } else if (pointers.size === 1 && dragLast && scale > 1) {
+      tx += e.clientX - dragLast.x;
+      ty += e.clientY - dragLast.y;
+      dragLast = { x: e.clientX, y: e.clientY };
+      applyTransform();
+    }
+  });
+
+  function cleanupPointer(id) {
+    pointers.delete(id);
+    if (pointers.size < 2) pinchStartDist = null;
+    if (pointers.size === 0) dragLast = null;
+  }
+
+  stage.addEventListener('pointerup', (e) => {
+    const isCleanTap = pointers.size === 1 && pointers.has(e.pointerId) &&
+      tapCandidate && tapCandidate.id === e.pointerId && !tapCandidate.moved;
+    const wasOnImage = isCleanTap && tapCandidate.onImage;
+    const wasOnBackdrop = isCleanTap && !tapCandidate.onImage;
+    cleanupPointer(e.pointerId);
+    tapCandidate = null;
+    if (wasOnImage) toggleZoomAt(e.clientX, e.clientY);
+    else if (wasOnBackdrop) closeLightbox();
+  });
+  stage.addEventListener('pointercancel', (e) => { cleanupPointer(e.pointerId); tapCandidate = null; });
+  stage.addEventListener('pointerleave', (e) => { cleanupPointer(e.pointerId); tapCandidate = null; });
+})();
+</script>
+<script>
+(function () {
+  // Static placeholder for now -- not decremented from real sales (no backend yet).
+  const STOCK_REMAINING = 347;
+  const stockEl = document.getElementById('stock-count');
+  if (stockEl) stockEl.textContent = STOCK_REMAINING;
+
+  const addBtn = document.getElementById('add-to-cart-btn');
+  const buyNowBtn = document.getElementById('buy-now-btn');
+  if (!addBtn || !window.MonarkCart) return;
+
+  // Button label never changes -- clicking repeatedly to add multiple units
+  // should never look ambiguous. Confirmation is the header cart preview
+  // briefly opening instead (same panel shown on hover). Quantity beyond 1 is
+  // adjusted afterward in that preview (its own +/- control), not chosen here.
+  addBtn.addEventListener('click', () => {
+    window.MonarkCart.addToCart(1);
+    if (window.MonarkCartWidget) window.MonarkCartWidget.flashPreview();
+  });
+
+  if (buyNowBtn) {
+    buyNowBtn.addEventListener('click', () => {
+      window.MonarkCart.addToCart(1);
+      window.location.href = 'checkout.html';
+    });
+  }
+})();
+</script>
+<script src="js/promo-banner.js?v=20260719"></script>
+<script src="js/cookie-consent.js?v=20260719"></script>
+<script src="js/email-popup.js?v=20260719"></script>
+
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "monark-site",
+  "private": true,
+  "version": "1.0.0",
+  "description": "MONARK Eau de Parfum -- static site. `npm run build` produces minified css/js into dist/ for production; local dev is unaffected (still serve the project root directly, e.g. `python -m http.server`, which uses the unminified source files).",
+  "scripts": {
+    "build": "node scripts/build.js"
+  },
+  "devDependencies": {
+    "clean-css": "^5.3.3",
+    "terser": "^5.49.0"
+  }
+}

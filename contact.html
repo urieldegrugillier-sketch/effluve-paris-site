@@ -1,0 +1,276 @@
+<!-- Contact page — inquiry form and brand contact details -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Matches --bg-void (css/style.css) -- explicit color for iOS/Android's
+     status-bar/chrome tint instead of leaving it to auto-sample from page content. -->
+<meta name="theme-color" content="#0a0908">
+<title>MONARK — Contact</title>
+<meta name="description" content="Get in touch with MONARK about your order, our Eau de Parfum, press, or wholesale inquiries.">
+
+<!-- Favicon (bronze "M" monogram on dark) -->
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<!-- Referrer-Policy is the one HTTP security header a meta tag can actually
+     set; CSP / X-Frame-Options / X-Content-Type-Options need real HTTP
+     headers at the hosting level -- see README.md's Security section. -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
+
+<!-- PLACEHOLDER DOMAIN -- replace https://YOUR-DOMAIN-HERE.com with the real
+     production domain once it's set, before launch. -->
+<link rel="canonical" href="https://YOUR-DOMAIN-HERE.com/contact.html">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=20260719">
+<link rel="stylesheet" href="css/cart.css?v=20260719">
+</head>
+<body class="shop-page">
+
+<!-- FIXED HEADER -->
+<header class="site-header">
+  <nav class="site-nav">
+    <a href="index.html" class="nav-logo">MONARK</a>
+    <div class="nav-links">
+      <a href="index.html" data-i18n="nav.experience">The Experience</a>
+    </div>
+  </nav>
+</header>
+
+<main class="legal-content">
+  <h1 data-i18n="contact.pageTitle">Contact</h1>
+  <p data-i18n="contact.intro">Questions about an order, the composition, or a wholesale inquiry — we read every message
+     personally.</p>
+  <p data-i18n-html="contact.reachUs">Reach us directly at
+     <span class="placeholder">[CONTACT EMAIL &mdash; &Agrave; COMPL&Eacute;TER]</span>,
+     or use the form below.</p>
+
+  <form class="contact-form" id="contact-form" novalidate>
+    <!-- Real, working honeypot (not just a placeholder comment) -- a field real
+         users never see or reach via keyboard (tabindex="-1", aria-hidden,
+         off-screen). Bots that blindly auto-fill every field on a page will
+         populate it; if it's non-empty on submit, the "submission" below is
+         dropped silently (no confirmation shown either way), so a bot gets no
+         signal about whether it worked. -->
+    <div class="contact-honeypot" aria-hidden="true">
+      <label for="contact-hp-field" data-i18n="contact.honeypotLabel">Leave this field blank</label>
+      <input type="text" id="contact-hp-field" name="company_website" tabindex="-1" autocomplete="off">
+    </div>
+
+    <label class="checkout-field">
+      <span data-i18n="contact.nameLabel">Name</span>
+      <input type="text" name="name" autocomplete="name" required>
+    </label>
+    <label class="checkout-field">
+      <span data-i18n="contact.emailLabel">Email</span>
+      <input type="email" name="email" autocomplete="email" required>
+    </label>
+    <!-- Plain <div>, not <label> -- a <label> forwards clicks anywhere inside it
+         (including on the <li> options below) to its associated control, which
+         re-triggers the trigger button's own click handler right after an
+         option's click handler already closed the list, reopening it. The
+         <span>/button/list are already tied together via aria-labelledby, so
+         the label's implicit association isn't needed for accessibility here. -->
+    <div class="checkout-field">
+      <span id="reason-label" data-i18n="contact.reasonLabel">Reason</span>
+      <!-- Custom dropdown, not a native <select> -- a plain <select>'s CLOSED
+           state can be fully restyled with CSS, but its OPEN popup (the actual
+           option list) is OS/browser-rendered and largely ignores CSS in most
+           browsers (Chromium/Firefox honor option background/color to a point;
+           Safari mostly doesn't) -- there's no way to guarantee it matches the
+           site's dark theme everywhere. This is a lightweight, accessible
+           (listbox pattern: aria-expanded/aria-activedescendant, arrow keys,
+           Enter/Space, Escape, click-outside-to-close) stand-in that's fully
+           styleable end to end, reasonable for 4 static options. -->
+      <div class="custom-select" id="reason-select">
+        <button type="button" class="custom-select-trigger" id="reason-trigger" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="reason-label reason-trigger-text" data-placeholder="true">
+          <span id="reason-trigger-text" data-i18n="contact.reasonPlaceholder">Select one</span>
+          <svg class="custom-select-chevron" width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
+            <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <ul class="custom-select-list" id="reason-list" role="listbox" aria-labelledby="reason-label" tabindex="-1" hidden>
+          <li role="option" id="reason-opt-0" data-value="order" data-i18n="contact.reasonOrder">Order Inquiry</li>
+          <li role="option" id="reason-opt-1" data-value="wholesale" data-i18n="contact.reasonWholesale">Wholesale</li>
+          <li role="option" id="reason-opt-2" data-value="press" data-i18n="contact.reasonPress">Press</li>
+          <li role="option" id="reason-opt-3" data-value="other" data-i18n="contact.reasonOther">Other</li>
+        </ul>
+      </div>
+      <input type="hidden" name="reason" id="reason-value">
+      <p class="custom-select-error" id="reason-error" data-i18n="contact.reasonError" hidden>Please select a reason.</p>
+    </div>
+    <label class="checkout-field">
+      <span data-i18n="contact.messageLabel">Message</span>
+      <textarea name="message" id="contact-message" rows="5" maxlength="1000" required></textarea>
+      <p class="contact-char-counter" id="contact-char-counter" aria-live="polite">0 / 1000</p>
+    </label>
+    <button type="submit" class="cta-button" id="contact-submit-btn" data-i18n="contact.submitBtn">Send Message</button>
+  </form>
+  <p class="contact-form-message" id="contact-form-message" data-i18n="contact.successMessage" aria-live="polite" hidden></p>
+</main>
+
+<script>
+(function () {
+  const form = document.getElementById('contact-form');
+  const message = document.getElementById('contact-form-message');
+  if (!form || !message) return;
+
+  /* ---------------- Custom "Reason" dropdown ----------------
+     See the HTML comment above .custom-select for why this isn't a native
+     <select>. Keyboard/ARIA follows the standard "select mimic" listbox
+     pattern: focus stays on the trigger button the whole time (never moves
+     into the <ul>), arrow keys move a highlighted option + aria-activedescendant,
+     Enter/Space/click selects, Escape closes without changing the selection. */
+  const trigger = document.getElementById('reason-trigger');
+  const triggerText = document.getElementById('reason-trigger-text');
+  const list = document.getElementById('reason-list');
+  const reasonValue = document.getElementById('reason-value');
+  const reasonError = document.getElementById('reason-error');
+  const options = Array.from(list.querySelectorAll('li'));
+  let highlighted = -1;
+
+  function updateHighlight() {
+    options.forEach((o, i) => o.classList.toggle('is-highlighted', i === highlighted));
+    if (highlighted >= 0) trigger.setAttribute('aria-activedescendant', options[highlighted].id);
+  }
+
+  function openList() {
+    list.hidden = false;
+    trigger.setAttribute('aria-expanded', 'true');
+    const selectedIdx = options.findIndex((o) => o.getAttribute('aria-selected') === 'true');
+    highlighted = selectedIdx >= 0 ? selectedIdx : 0;
+    updateHighlight();
+  }
+
+  function closeList() {
+    list.hidden = true;
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.removeAttribute('aria-activedescendant');
+    highlighted = -1;
+  }
+
+  function selectOption(index) {
+    const opt = options[index];
+    options.forEach((o) => o.setAttribute('aria-selected', 'false'));
+    opt.setAttribute('aria-selected', 'true');
+    // opt.textContent is already correctly translated (the <li> options carry
+    // their own data-i18n tags, kept in sync by MonarkI18n.apply()) -- but
+    // copying it into triggerText loses that live link, since triggerText
+    // itself no longer reflects any single data-i18n key once a real value is
+    // selected (it's a snapshot of whichever option was picked, not a fixed
+    // string). removeAttribute drops triggerText's own placeholder tag so a
+    // later language switch's global apply() doesn't stomp this snapshot back
+    // to "Select one" -- the monark:langchange listener below re-syncs it
+    // from the (by-then-retranslated) selected option instead.
+    triggerText.removeAttribute('data-i18n');
+    triggerText.textContent = opt.textContent;
+    trigger.removeAttribute('data-placeholder');
+    reasonValue.value = opt.dataset.value;
+    reasonError.hidden = true;
+    closeList();
+    trigger.focus();
+  }
+
+  // Re-syncs the trigger's displayed text from the currently selected option
+  // once MonarkI18n.apply(document) has already retranslated every <li> --
+  // only relevant once a real selection has been made (see selectOption()
+  // above); before that, triggerText still carries its own data-i18n tag and
+  // apply() keeps it correct on its own.
+  document.addEventListener('monark:langchange', () => {
+    if (!reasonValue.value) return;
+    const opt = options.find((o) => o.dataset.value === reasonValue.value);
+    if (opt) triggerText.textContent = opt.textContent;
+  });
+
+  trigger.addEventListener('click', () => { list.hidden ? openList() : closeList(); });
+
+  trigger.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (list.hidden) { openList(); } else { highlighted = Math.min(highlighted + 1, options.length - 1); updateHighlight(); }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (list.hidden) { openList(); } else { highlighted = Math.max(highlighted - 1, 0); updateHighlight(); }
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (list.hidden) { openList(); } else if (highlighted >= 0) { selectOption(highlighted); }
+    } else if (e.key === 'Escape' && !list.hidden) {
+      e.preventDefault();
+      closeList();
+    }
+  });
+
+  options.forEach((opt, i) => {
+    opt.addEventListener('click', () => selectOption(i));
+    opt.addEventListener('mouseenter', () => { highlighted = i; updateHighlight(); });
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!list.hidden && !trigger.contains(e.target) && !list.contains(e.target)) closeList();
+  });
+
+  /* ---------------- Message character counter ---------------- */
+  const messageField = document.getElementById('contact-message');
+  const counter = document.getElementById('contact-char-counter');
+  const MAX_MESSAGE_LENGTH = messageField.maxLength;
+  function updateCounter() { counter.textContent = `${messageField.value.length} / ${MAX_MESSAGE_LENGTH}`; }
+  messageField.addEventListener('input', updateCounter);
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    // Honeypot check -- see the comment on .contact-honeypot above.
+    const honeypot = form.querySelector('[name="company_website"]');
+    if (honeypot && honeypot.value) return;
+
+    // The custom dropdown has no native constraint validation to lean on
+    // (hidden inputs are excluded from it entirely) -- check it by hand.
+    if (!reasonValue.value) {
+      reasonError.hidden = false;
+      trigger.focus();
+      return;
+    }
+
+    // Mock success only -- no backend or form-handling service (e.g.
+    // Formspree) is wired up yet. Wire one of those up before launch; this
+    // just simulates the round-trip so the UI can be built/tested now.
+    // message's own text comes from its data-i18n="contact.successMessage"
+    // tag in the HTML (a single fixed string, unlike the dropdown above) --
+    // MonarkI18n keeps it correct on its own, including across a later
+    // language switch, so this only ever needs to toggle visibility.
+    form.hidden = true;
+    message.hidden = false;
+  });
+})();
+</script>
+
+<!-- FOOTER -->
+<footer class="shop-footer">
+  <a href="index.html" class="shop-footer-wordmark">MONARK</a>
+  <p class="shop-footer-copy" data-i18n="footer.copyright">&copy; 2025 MONARK. All rights reserved.</p>
+  <nav class="footer-legal-links">
+    <a href="faq.html" data-i18n="footer.faq">FAQ</a>
+    <a href="contact.html" data-i18n="footer.contact">Contact</a>
+    <a href="mentions-legales.html" data-i18n="footer.legalNotice">Legal Notice</a>
+    <a href="cgv.html" data-i18n="footer.termsOfSale">Terms of Sale</a>
+    <a href="confidentialite.html" data-i18n="footer.privacyPolicy">Privacy Policy</a>
+  </nav>
+</footer>
+
+<script src="js/i18n.js?v=20260719"></script>
+<script src="js/header-position-fix.js?v=20260719"></script>
+<script src="js/footer-active-page.js?v=20260719"></script>
+<script src="js/cart.js?v=20260719"></script>
+<script src="js/cart-widget.js?v=20260719"></script>
+<script src="js/nav-menu.js?v=20260719"></script>
+<script src="js/promo-banner.js?v=20260719"></script>
+<script src="js/cookie-consent.js?v=20260719"></script>
+<script src="js/email-popup.js?v=20260719"></script>
+</body>
+</html>

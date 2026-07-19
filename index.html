@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Matches --bg-void (css/style.css) -- explicit color for iOS/Android's
+     status-bar/chrome tint instead of leaving it to auto-sample from page content. -->
+<meta name="theme-color" content="#0a0908">
+<title>MONARK — Eau de Parfum</title>
+<meta name="description" content="MONARK Eau de Parfum. Bergamot, Lemon, Pink Pepper. Lavender, Geranium, Incense. Ambergris, Cedarwood, Musk. A scent built for men who rule rooms without entering them.">
+
+<!-- Favicon (bronze "M" monogram on dark) -->
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<!-- Referrer-Policy is the one HTTP security header a meta tag can actually
+     set; CSP / X-Frame-Options / X-Content-Type-Options need real HTTP
+     headers at the hosting level -- see README.md's Security section. -->
+<meta name="referrer" content="strict-origin-when-cross-origin">
+
+<!-- PLACEHOLDER DOMAIN -- replace https://YOUR-DOMAIN-HERE.com with the real
+     production domain once it's set, before launch (applies to this canonical
+     link and every og:url / og:image / twitter:image below). -->
+<link rel="canonical" href="https://YOUR-DOMAIN-HERE.com/index.html">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="MONARK — Eau de Parfum">
+<meta property="og:description" content="A scent built for men who rule rooms without entering them. Bergamot, Lemon, Pink Pepper. Lavender, Geranium, Incense. Ambergris, Cedarwood, Musk.">
+<meta property="og:image" content="https://YOUR-DOMAIN-HERE.com/assets/images/F01_V4_OnlineRef.webp">
+<meta property="og:url" content="https://YOUR-DOMAIN-HERE.com/index.html"><!-- placeholder domain -->
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="MONARK — Eau de Parfum">
+<meta name="twitter:description" content="A scent built for men who rule rooms without entering them.">
+<meta name="twitter:image" content="https://YOUR-DOMAIN-HERE.com/assets/images/F01_V4_OnlineRef.webp">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=20260719">
+</head>
+<body class="home-page">
+
+<a href="#hero" class="skip-link" data-i18n="a11y.skipToContent">Skip to content</a>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="loader-inner">
+    <span class="loader-brand">MONARK</span>
+    <div class="loader-bar-track"><div id="loader-bar"></div></div>
+    <span id="loader-percent">0%</span>
+  </div>
+</div>
+
+<!-- FIXED HEADER -->
+<header class="site-header">
+  <nav class="site-nav">
+    <a href="#hero" class="nav-logo">MONARK</a>
+    <div class="nav-links">
+      <!-- Direct child of .nav-links, not .nav-actions -- that's what lets
+           the existing @media (max-width: 1100px) ".nav-links > a" rule
+           (see css/style.css) hide this at the same breakpoint as the old
+           Genesis/Composition links used to, without a new breakpoint of its
+           own. -->
+      <a href="product.html" class="cta-button nav-cta-acquire" data-i18n="nav.acquire">Acquire</a>
+      <!-- Empty -- js/cart-widget.js appends the cart icon here. -->
+      <div class="nav-actions"></div>
+    </div>
+  </nav>
+</header>
+
+<!-- HERO -->
+<section class="hero-standalone" id="hero" tabindex="-1">
+  <div class="hero-inner">
+    <span class="section-label hero-label" data-i18n="hero.label">Eau de Parfum &mdash; First Decree</span>
+    <h1 class="hero-heading" aria-label="MONARK">
+      <a href="product.html"><span class="hero-letter">M</span><span class="hero-letter">O</span><span class="hero-letter">N</span><span class="hero-letter">A</span><span class="hero-letter">R</span><span class="hero-letter">K</span></a>
+    </h1>
+    <p class="hero-tagline" data-i18n="hero.tagline">A scent built for men who rule rooms without entering them.</p>
+  </div>
+  <div class="scroll-indicator">
+    <span data-i18n="hero.scroll">Scroll to Begin the Reign</span>
+    <span class="scroll-arrow">&#8595;</span>
+  </div>
+</section>
+
+<!-- CANVAS -->
+<div class="canvas-wrap" id="canvas-wrap">
+  <canvas id="canvas"></canvas>
+</div>
+
+<!-- DARK OVERLAY -->
+<div id="dark-overlay"></div>
+
+<!-- SCROLL CONTAINER -->
+<div id="scroll-container">
+
+  <!-- S1 : Opening Statement -->
+  <section class="scroll-section section-content align-left"
+           data-enter="5" data-leave="17" data-animation="fade-up">
+    <div class="section-inner">
+      <span class="section-label" data-i18n="s1.label">001 / The Signature</span>
+      <h2 class="section-heading" data-i18n="s1.heading">Composure Is the Loudest Thing a Man Can Wear.</h2>
+      <p class="section-body" data-i18n="s1.body">MONARK is not sprayed &mdash; it is declared. A single breath of bergamot and pink pepper cuts the air first, sharp as a decision made and never revisited. What follows is not softness. It is restraint with teeth.</p>
+    </div>
+  </section>
+
+  <!-- S2 : The Genesis -->
+  <section class="scroll-section section-content align-right" id="genesis"
+           data-enter="22" data-leave="34" data-animation="slide-right">
+    <div class="section-inner">
+      <span class="section-label" data-i18n="s2.label">002 / The Genesis</span>
+      <h2 class="section-heading" data-i18n="s2.heading">The Shell Was Never the Point.</h2>
+      <p class="section-body" data-i18n="s2.body">Glass cracks. Shards scatter into the dark, and what's left behind is not ruin &mdash; a single black core, molten and whole, the true shape that was always beneath the bottle. MONARK was built on the same law: strip a man of the armor he performs, and what remains isn't weaker. It's undiluted.</p>
+    </div>
+  </section>
+
+  <!-- S3 : The Composition (pinned pyramid) -->
+  <section class="scroll-section section-pyramid" id="composition"
+           data-enter="34" data-leave="56" data-animation="clip-reveal">
+    <div class="pyramid-inner">
+      <span class="section-label pyramid-kicker" data-i18n="s3.label">003 / The Composition</span>
+      <h2 class="section-heading pyramid-heading" data-i18n="s3.heading">What the Breaking Reveals.</h2>
+
+      <div class="pyramid-tier tier-top align-left" data-tier="top">
+        <span class="section-label" data-i18n="s3.tier1.label">Opening &mdash; The First Strike</span>
+        <h3 class="tier-heading" data-i18n-html="s3.tier1.heading">Bergamot. Lemon.<br>Pink Pepper.</h3>
+        <p class="section-body" data-i18n="s3.tier1.body">The introduction is a blade, not a handshake. Italian bergamot and bright lemon arrive first, cut through with the dry heat of pink pepper &mdash; a greeting that ends conversations before they start.</p>
+      </div>
+
+      <div class="pyramid-tier tier-heart align-right" data-tier="heart">
+        <span class="section-label" data-i18n="s3.tier2.label">The Heart &mdash; What Remains</span>
+        <h3 class="tier-heading" data-i18n-html="s3.tier2.heading">Lavender. Geranium.<br>Incense.</h3>
+        <p class="section-body" data-i18n="s3.tier2.body">Beneath the strike, something older settles in. Lavender and geranium soften only enough to let incense rise &mdash; smoke curling off a private ritual no one else is invited to witness.</p>
+      </div>
+
+      <div class="pyramid-tier tier-base align-left" data-tier="base">
+        <span class="section-label" data-i18n="s3.tier3.label">The Base &mdash; What Lasts</span>
+        <h3 class="tier-heading" data-i18n-html="s3.tier3.heading">Ambergris. Cedarwood.<br>Musk.</h3>
+        <p class="section-body" data-i18n="s3.tier3.body">This is the part that stays on the skin long after the room has emptied. Ambergris and cedarwood root the composition in something ancient; musk closes the door behind it. This is not a scent you wear. It is one you leave behind.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- S4 : The Provenance -->
+  <section class="scroll-section section-content align-right"
+           data-enter="56" data-leave="67" data-animation="rotate-in">
+    <div class="section-inner">
+      <span class="section-label" data-i18n="s4.label">004 / The Provenance</span>
+      <h2 class="section-heading" data-i18n="s4.heading">Sourced Like a Crown Is Forged &mdash; Rarely, and Without Compromise.</h2>
+      <p class="section-body" data-i18n="s4.body">Cedarwood cut from single-forest stands in the Atlas Mountains. Ambergris aged before it ever meets the blend. Every batch of MONARK is mixed by hand in lots too small to rush and too exact to repeat perfectly &mdash; which is precisely the point.</p>
+    </div>
+  </section>
+
+  <!-- S5 : Stats -->
+  <section class="scroll-section section-stats"
+           data-enter="67" data-leave="82" data-animation="stagger-up">
+    <div class="stats-inner">
+      <span class="section-label stats-kicker" data-i18n="s5.label">005 / In Numbers</span>
+      <div class="stats-grid">
+        <div class="stat">
+          <span class="stat-value"><span class="stat-number" data-value="8" data-decimals="0">8</span><span class="stat-suffix">hrs</span></span>
+          <span class="stat-label" data-i18n="s5.stat1">Sillage that lingers past midnight</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value"><span class="stat-number" data-value="19" data-decimals="0">19</span><span class="stat-suffix">%</span></span>
+          <span class="stat-label" data-i18n="s5.stat2">Eau de Parfum concentration</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value"><span class="stat-number" data-value="7" data-decimals="0">7</span><span class="stat-suffix"></span></span>
+          <span class="stat-label" data-i18n="s5.stat3">Countries of origin, for nine raw materials</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value"><span class="stat-number" data-value="500" data-decimals="0">500</span><span class="stat-suffix"></span></span>
+          <span class="stat-label" data-i18n="s5.stat4">Bottles per numbered edition</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S6 : Acquisition (persists, anchored to the true scroll end so it's fully visible at max scroll) -->
+  <section class="scroll-section section-cta" id="acquisition"
+           data-enter="82" data-leave="100" data-animation="fade-in" data-persist="true" data-anchor="end">
+    <div class="cta-image-col">
+      <!-- Not loading="lazy": this section is position:fixed (see js/app.js's
+           comment on updateCtaVisibility), so it always occupies real viewport
+           space from page load, just at opacity:0 -- native lazy-loading keys
+           off viewport distance, not opacity, so it would load eagerly
+           regardless and the attribute would be misleading here. -->
+      <img class="cta-product-image" src="assets/images/F01_V4_OnlineRef.webp" alt="MONARK Eau de Parfum bottle" width="1024" height="1024">
+    </div>
+    <div class="cta-divider"></div>
+    <div class="cta-text-col">
+      <div class="section-inner">
+        <span class="section-label" data-i18n="s6.label">006 / The Acquisition</span>
+        <h2 class="section-heading" data-i18n="s6.heading">The Reign Is Bottled. Claim Yours.</h2>
+        <p class="section-body" data-i18n="s6.body">MONARK Eau de Parfum. 100ml. Numbered, not mass-produced. Once a batch is gone, it does not return.</p>
+        <p class="cta-discount-badge" data-i18n="s6.badge">Limited-Time &minus;17% Off</p>
+        <a href="product.html" class="cta-button" data-i18n="s6.button">Acquire MONARK &mdash; 100ml</a>
+        <p class="section-note" data-i18n="s6.note">Ships in matte black, wax-sealed packaging.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Permanent placeholder reserving the CTA's in-flow slot right above the footer.
+     Without this, the document isn't tall enough (before the CTA is unpinned) for
+     scrollY to ever reach the exact stitch point js/app.js needs for a jump-free
+     handoff — this spacer supplies that scroll room from the start. js/app.js
+     swaps the real .section-cta into this exact spot (replacing this node) once
+     the user scrolls far enough, and swaps it back out when scrolling back up. -->
+<div id="cta-spacer" aria-hidden="true"></div>
+
+<!-- FOOTER (normal document flow, after the scroll-driven 900vh container —
+     js/app.js un-pins the fixed CTA overlay into normal flow once scroll passes
+     the container's own bottom edge, so this isn't permanently hidden behind it) -->
+<footer class="shop-footer">
+  <a href="index.html" class="shop-footer-wordmark">MONARK</a>
+  <p class="shop-footer-copy" data-i18n="footer.copyright">&copy; 2025 MONARK. All rights reserved.</p>
+  <nav class="footer-legal-links">
+    <a href="faq.html" data-i18n="footer.faq">FAQ</a>
+    <a href="contact.html" data-i18n="footer.contact">Contact</a>
+    <a href="mentions-legales.html" data-i18n="footer.legalNotice">Legal Notice</a>
+    <a href="cgv.html" data-i18n="footer.termsOfSale">Terms of Sale</a>
+    <a href="confidentialite.html" data-i18n="footer.privacyPolicy">Privacy Policy</a>
+  </nav>
+</footer>
+
+<div class="grain"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lenis@1/dist/lenis.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrollTrigger.min.js"></script>
+<script src="js/i18n.js?v=20260719"></script>
+<script src="js/app.js?v=20260719"></script>
+<script src="js/footer-active-page.js?v=20260719"></script>
+<script src="js/cart.js?v=20260719"></script>
+<script src="js/cart-widget.js?v=20260719"></script>
+<script src="js/nav-menu.js?v=20260719"></script>
+<script src="js/promo-banner.js?v=20260719"></script>
+<script src="js/cookie-consent.js?v=20260719"></script>
+<script src="js/email-popup.js?v=20260719"></script>
+</body>
+</html>

@@ -1,0 +1,458 @@
+/* ===================================================================
+   MONARK — Cart & Checkout
+   Reuses the CSS variables and type system defined in css/style.css.
+=================================================================== */
+
+.checkout-page {
+  /* Same +var(--promo-banner-h) header-clearance treatment as
+     css/shop.css's .shop-hero -- see --promo-banner-h's comment in
+     css/style.css's :root. */
+  min-height: calc(100vh - 80px - var(--promo-banner-h));
+  margin-top: calc(80px + var(--promo-banner-h));
+  padding: 8vh 6vw 10vh;
+}
+
+.checkout-inner { max-width: 900px; margin: 0 auto; }
+
+.checkout-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(2rem, 4vw, 3rem);
+  color: var(--text-on-dark);
+  margin: 0 0 3rem;
+}
+
+/* Small, unobtrusive shortcut back to the shop -- same treatment as
+   product.html's own .shop-back-link (css/shop.css), duplicated here rather
+   than shared since checkout.html doesn't load shop.css. */
+.checkout-back-link {
+  display: inline-block;
+  margin-bottom: 1.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 3px;
+  transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .checkout-back-link:hover { color: var(--text-on-dark); border-color: var(--accent-bronze-light); }
+}
+
+/* ---- empty state ---- */
+
+.checkout-empty-note {
+  text-align: center;
+  padding: 6vh 0;
+  font-family: var(--font-body);
+  font-weight: 300;
+  color: var(--text-muted);
+  margin: 0 0 1.6rem;
+}
+
+.checkout-empty-note a { color: var(--accent-bronze-light); }
+
+.checkout-confirmation-total {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  color: var(--accent-bronze-light);
+  margin: 0 0 2rem;
+}
+
+/* ---- checkout ---- */
+
+.checkout-grid { display: flex; gap: 5vw; align-items: flex-start; }
+
+/* border/padding moved to the left edge (was right) since this column sits on
+   the right now -- see the order swap below -- so the divider line still
+   falls in the gap between the two columns rather than on their outer edge. */
+.checkout-summary-col { flex: 1 1 0; border-left: 1px solid var(--line); padding-left: 2.4rem; position: sticky; top: 12vh; }
+.checkout-details-col { flex: 1.3 1 0; }
+
+/* Order summary on the right, Shipping/Payment on the left -- DOM order is
+   unchanged (screen readers and Tab still move through Shipping/Payment
+   before Order Summary, matching the account step -> shipping -> payment
+   task flow), only the visual side each column renders on is flipped. Scoped
+   to the width where the grid is actually two columns side by side -- below
+   that (see the max-width:768px block) the grid stacks into one column and
+   "which side" no longer applies, so the original top-to-bottom DOM order
+   (Order Summary, then Shipping/Payment) is left alone there. */
+@media (min-width: 769px) {
+  .checkout-summary-col { order: 2; }
+  .checkout-details-col { order: 1; }
+}
+
+.checkout-section-heading {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.2rem;
+  color: var(--accent-bronze-light);
+  margin: 0 0 1.4rem;
+}
+
+/* Byredo-style treatment: the product itself (photo/name/qty) shown plainly
+   above the price breakdown, rather than folded into a single "Name x Qty"
+   price line -- so the order summary column reads as "here is what you're
+   buying" first, "here is what it costs" second. */
+.checkout-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding-bottom: 1.6rem;
+  margin-bottom: 0.4rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.checkout-summary-thumb {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  background: var(--bg-ink);
+  flex-shrink: 0;
+}
+
+.checkout-summary-item-details { flex: 1 1 auto; min-width: 0; }
+
+.checkout-summary-item-name {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--text-on-dark);
+}
+
+.checkout-summary-item-qty {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.checkout-summary-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--line);
+}
+
+.checkout-summary-total { color: var(--text-on-dark); font-size: 0.9rem; border-bottom: none; }
+
+.checkout-field { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.3rem; }
+
+/* The shipping fields' error messages live inside .checkout-field itself (as
+   a third flex child, after the input) rather than as a sibling after the
+   label -- City/Postal Code sit side by side in .checkout-field-row, and an
+   error message as a sibling of the label there would become a stray third
+   flex item in that row instead of stacking under its own field. .promo-
+   message's own margin-top (see css/style.css) would otherwise stack with
+   this flex column's own gap, spacing it further from the input than
+   intended. */
+.checkout-field .promo-message { margin-top: 0; }
+
+.checkout-field span {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.checkout-field input,
+.checkout-field select,
+.checkout-field textarea {
+  /* width:100% (was unset, so each input rendered at its own browser-default
+     intrinsic width, ~170-200px) -- confirmed via direct measurement: with two
+     of these side by side in a .checkout-field-row (City/Postal, Expiry/CVC),
+     that default width plus the row's own gap exceeded the available column
+     width, overflowing .checkout-details-col past its own parent by ~41px on
+     mobile. That's what actually caused the asymmetric margin (left side
+     matched the page's intended padding; the right side didn't, because
+     content was overflowing past it), not a centering bug in the grid/inner
+     wrapper itself. min-width:0 lets it actually shrink within a flex item
+     instead of defaulting to its own content size the way flex items do. */
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 0.6rem 0;
+  color: var(--text-on-dark);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  transition: border-color 0.3s ease;
+}
+.checkout-field input:focus,
+.checkout-field select:focus,
+.checkout-field textarea:focus { outline: none; border-color: var(--accent-bronze-light); }
+.checkout-field input:disabled { color: var(--text-muted); cursor: not-allowed; }
+
+.checkout-field textarea { resize: vertical; }
+
+.checkout-field-row { display: flex; gap: 1.4rem; }
+.checkout-field-row .checkout-field { flex: 1 1 0; }
+
+/* ---- contact form (contact.html) ---- */
+
+.contact-honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.contact-form { margin-top: 2rem; }
+
+/* .cta-button is display:inline-block (see css/style.css) -- margin:auto
+   only centers a block-level box, and left as inline-block the button just
+   sits at the form's own left edge like every other field above it. Only
+   display/margin are touched here; every other .cta-button property
+   (padding, border, font, hover treatment) stays shared/untouched. */
+#contact-submit-btn {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.contact-form-message {
+  margin-top: 1.5rem;
+  font-family: var(--font-body);
+  font-weight: 300;
+  color: var(--text-muted);
+  max-width: 50ch;
+}
+
+.contact-char-counter {
+  align-self: flex-end;
+  margin: 0.4rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-muted);
+}
+
+/* ---- custom "Reason" dropdown (contact.html) ----
+   See the HTML comment on .custom-select for why this exists instead of a
+   native <select>: styling a <select>'s open option-popup has real
+   cross-browser limits (Chromium/Firefox honor some option colors; Safari
+   mostly doesn't), so a fully custom, fully dark-themed component was built
+   instead for this one 4-option field. */
+
+.custom-select { position: relative; width: 100%; }
+
+.custom-select-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 0.6rem 0;
+  color: var(--text-on-dark);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+}
+
+.custom-select-trigger[data-placeholder="true"] { color: var(--text-muted); }
+
+.custom-select-trigger:focus,
+.custom-select-trigger[aria-expanded="true"] { outline: none; border-color: var(--accent-bronze-light); }
+
+.custom-select-chevron {
+  flex: 0 0 auto;
+  color: var(--accent-bronze-light);
+  transition: transform 0.25s ease;
+}
+
+.custom-select-trigger[aria-expanded="true"] .custom-select-chevron { transform: rotate(180deg); }
+
+.custom-select-list {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 0.4rem 0;
+  list-style: none;
+  background: var(--bg-ink);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.custom-select-list[hidden] { display: none; }
+
+.custom-select-list li {
+  padding: 0.65rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  color: var(--text-on-dark);
+  cursor: pointer;
+}
+
+.custom-select-list li[aria-selected="true"] { color: var(--accent-bronze-light); }
+.custom-select-list li.is-highlighted { background: rgba(216, 178, 124, 0.12); }
+
+.custom-select-error {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: #b5675c; /* same muted rust used for the promo-code error message elsewhere */
+}
+
+/* ---- promo code (checkout.html only) ---- */
+
+.promo-box { margin-top: 0.6rem; }
+.promo-field { margin-bottom: 0.6rem; }
+
+.promo-input-row { display: flex; align-items: center; gap: 1rem; }
+.promo-input-row input { flex: 1 1 auto; min-width: 0; }
+
+/* .cta-button's own defaults (margin-top, larger padding/font) are sized for a
+   standalone block button -- these bring it down to sit inline next to the
+   input instead, keeping the same border/hover/font family. */
+.promo-apply-btn { flex: 0 0 auto; margin-top: 0; padding: 0.6rem 1.4rem; font-size: 0.68rem; }
+
+/* .promo-message/.promo-message-success/.promo-message-error now live in
+   css/style.css (shared with js/email-popup.js, which runs on every page,
+   not just this one) -- see the comment there. */
+
+.checkout-summary-discount { color: var(--accent-bronze-light); }
+
+/* Same bronze accent as .checkout-summary-discount's own positive-state
+   treatment, but scoped to just the "Free" value (not the "Shipping" label
+   too) -- the label stays the same muted color as "Subtotal" above it. */
+.checkout-summary-shipping-free { color: var(--accent-bronze-light); }
+
+/* Same struck-through-original-price treatment as product.html's own
+   .shop-price-original (css/shop.css) -- reused here for the waived
+   shipping fee and the "if you'd paid full price" total, rather than
+   inventing a second strikethrough convention. */
+.checkout-summary-strike {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  margin-right: 0.35rem;
+}
+
+/* ---- account step (checkout.html + account.html, via
+   MonarkAccount.mountAccountGate() -- see js/account.js) ---- */
+
+.checkout-account-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 1.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.checkout-account-intro {
+  margin: 0 0 1.4rem;
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  max-width: 46ch;
+}
+
+.checkout-account-email-echo {
+  margin: 0 0 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.checkout-account-options { display: flex; align-items: center; gap: 1.6rem; margin-top: 0.4rem; }
+
+.checkout-account-create-form { margin-top: 1.6rem; }
+
+/* Secondary-weight sizing for the account step's non-primary actions (Log In,
+   Continue as Guest, Create Account & Continue) -- none of these is the
+   page's main CTA (that's "Place Order"), so they shouldn't carry the same
+   full block-button weight as .cta-button's default. Same padding/font-size
+   as .promo-apply-btn, the page's other already-established "medium weight"
+   button. */
+.checkout-account-btn-sm { margin-top: 1rem; padding: 0.6rem 1.4rem; font-size: 0.68rem; }
+.checkout-account-options .checkout-account-btn-sm { margin-top: 0; }
+
+/* Same treatment as .checkout-back-link (small mono uppercase, underlined,
+   muted -> bronze on hover) but reset for use on a <button> instead of an
+   <a> -- these trigger JS (change account, toggle the create-account form)
+   rather than real navigation, so a button is the correct element, and it
+   needs its own chrome stripped rather than inheriting Chrome/Firefox/Safari's
+   differing default button padding/border/font. */
+.checkout-account-link-btn {
+  display: inline-block;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 3px;
+  transition: color 0.3s ease, border-color 0.3s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .checkout-account-link-btn:hover { color: var(--text-on-dark); border-color: var(--accent-bronze-light); }
+}
+
+/* Payment fields are UI only -- see the HTML comment above them. This note
+   makes that explicit to the user too, not just to future developers. */
+.checkout-payment-note {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  margin: -0.4rem 0 1.6rem;
+}
+
+.checkout-submit { width: 100%; text-align: center; margin-top: 0.6rem; cursor: pointer; }
+.checkout-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.checkout-confirmation { text-align: center; padding: 10vh 0; }
+
+.checkout-confirmation-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+  color: var(--text-on-dark);
+  margin: 0 0 1.2rem;
+}
+
+.checkout-confirmation-text {
+  font-family: var(--font-body);
+  font-weight: 300;
+  color: var(--text-muted);
+  max-width: 50ch;
+  margin: 0 auto 2rem;
+}
+
+@media (max-width: 768px) {
+  .checkout-page { padding: 6vh 8vw 8vh; }
+  .checkout-grid { flex-direction: column; }
+  .checkout-summary-col { border-left: none; border-bottom: 1px solid var(--line); padding-left: 0; padding-bottom: 2rem; margin-bottom: 2rem; position: static; }
+}
