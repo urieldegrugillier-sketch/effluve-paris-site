@@ -471,8 +471,11 @@
       // onImage records where the gesture STARTED, before pointer capture can
       // retarget anything -- a clean (non-moved) tap replays that as either a
       // zoom toggle (started on the image) or a close (started on the bare
-      // dimmed backdrop), decided in the pointerup handler below.
-      tapCandidate = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, onImage: e.target === lbImage };
+      // dimmed backdrop), decided in the pointerup handler below. time backs
+      // the swipe-to-navigate check there too (SWIPE_MAX_DURATION), reusing
+      // the exact same constants the main carousel's own touch-swipe uses
+      // just above, for a consistent feel between the two.
+      tapCandidate = { id: e.pointerId, x: e.clientX, y: e.clientY, time: Date.now(), moved: false, onImage: e.target === lbImage };
       if (scale > 1) dragLast = { x: e.clientX, y: e.clientY };
     } else if (pointers.size === 2) {
       tapCandidate = null; // a 2nd finger joining means this is a pinch, not a tap
@@ -519,6 +522,30 @@
       tapCandidate && tapCandidate.id === e.pointerId && !tapCandidate.moved;
     const wasOnImage = isCleanTap && tapCandidate.onImage;
     const wasOnBackdrop = isCleanTap && !tapCandidate.onImage;
+
+    // Swipe-to-navigate between the two product photos, additive to the
+    // existing pinch/pan/tap-to-zoom/backdrop-close gestures below, not a
+    // replacement for any of them. Only considered when this same single
+    // pointer actually moved (tapCandidate.moved -- so it's mutually
+    // exclusive with isCleanTap above, never double-firing a zoom-toggle AND
+    // a nav) and the image is at its base scale: once zoomed in, the
+    // identical single-finger drag already pans the image instead (see
+    // pointermove above), and swipe-to-navigate would fight that gesture for
+    // the same input. Distance/duration thresholds and the dominant-axis
+    // check mirror the main carousel's own touch-swipe (SWIPE_MIN_DISTANCE/
+    // SWIPE_MAX_DURATION above) so the two feel consistent; goTo() already
+    // wraps between the two slides and refreshes the lightbox's image + alt
+    // text via updateLightboxImage() since lightboxOpen is true.
+    if (pointers.size === 1 && pointers.has(e.pointerId) &&
+        tapCandidate && tapCandidate.id === e.pointerId && tapCandidate.moved && scale === MIN_SCALE) {
+      const dx = e.clientX - tapCandidate.x;
+      const dy = e.clientY - tapCandidate.y;
+      const elapsed = Date.now() - tapCandidate.time;
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) >= SWIPE_MIN_DISTANCE && elapsed <= SWIPE_MAX_DURATION) {
+        goTo(current + (dx < 0 ? 1 : -1));
+      }
+    }
+
     cleanupPointer(e.pointerId);
     tapCandidate = null;
     if (wasOnImage) toggleZoomAt(e.clientX, e.clientY);
