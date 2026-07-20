@@ -1,5 +1,17 @@
 /* ===================================================================
-   MONARK — Cart & Checkout
+   MONARK — Checkout & Account
+   Shared by checkout.html and account.html (both built around the same
+   MonarkAccount.mountAccountGate() widget, see js/account.js, and the same
+   .checkout-field/.checkout-section-heading conventions) -- also loaded by
+   contact.html purely to reuse the generic .checkout-field input styling
+   for its own form fields (see css/contact.css for that page's own
+   exclusive rules: honeypot, char-counter, custom "Reason" dropdown, etc.).
+   Renamed from cart.css: this file predates a standalone cart.html page
+   that was later removed in favor of the header's mini-cart preview (see
+   js/cart-widget.js, styled in css/style.css, not here) -- "cart.css" no
+   longer described what's actually in this file once the checkout
+   accordion, account gate/profile/address/payment sections, and the mobile
+   Paiement/Billing-recap presentations were all added on top of it.
    Reuses the CSS variables and type system defined in css/style.css.
 =================================================================== */
 
@@ -9,7 +21,17 @@
      css/style.css's :root. */
   min-height: calc(100vh - 80px - var(--promo-banner-h));
   margin-top: calc(80px + var(--promo-banner-h));
-  padding: 8vh 6vw 10vh;
+  /* +var(--cookie-banner-h) (see css/style.css's :root) on the BOTTOM this
+     time, not the top -- the fixed-to-the-bottom cookie-consent banner (see
+     css/style.css's .cookie-banner) can otherwise sit directly on top of
+     whatever's scrolled to the bottom of this page, and on a short mobile
+     viewport that's exactly where "Place Order" (checkout.html) and
+     "Delete Account"'s confirm step (account.html, also .checkout-page)
+     live. Reserving this much extra space at the bottom means there's
+     always enough room to scroll those fully clear of the banner instead of
+     them staying permanently covered underneath it. 0px (no visual change)
+     once the banner's dismissed or was never shown. */
+  padding: 8vh 6vw calc(10vh + var(--cookie-banner-h));
 }
 
 .checkout-inner { max-width: 900px; margin: 0 auto; }
@@ -19,7 +41,7 @@
   font-weight: 600;
   font-size: clamp(2rem, 4vw, 3rem);
   color: var(--text-on-dark);
-  margin: 0 0 3rem;
+  margin: 0 0 1.8rem;
 }
 
 /* Small, unobtrusive shortcut back to the shop -- same treatment as
@@ -84,6 +106,17 @@
 @media (min-width: 769px) {
   .checkout-summary-col { order: 2; }
   .checkout-details-col { order: 1; }
+  /* Mobile/tablet-only recap of this same column's data (see checkout.html's
+     own comment on .checkout-mobile-summary-section) -- once the grid is
+     actually two columns side by side, the real Order Summary column is
+     already persistently visible, so this duplicate presentation has
+     nothing left to add. */
+  .checkout-mobile-summary-section { display: none; }
+  /* Same reasoning for Billing's own fallback Promo Code field -- the
+     desktop column's promo form is always visible there already, so a
+     second one inside Billing would just be a redundant duplicate control
+     on the same page. */
+  .checkout-billing-mobile-promo { display: none; }
 }
 
 .checkout-section-heading {
@@ -146,7 +179,21 @@
 
 .checkout-summary-total { color: var(--text-on-dark); font-size: 0.9rem; border-bottom: none; }
 
-.checkout-field { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.3rem; }
+/* min-width:0 matters here specifically because .checkout-field is the
+   actual flex ITEM inside .checkout-field-row (City/Postal, Expiry/CVC) --
+   a flex item's default min-width is `auto`, which means "never shrink
+   below your own content's intrinsic minimum width" REGARDLESS of
+   flex:1 1 0 on the item or width:100%/min-width:0 on the input inside it
+   (that only lets the INPUT shrink within whatever width THIS label ends up
+   with, it doesn't make the label itself willing to shrink below its own
+   auto-computed minimum). Confirmed via direct measurement at 390px/320px:
+   without this, each field's real rendered width floors out around 182px,
+   so two of them plus the row's own gap add up to ~387-399px -- comfortably
+   wider than the ~320-330px actually available inside .checkout-inner's
+   padding on a narrow phone, and body's own overflow-x:hidden (css/style.css)
+   silently clips the overflow rather than showing a scrollbar, so it read as
+   fields vanishing off the right edge instead of an obviously scrollable page. */
+.checkout-field { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.3rem; min-width: 0; }
 
 /* The shipping fields' error messages live inside .checkout-field itself (as
    a third flex child, after the input) rather than as a sibling after the
@@ -200,121 +247,6 @@
 
 .checkout-field-row { display: flex; gap: 1.4rem; }
 .checkout-field-row .checkout-field { flex: 1 1 0; }
-
-/* ---- contact form (contact.html) ---- */
-
-.contact-honeypot {
-  position: absolute;
-  left: -9999px;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
-
-.contact-form { margin-top: 2rem; }
-
-/* .cta-button is display:inline-block (see css/style.css) -- margin:auto
-   only centers a block-level box, and left as inline-block the button just
-   sits at the form's own left edge like every other field above it. Only
-   display/margin are touched here; every other .cta-button property
-   (padding, border, font, hover treatment) stays shared/untouched. */
-#contact-submit-btn {
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.contact-form-message {
-  margin-top: 1.5rem;
-  font-family: var(--font-body);
-  font-weight: 300;
-  color: var(--text-muted);
-  max-width: 50ch;
-}
-
-.contact-char-counter {
-  align-self: flex-end;
-  margin: 0.4rem 0 0;
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  color: var(--text-muted);
-}
-
-/* ---- custom "Reason" dropdown (contact.html) ----
-   See the HTML comment on .custom-select for why this exists instead of a
-   native <select>: styling a <select>'s open option-popup has real
-   cross-browser limits (Chromium/Firefox honor some option colors; Safari
-   mostly doesn't), so a fully custom, fully dark-themed component was built
-   instead for this one 4-option field. */
-
-.custom-select { position: relative; width: 100%; }
-
-.custom-select-trigger {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--line);
-  padding: 0.6rem 0;
-  color: var(--text-on-dark);
-  font-family: var(--font-body);
-  font-size: 0.9rem;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.3s ease;
-}
-
-.custom-select-trigger[data-placeholder="true"] { color: var(--text-muted); }
-
-.custom-select-trigger:focus,
-.custom-select-trigger[aria-expanded="true"] { outline: none; border-color: var(--accent-bronze-light); }
-
-.custom-select-chevron {
-  flex: 0 0 auto;
-  color: var(--accent-bronze-light);
-  transition: transform 0.25s ease;
-}
-
-.custom-select-trigger[aria-expanded="true"] .custom-select-chevron { transform: rotate(180deg); }
-
-.custom-select-list {
-  position: absolute;
-  top: calc(100% + 0.6rem);
-  left: 0;
-  right: 0;
-  z-index: 20;
-  margin: 0;
-  padding: 0.4rem 0;
-  list-style: none;
-  background: var(--bg-ink);
-  border: 1px solid var(--line);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-.custom-select-list[hidden] { display: none; }
-
-.custom-select-list li {
-  padding: 0.65rem 1rem;
-  font-family: var(--font-body);
-  font-size: 0.88rem;
-  color: var(--text-on-dark);
-  cursor: pointer;
-}
-
-.custom-select-list li[aria-selected="true"] { color: var(--accent-bronze-light); }
-.custom-select-list li.is-highlighted { background: rgba(216, 178, 124, 0.12); }
-
-.custom-select-error {
-  margin: 0.5rem 0 0;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: #b5675c; /* same muted rust used for the promo-code error message elsewhere */
-}
 
 /* ---- promo code (checkout.html only) ---- */
 
@@ -517,6 +449,18 @@
 .checkout-accordion-next-btn { width: 100%; text-align: center; margin-top: 0.6rem; cursor: pointer; }
 .checkout-accordion-next-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* Mobile-only Paiement section's nested "Panier"/"Cart" sub-heading -- same
+   font-size/weight/color as .checkout-accordion-title (an <h3> here, not a
+   <button>'s child <span>, so it needs its own margin reset rather than
+   inheriting one from that button-flex context). */
+.checkout-mobile-cart-heading { margin: 0 0 1rem; }
+
+/* Billing section's final recap (point 4) -- reuses .checkout-summary-line
+   etc.'s own styling as injected by summaryLinesHtml() (see the inline
+   script), just a divider + breathing room to set it apart from the CVC/
+   payment-note fields above and the Terms checkbox below. */
+.checkout-billing-recap { margin: 1.8rem 0; border-top: 1px solid var(--line); padding-top: 0.4rem; }
+
 /* ---- account.html: Edit Profile / Saved Address / Preferences / Order
    History / Delete Account (all via js/account.js's updateAccount()/
    recordOrder()/getOrders()/deleteAccount()) ---- */
@@ -652,7 +596,33 @@
 }
 
 @media (max-width: 768px) {
-  .checkout-page { padding: 6vh 8vw 8vh; }
-  .checkout-grid { flex-direction: column; }
-  .checkout-summary-col { border-left: none; border-bottom: 1px solid var(--line); padding-left: 0; padding-bottom: 2rem; margin-bottom: 2rem; position: static; }
+  /* Same +var(--cookie-banner-h) bottom-clearance reasoning as the desktop
+     rule above -- this is the breakpoint where it actually matters most
+     (short mobile viewports are exactly where the banner and a bottom CTA
+     are most likely to collide). */
+  .checkout-page { padding: 6vh 8vw calc(8vh + var(--cookie-banner-h)); }
+  /* .checkout-grid's own align-items:flex-start (see that rule) is there so
+     the two DESKTOP columns -- of different heights -- align to the same
+     top edge instead of stretching to match each other's height. Once
+     flex-direction flips to column here, cross-axis flips from height to
+     WIDTH, and that same flex-start now means "don't stretch to fill the
+     container's width, just size to content" instead -- which is exactly
+     what let .checkout-details-col grow to its content's full natural width
+     (driven by .checkout-field-row's own un-shrunk fields) rather than
+     being capped at this container's actual available width, overflowing
+     past it. Restoring the (actually default, just explicitly overridden
+     above) stretch behavior here is what makes the column-mode cross-axis
+     -- width -- respect this container's own bounds again, which combined
+     with min-width:0 on .checkout-field (see that rule) is what finally
+     lets Address/City/Postal/Expiry/CVC etc. actually shrink to fit a
+     narrow screen instead of silently overflowing past it (clipped
+     invisible by body's own overflow-x:hidden, see css/style.css, rather
+     than showing an obvious scrollbar). */
+  .checkout-grid { flex-direction: column; align-items: stretch; }
+  /* Replaced by .checkout-mobile-summary-section's own accordion presentation
+     of this exact same data at this breakpoint (see that section's own
+     comment in checkout.html) -- kept visible here, it would just repeat the
+     same product/totals/promo content a second time, back to back, on the
+     same page. */
+  .checkout-summary-col { display: none; }
 }

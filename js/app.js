@@ -73,7 +73,7 @@ const isDesktop = window.matchMedia('(min-width: 769px)').matches;
 // deliberately including 1024px-wide tablet landscape while excluding desktop.
 const isMobileOrTablet = window.matchMedia('(max-width: 1024px)').matches;
 
-const framePath = (i) => `frames/frame_${String(i).padStart(4, '0')}.webp`;
+const framePath = (i) => `assets/frames/frame_${String(i).padStart(4, '0')}.webp`;
 
 /* ---------------- Lenis smooth scroll ---------------- */
 

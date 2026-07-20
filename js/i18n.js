@@ -211,7 +211,7 @@
         address: 'Address',
         city: 'City',
         postalCode: 'Postal Code',
-        payment: 'Payment',
+        payment: 'Billing',
         cardNumber: 'Card Number',
         expiry: 'Expiry',
         cvc: 'CVC',
@@ -245,7 +245,9 @@
         phone: 'Phone Number (optional)',
         nameOnCard: 'Name on Card',
         termsLabel: 'I accept the <a href="cgv.html" target="_blank" rel="noopener">Terms &amp; Conditions of Sale</a>.',
-        errorTerms: 'Please accept the Terms & Conditions of Sale to continue.'
+        errorTerms: 'Please accept the Terms & Conditions of Sale to continue.',
+        mobileOrderSummaryHeading: 'Payment',
+        cartHeading: 'Cart'
       },
       accountGate: {
         modify: 'Modify',
@@ -305,6 +307,8 @@
         orderDate: 'Ordered {date}',
         orderQty: 'Qty {qty}',
         orderTotalLine: 'Total: {total}',
+        guestOrderHistoryNote: 'Create an account to view your order history & more.',
+        guestCreateAccountBtn: 'Create an Account',
         deleteAccountBtn: 'Delete Account',
         deleteConfirmText: 'Delete your account permanently? This cannot be undone.',
         deleteConfirmBtn: 'Confirm Delete',
@@ -640,7 +644,7 @@
         address: 'Adresse',
         city: 'Ville',
         postalCode: 'Code Postal',
-        payment: 'Paiement',
+        payment: 'Facturation',
         cardNumber: 'Numéro de Carte',
         expiry: 'Expiration',
         cvc: 'CVC',
@@ -674,7 +678,9 @@
         phone: 'Numéro de Téléphone (facultatif)',
         nameOnCard: 'Nom sur la Carte',
         termsLabel: "J'accepte les <a href=\"cgv.html\" target=\"_blank\" rel=\"noopener\">Conditions Générales de Vente</a>.",
-        errorTerms: 'Veuillez accepter les Conditions Générales de Vente pour continuer.'
+        errorTerms: 'Veuillez accepter les Conditions Générales de Vente pour continuer.',
+        mobileOrderSummaryHeading: 'Paiement',
+        cartHeading: 'Panier'
       },
       accountGate: {
         modify: 'Modifier',
@@ -734,6 +740,8 @@
         orderDate: 'Commandé le {date}',
         orderQty: 'Qté {qty}',
         orderTotalLine: 'Total : {total}',
+        guestOrderHistoryNote: 'Créez un compte pour consulter l\'historique de vos commandes et plus encore.',
+        guestCreateAccountBtn: 'Créer un Compte',
         deleteAccountBtn: 'Supprimer le Compte',
         deleteConfirmText: 'Supprimer définitivement votre compte ? Cette action est irréversible.',
         deleteConfirmBtn: 'Confirmer la Suppression',

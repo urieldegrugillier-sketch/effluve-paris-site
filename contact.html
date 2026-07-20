@@ -11,10 +11,10 @@
 <meta name="description" content="Get in touch with MONARK about your order, our Eau de Parfum, press, or wholesale inquiries.">
 
 <!-- Favicon (bronze "M" monogram on dark) -->
-<link rel="icon" type="image/x-icon" href="favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
 <!-- Referrer-Policy is the one HTTP security header a meta tag can actually
      set; CSP / X-Frame-Options / X-Content-Type-Options need real HTTP
@@ -29,7 +29,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260719">
-<link rel="stylesheet" href="css/cart.css?v=20260719">
+<!-- checkout.css: reused here only for its generic .checkout-field input
+     styling (Name/Email/Message below) -- this page's own exclusive rules
+     (honeypot, char counter, the custom "Reason" dropdown) live in
+     contact.css instead, loaded right after. -->
+<link rel="stylesheet" href="css/checkout.css?v=20260719">
+<link rel="stylesheet" href="css/contact.css?v=20260719">
 </head>
 <body class="shop-page">
 

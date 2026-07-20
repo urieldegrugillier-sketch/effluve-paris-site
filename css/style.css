@@ -66,6 +66,19 @@
      height when it's showing and are a no-op (+0px) when it isn't, without
      needing a second copy of each rule. */
   --promo-banner-h: 0px;
+
+  /* Same idea as --promo-banner-h above, but for the fixed-to-the-BOTTOM
+     .cookie-banner (js/cookie-consent.js) instead of the header's own
+     fixed-to-the-top one -- 0px until that script measures the banner's
+     real rendered height and sets this itself (see that file's own
+     comment). Unlike --promo-banner-h this can't be a single hardcoded
+     constant: the cookie banner's text is noticeably longer and wraps
+     differently across breakpoints AND between the FR/EN translations, so
+     its height genuinely isn't constant the way the promo banner's
+     countdown-timer text turned out to be -- a JS measurement is the only
+     way to get this right at every combination instead of guessing a
+     worst-case number that's wrong for some of them. */
+  --cookie-banner-h: 0px;
 }
 
 /* Measured directly (real getBoundingClientRect() height at the banner's
@@ -437,37 +450,52 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      needed the way .nav-logo's own centering does. */
   margin-right: auto;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 5px;
-  width: 20px;
+  align-items: center;
   background: none;
   border: none;
   padding: 0;
   cursor: pointer;
 }
 
+/* Icon is a single inline <svg> (js/nav-menu.js) with three <rect> bars,
+   not three separately-positioned DOM elements -- a previous attempt at this
+   (three flex-positioned <span>s, each background-filled 1px tall) measured
+   pixel-identical via getBoundingClientRect() at every DPI tested, yet still
+   visibly rendered the middle bar thinner than the outer two: each <span>'s
+   own fractional device-pixel Y-offset (driven by 6px CSS spacing times a
+   fractional display-scale factor, e.g. Windows' 125%/175%) doesn't
+   necessarily match its siblings', so the three were independently
+   antialiased out of phase with each other. A single SVG sidesteps that
+   entirely -- all three bars are drawn in ONE rendering/scaling context
+   (the SVG's own viewBox-to-viewport transform), so they share exactly the
+   same fractional pixel phase and rasterize identically, the same way any
+   other vector icon on this site already does. */
+.nav-hamburger-icon { display: block; }
+
 .nav-hamburger-line {
-  display: block;
-  width: 100%;
-  height: 1px;
-  background: var(--text-on-dark);
+  fill: var(--text-on-dark);
+  /* SVG shapes' transform-origin defaults to the SVG viewport's own (0,0)
+     corner, not the shape's own center -- fill-box repoints it at this
+     rect's own bounding box instead, which is what makes `rotate(45deg)`
+     below actually pivot each bar around its own middle rather than the
+     icon's top-left corner. */
+  transform-box: fill-box;
   transform-origin: center;
-  transition: background-color 0.3s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+  transition: fill 0.3s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .nav-hamburger:hover .nav-hamburger-line { background: var(--accent-bronze-light); }
+  .nav-hamburger:hover .nav-hamburger-line { fill: var(--accent-bronze-light); }
 }
 
 /* Hamburger -> X morph, driven by js/nav-menu.js toggling this class on the
    same button (not a second, separately-positioned close element) -- so the
    close control is literally the same icon in the same spot, just animated,
-   which is what makes the open/close toggle read as continuous. Each line's
-   translateY brings its center in line with the middle line's own center
-   (do the math from .nav-hamburger's 5px gap / 1px line height: line1 and
-   line3 centers sit 6px above/below line2's), then both rotate 45deg to
-   form the X while line2 fades out. */
+   which is what makes the open/close toggle read as continuous. Each bar's
+   translateY brings its center in line with the middle bar's own center (the
+   three <rect>s sit 6px apart center-to-center in the SVG's own viewBox
+   units, see js/nav-menu.js's markup), then both rotate 45deg to form the X
+   while the middle bar fades out. */
 .nav-hamburger-active .nav-hamburger-line:nth-child(1) { transform: translateY(6px) rotate(45deg); }
 .nav-hamburger-active .nav-hamburger-line:nth-child(2) { opacity: 0; }
 .nav-hamburger-active .nav-hamburger-line:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
@@ -1225,10 +1253,10 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 }
 
 /* ---- shared form feedback message ----
-   Used by checkout.html's promo code + account step (css/cart.css) and by
-   this stylesheet's own .email-popup-form -- kept here rather than in
-   cart.css since cart.css only loads on checkout.html/contact.html, but
-   js/email-popup.js runs on every page. */
+   Used by checkout.html's promo code + account step (css/checkout.css) and
+   by this stylesheet's own .email-popup-form -- kept here rather than in
+   checkout.css since that one only loads on checkout.html/account.html/
+   contact.html, but js/email-popup.js runs on every page. */
 .promo-message {
   margin: 0.7rem 0 0;
   font-family: var(--font-mono);
@@ -1773,12 +1801,12 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 /* .promo-message's own margin-top (see css/style.css's shared form-feedback
    section above) would stack with this flex container's own gap, spacing the
    error further from the input than intended -- zeroed out here, same as
-   css/cart.css's .promo-apply-btn overriding .cta-button's margin-top for
-   its own different layout context. */
+   css/checkout.css's .promo-apply-btn overriding .cta-button's margin-top
+   for its own different layout context. */
 .email-popup-form .promo-message { margin-top: 0; }
 
 /* Same fine-print treatment as checkout.html's .checkout-payment-note
-   (css/cart.css) -- the site's existing convention for small-print/legal
+   (css/checkout.css) -- the site's existing convention for small-print/legal
    microcopy under a form field. */
 .email-popup-consent {
   margin: 0;

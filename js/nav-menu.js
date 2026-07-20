@@ -27,10 +27,20 @@
   hamburger.setAttribute('aria-label', window.MonarkI18n ? window.MonarkI18n.t('navMenu.openMenu') : 'Open menu');
   hamburger.setAttribute('aria-expanded', 'false');
   hamburger.setAttribute('aria-controls', 'nav-menu');
+  // Single inline SVG, three <rect> bars -- NOT three separately-positioned
+  // DOM elements (see css/style.css's .nav-hamburger-icon comment for why:
+  // three independent elements measured pixel-identical yet still rendered
+  // visibly uneven, because each one lands at its own fractional
+  // device-pixel phase depending on the display's scale factor; one SVG
+  // draws all three bars in a single shared rendering/scaling context so
+  // that can't happen). 20x13 viewBox: three 20x1 bars at y=0/6/12, same
+  // geometry (20px wide, 1px tall, 6px center-to-center) the old markup had.
   hamburger.innerHTML = `
-    <span class="nav-hamburger-line"></span>
-    <span class="nav-hamburger-line"></span>
-    <span class="nav-hamburger-line"></span>
+    <svg class="nav-hamburger-icon" width="20" height="13" viewBox="0 0 20 13" aria-hidden="true">
+      <rect class="nav-hamburger-line" x="0" y="0" width="20" height="1"></rect>
+      <rect class="nav-hamburger-line" x="0" y="6" width="20" height="1"></rect>
+      <rect class="nav-hamburger-line" x="0" y="12" width="20" height="1"></rect>
+    </svg>
   `;
   // Inserted as .site-nav's first child (before .nav-logo/.nav-links) --
   // .nav-logo is position:absolute (out of the flex flow entirely, see its

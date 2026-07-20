@@ -11,10 +11,10 @@
 <meta name="description" content="Manage your MONARK account — log in, create an account, or continue as a guest.">
 
 <!-- Favicon (bronze "M" monogram on dark) -->
-<link rel="icon" type="image/x-icon" href="favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
 <!-- Referrer-Policy is the one HTTP security header a meta tag can actually
      set; CSP / X-Frame-Options / X-Content-Type-Options need real HTTP
@@ -33,7 +33,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260719">
-<link rel="stylesheet" href="css/cart.css?v=20260719">
+<link rel="stylesheet" href="css/checkout.css?v=20260719">
 </head>
 <body class="shop-page">
 
@@ -164,8 +164,21 @@
 
     <div id="account-order-history" class="account-section" hidden>
       <h2 class="checkout-section-heading" data-i18n="account.orderHistoryHeading">Order History</h2>
-      <p class="checkout-empty-note" id="account-no-orders" data-i18n="account.noOrdersYet">No orders yet — your past purchases will appear here.</p>
-      <ul class="account-order-list" id="account-order-list" hidden></ul>
+      <!-- Guest session (continueAsGuest(), no real account record) -- there's
+           nowhere for an order to have been recorded against (see
+           checkout.html's own "non-guest only" comment on recordOrder()), so
+           rather than a generic "No orders yet" that reads as if one just
+           hasn't happened yet, this explains why and offers a direct way back
+           into the account-gate's create-account step. Logged-in (non-guest)
+           sessions never see this -- see showExtras() below. -->
+      <div id="account-order-history-guest-note" hidden>
+        <p class="checkout-empty-note" data-i18n="account.guestOrderHistoryNote">Create an account to view your order history.</p>
+        <button type="button" class="checkout-account-link-btn" id="account-guest-create-btn" data-i18n="account.guestCreateAccountBtn">Create an Account</button>
+      </div>
+      <div id="account-order-history-content">
+        <p class="checkout-empty-note" id="account-no-orders" data-i18n="account.noOrdersYet">No orders yet — your past purchases will appear here.</p>
+        <ul class="account-order-list" id="account-order-list" hidden></ul>
+      </div>
     </div>
 
     <div id="account-danger" class="account-section" hidden>
@@ -250,6 +263,9 @@
   const marketingToggle = document.getElementById('account-marketing-toggle');
 
   const orderHistory = document.getElementById('account-order-history');
+  const guestOrderNote = document.getElementById('account-order-history-guest-note');
+  const guestCreateBtn = document.getElementById('account-guest-create-btn');
+  const orderHistoryContent = document.getElementById('account-order-history-content');
   const noOrdersNote = document.getElementById('account-no-orders');
   const orderList = document.getElementById('account-order-list');
 
@@ -261,10 +277,9 @@
 
   function resetDeleteConfirm() { deleteConfirmBlock.hidden = true; }
 
-  // Order History is the one section shown for EVERY resolved session,
-  // guest included -- account.getOrders() naturally returns [] for a guest
-  // (there's no account record to look it up against), so "No orders yet"
-  // is exactly what a guest should see here, with no special-casing needed.
+  // Order History is shown for every resolved session, but guests see a
+  // dedicated prompt instead of the real list (see showExtras() below) --
+  // this only ever runs for a non-guest session now.
   function renderOrders(email) {
     const orders = account.getOrders(email);
     if (!orders.length) {
@@ -330,10 +345,11 @@
   }
 
   function showExtras(session) {
-    renderOrders(session.email);
     orderHistory.hidden = false;
 
     if (session.isGuest) {
+      guestOrderNote.hidden = false;
+      orderHistoryContent.hidden = true;
       profileSection.hidden = true;
       addressSection.hidden = true;
       paymentSection.hidden = true;
@@ -341,6 +357,9 @@
       dangerSection.hidden = true;
       return;
     }
+    guestOrderNote.hidden = true;
+    orderHistoryContent.hidden = false;
+    renderOrders(session.email);
     renderProfile(session.email);
     resetDeleteConfirm();
     profileSection.hidden = false;
@@ -466,6 +485,26 @@
     // stale "Logged in as X" status until some unrelated event forces a
     // re-check.
     gate.resolveSession();
+  });
+
+  // Guest session's own "switch to account creation" shortcut -- logs the
+  // guest out (a guest session is just an email attached to this browsing
+  // session, not a real account, so there's nothing else to undo) and
+  // re-resolves the gate back to its email-entry step, same
+  // logOut()+resolveSession() pairing as the delete-account flow above.
+  // Prefilling the email input and scrolling back up to the Account section
+  // are pure convenience on top of that -- the guest still has to actually
+  // submit the email and fill in a password, this just saves them retyping
+  // the address they already gave once.
+  guestCreateBtn.addEventListener('click', () => {
+    const session = account.getSession();
+    if (!session || !session.isGuest) return;
+    const guestEmail = session.email;
+    account.logOut();
+    gate.resolveSession();
+    const emailInput = document.getElementById('checkout-account-email-input');
+    if (emailInput) emailInput.value = guestEmail;
+    document.getElementById('account-step').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   // statusLabel/changeLabel passed as functions, not plain strings -- see

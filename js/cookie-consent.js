@@ -22,6 +22,12 @@
   function dismiss(choice) {
     localStorage.setItem(STORAGE_KEY, choice);
     banner.remove();
+    // Relaxes any page's own bottom padding (see --cookie-banner-h in
+    // css/style.css's :root) straight back to normal once the banner's
+    // actually gone, rather than leaving a now-pointless gap at the bottom
+    // of the page until the next full reload.
+    document.documentElement.style.removeProperty('--cookie-banner-h');
+    window.removeEventListener('resize', positionBanner);
   }
 
   banner.querySelector('.cookie-banner-reject').addEventListener('click', () => dismiss('rejected'));
@@ -34,9 +40,24 @@
   // position:fixed too and can stay on screen while the user scrolls before
   // dismissing it, so it's exposed to the same bug. clientWidth stays stable
   // across the same scroll where innerWidth measurably flickers.
-  function positionBannerWidth() {
+  //
+  // Also (re-)measures the banner's own real rendered HEIGHT on every call,
+  // not just its width -- this banner sits fixed to the bottom of the
+  // viewport (see its own CSS) and can visually cover whatever page content
+  // happens to scroll to right above it, primary CTAs like checkout.html's
+  // "Place Order" included, especially on short mobile viewports where a
+  // tall page's own bottom padding wasn't accounting for this banner's
+  // height at all. --cookie-banner-h (css/style.css's :root) is 0px by
+  // default and only pages that actually need the extra clearance opt in by
+  // adding it to their own bottom padding (see .checkout-page in
+  // css/checkout.css) -- so setting it here has no effect on any page that
+  // doesn't. Re-measured on resize (not just once at mount) because the
+  // banner's text can wrap differently -- and so its height can change --
+  // at a different viewport width.
+  function positionBanner() {
     banner.style.width = document.documentElement.clientWidth + 'px';
+    document.documentElement.style.setProperty('--cookie-banner-h', banner.getBoundingClientRect().height + 'px');
   }
-  positionBannerWidth();
-  window.addEventListener('resize', positionBannerWidth);
+  positionBanner();
+  window.addEventListener('resize', positionBanner);
 })();

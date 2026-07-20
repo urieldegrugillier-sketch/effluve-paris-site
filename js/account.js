@@ -199,7 +199,7 @@
      404.html, etc.): reusing the existing, already-styled names keeps this a
      pure extraction with no accompanying rename, rather than a rename PLUS
      an extraction bundled into one change. The corresponding CSS lives in
-     css/cart.css under "account step", loaded by both pages. */
+     css/checkout.css under "account step", loaded by both pages. */
   // Static labels below carry data-i18n tags -- window.MonarkI18n.apply() is
   // called on this markup right after it's mounted (see mountAccountGate())
   // for the first render, and a later language switch's own global

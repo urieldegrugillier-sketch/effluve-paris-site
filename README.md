@@ -2,6 +2,41 @@
 
 Static HTML/CSS/JS site. No framework, no bundler required for development.
 
+## Project structure
+
+```
+index.html, product.html, checkout.html, account.html,     10 pages, project root
+contact.html, faq.html, cgv.html, confidentialite.html,
+mentions-legales.html, 404.html
+
+css/
+  style.css       Sitewide base styles, variables, type system -- every page
+  shop.css        product.html only
+  checkout.css    checkout.html + account.html (shared checkout accordion /
+                  account-gate flow); also loaded by contact.html purely to
+                  reuse its generic .checkout-field input styling
+  contact.css     contact.html's own exclusive rules (honeypot, char
+                  counter, the custom "Reason" dropdown)
+
+js/               Mostly one file per concern, self-mounting/site-wide
+                  (nav-menu, cart-widget, cookie-consent, promo-banner,
+                  email-popup, footer-active-page, header-position-fix all
+                  inject their own markup and run on every page); app.js is
+                  index.html-only; account.js/places-autocomplete.js load
+                  only on checkout.html + account.html; i18n.js is the
+                  shared FR/EN translation engine + dictionary.
+
+assets/
+  icons/          Favicons (favicon.ico, favicon-16/32.png, apple-touch-icon.png)
+  images/, video/ Product/brand imagery and source video
+  frames/         Scroll-scrubbed .webp frames for index.html's canvas
+                  animation (see js/app.js's framePath())
+
+scripts/build.js  Production minifier (see "Production build" below)
+dist/             Build output (minified css/js) -- generated, not source;
+                  refresh it with `npm run build` after any css/js change
+```
+
 ## Local development
 
 Serve the project root with any static file server, e.g.:
@@ -73,9 +108,9 @@ will silently block. Two honest paths:
 ## Forms — spam/abuse notes (no backend yet, so nothing is actually exploitable today)
 
 None of `checkout.html`'s shipping form, the email-signup popup
-(`js/email-popup.js`), or a future `contact.html` form talk to a real backend
-yet (see the "Mock success only" comments at each submit handler) — so there's
-no live endpoint to spam. Once any of them do:
+(`js/email-popup.js`), or `contact.html`'s own form talk to a real backend
+yet (see the "Mock success only"/honeypot comments at each submit handler) —
+so there's no live endpoint to spam. Once any of them do:
 
 - Add a honeypot field (a visually-hidden input real users never fill in;
   reject the submission if it's non-empty) to each.

@@ -11,10 +11,10 @@
 <meta name="description" content="Complete your MONARK Eau de Parfum order — shipping details and secure checkout.">
 
 <!-- Favicon (bronze "M" monogram on dark) -->
-<link rel="icon" type="image/x-icon" href="favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 
 <!-- Referrer-Policy is the one HTTP security header a meta tag can actually
      set; CSP / X-Frame-Options / X-Content-Type-Options need real HTTP
@@ -32,7 +32,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20260719">
-<link rel="stylesheet" href="css/cart.css?v=20260719">
+<link rel="stylesheet" href="css/checkout.css?v=20260719">
 </head>
 <body class="shop-page">
 
@@ -82,6 +82,48 @@
                aria-expanded/hidden on every section here. -->
           <div class="checkout-accordion" id="checkout-accordion">
 
+            <!-- Mobile/tablet only (same max-width:768px breakpoint where
+                 .checkout-grid collapses to one column, see css/checkout.css) --
+                 a standalone, freely-toggleable recap of the desktop Order
+                 Summary column's own data, positioned above Account since on
+                 a narrow screen that column would otherwise only appear
+                 after scrolling past the whole Account/Shipping/Billing
+                 flow. Not part of the Account -> Shipping -> Billing step
+                 machine at all (no number circle, no gating, no "completed"
+                 state) -- just an info panel the user can open/close
+                 anytime, so it isn't wired into STEP_ORDER/sectionState
+                 below. -->
+            <section class="checkout-accordion-section checkout-mobile-summary-section" id="checkout-section-mobile-summary">
+              <button type="button" class="checkout-accordion-header" id="checkout-mobile-summary-header" aria-expanded="false" aria-controls="checkout-mobile-summary-body">
+                <span class="checkout-accordion-header-text">
+                  <span class="checkout-accordion-title" data-i18n="checkout.mobileOrderSummaryHeading">Payment</span>
+                </span>
+                <svg class="checkout-accordion-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M2 4L7 9L12 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="checkout-accordion-body" id="checkout-mobile-summary-body" hidden>
+                <div id="checkout-mobile-totals"><!-- populated by inline script below --></div>
+                <h3 class="checkout-accordion-title checkout-mobile-cart-heading" data-i18n="checkout.cartHeading">Cart</h3>
+                <div id="checkout-mobile-cart"><!-- populated by inline script below --></div>
+                <!-- Same promo form as the desktop column's, duplicated (not
+                     shared DOM) since both can exist in the page at once --
+                     kept in sync via cart.applyPromoCode()'s own
+                     'cart:updated' dispatch, which the shared renderSummary()
+                     below re-syncs both inputs' values from on every render. -->
+                <form class="promo-box" id="checkout-mobile-promo-form">
+                  <label class="checkout-field promo-field">
+                    <span data-i18n="checkout.promoCodeLabel">Promo Code</span>
+                    <div class="promo-input-row">
+                      <input type="text" id="checkout-mobile-promo-input" autocomplete="off" placeholder="Enter code" data-i18n-attr="placeholder:checkout.promoPlaceholder">
+                      <button type="submit" class="cta-button promo-apply-btn" data-i18n="checkout.apply">Apply</button>
+                    </div>
+                  </label>
+                  <p class="promo-message" id="checkout-mobile-promo-message" aria-live="polite" hidden></p>
+                </form>
+              </div>
+            </section>
+
             <section class="checkout-accordion-section" id="checkout-section-account" data-step="account">
               <button type="button" class="checkout-accordion-header" id="checkout-account-header" aria-expanded="true" aria-controls="checkout-account-body">
                 <span class="checkout-accordion-header-text">
@@ -105,8 +147,14 @@
                  fired only from Payment's button) same as before the
                  accordion split -- Account isn't part of it (its own steps
                  are separate <form> elements nested inside
-                 accountGateMarkup(), and forms can't nest). -->
-            <form id="checkout-form" novalidate hidden>
+                 accountGateMarkup(), and forms can't nest). Never hidden as a
+                 whole anymore -- both sections' HEADERS are visible from
+                 initial page load (pending/muted via the disabled state
+                 already applied below), only their BODIES stay gated per
+                 section, so the user can see the full Account -> Shipping ->
+                 Billing sequence up front instead of the later steps only
+                 appearing once reached. -->
+            <form id="checkout-form" novalidate>
               <section class="checkout-accordion-section" id="checkout-section-shipping" data-step="shipping">
                 <button type="button" class="checkout-accordion-header" id="checkout-shipping-header" aria-expanded="false" aria-controls="checkout-shipping-body" disabled>
                   <span class="checkout-accordion-header-text">
@@ -203,6 +251,48 @@
                     </label>
                   </div>
                   <p class="checkout-payment-note" data-i18n="checkout.paymentNote">Payment processing isn't connected yet — this is a visual placeholder only.</p>
+
+                  <!-- Final recap right before the user commits -- same
+                       Subtotal/Shipping/discount/Total data as the desktop
+                       Order Summary column and the mobile-only Paiement
+                       section above, kept in sync by the same shared
+                       renderSummary() (see inline script below). Shown at
+                       every viewport (not mobile-only like point 3's
+                       section) since the whole point is "one more look at
+                       the total right before Place Order," which matters on
+                       desktop too even though that column is already
+                       persistently visible there. -->
+                  <div id="checkout-billing-recap" class="checkout-billing-recap"><!-- populated by inline script below --></div>
+
+                  <!-- Mobile-only fallback Promo Code field for anyone who
+                       skipped the one in the Paiement section above --
+                       desktop already has the persistent Order Summary
+                       column's own promo form, so a second one here would
+                       just be redundant there (hidden via
+                       .checkout-billing-mobile-promo, see css/checkout.css).
+                       A plain <div>, NOT a <form> -- this whole section
+                       already lives inside <form id="checkout-form">
+                       (shared with Shipping, see that form's own opening
+                       comment), and forms can't nest; a second nested
+                       <form> here would silently break HTML parsing (the
+                       nested tag is invalid and its fields could end up
+                       submitting the OUTER form instead, i.e. placing the
+                       order). Apply is a type="button", wired via a click
+                       (+ Enter-to-apply on the input) listener instead of a
+                       submit event -- see wireBillingPromoTrigger() in the
+                       inline script below, which shares the exact same
+                       cart.applyPromoCode() call the other two forms' own
+                       submit handlers use, just triggered differently. -->
+                  <div class="promo-box checkout-billing-mobile-promo" id="checkout-billing-promo-box">
+                    <label class="checkout-field promo-field">
+                      <span data-i18n="checkout.promoCodeLabel">Promo Code</span>
+                      <div class="promo-input-row">
+                        <input type="text" id="checkout-billing-promo-input" autocomplete="off" placeholder="Enter code" data-i18n-attr="placeholder:checkout.promoPlaceholder">
+                        <button type="button" class="cta-button promo-apply-btn" id="checkout-billing-promo-apply-btn" data-i18n="checkout.apply">Apply</button>
+                      </div>
+                    </label>
+                    <p class="promo-message" id="checkout-billing-promo-message" aria-live="polite" hidden></p>
+                  </div>
 
                   <label class="account-toggle-row checkout-terms-row">
                     <input type="checkbox" id="checkout-terms-checkbox">
@@ -318,6 +408,18 @@
     });
   });
 
+  // Mobile-only Paiement recap -- a plain, freely-toggleable panel, not part
+  // of the STEP_ORDER machine above (no gating, no "completed" state, opens
+  // and closes on every click regardless of where the user is in
+  // Account/Shipping/Billing).
+  const mobileSummaryHeader = document.getElementById('checkout-mobile-summary-header');
+  const mobileSummaryBody = document.getElementById('checkout-mobile-summary-body');
+  mobileSummaryHeader.addEventListener('click', () => {
+    const willOpen = mobileSummaryBody.hidden;
+    mobileSummaryBody.hidden = !willOpen;
+    mobileSummaryHeader.setAttribute('aria-expanded', String(willOpen));
+  });
+
   // See js/account.js's mountAccountGate() -- same email/log-in/create-
   // account flow account.html uses, extracted there so this page and that
   // one share one implementation instead of two that can drift apart.
@@ -372,13 +474,11 @@
       : t('accountGate.loggedInAs', { email: session.email }),
     changeLabel: () => t('accountGate.modify'),
     onResolved: (session) => {
-      shippingForm.hidden = false;
       prefillShippingFromAccount(session);
       completeAccordionSection('account', accountSummaryText(session));
       openAccordionSection('shipping');
     },
     onUnresolved: () => {
-      shippingForm.hidden = true;
       completedFlags.account = false;
       completedFlags.shipping = false;
       completedFlags.payment = false;
@@ -401,6 +501,22 @@
   const promoForm = document.getElementById('checkout-promo-form');
   const promoInput = document.getElementById('checkout-promo-input');
   const promoMessage = document.getElementById('checkout-promo-message');
+
+  // Mobile-only Paiement section's own cart/totals containers + its own
+  // promo form (separate DOM/ids from the desktop column's, see the HTML
+  // comment there) -- and the Billing section's recap container plus its
+  // OWN mobile-only fallback promo control (a <div>, not a <form> -- see
+  // that markup's own comment on why, and wireBillingPromoTrigger() below).
+  const mobileCartEl = document.getElementById('checkout-mobile-cart');
+  const mobileTotalsEl = document.getElementById('checkout-mobile-totals');
+  const mobilePromoForm = document.getElementById('checkout-mobile-promo-form');
+  const mobilePromoInput = document.getElementById('checkout-mobile-promo-input');
+  const mobilePromoMessage = document.getElementById('checkout-mobile-promo-message');
+  const billingRecapEl = document.getElementById('checkout-billing-recap');
+  const billingPromoBox = document.getElementById('checkout-billing-promo-box');
+  const billingPromoInput = document.getElementById('checkout-billing-promo-input');
+  const billingPromoMessage = document.getElementById('checkout-billing-promo-message');
+  const billingPromoApplyBtn = document.getElementById('checkout-billing-promo-apply-btn');
 
   // Custom validation for the four required shipping fields, shown with the
   // same .promo-message-error visual language as everywhere else on this
@@ -482,26 +598,32 @@
   // any actual charged total.
   const SHIPPING_FEE = 5.90;
 
-  function showPromoMessage(text, kind) {
-    promoMessage.textContent = text;
-    promoMessage.className = 'promo-message promo-message-' + kind;
-    promoMessage.hidden = false;
+  function showPromoMessage(el, text, kind) {
+    el.textContent = text;
+    el.className = 'promo-message promo-message-' + kind;
+    el.hidden = false;
   }
 
-  function renderSummary() {
-    const items = cart.getCart();
+  // Product-photo/name/qty block -- shared by the desktop Order Summary
+  // column and the mobile-only Paiement section's own "Panier" sub-block
+  // (point 3), so both ever only have one place defining this markup.
+  function summaryItemHtml(item) {
+    return `
+      <div class="checkout-summary-item">
+        <img class="checkout-summary-thumb" src="${cart.PRODUCT.image}" alt="${cart.PRODUCT.name}" width="2880" height="2880" loading="lazy">
+        <div class="checkout-summary-item-details">
+          <p class="checkout-summary-item-name">${cart.PRODUCT.name}</p>
+          <p class="checkout-summary-item-qty">${t('checkout.qty')} ${item.quantity}</p>
+        </div>
+      </div>
+    `;
+  }
 
-    if (!items.length) {
-      summaryEl.innerHTML = `<p class="checkout-empty-note">${t('checkout.emptyCartNote')}</p>`;
-      submitBtn.disabled = true;
-      promoForm.hidden = true;
-      return;
-    }
-
-    submitBtn.disabled = false;
-    promoForm.hidden = false;
-
-    const item = items[0]; // single product for now
+  // Subtotal/Shipping/discount/Total lines -- shared by the desktop column,
+  // the mobile Paiement section, AND the Billing section's own recap (point
+  // 4), so all three stay trivially in sync (same data, one function, all
+  // three re-rendered together in renderSummary() below).
+  function summaryLinesHtml(item) {
     const subtotal = item.quantity * cart.PRODUCT.price;
     const promoCode = cart.getAppliedPromoCode();
     const discount = cart.getDiscountAmount();
@@ -523,14 +645,7 @@
       </div>
     ` : '';
 
-    summaryEl.innerHTML = `
-      <div class="checkout-summary-item">
-        <img class="checkout-summary-thumb" src="${cart.PRODUCT.image}" alt="${cart.PRODUCT.name}" width="2880" height="2880" loading="lazy">
-        <div class="checkout-summary-item-details">
-          <p class="checkout-summary-item-name">${cart.PRODUCT.name}</p>
-          <p class="checkout-summary-item-qty">${t('checkout.qty')} ${item.quantity}</p>
-        </div>
-      </div>
+    return `
       <div class="checkout-summary-line">
         <span>${t('checkout.subtotal')}</span>
         <span>${money(subtotal)}</span>
@@ -551,19 +666,90 @@
     `;
   }
 
-  // Reflects a code already applied in a previous visit (it persists in
-  // localStorage, see js/cart.js) without clobbering it on every later
-  // re-render -- set once, at load, only.
-  if (cart.getAppliedPromoCode()) promoInput.value = cart.getAppliedPromoCode();
+  function renderSummary() {
+    const items = cart.getCart();
 
-  promoForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const result = cart.applyPromoCode(promoInput.value);
+    if (!items.length) {
+      const emptyHtml = `<p class="checkout-empty-note">${t('checkout.emptyCartNote')}</p>`;
+      summaryEl.innerHTML = emptyHtml;
+      mobileCartEl.innerHTML = '';
+      mobileTotalsEl.innerHTML = emptyHtml;
+      billingRecapEl.innerHTML = '';
+      submitBtn.disabled = true;
+      promoForm.hidden = true;
+      mobilePromoForm.hidden = true;
+      billingPromoBox.hidden = true;
+      return;
+    }
+
+    submitBtn.disabled = false;
+    promoForm.hidden = false;
+    mobilePromoForm.hidden = false;
+    billingPromoBox.hidden = false;
+
+    const item = items[0]; // single product for now
+    const itemHtml = summaryItemHtml(item);
+    const linesHtml = summaryLinesHtml(item);
+
+    // Desktop Order Summary column -- item, then totals (unchanged from
+    // before this refactor).
+    summaryEl.innerHTML = itemHtml + linesHtml;
+    // Mobile Paiement section -- "Panier" sub-block gets the item, the rest
+    // of the section's own body gets the totals (Promo Code form sits after
+    // both in the HTML, see the markup comment there).
+    mobileCartEl.innerHTML = itemHtml;
+    mobileTotalsEl.innerHTML = linesHtml;
+    // Billing recap -- totals only, no product photo/qty (its own mobile-only
+    // fallback Promo Code control lives right after it in the HTML, kept in
+    // sync the same way as the other two below).
+    billingRecapEl.innerHTML = linesHtml;
+
+    // Keeps every promo input's displayed value in sync with whichever one
+    // was actually just used -- applyPromoCode()/removePromoCode() both
+    // dispatch 'cart:updated' (see js/cart.js), which is what re-runs this
+    // function, so this always reflects the current applied code regardless
+    // of which of the three the user typed it into.
+    const appliedCode = cart.getAppliedPromoCode();
+    if (appliedCode) {
+      promoInput.value = appliedCode;
+      mobilePromoInput.value = appliedCode;
+      billingPromoInput.value = appliedCode;
+    }
+  }
+
+  // Core apply-a-code logic, shared by every promo control on this page
+  // regardless of how each one triggers it (a real <form> submit for the
+  // desktop column and the mobile Paiement section, vs. a plain button
+  // click for Billing's own -- see wirePromoForm()/wireBillingPromoTrigger()
+  // below and the HTML comment on why Billing's can't be a <form>).
+  function attemptApplyPromo(inputEl, messageEl) {
+    const result = cart.applyPromoCode(inputEl.value);
     if (result.ok) {
-      promoInput.value = result.code;
-      showPromoMessage(t('checkout.promoSuccess', { percent: Math.round(result.rate * 100) }), 'success');
+      inputEl.value = result.code;
+      showPromoMessage(messageEl, t('checkout.promoSuccess', { percent: Math.round(result.rate * 100) }), 'success');
     } else {
-      showPromoMessage(t('checkout.promoInvalid'), 'error');
+      showPromoMessage(messageEl, t('checkout.promoInvalid'), 'error');
+    }
+  }
+
+  function wirePromoForm(formEl, inputEl, messageEl) {
+    formEl.addEventListener('submit', (e) => {
+      e.preventDefault();
+      attemptApplyPromo(inputEl, messageEl);
+    });
+  }
+  wirePromoForm(promoForm, promoInput, promoMessage);
+  wirePromoForm(mobilePromoForm, mobilePromoInput, mobilePromoMessage);
+
+  // Billing's fallback promo control is a plain <div> (can't be a <form>,
+  // see its own HTML comment), so there's no native submit event to hook --
+  // wired directly off the Apply button's click, plus Enter-in-the-input for
+  // the same one-key-press UX a real form would give for free.
+  billingPromoApplyBtn.addEventListener('click', () => attemptApplyPromo(billingPromoInput, billingPromoMessage));
+  billingPromoInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      attemptApplyPromo(billingPromoInput, billingPromoMessage);
     }
   });
 
