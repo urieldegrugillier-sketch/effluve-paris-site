@@ -1,185 +1,394 @@
-/* MONARK — mock account system (client-side only, localStorage-backed).
-   PLACEHOLDER, same spirit as checkout.html's Payment section: this is a
-   convincing-enough demo of "guest / log in / create account" to build the
-   checkout flow against, not a real auth system. No backend, no password
-   hashing/salting, no session tokens, no email verification -- passwords are
-   stored in plaintext in localStorage. Replace entirely with real
-   server-side accounts + auth before this ever ships.
+/* MONARK — account system, backed by Supabase Auth + public.profiles/orders.
    Exposes window.MonarkAccount. Every session change fires an
    'account:updated' event on document so any page's UI can react without
-   polling, same pattern as js/cart.js's 'cart:updated'. */
+   polling, same pattern as js/cart.js's 'cart:updated'.
+
+   Requires js/supabase-client.js (window.MonarkSupabase) loaded first -- see
+   that file for the CDN script tag + placeholder project URL/key it needs.
+
+   ASYNC NOTE: unlike the old localStorage mock, every call that touches
+   Supabase (createAccount/logIn/logOut/updateAccount/deleteAccount/
+   findAccount/getOrders/recordOrder/requestPasswordReset/setNewPassword) is
+   now a real network round trip and returns a Promise. getSession() is the
+   one exception -- it stays synchronous, backed by an in-memory session
+   cache kept current by supabase.auth.onAuthStateChange() below, so every
+   *existing* synchronous `getSession()` call site (checkout.html's submit
+   handler, account.html's form handlers) keeps working unchanged. The one
+   unavoidable side effect: on first page load, that cache is still empty
+   for the instant between script execution and Supabase's own
+   INITIAL_SESSION auth event resolving (a browser tick later), so a
+   returning logged-in visitor briefly sees the "enter your email" step
+   before it flips to "Logged in as X" -- there is no synchronous way to
+   avoid that with a real backend. mountAccountGate() below listens for
+   'account:updated' precisely to catch that flip (and any other
+   out-of-band session change, e.g. another tab logging out) without every
+   caller having to know about it. */
 (function (global) {
-  const ACCOUNTS_KEY = 'monark_accounts';
-  const SESSION_KEY = 'monark_session';
+  function client() { return global.MonarkSupabase; }
 
-  function readAccounts() {
-    try {
-      const raw = localStorage.getItem(ACCOUNTS_KEY);
-      const accounts = raw ? JSON.parse(raw) : [];
-      return Array.isArray(accounts) ? accounts : [];
-    } catch (e) {
-      return [];
-    }
+  const GUEST_KEY = 'monark_guest_email';
+  const MOCK_CARD_KEY_PREFIX = 'monark_mock_card_';
+
+  // PLACEHOLDER -- replace once the real production domain is live, same
+  // convention as README.md's "https://YOUR-DOMAIN-HERE.com" note (canonical
+  // links, robots.txt, sitemap.xml). Supabase redirects the user here after
+  // they click the password-reset link in their email.
+  const PASSWORD_RESET_REDIRECT_URL = 'https://YOUR-DOMAIN-HERE.com/account.html';
+
+  let currentAuthUser = null; // { id, email } | null -- kept in sync below
+  let currentProfile = null; // last-fetched public.profiles row for currentAuthUser, cleared on any auth change
+  let passwordRecoveryActive = false; // true between a PASSWORD_RECOVERY auth event and a successful setNewPassword()
+
+  function notifySessionChange() {
+    const session = getSession();
+    document.dispatchEvent(new CustomEvent('account:updated', { detail: { email: session ? session.email : null } }));
   }
 
-  function writeAccounts(accounts) {
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-    return accounts;
-  }
-
-  function setSession(email) {
-    if (email) {
-      localStorage.setItem(SESSION_KEY, email);
-    } else {
-      localStorage.removeItem(SESSION_KEY);
-    }
-    document.dispatchEvent(new CustomEvent('account:updated', { detail: { email: email || null } }));
-  }
-
-  function findAccount(email) {
-    const needle = String(email || '').trim().toLowerCase();
-    if (!needle) return undefined;
-    return readAccounts().find((acc) => acc.email.toLowerCase() === needle);
-  }
-
-  function createAccount(email, password, extra) {
-    const cleanEmail = String(email || '').trim();
-    if (findAccount(cleanEmail)) return { ok: false, error: 'exists' };
-    const accounts = readAccounts();
-    // PLACEHOLDER: plaintext password, stored as-is -- see the file-level
-    // comment above. Fine for a mock with no backend to protect; not fine
-    // the moment real accounts exist.
-    // `extra` carries firstName/lastName, now required at account-creation
-    // time (see accountGateMarkup()'s create form) -- every other field
-    // still starts empty/default, filled in later via updateAccount() (Edit
-    // Profile/Saved Address/Saved Card on account.html, or checkout.html's
-    // silent backfill for an account created before this field existed).
-    // orders starts as an empty array, not omitted, so recordOrder()/
-    // getOrders() never have to special-case an account that's never ordered
-    // yet.
-    extra = extra || {};
-    accounts.push({
-      email: cleanEmail,
-      password: String(password || ''),
-      firstName: extra.firstName || '',
-      lastName: extra.lastName || '',
-      dob: '',
-      address: '',
-      address2: '',
-      city: '',
-      postal: '',
-      phone: '',
-      cardNumber: '',
-      cardExpiry: '',
-      cardName: '',
-      marketingOptIn: true,
-      orders: []
+  // Guards the one call in this file made outside any function, at module
+  // load time -- if the CDN script failed to load or js/supabase-client.js
+  // bailed out (see that file's own guard), client() is undefined here, and
+  // an unguarded client().auth.onAuthStateChange() would throw synchronously
+  // and abort this whole IIFE, leaving window.MonarkAccount undefined and
+  // taking every page's checkout/account UI down with it. Every OTHER use of
+  // client() in this file is safe without an extra check: they all live
+  // inside `async function`s, where a synchronous throw just rejects that
+  // call's own Promise instead of crashing the script.
+  if (client() && client().auth) {
+    // Fires on load (Supabase reports any persisted session as an
+    // INITIAL_SESSION event here -- see the file-level comment above on why
+    // that's asynchronous) and again on every sign-in/sign-out/token-refresh/
+    // password-recovery. This is the single source of truth currentAuthUser
+    // is ever written from.
+    client().auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') passwordRecoveryActive = true;
+      currentAuthUser = session && session.user ? { id: session.user.id, email: session.user.email } : null;
+      currentProfile = null;
+      // A real session always wins over a leftover guest email -- e.g. a user
+      // who started a guest checkout, then logged in on another tab.
+      if (currentAuthUser) localStorage.removeItem(GUEST_KEY);
+      notifySessionChange();
     });
-    writeAccounts(accounts);
-    setSession(cleanEmail);
-    return { ok: true };
+  } else {
+    console.error('MonarkAccount: Supabase client unavailable -- account features will fail until js/supabase-client.js has real SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY values.');
   }
 
-  function logIn(email, password) {
-    const account = findAccount(email);
-    if (!account) return { ok: false, error: 'not-found' };
-    if (account.password !== String(password || '')) return { ok: false, error: 'wrong-password' };
-    setSession(account.email);
-    return { ok: true };
+  function mockCardKey(userId) { return MOCK_CARD_KEY_PREFIX + userId; }
+
+  // Saved Card fields have no column in public.profiles (out of scope for
+  // this migration -- see account.html's own "Mocked for demo purposes, no
+  // real card data stored or processed" note on that form) -- kept exactly
+  // as mocked as before, just namespaced per Supabase user id in
+  // localStorage instead of embedded in the old flat account record.
+  function readMockCard(userId) {
+    try {
+      const raw = localStorage.getItem(mockCardKey(userId));
+      const card = raw ? JSON.parse(raw) : {};
+      return card && typeof card === 'object' ? card : {};
+    } catch (e) {
+      return {};
+    }
   }
 
-  // No account record is created -- a guest session is just an email
-  // attached to this checkout, not a registered account.
-  function continueAsGuest(email) {
-    setSession(String(email || '').trim());
+  function writeMockCard(userId, patch) {
+    localStorage.setItem(mockCardKey(userId), JSON.stringify(Object.assign({}, readMockCard(userId), patch)));
   }
 
-  function logOut() {
-    setSession(null);
+  // Maps a public.profiles row (+ the mocked card fields above) onto the
+  // same flat field names the old localStorage account record used, so
+  // every existing reader (checkout.html's prefillShippingFromAccount(),
+  // account.html's renderProfile()) needs no changes beyond awaiting the
+  // now-async call that produces this object.
+  function profileToAccountShape(row) {
+    const card = currentAuthUser ? readMockCard(currentAuthUser.id) : {};
+    return {
+      email: currentAuthUser.email,
+      firstName: row.first_name || '',
+      lastName: row.last_name || '',
+      dob: row.date_of_birth || '',
+      address: row.address || '',
+      address2: row.address_line_2 || '',
+      city: row.city || '',
+      postal: row.postal_code || '',
+      phone: row.phone || '',
+      marketingOptIn: row.marketing_opt_in !== false,
+      cardName: card.cardName || '',
+      cardNumber: card.cardNumber || '',
+      cardExpiry: card.cardExpiry || ''
+    };
   }
 
   function getSession() {
-    const email = localStorage.getItem(SESSION_KEY);
-    if (!email) return null;
-    return { email, isGuest: !findAccount(email) };
+    if (currentAuthUser) return { email: currentAuthUser.email, isGuest: false };
+    const guestEmail = localStorage.getItem(GUEST_KEY);
+    if (guestEmail) return { email: guestEmail, isGuest: true };
+    return null;
   }
 
-  /* Generic profile/address/preferences updater -- used by account.html's
-     Edit Profile form, its Saved Shipping Address form, its marketing-opt-in
-     toggle, and checkout.html's silent first/last-name backfill (see that
-     page's own comment on why that one's silent). `patch` is shallow-merged
-     onto the existing record, so a caller only ever needs to pass the fields
-     it's actually changing -- e.g. the address form's patch never touches
-     firstName/lastName, and vice versa.
+  function isPasswordRecovery() { return passwordRecoveryActive; }
 
-     Email changes are the one field that needs special handling: it's also
-     the record's own lookup key AND the raw value stored under SESSION_KEY,
-     so renaming it has to (a) reject a collision with a different existing
-     account and (b) repoint the session at the new email afterward, or
-     getSession()/findAccount() would silently stop finding this account on
-     the very next call (reading a session email no account matches anymore
-     reads as "guest", not "logged out" -- a real, confusing regression, not
-     just a cosmetic one). setSession() already dispatches 'account:updated',
-     so the branch below only dispatches it manually for the non-renamed case. */
-  function updateAccount(currentEmail, patch) {
-    const accounts = readAccounts();
-    const needle = String(currentEmail || '').trim().toLowerCase();
-    const idx = accounts.findIndex((acc) => acc.email.toLowerCase() === needle);
-    if (idx === -1) return { ok: false, error: 'not-found' };
-
-    const cleanPatch = Object.assign({}, patch);
-    if (cleanPatch.email !== undefined) {
-      const newEmail = String(cleanPatch.email).trim();
-      const collision = accounts.some((acc, i) => i !== idx && acc.email.toLowerCase() === newEmail.toLowerCase());
-      if (collision) return { ok: false, error: 'email-exists' };
-      cleanPatch.email = newEmail;
+  // Only ever resolves for the CURRENTLY authenticated user's own email --
+  // there is no client-safe way to look up an arbitrary email's account
+  // (public.profiles has no email column, RLS blocks reading any other
+  // user's row, and auth.users isn't exposed to the publishable key at all).
+  // Every existing caller (checkout.html/account.html) only ever calls this
+  // with the resolved session's own email, so this is a behavior-preserving
+  // narrowing, not a functional loss for them.
+  async function findAccount(email) {
+    const needle = String(email || '').trim().toLowerCase();
+    if (!needle || !currentAuthUser || currentAuthUser.email.toLowerCase() !== needle) return undefined;
+    if (currentProfile) return profileToAccountShape(currentProfile);
+    const { data, error } = await client().from('profiles').select('*').eq('id', currentAuthUser.id).single();
+    if (error || !data) {
+      if (error) console.error('MonarkAccount.findAccount:', error.message);
+      return undefined;
     }
+    currentProfile = data;
+    return profileToAccountShape(currentProfile);
+  }
+
+  async function createAccount(email, password, extra) {
+    extra = extra || {};
+    const { data, error } = await client().auth.signUp({
+      email: String(email || '').trim(),
+      password: String(password || ''),
+      options: {
+        // Expected to be read by the public.profiles insert trigger already
+        // set up in the Supabase SQL editor (first_name/last_name columns) --
+        // if that trigger doesn't pull these from raw_user_meta_data yet,
+        // update it to, or these two land empty until the user fills in
+        // Edit Profile on account.html themselves.
+        data: { first_name: extra.firstName || '', last_name: extra.lastName || '' }
+      }
+    });
+    if (error) {
+      if (/already registered|already exists/i.test(error.message)) return { ok: false, error: 'exists' };
+      // Supabase's built-in email service throttles outbound confirmation
+      // emails hard (a handful per hour) unless the project has custom SMTP
+      // configured -- error.code is 'over_email_send_rate_limit' (HTTP 429)
+      // when this trips. Worth a distinct, honest message rather than the
+      // generic fallback: a burst of real signups will hit this in
+      // production exactly like repeated testing does. Set up custom SMTP
+      // (Supabase dashboard -> Authentication -> Emails/SMTP Settings) to
+      // lift the default limit before launch.
+      if (error.status === 429 || error.code === 'over_email_send_rate_limit') return { ok: false, error: 'rate-limited' };
+      console.error('MonarkAccount.createAccount:', error.message);
+      return { ok: false, error: 'unknown' };
+    }
+    // Supabase's own anti-enumeration behavior: signUp() against an
+    // already-registered, confirmed email returns a fake "success" with an
+    // empty identities array instead of an error, specifically so this
+    // endpoint can't be used to probe which emails are registered. This is
+    // the other half of that same protection.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      return { ok: false, error: 'exists' };
+    }
+    if (!data.session) {
+      // This project's Auth settings require email confirmation -- there is
+      // no session yet, the user has to click the link Supabase just
+      // emailed before they can log in. Real behavior now, not the old
+      // mock's instant fake "confirmation".
+      return { ok: true, needsEmailConfirmation: true };
+    }
+    return { ok: true, needsEmailConfirmation: false };
+  }
+
+  async function logIn(email, password) {
+    const { error } = await client().auth.signInWithPassword({
+      email: String(email || '').trim(),
+      password: String(password || '')
+    });
+    // Supabase deliberately returns the same generic error for "no such
+    // account" and "wrong password" -- so this doesn't (and shouldn't) try
+    // to tell them apart either; see accountGate.errorWrongPassword's
+    // updated copy in js/i18n.js.
+    if (error) return { ok: false, error: 'invalid' };
+    return { ok: true };
+  }
+
+  // No Supabase involvement at all -- a guest session is still just an
+  // email attached to this browser, not a registered account, exactly as
+  // before.
+  function continueAsGuest(email) {
+    localStorage.setItem(GUEST_KEY, String(email || '').trim());
+    notifySessionChange();
+  }
+
+  async function logOut() {
+    localStorage.removeItem(GUEST_KEY);
+    if (!currentAuthUser) {
+      notifySessionChange();
+      return;
+    }
+    const { error } = await client().auth.signOut();
+    if (error) console.error('MonarkAccount.logOut:', error.message);
+    // onAuthStateChange's SIGNED_OUT branch above already clears
+    // currentAuthUser/currentProfile and dispatches 'account:updated' --
+    // nothing left to do here even on error (signOut() clears the local
+    // session regardless of whether the network call itself succeeded).
+  }
+
+  // patch may carry: email, password, firstName, lastName, dob, address,
+  // address2, city, postal, phone, marketingOptIn, cardName, cardNumber,
+  // cardExpiry -- shallow-merged the same way the old localStorage version
+  // worked, just routed to three different places now: email/password go to
+  // Supabase Auth, the profile fields go to public.profiles, and the
+  // (still-mocked) card fields go to localStorage -- see writeMockCard()'s
+  // own comment on why those never got a real table.
+  async function updateAccount(currentEmail, patch) {
+    if (!currentAuthUser || currentAuthUser.email.toLowerCase() !== String(currentEmail || '').trim().toLowerCase()) {
+      return { ok: false, error: 'not-found' };
+    }
+    const cleanPatch = Object.assign({}, patch);
     // An empty "new password" field means "don't change it", not "set it to
     // the empty string" -- see account.html's Edit Profile form comment.
     if (cleanPatch.password === '') delete cleanPatch.password;
 
-    accounts[idx] = Object.assign({}, accounts[idx], cleanPatch);
-    writeAccounts(accounts);
-
-    if (accounts[idx].email.toLowerCase() !== needle) {
-      setSession(accounts[idx].email);
-    } else {
-      document.dispatchEvent(new CustomEvent('account:updated', { detail: { email: accounts[idx].email } }));
+    const authPatch = {};
+    if (cleanPatch.email !== undefined && String(cleanPatch.email).trim().toLowerCase() !== currentAuthUser.email.toLowerCase()) {
+      authPatch.email = String(cleanPatch.email).trim();
     }
-    return { ok: true, account: accounts[idx] };
+    if (cleanPatch.password !== undefined) authPatch.password = cleanPatch.password;
+
+    let emailChangePending = false;
+    if (Object.keys(authPatch).length) {
+      const { error } = await client().auth.updateUser(authPatch);
+      if (error) {
+        if (/already registered|already exists/i.test(error.message)) return { ok: false, error: 'email-exists' };
+        console.error('MonarkAccount.updateAccount (auth):', error.message);
+        return { ok: false, error: 'unknown' };
+      }
+      // Changing email requires clicking a confirmation link (Supabase's
+      // "secure email change" setting) -- the session's email doesn't flip
+      // until that happens, unlike the old mock's instant rename. See
+      // account.emailChangePending's copy, shown by account.html when this
+      // comes back true.
+      if (authPatch.email) emailChangePending = true;
+    }
+
+    const profilePatch = {};
+    if (cleanPatch.firstName !== undefined) profilePatch.first_name = cleanPatch.firstName;
+    if (cleanPatch.lastName !== undefined) profilePatch.last_name = cleanPatch.lastName;
+    if (cleanPatch.dob !== undefined) profilePatch.date_of_birth = cleanPatch.dob || null;
+    if (cleanPatch.address !== undefined) profilePatch.address = cleanPatch.address;
+    if (cleanPatch.address2 !== undefined) profilePatch.address_line_2 = cleanPatch.address2;
+    if (cleanPatch.city !== undefined) profilePatch.city = cleanPatch.city;
+    if (cleanPatch.postal !== undefined) profilePatch.postal_code = cleanPatch.postal;
+    if (cleanPatch.phone !== undefined) profilePatch.phone = cleanPatch.phone;
+    if (cleanPatch.marketingOptIn !== undefined) profilePatch.marketing_opt_in = cleanPatch.marketingOptIn;
+
+    if (Object.keys(profilePatch).length) {
+      const { data, error } = await client().from('profiles').update(profilePatch).eq('id', currentAuthUser.id).select().single();
+      if (error) {
+        console.error('MonarkAccount.updateAccount (profile):', error.message);
+        return { ok: false, error: 'unknown' };
+      }
+      currentProfile = data;
+    }
+
+    const cardPatch = {};
+    if (cleanPatch.cardName !== undefined) cardPatch.cardName = cleanPatch.cardName;
+    if (cleanPatch.cardNumber !== undefined) cardPatch.cardNumber = cleanPatch.cardNumber;
+    if (cleanPatch.cardExpiry !== undefined) cardPatch.cardExpiry = cleanPatch.cardExpiry;
+    if (Object.keys(cardPatch).length) writeMockCard(currentAuthUser.id, cardPatch);
+
+    notifySessionChange();
+    return { ok: true, emailChangePending };
   }
 
-  /* Appends one order record to the account's own `orders` array -- called
-     from checkout.html right as a (non-guest) order is placed, before
-     cart.clearCart() wipes the state it's read from. Guest checkouts never
-     call this: there's no account record to tie the order to, which is the
-     correct behavior for a guest, not a gap -- see checkout.html's own
-     comment at the call site. */
-  function recordOrder(email, order) {
-    const accounts = readAccounts();
-    const needle = String(email || '').trim().toLowerCase();
-    const idx = accounts.findIndex((acc) => acc.email.toLowerCase() === needle);
-    if (idx === -1) return { ok: false };
-    if (!Array.isArray(accounts[idx].orders)) accounts[idx].orders = [];
-    accounts[idx].orders.push(order);
-    writeAccounts(accounts);
-    document.dispatchEvent(new CustomEvent('account:updated', { detail: { email: accounts[idx].email } }));
+  // `session` is whatever getSession() currently returns (the call site
+  // already has it in hand) -- recordOrder() needs to know isGuest to decide
+  // between user_id and guest_email, which the old email-only signature
+  // couldn't express. This is the one deliberate public-API shape change in
+  // this migration: guest orders now get recorded too (public.orders has a
+  // guest_email column specifically for this), where the old mock never
+  // could since a guest had no account record to attach an order to.
+  async function recordOrder(session, order) {
+    if (!session) return { ok: false };
+    const row = {
+      product_name: order.productName,
+      quantity: order.quantity,
+      total: order.total,
+      status: 'pending' // mocked checkout, no real payment processing yet -- see checkout.html's own "Mock success only" comment
+    };
+    // NOTE: public.orders has no promo_code column yet, so order.promoCode
+    // (if present) is intentionally not persisted here -- add a column and
+    // one more line here if that needs to survive into order history.
+    if (session.isGuest) {
+      row.guest_email = session.email;
+    } else {
+      if (!currentAuthUser) return { ok: false };
+      row.user_id = currentAuthUser.id;
+    }
+    const { error } = await client().from('orders').insert(row);
+    if (error) {
+      // Guest inserts need an RLS policy allowing an anonymous insert where
+      // user_id IS NULL and guest_email IS NOT NULL -- if that isn't in
+      // place yet, guest checkouts will fail here (permission denied) while
+      // logged-in checkouts keep working.
+      console.error('MonarkAccount.recordOrder:', error.message);
+      return { ok: false };
+    }
     return { ok: true };
   }
 
-  // Most-recent-first -- recordOrder() above only ever appends (chronological
-  // storage order), so the display-order reversal lives here rather than
-  // complicating the write path.
-  function getOrders(email) {
-    const account = findAccount(email);
-    return (account && Array.isArray(account.orders)) ? account.orders.slice().reverse() : [];
+  // Same "current user only" narrowing as findAccount() -- RLS already
+  // enforces this server-side, this is just the client-side mirror of it.
+  async function getOrders(email) {
+    if (!currentAuthUser || currentAuthUser.email.toLowerCase() !== String(email || '').trim().toLowerCase()) return [];
+    const { data, error } = await client()
+      .from('orders')
+      .select('*')
+      .eq('user_id', currentAuthUser.id)
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.error('MonarkAccount.getOrders:', error.message);
+      return [];
+    }
+    return data.map((row) => ({
+      date: row.created_at,
+      productName: row.product_name,
+      quantity: row.quantity,
+      total: row.total
+    }));
   }
 
-  function deleteAccount(email) {
-    const needle = String(email || '').trim().toLowerCase();
-    const accounts = readAccounts().filter((acc) => acc.email.toLowerCase() !== needle);
-    writeAccounts(accounts);
-    logOut(); // clears the session too -- a deleted account can't stay "logged in"
+  // SECURITY: full account deletion (removing the auth.users row, and by
+  // cascade its profiles/orders rows) requires Supabase's admin/
+  // service-role API -- the publishable key this file uses can't do it, and
+  // a service-role key must never ship client-side (it bypasses RLS
+  // entirely for every table). What's safely possible from here is signing
+  // out and clearing local state. Real deletion needs a server-side
+  // Supabase Edge Function (using the service-role key there, invoked from
+  // here via client().functions.invoke('delete-account') once that function
+  // exists) as a follow-up task -- not attempting an insecure workaround.
+  async function deleteAccount(email) {
+    await logOut();
+    return { ok: true, requiresServerSideFollowUp: true };
+  }
+
+  async function requestPasswordReset(email) {
+    const { error } = await client().auth.resetPasswordForEmail(String(email || '').trim(), {
+      redirectTo: PASSWORD_RESET_REDIRECT_URL
+    });
+    if (error) {
+      console.error('MonarkAccount.requestPasswordReset:', error.message);
+      return { ok: false };
+    }
+    return { ok: true };
+  }
+
+  // Only meaningful while isPasswordRecovery() is true (the user arrived via
+  // a password-reset email link, which gives them a temporary recovery
+  // session authorized to call this) -- see mountAccountGate()'s recovery
+  // step below.
+  async function setNewPassword(password) {
+    const { error } = await client().auth.updateUser({ password: String(password || '') });
+    if (error) {
+      console.error('MonarkAccount.setNewPassword:', error.message);
+      return { ok: false };
+    }
+    passwordRecoveryActive = false;
+    notifySessionChange();
     return { ok: true };
   }
 
@@ -192,33 +401,33 @@
      instead, as the one shared implementation, and both pages just mount it
      into a container element with page-specific labels/callbacks.
 
-     Deliberately still using the "checkout-account-*" id/class prefix on the
-     injected markup below (rather than renaming everything to something more
-     neutral) even though account.html now uses it too -- same precedent as
-     body.shop-page ending up on non-shop pages (mentions-legales.html,
-     404.html, etc.): reusing the existing, already-styled names keeps this a
-     pure extraction with no accompanying rename, rather than a rename PLUS
-     an extraction bundled into one change. The corresponding CSS lives in
-     css/checkout.css under "account step", loaded by both pages. */
+     One real structural change from the old mock: the old flow branched
+     into either a "log in" step or a "create account" step based on
+     findAccount(email) deciding whether that email already had a record.
+     Real Supabase Auth has no client-safe way to make that same call (no
+     email column exposed, RLS blocks any other user's row, and probing
+     sign-up/sign-in as a way to test "does this email exist" is exactly the
+     enumeration attack Supabase's own API design goes out of its way to
+     prevent -- see createAccount()'s and logIn()'s own comments on that).
+     So instead of guessing, every plausible email now reveals ALL THREE
+     options at once -- Log In, Continue as Guest, Create an Account -- and
+     the user picks the right one themselves. Same three actions as before,
+     just no longer gated behind a guess this system can no longer safely
+     make. */
   // Static labels below carry data-i18n tags -- window.MonarkI18n.apply() is
   // called on this markup right after it's mounted (see mountAccountGate())
   // for the first render, and a later language switch's own global
   // apply(document) pass re-walks it automatically since it's part of
-  // `document` by then. Only the *dynamic*, multi-condition error messages
-  // (email/login/create-account errors, each with 2-3 possible texts
-  // depending on which validation failed) are NOT tagged this way -- those
-  // are set via MonarkI18n.t() fresh at the moment they're shown instead,
-  // same pattern as js/email-popup.js's own per-condition error messages.
+  // `document` by then. Only the *dynamic*, multi-condition error/status
+  // messages are NOT tagged this way -- those are set via MonarkI18n.t()
+  // fresh at the moment they're shown instead, same pattern as
+  // js/email-popup.js's own per-condition error messages.
   function accountGateMarkup() {
     return `
       <p class="checkout-account-status" id="checkout-account-status" hidden>
         <span id="checkout-account-status-text"></span>
         <button type="button" class="checkout-account-link-btn" id="checkout-account-change-btn"></button>
       </p>
-      <!-- Shown once, only right after a successful Create Account & Continue
-           (never for log-in or guest) -- see mountAccountGate()'s createForm
-           submit handler below and resolveSession()'s "no session" branch,
-           which is what clears it back out again once the user logs out. -->
       <p class="promo-message promo-message-success" id="checkout-account-created-note" aria-live="polite" hidden></p>
 
       <form id="checkout-account-email-form" novalidate>
@@ -231,18 +440,20 @@
         <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="accountGate.continueBtn">Continue</button>
       </form>
 
-      <form id="checkout-account-login-form" hidden>
-        <p class="checkout-account-email-echo" id="checkout-account-login-email"></p>
-        <label class="checkout-field">
-          <span data-i18n="accountGate.passwordLabel">Password</span>
-          <input type="password" id="checkout-account-login-password" autocomplete="current-password" required>
-        </label>
-        <p class="promo-message promo-message-error" id="checkout-account-login-error" aria-live="polite" hidden></p>
-        <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="accountGate.logInBtn">Log In</button>
-      </form>
+      <div id="checkout-account-auth" hidden>
+        <p class="checkout-account-email-echo" id="checkout-account-auth-email"></p>
 
-      <div id="checkout-account-new" hidden>
-        <p class="checkout-account-email-echo" id="checkout-account-new-email"></p>
+        <form id="checkout-account-login-form" novalidate>
+          <label class="checkout-field">
+            <span data-i18n="accountGate.passwordLabel">Password</span>
+            <input type="password" id="checkout-account-login-password" autocomplete="current-password" required>
+          </label>
+          <p class="promo-message promo-message-error" id="checkout-account-login-error" aria-live="polite" hidden></p>
+          <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="accountGate.logInBtn">Log In</button>
+          <button type="button" class="checkout-account-link-btn" id="checkout-account-forgot-password-btn" data-i18n="accountGate.forgotPassword">Forgot password?</button>
+          <p class="promo-message" id="checkout-account-forgot-password-status" aria-live="polite" hidden></p>
+        </form>
+
         <div class="checkout-account-options">
           <button type="button" class="cta-button checkout-account-btn-sm" id="checkout-account-guest-btn" data-i18n="accountGate.continueAsGuest">Continue as Guest</button>
           <button type="button" class="checkout-account-link-btn" id="checkout-account-create-toggle" data-i18n="accountGate.createAccountInstead">Create an account instead</button>
@@ -270,6 +481,22 @@
           <p class="promo-message promo-message-error" id="checkout-account-create-error" aria-live="polite" hidden></p>
           <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="accountGate.createAccountAndContinue">Create Account &amp; Continue</button>
         </form>
+        <p class="promo-message promo-message-success" id="checkout-account-confirm-pending" aria-live="polite" hidden></p>
+      </div>
+
+      <!-- Reached only via a real password-reset email link (Supabase grants
+           a temporary recovery session that authorizes setNewPassword()) --
+           see mountAccountGate()'s PASSWORD_RECOVERY handling below. -->
+      <div id="checkout-account-recovery" hidden>
+        <p class="checkout-account-intro" data-i18n="accountGate.setNewPasswordHeading">Set a New Password</p>
+        <form id="checkout-account-recovery-form" novalidate>
+          <label class="checkout-field">
+            <span data-i18n="accountGate.newPasswordLabel">New Password</span>
+            <input type="password" id="checkout-account-recovery-password" autocomplete="new-password" required>
+          </label>
+          <p class="promo-message promo-message-error" id="checkout-account-recovery-error" aria-live="polite" hidden></p>
+          <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="accountGate.setNewPasswordBtn">Set Password</button>
+        </form>
       </div>
     `;
   }
@@ -283,12 +510,12 @@
        - changeLabel: text for the button that logs out and re-shows the
          email step (checkout.html: "Modify"; account.html: "Log Out")
        - onResolved(session): called once a session exists (on mount, and
-         after every successful log-in/guest/create-account)
+         after every successful log-in/guest/create-account/recovery)
        - onUnresolved(): called whenever there's no session (on mount, and
          after changeLabel's button is clicked)
      Returns { resolveSession } in case the host page ever needs to force a
-     re-check (not currently used by either page, but costs nothing to
-     expose rather than trapping it in the closure). */
+     re-check (account.html uses this after deleteAccount() and its own
+     guest-to-create-account shortcut). */
   function t(key, vars) { return global.MonarkI18n ? global.MonarkI18n.t(key, vars) : key; }
 
   function mountAccountGate(container, options) {
@@ -320,13 +547,15 @@
     const emailInput = container.querySelector('#checkout-account-email-input');
     const emailError = container.querySelector('#checkout-account-email-error');
 
+    const authBlock = container.querySelector('#checkout-account-auth');
+    const authEmailEcho = container.querySelector('#checkout-account-auth-email');
+
     const loginForm = container.querySelector('#checkout-account-login-form');
-    const loginEmailEcho = container.querySelector('#checkout-account-login-email');
     const loginPasswordInput = container.querySelector('#checkout-account-login-password');
     const loginError = container.querySelector('#checkout-account-login-error');
+    const forgotPasswordBtn = container.querySelector('#checkout-account-forgot-password-btn');
+    const forgotPasswordStatus = container.querySelector('#checkout-account-forgot-password-status');
 
-    const newAccountBlock = container.querySelector('#checkout-account-new');
-    const newEmailEcho = container.querySelector('#checkout-account-new-email');
     const guestBtn = container.querySelector('#checkout-account-guest-btn');
     const createToggle = container.querySelector('#checkout-account-create-toggle');
 
@@ -336,14 +565,20 @@
     const createPasswordInput = container.querySelector('#checkout-account-create-password');
     const createConfirmInput = container.querySelector('#checkout-account-create-confirm');
     const createError = container.querySelector('#checkout-account-create-error');
+    const confirmPending = container.querySelector('#checkout-account-confirm-pending');
+
+    const recoveryBlock = container.querySelector('#checkout-account-recovery');
+    const recoveryForm = container.querySelector('#checkout-account-recovery-form');
+    const recoveryPasswordInput = container.querySelector('#checkout-account-recovery-password');
+    const recoveryError = container.querySelector('#checkout-account-recovery-error');
 
     // Takes an i18n key (not raw text) -- each of these fields can show one
-    // of 2-3 different messages depending on which validation failed, so
-    // (unlike accountGateMarkup()'s single-message static fields above)
-    // there's no one fixed data-i18n tag to put on the element; resolving
-    // the key fresh here means the message is correct for whatever language
-    // is active at the moment it's shown, same as js/email-popup.js's own
-    // per-condition error messages.
+    // of several different messages depending on which validation/request
+    // failed, so (unlike accountGateMarkup()'s single-message static fields
+    // above) there's no one fixed data-i18n tag to put on the element;
+    // resolving the key fresh here means the message is correct for
+    // whatever language is active at the moment it's shown, same as
+    // js/email-popup.js's own per-condition error messages.
     function showFieldError(el, key) {
       el.textContent = t(key);
       el.hidden = false;
@@ -351,40 +586,71 @@
 
     // Not a full RFC 5322 validator -- just enough to catch an obviously
     // incomplete address (no "@", no domain) before it reaches
-    // findAccount()/createAccount().
+    // createAccount()/logIn().
     function isPlausibleEmail(value) {
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
     }
 
     // 8+ characters, at least one letter and one number -- a floor, not a
-    // real strength policy (no symbol requirement, no breach-list check).
-    // Good enough for a mock with no real accounts behind it yet.
+    // real strength policy. Supabase's own server-side minimum (6 chars by
+    // default) is looser than this, so this client-side check is always the
+    // binding one in practice.
     function isValidPassword(value) {
       return value.length >= 8 && /[A-Za-z]/.test(value) && /[0-9]/.test(value);
     }
 
     // Hides every sub-step of the gate, then reveals only the one asked for
     // (or none, once a session exists) -- avoids repeating the same
-    // three-way "hide everything else" in each handler below. Also collapses
-    // the create-account form back shut whenever we leave the "new email"
-    // step entirely, so it doesn't stay open if the user comes back through.
+    // multi-way "hide everything else" in each handler below. Also collapses
+    // the create-account form and clears its one-time pending-confirmation
+    // note back shut whenever we leave the auth step entirely, so neither
+    // stays open/visible if the user comes back through.
     function showStep(step) {
       emailForm.hidden = step !== 'email';
-      loginForm.hidden = step !== 'login';
-      newAccountBlock.hidden = step !== 'new';
-      if (step !== 'new') createForm.hidden = true;
+      authBlock.hidden = step !== 'auth';
+      recoveryBlock.hidden = step !== 'recovery';
+      if (step !== 'auth') {
+        createForm.hidden = true;
+        confirmPending.hidden = true;
+      }
     }
 
+    // Tracks the session identity resolveSession() last actually rendered
+    // for, so a resolve that finds NO real change (still undefined) into
+    // 'email'/back to it. undefined (not null) is the initial sentinel, so
+    // the very first resolveSession() call at mount always proceeds even
+    // though getSession() is null then too.
+    let lastResolvedKey;
+
     function resolveSession() {
+      // Checked first, ahead of getSession() -- a password-recovery link
+      // grants a real (temporary) Supabase session, so getSession() would
+      // otherwise report this as a normal logged-in state and skip straight
+      // past the "set a new password" step entirely.
+      if (isPasswordRecovery()) {
+        statusEl.hidden = true;
+        showStep('recovery');
+        recoveryPasswordInput.value = '';
+        recoveryError.hidden = true;
+        return;
+      }
       const session = getSession();
+      const resolvedKey = session ? session.email + '|' + session.isGuest : null;
+      // BUG FIX: 'account:updated' fires for every auth-state change,
+      // including Supabase's async INITIAL_SESSION hydration confirming
+      // "still no session" -- with no dedup, that event landing while the
+      // user had already submitted their email and was mid-choice between
+      // Log In/Guest/Create (still no *real* session either way) reset the
+      // whole gate back to the email step out from under them. Skipping a
+      // resolve that finds no actual change from last time preserves
+      // whatever step the user is actively in.
+      if (resolvedKey === lastResolvedKey) return;
+      lastResolvedKey = resolvedKey;
       if (!session) {
         statusEl.hidden = true;
         showStep('email');
         emailInput.value = '';
         emailError.hidden = true;
-        // Clears the one-time "confirmation email sent" note back out --
-        // it should never survive a log-out into the next session (guest or
-        // otherwise) that happens to resolve afterward.
         createdNote.hidden = true;
         if (options.onUnresolved) options.onUnresolved();
         return;
@@ -407,35 +673,45 @@
         return;
       }
       emailError.hidden = true;
-      if (findAccount(email)) {
-        loginEmailEcho.textContent = email;
-        loginPasswordInput.value = '';
-        loginError.hidden = true;
-        showStep('login');
-        loginPasswordInput.focus();
-      } else {
-        newEmailEcho.textContent = email;
-        createFirstNameInput.value = '';
-        createLastNameInput.value = '';
-        createPasswordInput.value = '';
-        createConfirmInput.value = '';
-        createError.hidden = true;
-        showStep('new');
-      }
+      authEmailEcho.textContent = email;
+      loginPasswordInput.value = '';
+      loginError.hidden = true;
+      forgotPasswordStatus.hidden = true;
+      createFirstNameInput.value = '';
+      createLastNameInput.value = '';
+      createPasswordInput.value = '';
+      createConfirmInput.value = '';
+      createError.hidden = true;
+      createForm.hidden = true;
+      confirmPending.hidden = true;
+      showStep('auth');
+      loginPasswordInput.focus();
     });
 
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const result = logIn(loginEmailEcho.textContent, loginPasswordInput.value);
+      loginError.hidden = true;
+      const result = await logIn(authEmailEcho.textContent, loginPasswordInput.value);
       if (result.ok) {
         resolveSession();
       } else {
-        showFieldError(loginError, result.error === 'wrong-password' ? 'accountGate.errorWrongPassword' : 'accountGate.errorAccountNotFound');
+        showFieldError(loginError, 'accountGate.errorWrongPassword');
       }
     });
 
+    forgotPasswordBtn.addEventListener('click', async () => {
+      const email = authEmailEcho.textContent;
+      forgotPasswordStatus.hidden = true;
+      const result = await requestPasswordReset(email);
+      forgotPasswordStatus.textContent = result.ok
+        ? t('accountGate.resetPasswordSent', { email })
+        : t('accountGate.resetPasswordError');
+      forgotPasswordStatus.className = 'promo-message ' + (result.ok ? 'promo-message-success' : 'promo-message-error');
+      forgotPasswordStatus.hidden = false;
+    });
+
     guestBtn.addEventListener('click', () => {
-      continueAsGuest(newEmailEcho.textContent);
+      continueAsGuest(authEmailEcho.textContent);
       resolveSession();
     });
 
@@ -444,14 +720,13 @@
       if (!createForm.hidden) createPasswordInput.focus();
     });
 
-    createForm.addEventListener('submit', (e) => {
+    createForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       // Checked in sequence, each with its own early return, so multiple
       // problems (e.g. a missing name AND a too-weak password) don't have one
       // silently mask another -- the user always sees whichever is wrong
       // first, and fixing it surfaces the next one rather than all failing
-      // invisibly at once. Name check comes first since those fields are now
-      // the first ones in the form, top to bottom.
+      // invisibly at once.
       if (!createFirstNameInput.value.trim() || !createLastNameInput.value.trim()) {
         showFieldError(createError, 'accountGate.errorNameRequired');
         return;
@@ -465,29 +740,56 @@
         return;
       }
       createError.hidden = true;
-      const newAccountEmail = newEmailEcho.textContent;
-      const result = createAccount(newAccountEmail, createPasswordInput.value, {
+      const newAccountEmail = authEmailEcho.textContent;
+      const result = await createAccount(newAccountEmail, createPasswordInput.value, {
         firstName: createFirstNameInput.value.trim(),
         lastName: createLastNameInput.value.trim()
       });
+      if (!result.ok) {
+        // BUG FIX: this used to show "account already exists" for every
+        // failure reason, not just result.error === 'exists' -- so any other
+        // signUp() failure (bad API key, disabled email provider, an
+        // RLS/trigger error on the profiles insert, rate limiting, CORS...)
+        // was misreported as a duplicate account. createAccount()'s own
+        // console.error already has the real message when it's 'unknown'.
+        const errorKey = result.error === 'exists' ? 'accountGate.errorAccountExists'
+          : result.error === 'rate-limited' ? 'accountGate.errorRateLimited'
+          : 'accountGate.errorGeneric';
+        showFieldError(createError, errorKey);
+        return;
+      }
+      if (result.needsEmailConfirmation) {
+        // No session yet -- shown inline here (not via createdNote +
+        // resolveSession(), which only make sense once a session actually
+        // exists) so the message doesn't get wiped the instant
+        // resolveSession() re-checks and finds nothing yet.
+        createForm.hidden = true;
+        confirmPending.textContent = t('accountGate.confirmAccountPending', { email: newAccountEmail });
+        confirmPending.hidden = false;
+        return;
+      }
+      createdNote.textContent = t('accountGate.confirmationEmailSent', { email: newAccountEmail });
+      createdNote.hidden = false;
+      resolveSession();
+    });
+
+    recoveryForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!isValidPassword(recoveryPasswordInput.value)) {
+        showFieldError(recoveryError, 'accountGate.errorPasswordWeak');
+        return;
+      }
+      recoveryError.hidden = true;
+      const result = await setNewPassword(recoveryPasswordInput.value);
       if (result.ok) {
-        // Mocked confirmation only -- no email is actually sent, same as
-        // every other "confirmation" on this site (see the file-level
-        // comment at the top of this file). resolveSession() below rebuilds
-        // statusText/statusEl right after this, but never touches
-        // createdNote itself, so it stays visible alongside the new
-        // "Logged in as X" status line until the user logs out (see
-        // resolveSession()'s "no session" branch, which is what clears it).
-        createdNote.textContent = t('accountGate.confirmationEmailSent', { email: newAccountEmail });
-        createdNote.hidden = false;
         resolveSession();
       } else {
-        showFieldError(createError, 'accountGate.errorAccountExists');
+        showFieldError(recoveryError, 'accountGate.errorGeneric');
       }
     });
 
-    changeBtn.addEventListener('click', () => {
-      logOut();
+    changeBtn.addEventListener('click', async () => {
+      await logOut();
       resolveSession();
     });
 
@@ -501,6 +803,16 @@
       const session = getSession();
       if (session) statusText.textContent = statusLabel(session);
     });
+
+    // Re-resolves on every session change this instance didn't itself just
+    // trigger synchronously -- covers the initial async session hydration
+    // (see the file-level comment at the top of this file), a real
+    // password-reset link landing on this page, and a sign-out/sign-in that
+    // happened in another tab (Supabase syncs auth state across tabs of the
+    // same origin). Also fires redundantly right after handlers above that
+    // already call resolveSession() themselves -- harmless, resolveSession()
+    // just re-renders from current state either way.
+    document.addEventListener('account:updated', resolveSession);
 
     resolveSession();
 
@@ -518,6 +830,9 @@
     recordOrder,
     getOrders,
     deleteAccount,
+    requestPasswordReset,
+    setNewPassword,
+    isPasswordRecovery,
     mountAccountGate
   };
 })(window);

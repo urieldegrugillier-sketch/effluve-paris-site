@@ -11,14 +11,14 @@
     id: 'monark-edp-100ml',
     name: 'MONARK Eau de Parfum — 100ml',
     price: 149,
-    /* FAKE/PLACEHOLDER pre-discount price -- same 179 already shown (as a
+    /* FAKE/PLACEHOLDER pre-discount price -- same 189 already shown (as a
        purely cosmetic struck-through figure) on product.html's own price
        display. Kept here too now that checkout.html's order summary needs
-       the same number to compute its "Limited-Time Offer (-17%)" savings
+       the same number to compute its "Limited-Time Offer (-21%)" savings
        line and the struck-through original total, so both pages read from
-       one source instead of two separately-typed copies of "179" that
+       one source instead of two separately-typed copies of "189" that
        could drift apart. */
-    originalPrice: 179,
+    originalPrice: 189,
     image: 'assets/images/02_fully_edited.webp'
   };
 
@@ -75,13 +75,13 @@
 
   /* Same shape as getCartTotal(), just against PRODUCT.originalPrice instead
      of PRODUCT.price -- what the cart would total at the pre-discount price,
-     used by checkout.html to show the site-wide -17% savings and the
+     used by checkout.html to show the site-wide -21% savings and the
      struck-through "if you paid full price" total. */
   function getOriginalCartTotal() {
     return readCart().reduce((sum, item) => sum + item.quantity * PRODUCT.originalPrice, 0);
   }
 
-  /* The site-wide -17% offer's savings -- already baked into PRODUCT.price
+  /* The site-wide -21% offer's savings -- already baked into PRODUCT.price
      itself (not a separate deduction applied on top of getCartTotal()), so
      this is purely informational for display, distinct from
      getDiscountAmount()'s promo-code discount below. */

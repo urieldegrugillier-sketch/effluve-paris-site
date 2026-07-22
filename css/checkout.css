@@ -562,6 +562,19 @@
   margin: -0.4rem 0 1.6rem;
 }
 
+/* Stripe Elements' Payment Element mounts INTO this div (js/stripe-client.js
+   + checkout.html's own inline initStripePayment()) -- Stripe renders its
+   own iframe-based fields there, styled to match via the appearance API
+   passed at elements creation, not by CSS reaching into the iframe (that's
+   not possible; only Stripe's own appearance/variables/rules API can style
+   its internals). This div's own rules are just spacing/sizing for its
+   place in the page's flow, plus a min-height so the layout doesn't jump
+   once Stripe replaces its placeholder content with the mounted iframe. */
+.checkout-stripe-element {
+  margin-bottom: 1.3rem;
+  min-height: 3rem;
+}
+
 /* Terms of Sale checkbox (Payment section) -- same native-checkbox
    restyling as .account-toggle-row (account.html's marketing-opt-in
    toggle), just overriding its all-caps/small-mono label treatment since

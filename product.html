@@ -41,8 +41,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260719">
-<link rel="stylesheet" href="css/shop.css?v=20260719">
+<link rel="stylesheet" href="css/style.css?v=20260722">
+<link rel="stylesheet" href="css/shop.css?v=20260722">
 </head>
 <body class="shop-page">
 
@@ -90,14 +90,14 @@
     <h1 class="shop-wordmark">MONARK</h1>
     <p class="shop-subtitle" data-i18n="hero.tagline">A scent built for men who rule rooms without entering them.</p>
     <p class="shop-scent-notes" data-i18n="product.scentNotes">Bergamot &middot; Incense &middot; Amber</p>
-    <!-- FAKE/PLACEHOLDER promotional pricing -- 179 struck through vs the real
+    <!-- FAKE/PLACEHOLDER promotional pricing -- 189 struck through vs the real
          149 price, purely cosmetic to imply a discount for now. Replace both
          numbers with real price + promotion data once there's an actual
          pricing/promotions backend; the real transactional price stays 149,
          matching js/cart.js's PRODUCT.price, which this does not touch. -->
-    <p class="shop-price"><span class="shop-price-original">&euro;179</span><span class="shop-price-current">&euro;149</span></p>
-    <p class="shop-price-note" data-i18n="product.priceNote">Limited-time offer &mdash; 17% off</p>
-    <p class="shop-stock"><span id="stock-count">347</span> / 500 <span data-i18n="product.bottlesRemaining">bottles remaining</span></p>
+    <p class="shop-price"><span class="shop-price-original">&euro;189</span><span class="shop-price-current">&euro;149</span></p>
+    <p class="shop-price-note" data-i18n="product.priceNote">Limited-time offer &mdash; 21% off</p>
+    <p class="shop-stock"><span id="stock-count">32</span> / <span id="stock-total">500</span> <span data-i18n="product.bottlesRemaining">bottles remaining</span></p>
     <div class="shop-cta-row">
       <button class="cta-button shop-add-to-cart" type="button" id="add-to-cart-btn" data-i18n="product.addToCart">Add to Cart &mdash; 100ML</button>
       <button class="cta-button shop-buy-now" type="button" id="buy-now-btn" data-i18n="cartWidget.buyNow">Buy Now</button>
@@ -139,19 +139,14 @@
         </li>
       </ol>
     </details>
-    <!-- FICTIONAL/PLACEHOLDER ingredients (INCI) list -- not the real formulation.
-         Replace with the actual, lab-verified ingredient declaration before launch. -->
     <details class="shop-refund-note">
       <summary data-i18n="product.ingredients.summary">Full Ingredients List (INCI)</summary>
-      <p class="shop-ingredients-flag" data-i18n="product.ingredients.placeholderFlag">[FICTIONAL / PLACEHOLDER &mdash; replace with the real, lab-verified formulation before launch]</p>
       <!-- INCI ingredient names are standardized international nomenclature --
            deliberately NOT translated (same list, same order, in every market)
-           per the site's own "proper nouns stay as-is" rule. -->
-      <p>Alcohol Denat., Parfum (Fragrance), Aqua (Water), Limonene, Linalool, Citronellol, Geraniol,
-         Coumarin, Benzyl Benzoate, Hexyl Cinnamal.</p>
-      <p data-i18n-html="product.ingredients.allergensNote">Contains fragrance allergens regulated under EU cosmetics law (Limonene, Linalool,
-         Citronellol, Geraniol). If you have known fragrance sensitivities, patch-test on skin before
-         full application &mdash; see our <a href="faq.html">FAQ</a> for more on ingredients and storage.</p>
+           per the site's own "proper nouns stay as-is" rule. Real formulation,
+           from the actual product label. -->
+      <p>Alcool Denat, Aqua (Water), CI 42090, CI 19140, Parfum (Fragrance).</p>
+      <p data-i18n="product.ingredients.allergensNote">May contain allergens regulated under EU cosmetic regulation &mdash; full list available upon request.</p>
     </details>
     <a href="index.html" class="shop-back-link" data-i18n="product.backToExperience">Back to experience</a>
     <a href="faq.html" class="shop-back-link" data-i18n="product.shippingFaqLink">Shipping, returns &amp; more &mdash; FAQ</a>
@@ -220,14 +215,28 @@
   </nav>
 </footer>
 
+<!-- STICKY BUY BAR -- mobile/tablet only (css/shop.css's own @media gates
+     display entirely on desktop), shown/hidden by initStickyBar() (inline
+     script below) once the user's scrolled past the hero and before the
+     footer comes into view. Starts hidden (no .shop-sticky-bar-visible, no
+     data-i18n text yet needed on mount) -- see that function's own comment. -->
+<div class="shop-sticky-bar" id="shop-sticky-bar">
+  <button type="button" class="cta-button shop-sticky-add-to-cart" id="sticky-add-to-cart-btn" data-i18n="product.addToCart">Add to Cart &mdash; 100ML</button>
+  <div id="sticky-payment-request-button" class="shop-sticky-prb" hidden></div>
+</div>
+
 <div class="grain"></div>
 
-<script src="js/i18n.js?v=20260719"></script>
-<script src="js/header-position-fix.js?v=20260719"></script>
-<script src="js/footer-active-page.js?v=20260719"></script>
-<script src="js/cart.js?v=20260719"></script>
-<script src="js/cart-widget.js?v=20260719"></script>
-<script src="js/nav-menu.js?v=20260719"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js?v=20260722"></script>
+<script src="js/i18n.js?v=20260722"></script>
+<script src="js/header-position-fix.js?v=20260722"></script>
+<script src="js/footer-active-page.js?v=20260722"></script>
+<script src="js/cart.js?v=20260722"></script>
+<script src="js/cart-widget.js?v=20260722"></script>
+<script src="js/nav-menu.js?v=20260722"></script>
+<script src="https://js.stripe.com/v3/"></script>
+<script src="js/stripe-client.js?v=20260722"></script>
 <script>
 (function () {
   const carousel = document.getElementById('shop-carousel');
@@ -557,10 +566,35 @@
 </script>
 <script>
 (function () {
-  // Static placeholder for now -- not decremented from real sales (no backend yet).
-  const STOCK_REMAINING = 347;
+  // Static fallback, shown until (or unless) the live read below succeeds --
+  // keeps the page looking correct even before SUPABASE_URL/
+  // SUPABASE_PUBLISHABLE_KEY (js/supabase-client.js) are filled in with real
+  // values, or if that request fails for any reason.
   const stockEl = document.getElementById('stock-count');
-  if (stockEl) stockEl.textContent = STOCK_REMAINING;
+  const stockTotalEl = document.getElementById('stock-total');
+
+  // Live read from public.products (publicly readable per its RLS policy) --
+  // single-row table for now (one MONARK edition), so the first row is the
+  // right one with no id/name filter needed. Deliberately NOT decremented
+  // from here on purchase: that needs a server-side function (e.g. a
+  // Postgres RPC/Edge Function doing an atomic decrement) to avoid a race
+  // between two simultaneous buyers double-spending the same unit -- a
+  // follow-up task, not attempted here.
+  if (window.MonarkSupabase) {
+    window.MonarkSupabase
+      .from('products')
+      .select('stock_remaining, stock_total')
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error || !data) {
+          if (error) console.error('product stock read:', error.message);
+          return;
+        }
+        if (stockEl && data.stock_remaining !== null && data.stock_remaining !== undefined) stockEl.textContent = data.stock_remaining;
+        if (stockTotalEl && data.stock_total !== null && data.stock_total !== undefined) stockTotalEl.textContent = data.stock_total;
+      });
+  }
 
   const addBtn = document.getElementById('add-to-cart-btn');
   const buyNowBtn = document.getElementById('buy-now-btn');
@@ -582,10 +616,130 @@
     });
   }
 })();
+
+/* ---------------- Sticky buy bar (mobile/tablet only) ----------------
+   Hermès-style fixed bottom bar -- see css/shop.css's own @media (max-width:
+   768px) block for why this never shows on desktop regardless of the
+   IntersectionObservers below still running there. Separate IIFE from the
+   one above: this doesn't depend on (or want to be short-circuited by) that
+   one's own `if (!addBtn || !window.MonarkCart) return;` guard. */
+(function () {
+  const bar = document.getElementById('shop-sticky-bar');
+  const cart = window.MonarkCart;
+  // .shop-cta-row (Add to Cart/Buy Now), not the whole .shop-hero section --
+  // on mobile (where this bar is the only place it ever shows, see
+  // css/shop.css's own @media), the image/price/CTA cluster stacks above
+  // the Return Policy/How to Wear/Ingredients <details> and the two
+  // "back to.../FAQ" links, which are ALSO part of .shop-hero. Confirmed via
+  // direct measurement: observing the full section instead put the "past
+  // hero" trigger point (~1270px scrolled) PAST the footer's own
+  // "now visible" threshold (~1250px) on a 390x844 viewport -- there was no
+  // scroll position where this bar could show at all. Observing the CTA row
+  // itself (~1076px) reopens a real ~175px scroll window before the footer
+  // takes over, and matches the task's own wording ("past the main product
+  // image/price area") more precisely than the whole section did anyway.
+  const ctaRow = document.querySelector('.shop-cta-row');
+  const footer = document.querySelector('.shop-footer');
+  if (!bar || !cart || !ctaRow || !footer) return;
+
+  // Whether the CTA row has ever actually been ON screen yet -- needed
+  // because, confirmed via direct measurement at 390x844, the row starts
+  // BELOW the fold (the image + kicker/wordmark/subtitle/price/stock text
+  // stacked above it on mobile already exceed one screen height) -- it's
+  // "not intersecting" at scrollY:0 same as it is once genuinely scrolled
+  // past, and those two are not the same thing. Without this, the bar
+  // showed immediately on load (technically "not intersecting" was already
+  // true), directly contradicting the task's "not immediately on page
+  // load" requirement.
+  let hasSeenCtaRow = false;
+  let pastHero = false;
+  let footerVisible = false;
+
+  function updateBarVisibility() {
+    bar.classList.toggle('shop-sticky-bar-visible', pastHero && !footerVisible);
+  }
+
+  // Bar appears once the image/price/CTA cluster has been seen AND THEN
+  // scrolled out of view -- not merely "not currently intersecting", which
+  // (see hasSeenCtaRow's own comment) is also true before the user has
+  // scrolled at all on this viewport.
+  new IntersectionObserver((entries) => {
+    const isIntersecting = entries[0].isIntersecting;
+    if (isIntersecting) hasSeenCtaRow = true;
+    pastHero = hasSeenCtaRow && !isIntersecting;
+    updateBarVisibility();
+  }, { threshold: 0 }).observe(ctaRow);
+
+  // Bar disappears once the footer comes into view, so it never sits on top
+  // of/overlaps it.
+  new IntersectionObserver((entries) => {
+    footerVisible = entries[0].isIntersecting;
+    updateBarVisibility();
+  }, { threshold: 0 }).observe(footer);
+
+  const stickyAddBtn = document.getElementById('sticky-add-to-cart-btn');
+  stickyAddBtn.addEventListener('click', () => {
+    cart.addToCart(1);
+    if (window.MonarkCartWidget) window.MonarkCartWidget.flashPreview();
+  });
+
+  // ---------------- Stripe Payment Request Button (Apple Pay/Google Pay/Link) ----------------
+  // Skipped entirely above the same 768px breakpoint css/shop.css's own
+  // @media gates this bar's display on -- no point paying for the
+  // canMakePayment() round trip (and its own console warnings about
+  // unregistered domains) on a viewport that can never show this bar anyway.
+  if (window.matchMedia('(max-width: 768px)').matches && window.MonarkStripe) {
+    const prContainer = document.getElementById('sticky-payment-request-button');
+    // Amount only ever feeds canMakePayment()'s eligibility check and
+    // whatever a real payment sheet WOULD display -- see the 'click' handler
+    // below for why no real sheet ever actually opens this round. Falls back
+    // to a single unit's price the same way #buy-now-btn's own "add 1 and
+    // go" behavior does, since the cart is typically still empty at this point.
+    const amount = Math.round((cart.getFinalTotal() || cart.PRODUCT.price) * 100);
+    const paymentRequest = window.MonarkStripe.paymentRequest({
+      country: 'FR',
+      currency: 'eur',
+      total: { label: cart.PRODUCT.name, amount },
+      requestPayerName: false,
+      requestPayerEmail: false
+    });
+    const prElements = window.MonarkStripe.elements();
+    const prButton = prElements.create('paymentRequestButton', {
+      paymentRequest,
+      style: { paymentRequestButton: { type: 'buy', theme: 'dark', height: '44px' } }
+    });
+
+    // canMakePayment() resolves null with nothing available (no Apple
+    // Pay/Google Pay/Link on this device/browser, or -- true right now,
+    // pre domain-registration -- Apple Pay specifically) -- the container
+    // stays hidden and no gap is left in the bar; Add to Cart alone still
+    // fills it via its own flex:1.
+    paymentRequest.canMakePayment().then((result) => {
+      if (!result) return;
+      prButton.mount('#sticky-payment-request-button');
+      prContainer.hidden = false;
+    });
+
+    // NOT a true one-tap express checkout yet -- preventDefault() stops the
+    // native Apple Pay/Google Pay/Link sheet from opening at all; this
+    // instead falls back to the same "add to cart, go to checkout.html"
+    // pattern #buy-now-btn above already uses. A real express checkout would
+    // need to confirm payment right from this sheet (its own PaymentIntent,
+    // shipping-address collection via
+    // paymentRequest.on('shippingaddresschange'), etc.) -- meaningfully more
+    // scope than this round; flagged here as a deliberate, disclosed
+    // shortcut rather than attempted partially.
+    paymentRequest.on('click', (ev) => {
+      ev.preventDefault();
+      cart.addToCart(1);
+      window.location.href = 'checkout.html';
+    });
+  }
+})();
 </script>
-<script src="js/promo-banner.js?v=20260719"></script>
-<script src="js/cookie-consent.js?v=20260719"></script>
-<script src="js/email-popup.js?v=20260719"></script>
+<script src="js/promo-banner.js?v=20260722"></script>
+<script src="js/cookie-consent.js?v=20260722"></script>
+<script src="js/email-popup.js?v=20260722"></script>
 
 </body>
 </html>

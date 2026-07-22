@@ -31,8 +31,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260719">
-<link rel="stylesheet" href="css/checkout.css?v=20260719">
+<link rel="stylesheet" href="css/style.css?v=20260722">
+<link rel="stylesheet" href="css/checkout.css?v=20260722">
 </head>
 <body class="shop-page">
 
@@ -224,33 +224,19 @@
                   </svg>
                 </button>
                 <div class="checkout-accordion-body" id="checkout-payment-body" hidden>
-                  <!-- Placeholder for real Stripe Checkout integration later. These
-                       fields are visual only: disabled, never read, never submitted,
-                       never stored anywhere -- Name on Card/Card Number/Expiry are
-                       pre-filled (still read-only) from the account's own Saved Card
-                       on account.html for a logged-in non-guest session, see this
-                       page's own inline script below. CVC is never saved/prefilled
-                       anywhere, mock or not -- same real-world practice as an actual
-                       payment processor. -->
-                  <label class="checkout-field">
-                    <span data-i18n="checkout.nameOnCard">Name on Card</span>
-                    <input type="text" name="cardName" placeholder="Jane Doe" disabled>
-                  </label>
-                  <label class="checkout-field">
-                    <span data-i18n="checkout.cardNumber">Card Number</span>
-                    <input type="text" name="cardNumber" placeholder="4242 4242 4242 4242" disabled>
-                  </label>
-                  <div class="checkout-field-row">
-                    <label class="checkout-field">
-                      <span data-i18n="checkout.expiry">Expiry</span>
-                      <input type="text" name="cardExpiry" placeholder="MM / YY" disabled>
-                    </label>
-                    <label class="checkout-field">
-                      <span data-i18n="checkout.cvc">CVC</span>
-                      <input type="text" placeholder="123" disabled>
-                    </label>
-                  </div>
-                  <p class="checkout-payment-note" data-i18n="checkout.paymentNote">Payment processing isn't connected yet — this is a visual placeholder only.</p>
+                  <!-- Real Stripe Elements Payment Element, mounted by
+                       initStripePayment() (inline script below) once this
+                       step is reached -- see that function's own comment.
+                       Name/address aren't asked here (fields:
+                       {billingDetails: {name: 'never', address: 'never'}})
+                       since Shipping already collected them; confirmPayment()
+                       passes them through as this PaymentIntent's billing
+                       details instead of asking twice. Card-only this round,
+                       no redirect-based methods -- see the task's own Apple
+                       Pay follow-up note. -->
+                  <div id="checkout-stripe-payment-element" class="checkout-stripe-element"></div>
+                  <p class="promo-message promo-message-error" id="checkout-stripe-error" aria-live="polite" hidden></p>
+                  <p class="checkout-payment-note" data-i18n="checkout.paymentNote">Test mode — use card number 4242 4242 4242 4242, any future expiry date, and any 3-digit CVC.</p>
 
                   <!-- Final recap right before the user commits -- same
                        Subtotal/Shipping/discount/Total data as the desktop
@@ -331,14 +317,18 @@
   </nav>
 </footer>
 
-<script src="js/i18n.js?v=20260719"></script>
-<script src="js/header-position-fix.js?v=20260719"></script>
-<script src="js/footer-active-page.js?v=20260719"></script>
-<script src="js/cart.js?v=20260719"></script>
-<script src="js/cart-widget.js?v=20260719"></script>
-<script src="js/nav-menu.js?v=20260719"></script>
-<script src="js/account.js?v=20260719"></script>
-<script src="js/places-autocomplete.js?v=20260719"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js?v=20260722"></script>
+<script src="js/i18n.js?v=20260722"></script>
+<script src="js/header-position-fix.js?v=20260722"></script>
+<script src="js/footer-active-page.js?v=20260722"></script>
+<script src="js/cart.js?v=20260722"></script>
+<script src="js/cart-widget.js?v=20260722"></script>
+<script src="js/nav-menu.js?v=20260722"></script>
+<script src="js/account.js?v=20260722"></script>
+<script src="js/places-autocomplete.js?v=20260722"></script>
+<script src="https://js.stripe.com/v3/"></script>
+<script src="js/stripe-client.js?v=20260722"></script>
 <script>
 (function () {
   const shippingForm = document.getElementById('checkout-form');
@@ -429,15 +419,18 @@
   // mount time can't respond to a later language switch.
   // Pre-fills First/Last Name + Address/Address Line 2/City/Postal Code/Phone
   // from the account's own saved profile/address (js/account.js's
-  // updateAccount()), and Name on Card/Card Number/Expiry from its Saved Card,
-  // whenever a logged-in (non-guest) session resolves -- guests have no
-  // account record to read from, so this is a no-op for them, same as it
-  // always was. Only fills fields the account actually has a value for, and
-  // only once (right when the gate resolves, before the user's typed
-  // anything), so it can never clobber something the user is mid-typing.
-  function prefillShippingFromAccount(session) {
+  // updateAccount()) whenever a logged-in (non-guest) session resolves --
+  // guests have no account record to read from, so this is a no-op for them,
+  // same as it always was. Only fills fields the account actually has a
+  // value for, and only once (right when the gate resolves, before the
+  // user's typed anything), so it can never clobber something the user is
+  // mid-typing. No longer pre-fills Name on Card/Card Number/Expiry -- those
+  // fields don't exist here anymore, replaced by the real Stripe Payment
+  // Element (see checkout-stripe-payment-element below), which never accepts
+  // a pre-filled/scripted card number.
+  async function prefillShippingFromAccount(session) {
     if (session.isGuest) return;
-    const account = window.MonarkAccount.findAccount(session.email);
+    const account = await window.MonarkAccount.findAccount(session.email);
     if (!account) return;
     const fieldMap = {
       firstName: account.firstName,
@@ -446,10 +439,7 @@
       address2: account.address2,
       city: account.city,
       postal: account.postal,
-      phone: account.phone,
-      cardName: account.cardName,
-      cardNumber: account.cardNumber,
-      cardExpiry: account.cardExpiry
+      phone: account.phone
     };
     Object.keys(fieldMap).forEach((name) => {
       const value = fieldMap[name];
@@ -473,8 +463,8 @@
       ? t('checkout.statusGuest', { email: session.email })
       : t('accountGate.loggedInAs', { email: session.email }),
     changeLabel: () => t('accountGate.modify'),
-    onResolved: (session) => {
-      prefillShippingFromAccount(session);
+    onResolved: async (session) => {
+      await prefillShippingFromAccount(session);
       completeAccordionSection('account', accountSummaryText(session));
       openAccordionSection('shipping');
     },
@@ -579,6 +569,162 @@
     if (!validateShippingForm()) return;
     completeAccordionSection('shipping', shippingSummaryText());
     openAccordionSection('payment');
+    initStripePayment();
+  });
+
+  // ---------------- Stripe Elements (Payment Element) ----------------
+  // Real embedded card payment via the create-checkout-session Supabase
+  // Edge Function, which creates/updates a Stripe PaymentIntent server-side
+  // -- the amount charged is always computed there from
+  // public.products.price × quantity (± a server-validated promo code),
+  // never trusted from this page. See that function's own comments for the
+  // full contract.
+  const stripeErrorEl = document.getElementById('checkout-stripe-error');
+  const stripe = window.MonarkStripe || null;
+  let stripeElements = null;
+  let stripePaymentElement = null;
+  let stripeClientSecret = null;
+  let stripePaymentIntentId = null;
+  let stripeInitPromise = null; // in-flight guard -- see initStripePayment()
+
+  function showStripeError(message) {
+    stripeErrorEl.textContent = message;
+    stripeErrorEl.hidden = false;
+  }
+
+  function stripeLocale() {
+    return window.MonarkI18n && window.MonarkI18n.getLang() === 'fr' ? 'fr' : 'en';
+  }
+
+  // Colors/fonts pulled from css/style.css's own --bg-void/--accent-bronze-
+  // light/--text-on-dark/--text-muted/--font-body/--font-mono -- hardcoded
+  // here rather than read via getComputedStyle() because Stripe Elements
+  // render inside a sandboxed cross-origin iframe with no access to this
+  // page's stylesheet; its appearance API is the only way to style them, and
+  // it only accepts literal values, not CSS custom properties. The `fonts`
+  // array below is the same reasoning applied to typefaces -- a <link> in
+  // this document's own <head> doesn't reach fonts inside that iframe
+  // either, so Stripe needs its own cssSrc to fetch and inject them.
+  const STRIPE_APPEARANCE = {
+    theme: 'night',
+    variables: {
+      colorPrimary: '#d8b27c',
+      colorBackground: '#0a0908',
+      colorText: '#ede7dd',
+      colorTextSecondary: '#8f887c',
+      colorDanger: '#b5675c',
+      fontFamily: '"Manrope", sans-serif',
+      fontSizeBase: '15px',
+      borderRadius: '2px',
+      spacingUnit: '4px'
+    },
+    rules: {
+      '.Label': {
+        fontFamily: '"IBM Plex Mono", monospace',
+        fontSize: '10px',
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        color: '#8f887c'
+      },
+      '.Input': {
+        backgroundColor: 'transparent',
+        border: 'none',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '0',
+        boxShadow: 'none',
+        padding: '8px 0'
+      },
+      '.Input:focus': {
+        border: 'none',
+        borderBottom: '1px solid #d8b27c',
+        boxShadow: 'none'
+      },
+      '.Tab': {
+        backgroundColor: 'transparent',
+        border: '1px solid rgba(255, 255, 255, 0.08)'
+      },
+      '.Tab:hover': { border: '1px solid #d8b27c' },
+      '.Tab--selected': { backgroundColor: 'rgba(216, 178, 124, 0.1)', border: '1px solid #d8b27c' }
+    }
+  };
+
+  function mountStripeElements() {
+    stripeElements = stripe.elements({
+      clientSecret: stripeClientSecret,
+      appearance: STRIPE_APPEARANCE,
+      locale: stripeLocale(),
+      fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap' }]
+    });
+    stripePaymentElement = stripeElements.create('payment', {
+      // Shipping already collected name + address -- Payment Element isn't
+      // asked to collect either again.
+      fields: { billingDetails: { name: 'never', address: 'never' } }
+    });
+    stripePaymentElement.mount('#checkout-stripe-payment-element');
+  }
+
+  // Called once when the Payment step is first reached (see
+  // shippingNextBtn's own handler above), and again on every 'cart:updated'
+  // once that's happened (quantity edited via the header's mini-cart, or a
+  // promo code applied/removed) -- keeps the PaymentIntent's amount (and
+  // therefore what Stripe will actually charge) in sync with whatever the
+  // Order Summary is currently showing. Re-invocation reuses the SAME
+  // PaymentIntent (passes stripePaymentIntentId back) rather than creating a
+  // new one, so the already-mounted Payment Element just needs
+  // elements.fetchUpdates() instead of a full remount.
+  async function initStripePayment() {
+    if (!stripe) {
+      showStripeError(t('checkout.stripeInitError'));
+      return;
+    }
+    if (!cart.getCart().length) return;
+    // Coalesce overlapping calls (e.g. a fast double-fire of 'cart:updated')
+    // onto the same in-flight request rather than racing two PaymentIntent
+    // writes against each other.
+    if (stripeInitPromise) { await stripeInitPromise; return; }
+
+    stripeInitPromise = (async () => {
+      const items = cart.getCart();
+      const { data, error } = await window.MonarkSupabase.functions.invoke('create-checkout-session', {
+        body: {
+          quantity: items[0].quantity,
+          promoCode: cart.getAppliedPromoCode() || undefined,
+          paymentIntentId: stripePaymentIntentId || undefined
+        }
+      });
+      if (error || !data || !data.clientSecret) {
+        console.error('create-checkout-session failed:', error || data);
+        showStripeError(t('checkout.stripeInitError'));
+        return;
+      }
+      stripeErrorEl.hidden = true;
+      stripePaymentIntentId = data.paymentIntentId;
+      stripeClientSecret = data.clientSecret;
+      if (!stripeElements) {
+        mountStripeElements();
+      } else {
+        await stripeElements.fetchUpdates();
+      }
+    })();
+    try {
+      await stripeInitPromise;
+    } finally {
+      stripeInitPromise = null;
+    }
+  }
+
+  document.addEventListener('cart:updated', () => {
+    if (stripePaymentIntentId) initStripePayment();
+  });
+
+  // Stripe Elements' own locale is fixed at creation time -- a language
+  // switch mid-checkout needs a fresh Elements group to pick up the new one.
+  // Reuses the same clientSecret (no new PaymentIntent, no Edge Function
+  // call) since only the display language changed, not the amount.
+  document.addEventListener('monark:langchange', () => {
+    if (!stripeElements || !stripeClientSecret) return;
+    if (stripePaymentElement) stripePaymentElement.unmount();
+    mountStripeElements();
   });
 
   // One consistent two-decimal formatter for every price on this page --
@@ -628,7 +774,7 @@
     const promoCode = cart.getAppliedPromoCode();
     const discount = cart.getDiscountAmount();
     const total = cart.getFinalTotal();
-    // Site-wide -17% offer is already baked into cart.PRODUCT.price itself
+    // Site-wide -21% offer is already baked into cart.PRODUCT.price itself
     // (subtotal above is the discounted figure) -- this is purely the
     // informational savings amount, not a further deduction from total.
     const siteDiscount = cart.getSiteDiscountAmount();
@@ -765,7 +911,7 @@
   const termsError = document.getElementById('checkout-terms-error');
   termsCheckbox.addEventListener('change', () => { termsError.hidden = true; });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!cart.getCart().length) return;
     // The buyer's email lives in the account session (js/account.js), not a
@@ -788,70 +934,141 @@
       return;
     }
     termsError.hidden = true;
-    // Mock success only -- no backend, no real order, no email. Captured before
-    // clearCart()/removePromoCode() wipe the state they're read from, so the
-    // discount the user applied still shows up in this confirmation total.
-    // SECURITY (placeholder, once a real backend exists): this form has no
-    // spam/abuse protection because there's nothing yet to abuse -- add a
-    // honeypot field (hidden input real users never fill in; silently reject
-    // if non-empty) and rate-limit submissions per IP/session server-side
-    // before this ever talks to a real order-processing endpoint. See
-    // README.md's "Forms" section.
+
+    if (!stripe || !stripeElements || !stripeClientSecret) {
+      // Payment Element never finished initializing (Edge Function call
+      // failed, or the user reached Place Order before it resolved) --
+      // nothing to confirm against. initStripePayment()'s own error is
+      // already shown in this case; this covers the rest.
+      showStripeError(t('checkout.stripeNotReady'));
+      return;
+    }
+    stripeErrorEl.hidden = true;
+
+    // SECURITY (placeholder): this form has no spam/abuse protection beyond
+    // what Supabase Auth/RLS and Stripe's own fraud tooling already provide
+    // -- add a honeypot field (hidden input real users never fill in;
+    // silently reject if non-empty) and rate-limit submissions per
+    // IP/session at some point. See README.md's "Forms" section.
     const items = cart.getCart();
     const finalTotal = cart.getFinalTotal();
     const appliedCode = cart.getAppliedPromoCode();
+    const firstNameVal = form.querySelector('[name="firstName"]').value.trim();
+    const lastNameVal = form.querySelector('[name="lastName"]').value.trim();
 
-    // Non-guest only, same reasoning both places: a guest has no account
-    // record to write against.
-    if (!session.isGuest) {
-      const firstNameTyped = form.querySelector('[name="firstName"]').value.trim();
-      const lastNameTyped = form.querySelector('[name="lastName"]').value.trim();
-      const account = window.MonarkAccount.findAccount(session.email);
-      // Silent background fill of MISSING profile data only -- never
-      // overwrites a first/last name the account already has on file, per
-      // this feature's own spec. No UI, no confirmation message; the next
-      // visit to account.html's Edit Profile just already shows it filled in.
-      const namePatch = {};
-      if (account && !account.firstName && firstNameTyped) namePatch.firstName = firstNameTyped;
-      if (account && !account.lastName && lastNameTyped) namePatch.lastName = lastNameTyped;
-      if (Object.keys(namePatch).length) window.MonarkAccount.updateAccount(session.email, namePatch);
+    // Disabled for the duration of the awaits below -- these are all real
+    // network calls now (not the instant, synchronous mock this button was
+    // originally built against), so without this a second click before they
+    // resolve could fire a duplicate charge/order.
+    submitBtn.disabled = true;
+    try {
+      // Real payment confirmation. redirect: 'if_required' keeps this
+      // embedded (no full-page navigation) for card payments, which
+      // essentially never need one; return_url is still required by the API
+      // as a fallback for a payment method that DOES redirect, even though
+      // payment_method_types is restricted to ['card'] server-side (see the
+      // Edge Function) -- Apple Pay/etc. are a later follow-up, not reachable
+      // this round. Billing name/address reuse what Shipping already
+      // collected (Payment Element itself asks for neither -- see its own
+      // `fields` option in mountStripeElements()); country is hardcoded FR,
+      // matching the site's own France/Belgium-only shipping scope (no
+      // country selector exists anywhere in this form).
+      const { error: stripeConfirmError, paymentIntent } = await stripe.confirmPayment({
+        elements: stripeElements,
+        confirmParams: {
+          return_url: window.location.href,
+          payment_method_data: {
+            billing_details: {
+              name: `${firstNameVal} ${lastNameVal}`.trim(),
+              address: {
+                line1: form.querySelector('[name="address"]').value.trim(),
+                line2: form.querySelector('[name="address2"]').value.trim() || undefined,
+                city: form.querySelector('[name="city"]').value.trim(),
+                postal_code: form.querySelector('[name="postal"]').value.trim(),
+                // Stripe requires every address sub-field once
+                // fields.billingDetails.address is 'never' at Element
+                // creation (see mountStripeElements()) -- state isn't part
+                // of this form (France/Belgium addresses don't use it) but
+                // still has to be present, even empty, or confirmPayment()
+                // throws an IntegrationError rather than just treating it
+                // as omitted.
+                state: '',
+                country: 'FR'
+              }
+            }
+          }
+        },
+        redirect: 'if_required'
+      });
 
-      // One order-history entry per completed checkout, tied to the account
-      // (see js/account.js's recordOrder()/getOrders(), and account.html's
-      // own rendering of this list) -- single product line for now, matching
-      // every other "single product for now" comment already in this file.
-      window.MonarkAccount.recordOrder(session.email, {
-        date: new Date().toISOString(),
+      if (stripeConfirmError) {
+        // Stripe's own message is already a decent, human-readable string
+        // ("Your card was declined.", "Your card's expiration year is
+        // invalid.", etc.) -- shown directly rather than mapped through
+        // i18n, same as js/account.js leaves Supabase's own auth error text
+        // alone where there's no cleaner mapping. Falls back to a generic
+        // message for the rare case Stripe doesn't supply one.
+        showStripeError(stripeConfirmError.message || t('checkout.stripeGenericError'));
+        return;
+      }
+      if (!paymentIntent || paymentIntent.status !== 'succeeded') {
+        showStripeError(t('checkout.stripeGenericError'));
+        return;
+      }
+
+      // Payment succeeded -- everything below only ever runs once real
+      // (test-mode) money has actually moved. Non-guest only: a guest has no
+      // profile row to backfill.
+      if (!session.isGuest) {
+        const account = await window.MonarkAccount.findAccount(session.email);
+        // Silent background fill of MISSING profile data only -- never
+        // overwrites a first/last name the account already has on file, per
+        // this feature's own spec. No UI, no confirmation message; the next
+        // visit to account.html's Edit Profile just already shows it filled in.
+        const namePatch = {};
+        if (account && !account.firstName && firstNameVal) namePatch.firstName = firstNameVal;
+        if (account && !account.lastName && lastNameVal) namePatch.lastName = lastNameVal;
+        if (Object.keys(namePatch).length) await window.MonarkAccount.updateAccount(session.email, namePatch);
+      }
+
+      // One order-history entry per completed checkout -- tied to the
+      // account for a logged-in session, or to session.email as a
+      // guest_email row otherwise (see js/account.js's recordOrder()).
+      // Single product line for now, matching every other "single product
+      // for now" comment already in this file.
+      await window.MonarkAccount.recordOrder(session, {
         productName: cart.PRODUCT.name,
         quantity: items[0].quantity,
         total: finalTotal,
         promoCode: appliedCode || null
       });
-    }
 
-    cart.clearCart();
-    cart.removePromoCode();
-    formState.hidden = true;
-    confirmation.hidden = false;
-    // Overwrites the h1's own data-i18n="checkout.title" content directly --
-    // removeAttribute keeps a later language switch (MonarkI18n.apply(document))
-    // from stomping this back to "Checkout"/"Commande" once the order's
-    // already been placed.
-    title.removeAttribute('data-i18n');
-    title.textContent = t('checkout.thankYou');
-    confirmationTotal.textContent = appliedCode
-      ? t('checkout.confirmationTotalWithCode', { total: money(finalTotal), code: appliedCode })
-      : t('checkout.confirmationTotal', { total: money(finalTotal) });
-    // Swapping to the confirmation state doesn't itself move the viewport, so if
-    // the user had scrolled down to fill in the lower parts of the form, the
-    // title/confirmation would render wherever that scroll position happened to
-    // land -- sometimes cutting the title off above the fold.
-    window.scrollTo(0, 0);
+      cart.clearCart();
+      cart.removePromoCode();
+      formState.hidden = true;
+      confirmation.hidden = false;
+      // Overwrites the h1's own data-i18n="checkout.title" content directly --
+      // removeAttribute keeps a later language switch (MonarkI18n.apply(document))
+      // from stomping this back to "Checkout"/"Commande" once the order's
+      // already been placed.
+      title.removeAttribute('data-i18n');
+      title.textContent = t('checkout.thankYou');
+      confirmationTotal.textContent = appliedCode
+        ? t('checkout.confirmationTotalWithCode', { total: money(finalTotal), code: appliedCode })
+        : t('checkout.confirmationTotal', { total: money(finalTotal) });
+      // Swapping to the confirmation state doesn't itself move the viewport, so if
+      // the user had scrolled down to fill in the lower parts of the form, the
+      // title/confirmation would render wherever that scroll position happened to
+      // land -- sometimes cutting the title off above the fold.
+      window.scrollTo(0, 0);
+    } finally {
+      submitBtn.disabled = false;
+    }
   });
 })();
 </script>
-<script src="js/promo-banner.js?v=20260719"></script>
-<script src="js/cookie-consent.js?v=20260719"></script>
-<script src="js/email-popup.js?v=20260719"></script>
+<script src="js/promo-banner.js?v=20260722"></script>
+<script src="js/cookie-consent.js?v=20260722"></script>
+<script src="js/email-popup.js?v=20260722"></script>
 </body>
 </html>

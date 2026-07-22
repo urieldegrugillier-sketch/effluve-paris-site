@@ -32,8 +32,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260719">
-<link rel="stylesheet" href="css/checkout.css?v=20260719">
+<link rel="stylesheet" href="css/style.css?v=20260722">
+<link rel="stylesheet" href="css/checkout.css?v=20260722">
 </head>
 <body class="shop-page">
 
@@ -207,14 +207,16 @@
   </nav>
 </footer>
 
-<script src="js/i18n.js?v=20260719"></script>
-<script src="js/header-position-fix.js?v=20260719"></script>
-<script src="js/footer-active-page.js?v=20260719"></script>
-<script src="js/cart.js?v=20260719"></script>
-<script src="js/cart-widget.js?v=20260719"></script>
-<script src="js/nav-menu.js?v=20260719"></script>
-<script src="js/account.js?v=20260719"></script>
-<script src="js/places-autocomplete.js?v=20260719"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js?v=20260722"></script>
+<script src="js/i18n.js?v=20260722"></script>
+<script src="js/header-position-fix.js?v=20260722"></script>
+<script src="js/footer-active-page.js?v=20260722"></script>
+<script src="js/cart.js?v=20260722"></script>
+<script src="js/cart-widget.js?v=20260722"></script>
+<script src="js/nav-menu.js?v=20260722"></script>
+<script src="js/account.js?v=20260722"></script>
+<script src="js/places-autocomplete.js?v=20260722"></script>
 <script>
 (function () {
   const account = window.MonarkAccount;
@@ -280,8 +282,8 @@
   // Order History is shown for every resolved session, but guests see a
   // dedicated prompt instead of the real list (see showExtras() below) --
   // this only ever runs for a non-guest session now.
-  function renderOrders(email) {
-    const orders = account.getOrders(email);
+  async function renderOrders(email) {
+    const orders = await account.getOrders(email);
     if (!orders.length) {
       noOrdersNote.hidden = false;
       orderList.hidden = true;
@@ -313,8 +315,8 @@
   // non-guest session (mount, and after every log-in/guest-to-account
   // switch/create), so it's never showing stale data left over from a
   // previously logged-in account on a shared machine.
-  function renderProfile(email) {
-    const acc = account.findAccount(email);
+  async function renderProfile(email) {
+    const acc = await account.findAccount(email);
     if (!acc) return;
     profileEmailInput.value = acc.email;
     profilePasswordInput.value = '';
@@ -379,7 +381,7 @@
     resetDeleteConfirm();
   }
 
-  profileForm.addEventListener('submit', (e) => {
+  profileForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const session = account.getSession();
     if (!session || session.isGuest) return;
@@ -415,26 +417,34 @@
     // here to skip that check entirely when the field was left blank.
     if (password) patch.password = password;
 
-    const result = account.updateAccount(session.email, patch);
+    const result = await account.updateAccount(session.email, patch);
     if (!result.ok) {
-      // The only failure mode updateAccount() returns here is an email
-      // collision with a DIFFERENT existing account -- same error copy as
-      // the account-gate's own create-account step for the identical
-      // condition.
-      profileEmailError.textContent = t('accountGate.errorAccountExists');
+      // BUG FIX: this used to show "account already exists" for every
+      // failure reason, not just result.error === 'email-exists' -- so any
+      // other updateAccount() failure (js/account.js's own console.error has
+      // the real message) was misreported as an email collision. Same class
+      // of bug as js/account.js's create-account handler had.
+      profileEmailError.textContent = t(result.error === 'email-exists' ? 'accountGate.errorAccountExists' : 'accountGate.errorGeneric');
       profileEmailError.hidden = false;
       return;
     }
     profilePasswordInput.value = '';
-    profileSuccess.textContent = t('account.profileUpdated');
+    // A changed email needs to be confirmed via a link Supabase just sent to
+    // the NEW address before it actually takes effect -- the session (and
+    // this form's own email field, next time it's reloaded) still shows the
+    // old one until then, so this tells the user what to expect instead of
+    // implying the change already happened.
+    profileSuccess.textContent = result.emailChangePending
+      ? t('account.emailChangePending')
+      : t('account.profileUpdated');
     profileSuccess.hidden = false;
   });
 
-  addressForm.addEventListener('submit', (e) => {
+  addressForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const session = account.getSession();
     if (!session || session.isGuest) return;
-    account.updateAccount(session.email, {
+    await account.updateAccount(session.email, {
       address: addressInput.value.trim(),
       address2: address2Input.value.trim(),
       city: cityInput.value.trim(),
@@ -447,13 +457,15 @@
 
   // Purely mocked/cosmetic, same spirit as checkout.html's own disabled
   // Payment fields -- no real card data is ever validated, processed, or
-  // transmitted anywhere. CVC is deliberately not part of this form at all
-  // (see the HTML comment on account-payment's markup).
-  paymentForm.addEventListener('submit', (e) => {
+  // transmitted anywhere (still true post-Supabase -- see js/account.js's
+  // writeMockCard()/updateAccount() comments on why these stay
+  // localStorage-only, there's no card table). CVC is deliberately not part
+  // of this form at all (see the HTML comment on account-payment's markup).
+  paymentForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const session = account.getSession();
     if (!session || session.isGuest) return;
-    account.updateAccount(session.email, {
+    await account.updateAccount(session.email, {
       cardName: cardNameInput.value.trim(),
       cardNumber: cardNumberInput.value.trim(),
       cardExpiry: cardExpiryInput.value.trim()
@@ -465,25 +477,27 @@
   // Instant save on toggle, no separate submit button -- the checkbox's own
   // new state already reads as the confirmation for a plain on/off
   // preference like this one.
-  marketingToggle.addEventListener('change', () => {
+  marketingToggle.addEventListener('change', async () => {
     const session = account.getSession();
     if (!session || session.isGuest) return;
-    account.updateAccount(session.email, { marketingOptIn: marketingToggle.checked });
+    await account.updateAccount(session.email, { marketingOptIn: marketingToggle.checked });
   });
 
   deleteBtn.addEventListener('click', () => { deleteConfirmBlock.hidden = false; });
   deleteCancelBtn.addEventListener('click', resetDeleteConfirm);
-  deleteConfirmBtn.addEventListener('click', () => {
+  deleteConfirmBtn.addEventListener('click', async () => {
     const session = account.getSession();
     if (!session || session.isGuest) return;
-    account.deleteAccount(session.email);
+    // Only signs out + clears local state -- full deletion needs a
+    // server-side Edge Function, see js/account.js's deleteAccount() comment
+    // on why that can't safely happen from here.
+    await account.deleteAccount(session.email);
     // deleteAccount() already calls logOut() internally (clears the session
     // + fires 'account:updated'), but the gate instance below only reacts to
-    // 'monark:langchange', not that event -- gate.resolveSession() below is
-    // what actually flips its own UI back to the logged-out email-entry step
-    // immediately, rather than leaving it showing the just-deleted account's
-    // stale "Logged in as X" status until some unrelated event forces a
-    // re-check.
+    // 'monark:langchange' and its own 'account:updated' listener with a
+    // fresh microtask -- calling gate.resolveSession() here too is what
+    // flips its own UI back to the logged-out email-entry step immediately
+    // rather than waiting on that.
     gate.resolveSession();
   });
 
@@ -494,13 +508,13 @@
   // logOut()+resolveSession() pairing as the delete-account flow above.
   // Prefilling the email input and scrolling back up to the Account section
   // are pure convenience on top of that -- the guest still has to actually
-  // submit the email and fill in a password, this just saves them retyping
-  // the address they already gave once.
-  guestCreateBtn.addEventListener('click', () => {
+  // submit the email and choose Log In or Create an Account, this just saves
+  // them retyping the address they already gave once.
+  guestCreateBtn.addEventListener('click', async () => {
     const session = account.getSession();
     if (!session || !session.isGuest) return;
     const guestEmail = session.email;
-    account.logOut();
+    await account.logOut();
     gate.resolveSession();
     const emailInput = document.getElementById('checkout-account-email-input');
     if (emailInput) emailInput.value = guestEmail;
@@ -520,8 +534,8 @@
   });
 })();
 </script>
-<script src="js/promo-banner.js?v=20260719"></script>
-<script src="js/cookie-consent.js?v=20260719"></script>
-<script src="js/email-popup.js?v=20260719"></script>
+<script src="js/promo-banner.js?v=20260722"></script>
+<script src="js/cookie-consent.js?v=20260722"></script>
+<script src="js/email-popup.js?v=20260722"></script>
 </body>
 </html>

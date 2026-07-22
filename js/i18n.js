@@ -78,7 +78,7 @@
         label: '006 / The Acquisition',
         heading: 'The Reign Is Bottled. Claim Yours.',
         body: 'MONARK Eau de Parfum. 100ml. Numbered, not mass-produced. Once a batch is gone, it does not return.',
-        badge: 'Limited-Time −17% Off',
+        badge: 'Limited-Time −21% Off',
         button: 'Acquire MONARK — 100ml',
         note: 'Ships in matte black, wax-sealed packaging.'
       },
@@ -131,7 +131,7 @@
       },
       promoBanner: {
         ariaLabel: 'Promotional offer',
-        offer: 'Limited-Time Offer −17% Off',
+        offer: 'Limited-Time Offer −21% Off',
         endsIn: 'Ends in ',
         dismiss: 'Dismiss'
       },
@@ -165,7 +165,7 @@
         imageViewerAriaLabel: 'Image viewer',
         kicker: 'Eau de Parfum — 100ml',
         scentNotes: 'Bergamot · Incense · Amber',
-        priceNote: 'Limited-time offer — 17% off',
+        priceNote: 'Limited-time offer — 21% off',
         bottlesRemaining: 'bottles remaining',
         addToCart: 'Add to Cart — 100ML',
         returnPolicy: {
@@ -181,8 +181,7 @@
         },
         ingredients: {
           summary: 'Full Ingredients List (INCI)',
-          placeholderFlag: '[FICTIONAL / PLACEHOLDER — replace with the real, lab-verified formulation before launch]',
-          allergensNote: 'Contains fragrance allergens regulated under EU cosmetics law (Limonene, Linalool, Citronellol, Geraniol). If you have known fragrance sensitivities, patch-test on skin before full application — see our <a href="faq.html">FAQ</a> for more on ingredients and storage.'
+          allergensNote: 'May contain allergens regulated under EU cosmetic regulation — full list available upon request.'
         },
         backToExperience: 'Back to experience',
         shippingFaqLink: 'Shipping, returns & more — FAQ',
@@ -212,13 +211,13 @@
         city: 'City',
         postalCode: 'Postal Code',
         payment: 'Billing',
-        cardNumber: 'Card Number',
-        expiry: 'Expiry',
-        cvc: 'CVC',
-        paymentNote: "Payment processing isn't connected yet — this is a visual placeholder only.",
+        paymentNote: 'Test mode — use card number 4242 4242 4242 4242, any future expiry date, and any 3-digit CVC.',
+        stripeInitError: 'Could not load the payment form. Please refresh the page and try again.',
+        stripeNotReady: "The payment form isn't ready yet. Please wait a moment and try again.",
+        stripeGenericError: 'Payment failed. Please try again.',
         placeOrder: 'Place Order',
         orderReceived: 'Order Received',
-        confirmationText: 'This is a demo confirmation — no real order has been placed, no payment was processed, and no email was sent.',
+        confirmationText: 'Your payment was processed and your order has been recorded. No confirmation email is sent yet — that’s a follow-up.',
         backToTheExperience: 'Back to The Experience',
         errorFirstName: 'Please enter your first name.',
         errorLastName: 'Please enter your last name.',
@@ -230,7 +229,7 @@
         subtotal: 'Subtotal',
         shipping: 'Shipping',
         free: 'Free',
-        limitedTimeOffer: 'Limited-Time Offer (−17%)',
+        limitedTimeOffer: 'Limited-Time Offer (−21%)',
         promoLabel: 'Promo ({code})',
         total: 'Total',
         promoSuccess: 'Applied ✓ {percent}% off',
@@ -243,7 +242,6 @@
         accordionShippingSummary: 'Shipping to: {name}, {city}',
         addressLine2: 'Address Line 2 (optional)',
         phone: 'Phone Number (optional)',
-        nameOnCard: 'Name on Card',
         termsLabel: 'I accept the <a href="cgv.html" target="_blank" rel="noopener">Terms &amp; Conditions of Sale</a>.',
         errorTerms: 'Please accept the Terms & Conditions of Sale to continue.',
         mobileOrderSummaryHeading: 'Payment',
@@ -264,13 +262,22 @@
         createAccountAndContinue: 'Create Account & Continue',
         errorEmailEmpty: 'Please enter your email.',
         errorEmailInvalid: 'Please enter a valid email address.',
-        errorWrongPassword: 'Incorrect password.',
+        errorWrongPassword: 'Incorrect email or password.',
         errorAccountNotFound: 'Account not found.',
         errorPasswordWeak: 'Password must be at least 8 characters and include a letter and a number.',
         errorPasswordMismatch: 'Passwords do not match.',
         errorAccountExists: 'An account with this email already exists.',
         confirmationEmailSent: 'A confirmation email has been sent to {email}.',
-        errorNameRequired: 'Please enter your first and last name.'
+        errorNameRequired: 'Please enter your first and last name.',
+        errorGeneric: 'Something went wrong. Please try again.',
+        errorRateLimited: 'Too many attempts right now. Please wait a few minutes and try again.',
+        forgotPassword: 'Forgot password?',
+        resetPasswordSent: 'A password reset email has been sent to {email}.',
+        resetPasswordError: 'Could not send the reset email. Please check the address and try again.',
+        confirmAccountPending: 'Check your inbox at {email} to confirm your account before logging in.',
+        setNewPasswordHeading: 'Set a New Password',
+        newPasswordLabel: 'New Password',
+        setNewPasswordBtn: 'Set Password'
       },
       account: {
         pageTitle: 'My Account',
@@ -287,6 +294,7 @@
         dobLabel: 'Date of Birth',
         saveProfileBtn: 'Save Changes',
         profileUpdated: 'Profile updated.',
+        emailChangePending: 'Check your new email address to confirm the change.',
         addressHeading: 'Saved Shipping Address',
         addressLabel: 'Address',
         addressLine2Label: 'Address Line 2',
@@ -319,7 +327,7 @@
         intro: 'Everything you need to know before, during, and after you acquire MONARK.',
         shipping: {
           heading: 'Shipping & Delivery',
-          body: 'Orders currently ship within <span class="placeholder">[3–5 business days — PLACEHOLDER, confirm real fulfillment timeline before launch]</span>, to <span class="placeholder">[France and the EU — PLACEHOLDER, confirm real delivery zones before launch]</span>. Every bottle travels in matte black, wax-sealed packaging, designed to arrive exactly as it left us.'
+          body: 'Orders currently ship within 5&ndash;10 business days, to France and Belgium, with shipping always included in the price. Every bottle travels in matte black, wax-sealed packaging, designed to arrive exactly as it left us.'
         },
         returns: {
           heading: 'Returns & Refunds',
@@ -399,7 +407,7 @@
         s4Body: 'Payment is made online, at the time of ordering, by credit card or any other payment method offered on the site, via a secure payment provider: <span class="placeholder">[PAYMENT PROVIDER — TO BE COMPLETED]</span>.',
         s5Heading: '5. Delivery',
         s5Body1: 'Products are delivered to the address provided by the customer when placing the order.',
-        s5Body2: 'Delivery zones: <span class="placeholder">[DELIVERY ZONES — TO BE COMPLETED]</span><br>Estimated delivery times: <span class="placeholder">[DELIVERY TIMES — TO BE COMPLETED]</span><br>Delivery fees: <span class="placeholder">[DELIVERY FEES — TO BE COMPLETED]</span>',
+        s5Body2: 'Delivery zones: France and Belgium.<br>Estimated delivery times: 5&ndash;10 business days.<br>Delivery fees: shipping is always free, included in the product price &mdash; not a threshold-based discount.',
         s6Heading: '6. Right of Withdrawal',
         s6Body1: 'In accordance with Articles L221-18 et seq. of the French Consumer Code, the customer has a period of fourteen (14) clear days from receipt of the product to exercise their right of withdrawal with MONARK, without having to state any reason or pay any penalty, except, where applicable, for return shipping costs.',
         s6Body2: 'To exercise this right, the customer must notify their decision to withdraw by means of an unambiguous statement (postal mail, email, or withdrawal form) sent to <span class="placeholder">[EMAIL / CONTACT ADDRESS — TO BE COMPLETED]</span> before the 14-day period expires.',
@@ -511,7 +519,7 @@
         label: "006 / L'Acquisition",
         heading: 'Le Règne Est Mis en Flacon. Réclamez le Vôtre.',
         body: "MONARK Eau de Parfum. 100ml. Numéroté, non produit en série. Une fois un lot épuisé, il ne revient pas.",
-        badge: 'Offre Limitée −17%',
+        badge: 'Offre Limitée −21%',
         button: 'Acquérir MONARK — 100ml',
         note: 'Expédié dans un emballage noir mat, scellé à la cire.'
       },
@@ -564,7 +572,7 @@
       },
       promoBanner: {
         ariaLabel: 'Offre promotionnelle',
-        offer: 'Offre Limitée −17%',
+        offer: 'Offre Limitée −21%',
         endsIn: 'Se termine dans ',
         dismiss: 'Fermer'
       },
@@ -598,7 +606,7 @@
         imageViewerAriaLabel: "Visionneuse d'image",
         kicker: 'Eau de Parfum — 100ml',
         scentNotes: 'Bergamote · Encens · Ambre',
-        priceNote: 'Offre à durée limitée — 17 % de réduction',
+        priceNote: 'Offre à durée limitée — 21 % de réduction',
         bottlesRemaining: 'flacons restants',
         addToCart: 'Ajouter au Panier — 100ML',
         returnPolicy: {
@@ -614,8 +622,7 @@
         },
         ingredients: {
           summary: 'Liste Complète des Ingrédients (INCI)',
-          placeholderFlag: '[FICTIF / MARQUEUR — à remplacer par la formulation réelle et vérifiée en laboratoire avant le lancement]',
-          allergensNote: "Contient des allergènes de parfum réglementés par la législation cosmétique européenne (Limonène, Linalol, Citronellol, Géraniol). Si vous avez des sensibilités connues aux parfums, effectuez un test cutané avant application complète — consultez notre <a href=\"faq.html\">FAQ</a> pour en savoir plus sur les ingrédients et la conservation."
+          allergensNote: 'Peut contenir des allergènes réglementés selon la réglementation cosmétique UE — liste complète disponible sur demande.'
         },
         backToExperience: "Retour à l'expérience",
         shippingFaqLink: 'Livraison, retours et plus — FAQ',
@@ -645,13 +652,13 @@
         city: 'Ville',
         postalCode: 'Code Postal',
         payment: 'Facturation',
-        cardNumber: 'Numéro de Carte',
-        expiry: 'Expiration',
-        cvc: 'CVC',
-        paymentNote: "Le traitement des paiements n'est pas encore connecté — ceci est un espace réservé visuel uniquement.",
+        paymentNote: 'Mode test — utilisez le numéro de carte 4242 4242 4242 4242, une date d\'expiration future, et un CVC à 3 chiffres.',
+        stripeInitError: 'Impossible de charger le formulaire de paiement. Veuillez actualiser la page et réessayer.',
+        stripeNotReady: "Le formulaire de paiement n'est pas encore prêt. Veuillez patienter un instant et réessayer.",
+        stripeGenericError: 'Le paiement a échoué. Veuillez réessayer.',
         placeOrder: 'Passer la Commande',
         orderReceived: 'Commande Reçue',
-        confirmationText: "Ceci est une confirmation de démonstration — aucune commande réelle n'a été passée, aucun paiement n'a été traité et aucun e-mail n'a été envoyé.",
+        confirmationText: "Votre paiement a été traité et votre commande a été enregistrée. Aucun e-mail de confirmation n'est encore envoyé — ce sera une prochaine étape.",
         backToTheExperience: "Retour à L'Expérience",
         errorFirstName: 'Veuillez saisir votre prénom.',
         errorLastName: 'Veuillez saisir votre nom.',
@@ -663,7 +670,7 @@
         subtotal: 'Sous-total',
         shipping: 'Livraison',
         free: 'Offerte',
-        limitedTimeOffer: 'Offre à Durée Limitée (−17%)',
+        limitedTimeOffer: 'Offre à Durée Limitée (−21%)',
         promoLabel: 'Promo ({code})',
         total: 'Total',
         promoSuccess: 'Appliqué ✓ {percent}% de réduction',
@@ -676,7 +683,6 @@
         accordionShippingSummary: 'Livraison à : {name}, {city}',
         addressLine2: "Complément d'adresse (facultatif)",
         phone: 'Numéro de Téléphone (facultatif)',
-        nameOnCard: 'Nom sur la Carte',
         termsLabel: "J'accepte les <a href=\"cgv.html\" target=\"_blank\" rel=\"noopener\">Conditions Générales de Vente</a>.",
         errorTerms: 'Veuillez accepter les Conditions Générales de Vente pour continuer.',
         mobileOrderSummaryHeading: 'Paiement',
@@ -697,13 +703,22 @@
         createAccountAndContinue: 'Créer un Compte et Continuer',
         errorEmailEmpty: 'Veuillez saisir votre e-mail.',
         errorEmailInvalid: 'Veuillez saisir une adresse e-mail valide.',
-        errorWrongPassword: 'Mot de passe incorrect.',
+        errorWrongPassword: 'E-mail ou mot de passe incorrect.',
         errorAccountNotFound: 'Compte introuvable.',
         errorPasswordWeak: 'Le mot de passe doit contenir au moins 8 caractères, dont une lettre et un chiffre.',
         errorPasswordMismatch: 'Les mots de passe ne correspondent pas.',
         errorAccountExists: 'Un compte avec cet e-mail existe déjà.',
         confirmationEmailSent: 'Un e-mail de confirmation a été envoyé à {email}.',
-        errorNameRequired: 'Veuillez saisir votre prénom et votre nom.'
+        errorNameRequired: 'Veuillez saisir votre prénom et votre nom.',
+        errorGeneric: "Une erreur s'est produite. Veuillez réessayer.",
+        errorRateLimited: 'Trop de tentatives pour le moment. Veuillez patienter quelques minutes puis réessayer.',
+        forgotPassword: 'Mot de passe oublié ?',
+        resetPasswordSent: 'Un e-mail de réinitialisation du mot de passe a été envoyé à {email}.',
+        resetPasswordError: "Impossible d'envoyer l'e-mail de réinitialisation. Veuillez vérifier l'adresse et réessayer.",
+        confirmAccountPending: 'Consultez votre boîte de réception à {email} pour confirmer votre compte avant de vous connecter.',
+        setNewPasswordHeading: 'Définir un Nouveau Mot de Passe',
+        newPasswordLabel: 'Nouveau Mot de Passe',
+        setNewPasswordBtn: 'Définir le Mot de Passe'
       },
       account: {
         pageTitle: 'Mon Compte',
@@ -720,6 +735,7 @@
         dobLabel: 'Date de Naissance',
         saveProfileBtn: 'Enregistrer les Modifications',
         profileUpdated: 'Profil mis à jour.',
+        emailChangePending: 'Consultez votre nouvelle adresse e-mail pour confirmer le changement.',
         addressHeading: 'Adresse de Livraison Enregistrée',
         addressLabel: 'Adresse',
         addressLine2Label: "Complément d'adresse",
@@ -752,7 +768,7 @@
         intro: "Tout ce qu'il faut savoir avant, pendant et après l'acquisition de MONARK.",
         shipping: {
           heading: 'Expédition et Livraison',
-          body: 'Les commandes sont actuellement expédiées sous <span class="placeholder">[3 à 5 jours ouvrés — MARQUEUR, à confirmer avant le lancement]</span>, vers <span class="placeholder">[la France et l\'UE — MARQUEUR, à confirmer avant le lancement]</span>. Chaque flacon voyage dans un emballage noir mat, scellé à la cire, conçu pour arriver exactement tel qu\'il nous a quittés.'
+          body: 'Les commandes sont actuellement expédiées sous 5 à 10 jours ouvrés, vers la France et la Belgique, la livraison étant toujours incluse dans le prix. Chaque flacon voyage dans un emballage noir mat, scellé à la cire, conçu pour arriver exactement tel qu\'il nous a quittés.'
         },
         returns: {
           heading: 'Retours et Remboursements',
@@ -832,7 +848,7 @@
         s4Body: 'Le paiement s\'effectue en ligne, au moment de la commande, par carte bancaire ou tout autre moyen de paiement proposé sur le site, via un prestataire de paiement sécurisé : <span class="placeholder">[PRESTATAIRE DE PAIEMENT — À COMPLÉTER]</span>.',
         s5Heading: '5. Livraison',
         s5Body1: 'Les produits sont livrés à l\'adresse indiquée par le client lors de la commande.',
-        s5Body2: 'Zones de livraison : <span class="placeholder">[ZONES DE LIVRAISON — À COMPLÉTER]</span><br>Délais de livraison estimés : <span class="placeholder">[DÉLAIS DE LIVRAISON — À COMPLÉTER]</span><br>Frais de livraison : <span class="placeholder">[FRAIS DE LIVRAISON — À COMPLÉTER]</span>',
+        s5Body2: 'Zones de livraison : France et Belgique.<br>Délais de livraison estimés : 5 à 10 jours ouvrés.<br>Frais de livraison : la livraison est toujours offerte, incluse dans le prix du produit — et non une remise à partir d\'un certain seuil d\'achat.',
         s6Heading: '6. Droit de Rétractation',
         s6Body1: "Conformément aux articles L221-18 et suivants du Code de la consommation, le client dispose d'un délai de quatorze (14) jours francs à compter de la réception du produit pour exercer son droit de rétractation auprès de MONARK, sans avoir à justifier de motifs ni à payer de pénalités, à l'exception, le cas échéant, des frais de retour.",
         s6Body2: 'Pour exercer ce droit, le client doit notifier sa décision de rétractation au moyen d\'une déclaration dénuée d\'ambiguïté (courrier postal, e-mail, ou formulaire de rétractation) envoyée à <span class="placeholder">[E-MAIL / ADRESSE DE CONTACT — À COMPLÉTER]</span> avant l\'expiration du délai de 14 jours.',
