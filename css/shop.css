@@ -362,16 +362,24 @@ body.shop-page { background: var(--bg-void); }
 
 /* ================= OLFACTORY NOTES ================= */
 
+/* padding-bottom split out to a fixed 2rem (was the same 9vh as top/
+   originally) -- same NOTES_SECTION_EDGE_SPACING value as
+   .shop-notes-kicker's own margin-bottom below, so "heading to notes list"
+   and "last notes row to footer" read as the same, deliberately reduced
+   gap rather than two different leftover amounts. Top/side padding (9vh/
+   6vw) is untouched -- only the two edges called out in the task changed. */
 .shop-notes {
   max-width: 860px;
   margin: 0 auto;
-  padding: 9vh 6vw;
+  padding: 9vh 6vw 2rem;
 }
 
 /* margin-top adds breathing room above "LA COMPOSITION" itself, on top of
    .shop-notes's own padding-top -- .shop-details-strip's border-bottom
-   (its divider line) sat too close to this heading otherwise. */
-.shop-notes-kicker { display: block; text-align: center; margin-top: 1.5rem; margin-bottom: 3.2rem; }
+   (its divider line) sat too close to this heading otherwise. margin-bottom
+   -- see .shop-notes's own padding-bottom comment above on why this is the
+   same 2rem value. */
+.shop-notes-kicker { display: block; text-align: center; margin-top: 1.5rem; margin-bottom: 2rem; }
 
 .shop-notes-row {
   display: flex;
@@ -578,7 +586,9 @@ body.shop-page { background: var(--bg-void); }
   }
   .shop-detail-col { padding: 2.2rem 1.4rem; }
 
-  .shop-notes { padding: 6vh 8vw; }
+  /* bottom kept at the same fixed 2rem as the desktop rule above -- only
+     top/side padding differs by breakpoint here, same as before. */
+  .shop-notes { padding: 6vh 8vw 2rem; }
   .shop-notes-row { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
   .shop-notes-names { text-align: left; }
 
