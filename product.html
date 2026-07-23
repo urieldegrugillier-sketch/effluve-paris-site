@@ -653,7 +653,31 @@
     ticking = false;
     const viewportHeight = window.innerHeight;
     const pastCtaRow = ctaRow.getBoundingClientRect().bottom < 0;
-    const footerVisible = footer.getBoundingClientRect().top < viewportHeight;
+    // BUG FIX: this used to be `footer.getBoundingClientRect().top <
+    // viewportHeight` -- true the instant even a single pixel of the footer
+    // peeks in at the bottom edge, which (confirmed live, via console
+    // logging during real touch-drag scrolling, not just a read-through)
+    // left only ~175-340px of actual scrollable distance between "past the
+    // CTA row" and "hide" at typical phone viewport heights. That's crossed
+    // in well under this bar's own 0.3s fade transition (css/shop.css) at
+    // any normal scroll speed, so the class WAS toggling correctly the
+    // whole time (confirmed in the logs) but the bar never finished fading
+    // in before being told to fade back out -- it only ever looked like it
+    // "worked" when a scroll happened to stop dead inside that narrow
+    // window. Hiding only once the footer is FULLY on screen (both its top
+    // AND bottom edges within the viewport) roughly doubles the usable
+    // window at every height tested (667/812/844px), which is what actually
+    // fixes this rather than the show/hide logic itself, which was already
+    // correct.
+    // FOOTER_HIDE_BUFFER: at the page's absolute max scroll position, the
+    // footer's top edge lands EXACTLY at (viewportHeight - its own height) --
+    // confirmed live, this meant a strict `<` never fired there (equal, not
+    // less), leaving the bar visibly sitting on the footer with nowhere left
+    // to scroll away from it. A few px of buffer hides it slightly before
+    // that exact boundary instead of exactly at (or past) it.
+    const FOOTER_HIDE_BUFFER = 12;
+    const footerRect = footer.getBoundingClientRect();
+    const footerVisible = footerRect.top < viewportHeight - footerRect.height + FOOTER_HIDE_BUFFER;
     bar.classList.toggle('shop-sticky-bar-visible', pastCtaRow && !footerVisible);
   }
 
