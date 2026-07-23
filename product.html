@@ -221,7 +221,7 @@
      footer comes into view. Starts hidden (no .shop-sticky-bar-visible, no
      data-i18n text yet needed on mount) -- see that function's own comment. -->
 <div class="shop-sticky-bar" id="shop-sticky-bar">
-  <button type="button" class="cta-button shop-sticky-add-to-cart" id="sticky-add-to-cart-btn" data-i18n="product.addToCart">Add to Cart &mdash; 100ML</button>
+  <button type="button" class="cta-button shop-sticky-add-to-cart" id="sticky-add-to-cart-btn" data-i18n="product.stickyAddToCart">Add to Cart</button>
   <div id="sticky-payment-request-button" class="shop-sticky-prb" hidden></div>
 </div>
 
@@ -619,10 +619,10 @@
 
 /* ---------------- Sticky buy bar (mobile/tablet only) ----------------
    Hermès-style fixed bottom bar -- see css/shop.css's own @media (max-width:
-   768px) block for why this never shows on desktop regardless of the
-   IntersectionObservers below still running there. Separate IIFE from the
-   one above: this doesn't depend on (or want to be short-circuited by) that
-   one's own `if (!addBtn || !window.MonarkCart) return;` guard. */
+   768px) block for why this never shows on desktop regardless of the scroll
+   listener below still running there. Separate IIFE from the one above:
+   this doesn't depend on (or want to be short-circuited by) that one's own
+   `if (!addBtn || !window.MonarkCart) return;` guard. */
 (function () {
   const bar = document.getElementById('shop-sticky-bar');
   const cart = window.MonarkCart;
@@ -630,52 +630,45 @@
   // on mobile (where this bar is the only place it ever shows, see
   // css/shop.css's own @media), the image/price/CTA cluster stacks above
   // the Return Policy/How to Wear/Ingredients <details> and the two
-  // "back to.../FAQ" links, which are ALSO part of .shop-hero. Confirmed via
-  // direct measurement: observing the full section instead put the "past
-  // hero" trigger point (~1270px scrolled) PAST the footer's own
-  // "now visible" threshold (~1250px) on a 390x844 viewport -- there was no
-  // scroll position where this bar could show at all. Observing the CTA row
-  // itself (~1076px) reopens a real ~175px scroll window before the footer
-  // takes over, and matches the task's own wording ("past the main product
-  // image/price area") more precisely than the whole section did anyway.
+  // "back to.../FAQ" links, which are ALSO part of .shop-hero.
   const ctaRow = document.querySelector('.shop-cta-row');
   const footer = document.querySelector('.shop-footer');
   if (!bar || !cart || !ctaRow || !footer) return;
 
-  // Whether the CTA row has ever actually been ON screen yet -- needed
-  // because, confirmed via direct measurement at 390x844, the row starts
-  // BELOW the fold (the image + kicker/wordmark/subtitle/price/stock text
-  // stacked above it on mobile already exceed one screen height) -- it's
-  // "not intersecting" at scrollY:0 same as it is once genuinely scrolled
-  // past, and those two are not the same thing. Without this, the bar
-  // showed immediately on load (technically "not intersecting" was already
-  // true), directly contradicting the task's "not immediately on page
-  // load" requirement.
-  let hasSeenCtaRow = false;
-  let pastHero = false;
-  let footerVisible = false;
+  // BUG FIX: this used to be two IntersectionObservers tracking "have I ever
+  // seen this element intersect, and is it intersecting now" -- that only
+  // works if the browser actually renders a frame where the tracked element
+  // is mid-viewport, which a real fast/flick scroll routinely skips (it
+  // renders the start and end positions of the gesture, not everything in
+  // between). Confirmed as the actual cause: the bar would only show after
+  // scrolling all the way down and back up slowly enough for a frame to land
+  // inside the CTA row's on-screen window, and even then could get stuck
+  // (the footer's own observer missing its crossing the same way). A direct
+  // getBoundingClientRect() check has no such gap -- it reads the CURRENT
+  // position fresh on every throttled scroll/resize tick, so it's correct
+  // regardless of how many frames a fast scroll skipped in between.
+  let ticking = false;
 
   function updateBarVisibility() {
-    bar.classList.toggle('shop-sticky-bar-visible', pastHero && !footerVisible);
+    ticking = false;
+    const viewportHeight = window.innerHeight;
+    const pastCtaRow = ctaRow.getBoundingClientRect().bottom < 0;
+    const footerVisible = footer.getBoundingClientRect().top < viewportHeight;
+    bar.classList.toggle('shop-sticky-bar-visible', pastCtaRow && !footerVisible);
   }
 
-  // Bar appears once the image/price/CTA cluster has been seen AND THEN
-  // scrolled out of view -- not merely "not currently intersecting", which
-  // (see hasSeenCtaRow's own comment) is also true before the user has
-  // scrolled at all on this viewport.
-  new IntersectionObserver((entries) => {
-    const isIntersecting = entries[0].isIntersecting;
-    if (isIntersecting) hasSeenCtaRow = true;
-    pastHero = hasSeenCtaRow && !isIntersecting;
-    updateBarVisibility();
-  }, { threshold: 0 }).observe(ctaRow);
+  function onScrollOrResize() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(updateBarVisibility);
+  }
 
-  // Bar disappears once the footer comes into view, so it never sits on top
-  // of/overlaps it.
-  new IntersectionObserver((entries) => {
-    footerVisible = entries[0].isIntersecting;
-    updateBarVisibility();
-  }, { threshold: 0 }).observe(footer);
+  window.addEventListener('scroll', onScrollOrResize, { passive: true });
+  window.addEventListener('resize', onScrollOrResize);
+  // Checked once up front too -- covers a page load that starts already
+  // scrolled (browser-restored scroll position on reload/back-navigation),
+  // which wouldn't fire a 'scroll' event on its own.
+  updateBarVisibility();
 
   const stickyAddBtn = document.getElementById('sticky-add-to-cart-btn');
   stickyAddBtn.addEventListener('click', () => {
@@ -704,9 +697,13 @@
       requestPayerEmail: false
     });
     const prElements = window.MonarkStripe.elements();
+    // theme: 'light' -- Stripe's paymentRequestButton style API only takes
+    // 'dark' (default) | 'light' | 'light-outline' (confirmed against
+    // Stripe's own type definitions), not an arbitrary color; 'light' is
+    // the solid-white variant.
     const prButton = prElements.create('paymentRequestButton', {
       paymentRequest,
-      style: { paymentRequestButton: { type: 'buy', theme: 'dark', height: '44px' } }
+      style: { paymentRequestButton: { type: 'buy', theme: 'light', height: '44px' } }
     });
 
     // canMakePayment() resolves null with nothing available (no Apple

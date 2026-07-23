@@ -168,6 +168,12 @@
         priceNote: 'Limited-time offer — 21% off',
         bottlesRemaining: 'bottles remaining',
         addToCart: 'Add to Cart — 100ML',
+        // Sticky mobile buy bar only (product.html) -- shorter than the main
+        // page's own addToCart above since the bar is a compact, persistent
+        // strip, not the hero's spacious CTA row. Separate key so this
+        // page's two Add to Cart buttons can read differently without one
+        // affecting the other.
+        stickyAddToCart: 'Add to Cart',
         returnPolicy: {
           summary: '14-Day Return Policy',
           body: 'You may return your sealed, unopened MONARK bottle within 14 days of delivery for a full refund, no questions asked. Once the security seal is broken, the bottle can no longer be returned for hygiene reasons, per EU consumer protection law. Read the full terms in our <a href="cgv.html">Terms &amp; Conditions of Sale</a>.'
@@ -609,6 +615,7 @@
         priceNote: 'Offre à durée limitée — 21 % de réduction',
         bottlesRemaining: 'flacons restants',
         addToCart: 'Ajouter au Panier — 100ML',
+        stickyAddToCart: 'Ajouter au Panier',
         returnPolicy: {
           summary: 'Retours sous 14 Jours',
           body: "Vous pouvez retourner votre flacon MONARK scellé et non ouvert dans les 14 jours suivant la livraison pour un remboursement intégral, sans questions. Une fois le sceau de sécurité brisé, le flacon ne peut plus être retourné pour des raisons d'hygiène, conformément au droit européen de la consommation. Consultez les conditions complètes dans nos <a href=\"cgv.html\">Conditions Générales de Vente</a>."

@@ -368,7 +368,10 @@ body.shop-page { background: var(--bg-void); }
   padding: 9vh 6vw;
 }
 
-.shop-notes-kicker { display: block; text-align: center; margin-bottom: 3.2rem; }
+/* margin-top adds breathing room above "LA COMPOSITION" itself, on top of
+   .shop-notes's own padding-top -- .shop-details-strip's border-bottom
+   (its divider line) sat too close to this heading otherwise. */
+.shop-notes-kicker { display: block; text-align: center; margin-top: 1.5rem; margin-bottom: 3.2rem; }
 
 .shop-notes-row {
   display: flex;
