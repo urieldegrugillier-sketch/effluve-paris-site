@@ -765,14 +765,13 @@
     // Stripe's own type definitions), not an arbitrary color; 'light' is
     // the solid-white variant.
     //
-    // type: 'buy' -- shows Stripe's longer text variant ("Buy with Google
-    // Pay" / "Pay with Link" / etc., wording depends on the actual detected
-    // payment method), which also naturally gives the button more width
-    // than the bare-logo 'default' variant used a round ago. Localizes
-    // automatically from the `locale` passed to elements() below -- see
-    // that same call's own reasoning on why each button needs its own
-    // Elements group.
-    const PR_BUTTON_TYPE = 'buy';
+    // type: 'default' -- bare logo/wordmark only, no "Buy with"/"Pay with"
+    // text prefix ('buy' shows that longer localized variant instead;
+    // switched back to 'default' per explicit request). Whichever type is
+    // used, it localizes automatically from the `locale` passed to
+    // elements() below -- see that same call's own reasoning on why each
+    // button needs its own Elements group.
+    const PR_BUTTON_TYPE = 'default';
     // height values below match #add-to-cart-btn's/#sticky-add-to-cart-btn's
     // own real rendered height exactly (confirmed live via
     // getBoundingClientRect(): 52.1875px main / 43.1875px sticky) -- was
