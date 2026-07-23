@@ -206,7 +206,7 @@
                   </div>
                   <label class="checkout-field">
                     <span data-i18n="checkout.phone">Phone Number (optional)</span>
-                    <input type="tel" name="phone" autocomplete="tel">
+                    <div id="checkout-shipping-phone"></div>
                   </label>
                   <button type="button" class="cta-button checkout-accordion-next-btn" id="checkout-shipping-next-btn" data-i18n="checkout.nextStep" disabled>Next Step</button>
                 </div>
@@ -325,6 +325,7 @@
 <script src="js/cart.js?v=20260722"></script>
 <script src="js/cart-widget.js?v=20260722"></script>
 <script src="js/nav-menu.js?v=20260722"></script>
+<script src="js/phone-input.js?v=20260722"></script>
 <script src="js/account.js?v=20260722"></script>
 <script src="js/places-autocomplete.js?v=20260722"></script>
 <script src="https://js.stripe.com/v3/"></script>
@@ -441,6 +442,14 @@
   // mountAccountGate() can re-invoke them fresh on every 'monark:langchange'
   // -- see that file's own comment on why a plain string captured once at
   // mount time can't respond to a later language switch.
+  // Replaces the old plain <input name="phone">, same "shared, not
+  // duplicated" component as the account gate's own create-account phone
+  // field (see js/phone-input.js) -- defaults to France/+33 for a fresh,
+  // empty field, same as that one.
+  const shippingPhoneWidget = window.MonarkPhoneInput
+    ? window.MonarkPhoneInput.mount(document.getElementById('checkout-shipping-phone'), {})
+    : null;
+
   // Pre-fills First/Last Name + Address/Address Line 2/City/Postal Code/Phone
   // from the account's own saved profile/address (js/account.js's
   // updateAccount()) whenever a logged-in (non-guest) session resolves --
@@ -462,14 +471,16 @@
       address: account.address,
       address2: account.address2,
       city: account.city,
-      postal: account.postal,
-      phone: account.phone
+      postal: account.postal
     };
     Object.keys(fieldMap).forEach((name) => {
       const value = fieldMap[name];
       const input = shippingForm.querySelector(`[name="${name}"]`);
       if (input && value) input.value = value;
     });
+    if (shippingPhoneWidget && account.phone) {
+      shippingPhoneWidget.setValue({ number: account.phone, country: account.country || 'FR' });
+    }
   }
 
   // Account section's own "Next Step" is whatever action resolves the gate
@@ -1049,10 +1060,21 @@
         // overwrites a first/last name the account already has on file, per
         // this feature's own spec. No UI, no confirmation message; the next
         // visit to account.html's Edit Profile just already shows it filled in.
-        const namePatch = {};
-        if (account && !account.firstName && firstNameVal) namePatch.firstName = firstNameVal;
-        if (account && !account.lastName && lastNameVal) namePatch.lastName = lastNameVal;
-        if (Object.keys(namePatch).length) await window.MonarkAccount.updateAccount(session.email, namePatch);
+        const profilePatch = {};
+        if (account && !account.firstName && firstNameVal) profilePatch.firstName = firstNameVal;
+        if (account && !account.lastName && lastNameVal) profilePatch.lastName = lastNameVal;
+        // Same silent, missing-only backfill for the phone/country this
+        // Shipping form just collected -- never overwrites a phone number
+        // already on file (e.g. one entered at account creation).
+        if (account && !account.phone && shippingPhoneWidget) {
+          const phoneVal = shippingPhoneWidget.getValue();
+          if (phoneVal.number) {
+            profilePatch.phone = phoneVal.number;
+            profilePatch.dialCode = phoneVal.dialCode;
+            profilePatch.country = phoneVal.country;
+          }
+        }
+        if (Object.keys(profilePatch).length) await window.MonarkAccount.updateAccount(session.email, profilePatch);
       }
 
       // One order-history entry per completed checkout -- tied to the

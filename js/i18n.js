@@ -283,7 +283,16 @@
         confirmAccountPending: 'Check your inbox at {email} to confirm your account before logging in.',
         setNewPasswordHeading: 'Set a New Password',
         newPasswordLabel: 'New Password',
-        setNewPasswordBtn: 'Set Password'
+        setNewPasswordBtn: 'Set Password',
+        phoneLabel: 'Phone Number (optional)',
+        marketingLabel: "I'd like to receive marketing emails and offers"
+      },
+      phoneInput: {
+        countrySelectorLabel: 'Country code',
+        numberLabel: 'Phone number',
+        searchLabel: 'Search countries',
+        searchPlaceholder: 'Search countries',
+        noResults: 'No countries found'
       },
       account: {
         pageTitle: 'My Account',
@@ -725,7 +734,16 @@
         confirmAccountPending: 'Consultez votre boîte de réception à {email} pour confirmer votre compte avant de vous connecter.',
         setNewPasswordHeading: 'Définir un Nouveau Mot de Passe',
         newPasswordLabel: 'Nouveau Mot de Passe',
-        setNewPasswordBtn: 'Définir le Mot de Passe'
+        setNewPasswordBtn: 'Définir le Mot de Passe',
+        phoneLabel: 'Numéro de Téléphone (facultatif)',
+        marketingLabel: 'Je souhaite recevoir les e-mails marketing et les offres'
+      },
+      phoneInput: {
+        countrySelectorLabel: 'Indicatif du pays',
+        numberLabel: 'Numéro de téléphone',
+        searchLabel: 'Rechercher un pays',
+        searchPlaceholder: 'Rechercher un pays',
+        noResults: 'Aucun pays trouvé'
       },
       account: {
         pageTitle: 'Mon Compte',

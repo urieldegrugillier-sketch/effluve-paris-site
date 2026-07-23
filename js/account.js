@@ -110,6 +110,8 @@
       city: row.city || '',
       postal: row.postal_code || '',
       phone: row.phone || '',
+      dialCode: row.dial_code || '',
+      country: row.country || '',
       marketingOptIn: row.marketing_opt_in !== false,
       cardName: card.cardName || '',
       cardNumber: card.cardNumber || '',
@@ -153,11 +155,21 @@
       password: String(password || ''),
       options: {
         // Expected to be read by the public.profiles insert trigger already
-        // set up in the Supabase SQL editor (first_name/last_name columns) --
-        // if that trigger doesn't pull these from raw_user_meta_data yet,
-        // update it to, or these two land empty until the user fills in
-        // Edit Profile on account.html themselves.
-        data: { first_name: extra.firstName || '', last_name: extra.lastName || '' }
+        // set up in the Supabase SQL editor (handle_new_user(), see its own
+        // updated definition in the migration this feature shipped with) --
+        // if that trigger doesn't pull these from raw_user_meta_data, they
+        // land empty/default until the user fills in Edit Profile
+        // themselves. marketing_opt_in is coalesced to true server-side if
+        // this key is ever missing (e.g. an older cached script), matching
+        // profileToAccountShape()'s own "not false = true" default below.
+        data: {
+          first_name: extra.firstName || '',
+          last_name: extra.lastName || '',
+          marketing_opt_in: extra.marketingOptIn !== false,
+          phone: extra.phone || '',
+          dial_code: extra.dialCode || '',
+          country: extra.country || ''
+        }
       }
     });
     if (error) {
@@ -228,8 +240,8 @@
   }
 
   // patch may carry: email, password, firstName, lastName, dob, address,
-  // address2, city, postal, phone, marketingOptIn, cardName, cardNumber,
-  // cardExpiry -- shallow-merged the same way the old localStorage version
+  // address2, city, postal, phone, dialCode, country, marketingOptIn,
+  // cardName, cardNumber, cardExpiry -- shallow-merged the same way the old localStorage version
   // worked, just routed to three different places now: email/password go to
   // Supabase Auth, the profile fields go to public.profiles, and the
   // (still-mocked) card fields go to localStorage -- see writeMockCard()'s
@@ -274,6 +286,8 @@
     if (cleanPatch.city !== undefined) profilePatch.city = cleanPatch.city;
     if (cleanPatch.postal !== undefined) profilePatch.postal_code = cleanPatch.postal;
     if (cleanPatch.phone !== undefined) profilePatch.phone = cleanPatch.phone;
+    if (cleanPatch.dialCode !== undefined) profilePatch.dial_code = cleanPatch.dialCode;
+    if (cleanPatch.country !== undefined) profilePatch.country = cleanPatch.country;
     if (cleanPatch.marketingOptIn !== undefined) profilePatch.marketing_opt_in = cleanPatch.marketingOptIn;
 
     if (Object.keys(profilePatch).length) {
@@ -478,6 +492,14 @@
             <span data-i18n="accountGate.confirmPasswordLabel">Confirm Password</span>
             <input type="password" id="checkout-account-create-confirm" autocomplete="new-password" required>
           </label>
+          <label class="checkout-field">
+            <span data-i18n="accountGate.phoneLabel">Phone Number (optional)</span>
+            <div id="checkout-account-create-phone"></div>
+          </label>
+          <label class="account-toggle-row checkout-account-marketing-row">
+            <input type="checkbox" id="checkout-account-create-marketing" checked>
+            <span data-i18n="accountGate.marketingLabel">I'd like to receive marketing emails and offers</span>
+          </label>
           <p class="promo-message promo-message-error" id="checkout-account-create-error" aria-live="polite" hidden></p>
           <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="accountGate.createAccountAndContinue">Create Account &amp; Continue</button>
         </form>
@@ -564,8 +586,16 @@
     const createLastNameInput = container.querySelector('#checkout-account-create-lastname');
     const createPasswordInput = container.querySelector('#checkout-account-create-password');
     const createConfirmInput = container.querySelector('#checkout-account-create-confirm');
+    const createMarketingCheckbox = container.querySelector('#checkout-account-create-marketing');
     const createError = container.querySelector('#checkout-account-create-error');
     const confirmPending = container.querySelector('#checkout-account-confirm-pending');
+
+    // Optional at account creation (no `required`) -- asking for a phone
+    // number is friction a first-time signup shouldn't need to clear just to
+    // get an account; it can always be added later via Edit Profile.
+    const createPhoneWidget = global.MonarkPhoneInput
+      ? global.MonarkPhoneInput.mount(container.querySelector('#checkout-account-create-phone'), {})
+      : null;
 
     const recoveryBlock = container.querySelector('#checkout-account-recovery');
     const recoveryForm = container.querySelector('#checkout-account-recovery-form');
@@ -681,6 +711,12 @@
       createLastNameInput.value = '';
       createPasswordInput.value = '';
       createConfirmInput.value = '';
+      if (createPhoneWidget) createPhoneWidget.setValue({ number: '', country: 'FR' });
+      // Checked by default every time this step is (re)shown, matching
+      // account.html's own marketing toggle default (see that page's
+      // marketingToggle.checked = acc.marketingOptIn !== false) -- opting in
+      // is the default state, not something the user has to actively choose.
+      if (createMarketingCheckbox) createMarketingCheckbox.checked = true;
       createError.hidden = true;
       createForm.hidden = true;
       confirmPending.hidden = true;
@@ -741,9 +777,14 @@
       }
       createError.hidden = true;
       const newAccountEmail = authEmailEcho.textContent;
+      const phoneValue = createPhoneWidget ? createPhoneWidget.getValue() : null;
       const result = await createAccount(newAccountEmail, createPasswordInput.value, {
         firstName: createFirstNameInput.value.trim(),
-        lastName: createLastNameInput.value.trim()
+        lastName: createLastNameInput.value.trim(),
+        marketingOptIn: createMarketingCheckbox ? createMarketingCheckbox.checked : true,
+        phone: phoneValue ? phoneValue.number : '',
+        dialCode: phoneValue ? phoneValue.dialCode : '',
+        country: phoneValue ? phoneValue.country : ''
       });
       if (!result.ok) {
         // BUG FIX: this used to show "account already exists" for every

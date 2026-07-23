@@ -248,6 +248,102 @@
 .checkout-field-row { display: flex; gap: 1.4rem; }
 .checkout-field-row .checkout-field { flex: 1 1 0; }
 
+/* ---- phone input + country selector (js/phone-input.js) ----
+   Used inside a .checkout-field wrapper (the account gate's create-account
+   form and checkout.html's Shipping section both mount it into one), so it
+   inherits that wrapper's <span> label styling for free and only needs its
+   own two-part row + popup panel styled here. Modeled on contact.css's
+   .custom-select (same trigger-button + role="listbox" popup pattern,
+   extended with a search field -- see js/phone-input.js's own comment on
+   why) rather than duplicating that whole block with new class names. */
+.phone-input { position: relative; }
+
+.phone-input-row { display: flex; align-items: stretch; gap: 0.8rem; }
+
+.phone-country-trigger {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 0.6rem 0;
+  color: var(--text-on-dark);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+}
+.phone-country-trigger:focus,
+.phone-country-trigger[aria-expanded="true"] { outline: none; border-color: var(--accent-bronze-light); }
+
+.phone-country-flag { font-size: 1.1rem; line-height: 1; }
+.phone-country-dial { font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-muted); }
+
+.phone-country-chevron { flex: 0 0 auto; color: var(--accent-bronze-light); transition: transform 0.25s ease; }
+.phone-country-trigger[aria-expanded="true"] .phone-country-chevron { transform: rotate(180deg); }
+
+.phone-number-input { flex: 1 1 auto; min-width: 0; }
+
+.phone-country-panel {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--bg-ink);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+.phone-country-panel[hidden] { display: none; }
+
+.phone-country-search {
+  width: 100%;
+  box-sizing: border-box;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 0.7rem 1rem;
+  color: var(--text-on-dark);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+}
+.phone-country-search:focus { outline: none; }
+.phone-country-search::placeholder { color: var(--text-muted); }
+
+.phone-country-list {
+  margin: 0;
+  padding: 0.4rem 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.phone-country-list li[role="option"] {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--text-on-dark);
+  cursor: pointer;
+}
+.phone-country-list li[aria-selected="true"] { color: var(--accent-bronze-light); }
+.phone-country-list li.is-highlighted { background: rgba(216, 178, 124, 0.12); }
+
+.phone-country-opt-flag { flex: 0 0 auto; font-size: 1.05rem; }
+.phone-country-opt-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.phone-country-opt-dial { flex: 0 0 auto; font-family: var(--font-mono); font-size: 0.76rem; color: var(--text-muted); }
+
+.phone-country-no-results {
+  padding: 0.8rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
 /* ---- promo code (checkout.html only) ---- */
 
 .promo-box { margin-top: 0.6rem; }
@@ -586,6 +682,16 @@
 .checkout-terms-row input[type="checkbox"] { margin-top: 0.15rem; flex-shrink: 0; }
 .checkout-terms-row span { text-transform: none; letter-spacing: 0.02em; font-size: 0.78rem; font-family: var(--font-body); font-weight: 300; }
 .checkout-terms-row a { color: var(--accent-bronze-light); }
+
+/* Marketing-consent checkbox at account creation (js/account.js's
+   accountGateMarkup()) -- same "full sentence, not a short label" case as
+   .checkout-terms-row just above (see that rule's own comment), so it gets
+   the same sentence-case override over .account-toggle-row span's default
+   uppercase/mono treatment (fine for a short label like account.html's own
+   "Receive marketing emails", wrong for a longer conversational sentence). */
+.checkout-account-marketing-row { margin: 0.6rem 0 1.3rem; align-items: flex-start; }
+.checkout-account-marketing-row input[type="checkbox"] { margin-top: 0.15rem; flex-shrink: 0; }
+.checkout-account-marketing-row span { text-transform: none; letter-spacing: 0.02em; font-size: 0.78rem; font-family: var(--font-body); font-weight: 300; }
 
 .checkout-submit { width: 100%; text-align: center; margin-top: 0.6rem; cursor: pointer; }
 .checkout-submit:disabled { opacity: 0.4; cursor: not-allowed; }
