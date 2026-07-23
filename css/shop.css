@@ -310,7 +310,7 @@ body.shop-page { background: var(--bg-void); }
    the inline script's own matching `height: '52px'` style option passed to
    Stripe at mount time -- this container height and that option need to
    agree, since Stripe's iframe fills whatever this div gives it). */
-.shop-payment-request-button { flex: 1 1 0; height: 52px; }
+.shop-payment-request-button { flex: 1 1 0; height: 80px; }
 .shop-payment-request-button[hidden] { display: none; }
 
 .shop-refund-note {
