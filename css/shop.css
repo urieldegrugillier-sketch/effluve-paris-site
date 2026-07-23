@@ -262,6 +262,28 @@ body.shop-page { background: var(--bg-void); }
   margin-bottom: 1.4rem;
 }
 
+/* BUG FIX (the real remaining-width bug, confirmed via live box-model
+   inspection on the deployed site -- not another flex-basis guess):
+   .shop-hero-details is a column-direction flex container with
+   align-items:flex-start (deliberate there, so its text children --
+   h1/p/etc -- hug their own content width instead of stretching
+   edge-to-edge). .shop-cta-row inherited that same "don't stretch" default
+   with no width of its own to override it, so the row itself sized to the
+   fit-content/max-content of its children -- confirmed live: row width
+   (329.78px) exactly equalled Add to Cart's own content width (312.78px,
+   from its long non-wrapping label) + the 1rem gap (16px) + ~1px. There
+   was never any real free space inside the row for flex-grow to
+   distribute to the Payment Request Button -- it wasn't a flex-basis
+   problem on the button itself, the row never grew past "just enough to
+   fit Add to Cart" in the first place.
+   Scoped to :has(...:not([hidden])) rather than applied unconditionally --
+   stretching the row edge-to-edge is only needed (and only correct) once
+   there's a second button actually sharing it; without this scoping, Add
+   to Cart alone (still the common case today -- most visitors won't have
+   an eligible wallet yet) would grow to fill the full ~546px column width
+   too, a visible, unasked-for change to that already-fine layout. */
+.shop-cta-row:has(.shop-payment-request-button:not([hidden])) { align-self: stretch; }
+
 .shop-cta-row .cta-button { margin-top: 0; text-align: center; flex: 1 1 auto; white-space: nowrap; }
 
 /* Stripe mounts its own iframe button into this div (js/stripe-client.js +
