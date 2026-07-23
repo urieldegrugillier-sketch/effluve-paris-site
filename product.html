@@ -764,32 +764,57 @@
     // 'dark' (default) | 'light' | 'light-outline' (confirmed against
     // Stripe's own type definitions), not an arbitrary color; 'light' is
     // the solid-white variant.
+    //
+    // type: 'default' -- 'plain' was asked for (just the Apple Pay/Google
+    // Pay logo/wordmark, no "Buy with" prefix) but isn't a real value in
+    // Stripe's API; checked their actual type definitions and the full set
+    // is 'default' | 'book' | 'buy' | 'donate' plus several Apple-Pay-only
+    // values ('check-out', 'subscribe', 'reload', 'add-money', 'top-up',
+    // 'order', 'rent', 'support', 'contribute', 'tip') -- no 'plain' among
+    // them. 'default' is the one that actually matches the description: a
+    // generic wallet-branded button with no purchase-verb prefix, unlike
+    // 'buy' ("Buy with Apple Pay").
+    const PR_BUTTON_TYPE = 'default';
     if (mainContainer) {
       const mainElements = window.MonarkStripe.elements({ locale: prLocale() });
       mountedButtons.push({
         container: mainContainer,
-        el: mainElements.create('paymentRequestButton', { paymentRequest, style: { paymentRequestButton: { type: 'buy', theme: 'light', height: '50px' } } })
+        el: mainElements.create('paymentRequestButton', { paymentRequest, style: { paymentRequestButton: { type: PR_BUTTON_TYPE, theme: 'light', height: '50px' } } })
       });
     }
     if (stickyContainer) {
       const stickyElements = window.MonarkStripe.elements({ locale: prLocale() });
       mountedButtons.push({
         container: stickyContainer,
-        el: stickyElements.create('paymentRequestButton', { paymentRequest, style: { paymentRequestButton: { type: 'buy', theme: 'light', height: '44px' } } })
+        el: stickyElements.create('paymentRequestButton', { paymentRequest, style: { paymentRequestButton: { type: PR_BUTTON_TYPE, theme: 'light', height: '44px' } } })
       });
     }
 
-    // canMakePayment() resolves null with nothing available (no Apple
-    // Pay/Google Pay/Link on this device/browser, or -- true right now,
-    // pre domain-registration -- Apple Pay specifically) -- both containers
-    // stay hidden and no gap is left in either row; Add to Cart alone still
-    // fills the space via its own flex sizing.
+    // canMakePayment() resolves null with nothing available -- confirmed
+    // live (both by direct logging and by Stripe.js itself refusing to
+    // mount without it) that this is Stripe's own, correct answer, not a
+    // bug on this page's end, whenever any of these hold: the page isn't
+    // served over HTTPS (Stripe explicitly requires it for Apple
+    // Pay/Google Pay, even in testing -- see its own console warning),
+    // Apple Pay specifically pre domain-registration (disclosed elsewhere
+    // in this codebase), or the browser/device genuinely has no eligible
+    // wallet configured (e.g. Chrome with no Google account/saved card).
+    // Both containers stay hidden and no gap is left in either row when
+    // that happens; Add to Cart alone still fills the space via its own
+    // flex sizing. The info log below is left in (not a temporary debug
+    // line) specifically so a "why isn't this showing" question is
+    // self-diagnosable from the browser console instead of a silent no-op.
     paymentRequest.canMakePayment().then((result) => {
-      if (!result) return;
+      if (!result) {
+        console.info('Payment Request Button: no eligible wallet (Apple Pay/Google Pay/Link) for this browser/page -- requires HTTPS and a configured wallet; Apple Pay additionally requires domain registration with Stripe.');
+        return;
+      }
       mountedButtons.forEach(({ container, el }) => {
         el.mount(container);
         container.hidden = false;
       });
+    }).catch((err) => {
+      console.error('Payment Request Button: canMakePayment() failed:', err && err.message);
     });
   }
   mountButtons();

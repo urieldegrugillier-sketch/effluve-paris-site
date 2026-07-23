@@ -566,20 +566,13 @@ body.shop-page { background: var(--bg-void); }
     padding: 4vh 8vw 6vh;
   }
 
-  /* Side-by-side (the desktop layout) forced both buttons' own min-content width
-     (~257px + ~144px + 1rem gap = ~417px) into whatever's left of this column
-     after its own 8vw padding (~328px at 390px wide) -- confirmed via direct
-     measurement: the row rendered 13px wider on each side than its container,
-     overflowing both the column and the viewport itself (buttons visibly flush
-     against/past the screen edges, not just "close" to them). Stacking instead
-     gives each button the column's full width, comfortably fitting the longer
-     "Add to Cart — 100ML" label with room to spare, and naturally inherits this
-     column's own edge padding instead of needing its own. white-space:normal is
-     a safety net (not the primary fix) in case a real device's font metrics
-     render even a little wider than tested here. */
-  .shop-cta-row { flex-direction: column; }
-  .shop-cta-row .cta-button { width: 100%; white-space: normal; }
-  .shop-cta-row .shop-payment-request-button { width: 100%; }
+  /* Hidden entirely on mobile/tablet, not just restacked -- the sticky bar
+     (see the STICKY BUY BAR section below) is the only purchase mechanism
+     at this breakpoint now, so this row (Add to Cart + Payment Request
+     Button) would just duplicate it. Same max-width:768px boundary the
+     sticky bar's own @media uses, so the two never overlap: this row
+     disappears exactly where that bar starts being able to show. */
+  .shop-cta-row { display: none; }
 
   .shop-details-strip { flex-direction: column; }
   .shop-detail-divider {
