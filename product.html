@@ -216,10 +216,12 @@
 </footer>
 
 <!-- STICKY BUY BAR -- mobile/tablet only (css/shop.css's own @media gates
-     display entirely on desktop), shown/hidden by initStickyBar() (inline
-     script below) once the user's scrolled past the hero and before the
-     footer comes into view. Starts hidden (no .shop-sticky-bar-visible, no
-     data-i18n text yet needed on mount) -- see that function's own comment. -->
+     display entirely on desktop), visible from page load, hidden once the
+     footer scrolls fully into view (see the inline script's
+     updateBarVisibility() near the bottom of this file). Starts without
+     .shop-sticky-bar-visible in the markup itself -- the very first
+     updateBarVisibility() call (fired synchronously on mount) adds it
+     immediately since there's no scroll-position gate left to wait on. -->
 <div class="shop-sticky-bar" id="shop-sticky-bar">
   <button type="button" class="cta-button shop-sticky-add-to-cart" id="sticky-add-to-cart-btn" data-i18n="product.stickyAddToCart">Add to Cart</button>
   <div id="sticky-payment-request-button" class="shop-sticky-prb" hidden></div>
@@ -626,59 +628,35 @@
 (function () {
   const bar = document.getElementById('shop-sticky-bar');
   const cart = window.MonarkCart;
-  // .shop-cta-row (Add to Cart/Buy Now), not the whole .shop-hero section --
-  // on mobile (where this bar is the only place it ever shows, see
-  // css/shop.css's own @media), the image/price/CTA cluster stacks above
-  // the Return Policy/How to Wear/Ingredients <details> and the two
-  // "back to.../FAQ" links, which are ALSO part of .shop-hero.
-  const ctaRow = document.querySelector('.shop-cta-row');
   const footer = document.querySelector('.shop-footer');
-  if (!bar || !cart || !ctaRow || !footer) return;
+  if (!bar || !cart || !footer) return;
 
-  // BUG FIX: this used to be two IntersectionObservers tracking "have I ever
-  // seen this element intersect, and is it intersecting now" -- that only
-  // works if the browser actually renders a frame where the tracked element
-  // is mid-viewport, which a real fast/flick scroll routinely skips (it
-  // renders the start and end positions of the gesture, not everything in
-  // between). Confirmed as the actual cause: the bar would only show after
-  // scrolling all the way down and back up slowly enough for a frame to land
-  // inside the CTA row's on-screen window, and even then could get stuck
-  // (the footer's own observer missing its crossing the same way). A direct
-  // getBoundingClientRect() check has no such gap -- it reads the CURRENT
-  // position fresh on every throttled scroll/resize tick, so it's correct
-  // regardless of how many frames a fast scroll skipped in between.
+  // Visible from page load / the very top of scroll -- no longer gated on
+  // scroll position past the CTA row at all (that measurement, and the
+  // getBoundingClientRect() call behind it, is gone entirely). Only the
+  // footer-visibility check remains, to keep the bar from covering the
+  // footer once it's scrolled into view -- see FOOTER_HIDE_BUFFER's own
+  // comment below for the one non-obvious part of that.
   let ticking = false;
 
   function updateBarVisibility() {
     ticking = false;
     const viewportHeight = window.innerHeight;
-    const pastCtaRow = ctaRow.getBoundingClientRect().bottom < 0;
-    // BUG FIX: this used to be `footer.getBoundingClientRect().top <
-    // viewportHeight` -- true the instant even a single pixel of the footer
-    // peeks in at the bottom edge, which (confirmed live, via console
-    // logging during real touch-drag scrolling, not just a read-through)
-    // left only ~175-340px of actual scrollable distance between "past the
-    // CTA row" and "hide" at typical phone viewport heights. That's crossed
-    // in well under this bar's own 0.3s fade transition (css/shop.css) at
-    // any normal scroll speed, so the class WAS toggling correctly the
-    // whole time (confirmed in the logs) but the bar never finished fading
-    // in before being told to fade back out -- it only ever looked like it
-    // "worked" when a scroll happened to stop dead inside that narrow
-    // window. Hiding only once the footer is FULLY on screen (both its top
-    // AND bottom edges within the viewport) roughly doubles the usable
-    // window at every height tested (667/812/844px), which is what actually
-    // fixes this rather than the show/hide logic itself, which was already
-    // correct.
     // FOOTER_HIDE_BUFFER: at the page's absolute max scroll position, the
     // footer's top edge lands EXACTLY at (viewportHeight - its own height) --
     // confirmed live, this meant a strict `<` never fired there (equal, not
     // less), leaving the bar visibly sitting on the footer with nowhere left
     // to scroll away from it. A few px of buffer hides it slightly before
-    // that exact boundary instead of exactly at (or past) it.
+    // that exact boundary instead of exactly at (or past) it. Hiding only
+    // once the footer is FULLY on screen (both its top AND bottom edges
+    // within the viewport), not the instant any sliver of it appears, is
+    // what gives the fade transition enough scroll distance to actually
+    // complete before the bar's told to hide again (confirmed live via
+    // touch-drag scrolling in an earlier round).
     const FOOTER_HIDE_BUFFER = 12;
     const footerRect = footer.getBoundingClientRect();
     const footerVisible = footerRect.top < viewportHeight - footerRect.height + FOOTER_HIDE_BUFFER;
-    bar.classList.toggle('shop-sticky-bar-visible', pastCtaRow && !footerVisible);
+    bar.classList.toggle('shop-sticky-bar-visible', !footerVisible);
   }
 
   function onScrollOrResize() {
@@ -689,9 +667,11 @@
 
   window.addEventListener('scroll', onScrollOrResize, { passive: true });
   window.addEventListener('resize', onScrollOrResize);
-  // Checked once up front too -- covers a page load that starts already
-  // scrolled (browser-restored scroll position on reload/back-navigation),
-  // which wouldn't fire a 'scroll' event on its own.
+  // Checked once up front too -- this is what actually shows the bar
+  // immediately on a normal top-of-page load (no 'scroll' event fires on
+  // its own until the user scrolls), and also covers a page load that
+  // starts already scrolled (browser-restored scroll position on
+  // reload/back-navigation).
   updateBarVisibility();
 
   const stickyAddBtn = document.getElementById('sticky-add-to-cart-btn');

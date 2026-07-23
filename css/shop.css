@@ -598,12 +598,12 @@ body.shop-page { background: var(--bg-void); }
 
 /* ================= STICKY BUY BAR (mobile/tablet only) ================= */
 /* Hermès-style fixed bottom bar -- Add to Cart + Stripe's Payment Request
-   Button (Apple Pay/Google Pay/Link, see the inline script below) while the
-   user is scrolled past the main hero (image/price/CTA row) and before the
-   footer comes into view (see initStickyBar()'s two IntersectionObservers).
-   display:none outside this query is the whole reason desktop never shows
-   it -- no JS visibility toggle is needed to keep desktop clean, the
-   IntersectionObservers still run there but have nothing visible to affect.
+   Button (Apple Pay/Google Pay/Link, see the inline script below), visible
+   from page load and hidden once the footer scrolls fully into view (see
+   the inline script's updateBarVisibility()). display:none outside this
+   query is the whole reason desktop never shows it -- no JS visibility
+   toggle is needed to keep desktop clean, the scroll listener still runs
+   there but has nothing visible to affect.
 
    bottom:var(--cookie-banner-h) (0px until js/cookie-consent.js measures a
    real banner and sets it, see css/style.css's :root) is what keeps this
