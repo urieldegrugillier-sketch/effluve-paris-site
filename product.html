@@ -809,9 +809,19 @@
         console.info('Payment Request Button: no eligible wallet (Apple Pay/Google Pay/Link) for this browser/page -- requires HTTPS and a configured wallet; Apple Pay additionally requires domain registration with Stripe.');
         return;
       }
+      // BUG FIX: unhide BEFORE mount(), not after -- mounting into a
+      // container that's still `hidden` (display:none at that instant)
+      // risked Stripe measuring/initializing the iframe against a 0x0
+      // layout box it never revisits once the container becomes visible a
+      // tick later. Both the main content area's button and the sticky
+      // bar's went through this same ordering, so this affects both, not
+      // just one -- see the flex-basis fix in css/shop.css for the other,
+      // width-specific half of why the main one in particular could end up
+      // rendering at an unusably narrow (not necessarily zero) width even
+      // once mounted.
       mountedButtons.forEach(({ container, el }) => {
-        el.mount(container);
         container.hidden = false;
+        el.mount(container);
       });
     }).catch((err) => {
       console.error('Payment Request Button: canMakePayment() failed:', err && err.message);

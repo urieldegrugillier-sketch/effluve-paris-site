@@ -272,8 +272,19 @@ body.shop-page { background: var(--bg-void); }
    Starts hidden (canMakePayment() is async, and resolves to null -- no
    button at all -- on any device/browser without Apple Pay/Google Pay/Link
    available) so there's no empty gap before that resolves or if it never
-   qualifies; flex:1 on Add to Cart alone fills the row in that case. */
-.shop-payment-request-button { flex: 1 1 auto; height: 50px; }
+   qualifies; flex:1 on Add to Cart alone fills the row in that case.
+
+   BUG FIX: flex-basis was `auto` (this div's own content size -- ~0, it's
+   empty until Stripe mounts an iframe into it), while Add to Cart's own
+   flex-basis is ITS content size (its text, which is real and, especially
+   in French -- "Ajouter au Panier — 100ML" -- fairly wide). Same flex-grow
+   (1) on both but very different flex-basis meant Add to Cart claimed most
+   of the row and left this one an uneven, sometimes near-invisible sliver
+   once mounted, at moderate desktop widths especially. flex-basis:0 (matching
+   .shop-sticky-prb's own already-correct `flex: 1 1 0`, see its own rule
+   below) makes both siblings split available space equally regardless of
+   content, the standard fix for exactly this kind of imbalance. */
+.shop-payment-request-button { flex: 1 1 0; height: 50px; }
 .shop-payment-request-button[hidden] { display: none; }
 
 .shop-refund-note {
