@@ -765,16 +765,14 @@
     // Stripe's own type definitions), not an arbitrary color; 'light' is
     // the solid-white variant.
     //
-    // type: 'default' -- 'plain' was asked for (just the Apple Pay/Google
-    // Pay logo/wordmark, no "Buy with" prefix) but isn't a real value in
-    // Stripe's API; checked their actual type definitions and the full set
-    // is 'default' | 'book' | 'buy' | 'donate' plus several Apple-Pay-only
-    // values ('check-out', 'subscribe', 'reload', 'add-money', 'top-up',
-    // 'order', 'rent', 'support', 'contribute', 'tip') -- no 'plain' among
-    // them. 'default' is the one that actually matches the description: a
-    // generic wallet-branded button with no purchase-verb prefix, unlike
-    // 'buy' ("Buy with Apple Pay").
-    const PR_BUTTON_TYPE = 'default';
+    // type: 'buy' -- shows Stripe's longer text variant ("Buy with Google
+    // Pay" / "Pay with Link" / etc., wording depends on the actual detected
+    // payment method), which also naturally gives the button more width
+    // than the bare-logo 'default' variant used a round ago. Localizes
+    // automatically from the `locale` passed to elements() below -- see
+    // that same call's own reasoning on why each button needs its own
+    // Elements group.
+    const PR_BUTTON_TYPE = 'buy';
     if (mainContainer) {
       const mainElements = window.MonarkStripe.elements({ locale: prLocale() });
       mountedButtons.push({
