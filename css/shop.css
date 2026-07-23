@@ -309,8 +309,15 @@ body.shop-page { background: var(--bg-void); }
 /* height matches #add-to-cart-btn's own real rendered height exactly (see
    the inline script's own matching `height: '52px'` style option passed to
    Stripe at mount time -- this container height and that option need to
-   agree, since Stripe's iframe fills whatever this div gives it). */
-.shop-payment-request-button { flex: 1 1 0; height: 80px; }
+   agree, since Stripe's iframe fills whatever this div gives it, and a
+   mismatch between the two just clips the iframe rather than resizing it).
+   Confirmed live this is already the best available height, not a value
+   short of some better one -- see that same script comment on testing
+   80px: the button box genuinely rendered that tall with no clamping, but
+   the wallet's own logo/wordmark inside it didn't scale up at all, just
+   sat in more empty padding. Fixed logo size is the wallet's own button
+   content, not something this page's CSS reaches into. */
+.shop-payment-request-button { flex: 1 1 0; height: 52px; }
 .shop-payment-request-button[hidden] { display: none; }
 
 .shop-refund-note {

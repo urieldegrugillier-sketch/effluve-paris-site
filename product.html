@@ -779,11 +779,24 @@
     // 50px/44px, close but not exact, which read as the Payment Request
     // Button being visibly shorter/more secondary next to Add to Cart
     // instead of a matched pair at the same height.
+    //
+    // NOT pushed any higher than this -- tested live at height:'80px' (both
+    // this option AND .shop-payment-request-button's own CSS height, which
+    // has to move together or the CSS just clips the taller iframe): Stripe
+    // genuinely rendered the button box at the full 80px, no silent
+    // clamping, but the Link/Google Pay logo+wordmark INSIDE it stayed
+    // exactly the same fixed size -- it didn't scale up at all, just sat in
+    // more empty padding, looking worse than at 52px, not better. That's
+    // the wallet's own button content having a fixed internal size
+    // independent of the height option, not a CSS/config problem on this
+    // page -- 52px/43px (matched to Add to Cart) is already the best
+    // available value, not an arbitrary stopping point short of some
+    // higher number that would help.
     if (mainContainer) {
       const mainElements = window.MonarkStripe.elements({ locale: prLocale() });
       mountedButtons.push({
         container: mainContainer,
-        el: mainElements.create('paymentRequestButton', { paymentRequest, style: { paymentRequestButton: { type: PR_BUTTON_TYPE, theme: 'light', height: '80px' } } })
+        el: mainElements.create('paymentRequestButton', { paymentRequest, style: { paymentRequestButton: { type: PR_BUTTON_TYPE, theme: 'light', height: '52px' } } })
       });
     }
     if (stickyContainer) {
