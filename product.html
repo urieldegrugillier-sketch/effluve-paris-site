@@ -773,18 +773,24 @@
     // that same call's own reasoning on why each button needs its own
     // Elements group.
     const PR_BUTTON_TYPE = 'buy';
+    // height values below match #add-to-cart-btn's/#sticky-add-to-cart-btn's
+    // own real rendered height exactly (confirmed live via
+    // getBoundingClientRect(): 52.1875px main / 43.1875px sticky) -- was
+    // 50px/44px, close but not exact, which read as the Payment Request
+    // Button being visibly shorter/more secondary next to Add to Cart
+    // instead of a matched pair at the same height.
     if (mainContainer) {
       const mainElements = window.MonarkStripe.elements({ locale: prLocale() });
       mountedButtons.push({
         container: mainContainer,
-        el: mainElements.create('paymentRequestButton', { paymentRequest, style: { paymentRequestButton: { type: PR_BUTTON_TYPE, theme: 'light', height: '50px' } } })
+        el: mainElements.create('paymentRequestButton', { paymentRequest, style: { paymentRequestButton: { type: PR_BUTTON_TYPE, theme: 'light', height: '52px' } } })
       });
     }
     if (stickyContainer) {
       const stickyElements = window.MonarkStripe.elements({ locale: prLocale() });
       mountedButtons.push({
         container: stickyContainer,
-        el: stickyElements.create('paymentRequestButton', { paymentRequest, style: { paymentRequestButton: { type: PR_BUTTON_TYPE, theme: 'light', height: '44px' } } })
+        el: stickyElements.create('paymentRequestButton', { paymentRequest, style: { paymentRequestButton: { type: PR_BUTTON_TYPE, theme: 'light', height: '43px' } } })
       });
     }
 

@@ -306,7 +306,11 @@ body.shop-page { background: var(--bg-void); }
    .shop-sticky-prb's own already-correct `flex: 1 1 0`, see its own rule
    below) makes both siblings split available space equally regardless of
    content, the standard fix for exactly this kind of imbalance. */
-.shop-payment-request-button { flex: 1 1 0; height: 50px; }
+/* height matches #add-to-cart-btn's own real rendered height exactly (see
+   the inline script's own matching `height: '52px'` style option passed to
+   Stripe at mount time -- this container height and that option need to
+   agree, since Stripe's iframe fills whatever this div gives it). */
+.shop-payment-request-button { flex: 1 1 0; height: 52px; }
 .shop-payment-request-button[hidden] { display: none; }
 
 .shop-refund-note {
@@ -696,7 +700,10 @@ body.shop-page { background: var(--bg-void); }
      that iframe. Starts hidden (canMakePayment() is async, and resolves to
      null -- no button at all -- on any device/browser without Apple
      Pay/Google Pay/Link available) so there's no empty gap before that
-     resolves or if it never qualifies. */
-  .shop-sticky-prb { flex: 1 1 0; height: 44px; }
+     resolves or if it never qualifies. height matches
+     #sticky-add-to-cart-btn's own real rendered height exactly (see the
+     inline script's own matching `height: '43px'` style option passed to
+     Stripe at mount time). */
+  .shop-sticky-prb { flex: 1 1 0; height: 43px; }
   .shop-sticky-prb[hidden] { display: none; }
 }
