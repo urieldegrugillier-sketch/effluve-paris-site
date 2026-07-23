@@ -32,16 +32,16 @@
   // its own textContent write (see the setInterval below) and would be wiped
   // by a language switch if it were caught in the same swap.
   banner.innerHTML = `
-    <p class="promo-banner-text"><a href="product.html"><span data-i18n="promoBanner.offer">Limited-Time Offer &minus;21% Off</span><br><span class="promo-banner-timer-line"><span data-i18n="promoBanner.endsIn">Ends in </span><span class="promo-banner-timer" id="promo-banner-timer">17:42:39</span></span></a></p>
+    <p class="promo-banner-text"><a href="product.html"><span data-i18n="promoBanner.offer">Limited-Time Offer &minus;21% Off</span><br><span class="promo-banner-timer-line"><span data-i18n="promoBanner.endsIn">Ends in </span><span class="promo-banner-timer" id="promo-banner-timer">03:52:16</span></span></a></p>
     <button type="button" class="promo-banner-close" aria-label="Dismiss" data-i18n-attr="aria-label:promoBanner.dismiss">&times;</button>
   `;
   if (window.MonarkI18n) window.MonarkI18n.apply(banner);
 
   /* Fictitious countdown -- purely psychological urgency, not a real
-     deadline. Always restarts at 17:42:39 on a fresh load (no localStorage
+     deadline. Always restarts at 03:52:16 on a fresh load (no localStorage
      persistence, unlike DISMISS_KEY above); just stops at 00:00:00 rather
      than doing anything to the banner itself once it hits zero. */
-  const COUNTDOWN_START_SECONDS = 17 * 3600 + 42 * 60 + 39;
+  const COUNTDOWN_START_SECONDS = 3 * 3600 + 52 * 60 + 16;
   let remainingSeconds = COUNTDOWN_START_SECONDS;
   const timerEl = banner.querySelector('#promo-banner-timer');
 

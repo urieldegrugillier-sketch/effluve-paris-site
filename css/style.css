@@ -1546,7 +1546,7 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    Copy is the exact phrasing already used on index.html §006's
    .cta-discount-badge, not new copy. Solid-bronze/pure-black-text treatment
    reuses the site's already-established "filled bronze CTA" convention
-   (.shop-buy-now/.cookie-banner-accept/.cart-preview-buy/.email-popup-submit
+   (.cookie-banner-accept/.cart-preview-buy/.email-popup-submit
    all pair var(--accent-bronze) with pure black text for the same WCAG AA
    contrast reason -- see their own comments) instead of inventing a new
    visual pattern. z-index sits just above .site-header's own 100, the same
@@ -1598,7 +1598,7 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      that blending pure-black text toward the bronze background like that
      drops it to ~3.9:1, under WCAG AA's 4.5:1 floor for this size text; full
      opacity keeps it at the same ~4.56:1 already relied on elsewhere for
-     black-on-bronze text (see .shop-buy-now/.cookie-banner-accept's own
+     black-on-bronze text (see .cookie-banner-accept's own
      comments). The smaller font-size alone already reads as secondary next
      to the bold headline/timer above it, so nothing else needs to change. */
 }
@@ -1830,7 +1830,7 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 .email-popup-input:focus { outline: none; border-color: var(--accent-bronze-light); }
 .email-popup-input::placeholder { color: var(--text-muted); }
 
-/* Filled-bronze treatment, matching .shop-buy-now/.cart-preview-buy's
+/* Filled-bronze treatment, matching .cart-preview-buy's
    established "primary purchase-path action" convention -- pure black, not
    --bg-void, for the same WCAG AA contrast reason noted on those rules. */
 .email-popup-submit { margin-top: 0; width: 100%; background: var(--accent-bronze); border-color: var(--accent-bronze); color: #000; }

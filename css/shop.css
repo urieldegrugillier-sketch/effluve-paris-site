@@ -264,13 +264,17 @@ body.shop-page { background: var(--bg-void); }
 
 .shop-cta-row .cta-button { margin-top: 0; text-align: center; flex: 1 1 auto; white-space: nowrap; }
 
-/* Filled-bronze treatment (matches .cart-preview-buy's already-established "this is
-   the fast-track purchase action" convention) to visually rank it above the
-   outlined Add to Cart, which stays the default .cta-button look. Text is pure
-   black, not --bg-void -- var(--bg-void) on this background measures ~4.32:1,
-   just under WCAG AA's 4.5:1 for normal text; true black clears it (~4.56:1)
-   and is visually indistinguishable from --bg-void. */
-.shop-buy-now { background: var(--accent-bronze); border-color: var(--accent-bronze); color: #000; }
+/* Stripe mounts its own iframe button into this div (js/stripe-client.js +
+   the inline Payment Request Button script near the bottom of product.html)
+   -- sized/positioned here, styled internally via the paymentRequestButton
+   style option (theme: 'light') since CSS can't reach into that iframe.
+   Replaces the old standalone "Buy Now" button (.shop-buy-now) entirely.
+   Starts hidden (canMakePayment() is async, and resolves to null -- no
+   button at all -- on any device/browser without Apple Pay/Google Pay/Link
+   available) so there's no empty gap before that resolves or if it never
+   qualifies; flex:1 on Add to Cart alone fills the row in that case. */
+.shop-payment-request-button { flex: 1 1 auto; height: 50px; }
+.shop-payment-request-button[hidden] { display: none; }
 
 .shop-refund-note {
   margin: 0 0 0.9rem;
@@ -575,6 +579,7 @@ body.shop-page { background: var(--bg-void); }
      render even a little wider than tested here. */
   .shop-cta-row { flex-direction: column; }
   .shop-cta-row .cta-button { width: 100%; white-space: normal; }
+  .shop-cta-row .shop-payment-request-button { width: 100%; }
 
   .shop-details-strip { flex-direction: column; }
   .shop-detail-divider {

@@ -100,7 +100,16 @@
     <p class="shop-stock"><span id="stock-count">32</span> / <span id="stock-total">500</span> <span data-i18n="product.bottlesRemaining">bottles remaining</span></p>
     <div class="shop-cta-row">
       <button class="cta-button shop-add-to-cart" type="button" id="add-to-cart-btn" data-i18n="product.addToCart">Add to Cart &mdash; 100ML</button>
-      <button class="cta-button shop-buy-now" type="button" id="buy-now-btn" data-i18n="cartWidget.buyNow">Buy Now</button>
+      <!-- Stripe mounts its own iframe button here (Apple Pay/Google
+           Pay/Link -- see the inline script below's shared Payment Request
+           Button setup, also used by the sticky mobile bar). Replaces the
+           old standalone "Buy Now" button entirely -- same
+           auto-detecting-availability component now sits everywhere that
+           used to be, on every breakpoint, not just mobile. Starts hidden:
+           canMakePayment() is async and resolves to nothing available on
+           plenty of devices/browsers (no gap left in the row if so, Add to
+           Cart's own flex sizing already accounts for that). -->
+      <div id="main-payment-request-button" class="shop-payment-request-button" hidden></div>
     </div>
     <details class="shop-refund-note">
       <summary data-i18n="product.returnPolicy.summary">14-Day Return Policy</summary>
@@ -237,6 +246,7 @@
 <script src="js/cart.js?v=20260722"></script>
 <script src="js/cart-widget.js?v=20260722"></script>
 <script src="js/nav-menu.js?v=20260722"></script>
+<script src="js/account.js?v=20260722"></script>
 <script src="https://js.stripe.com/v3/"></script>
 <script src="js/stripe-client.js?v=20260722"></script>
 <script>
@@ -599,7 +609,6 @@
   }
 
   const addBtn = document.getElementById('add-to-cart-btn');
-  const buyNowBtn = document.getElementById('buy-now-btn');
   if (!addBtn || !window.MonarkCart) return;
 
   // Button label never changes -- clicking repeatedly to add multiple units
@@ -610,13 +619,9 @@
     window.MonarkCart.addToCart(1);
     if (window.MonarkCartWidget) window.MonarkCartWidget.flashPreview();
   });
-
-  if (buyNowBtn) {
-    buyNowBtn.addEventListener('click', () => {
-      window.MonarkCart.addToCart(1);
-      window.location.href = 'checkout.html';
-    });
-  }
+  // "Buy Now" used to live here (add 1, go straight to checkout.html) --
+  // removed entirely, replaced everywhere by the real Payment Request
+  // Button (Apple Pay/Google Pay/Link, see the standalone IIFE below).
 })();
 
 /* ---------------- Sticky buy bar (mobile/tablet only) ----------------
@@ -679,63 +684,228 @@
     cart.addToCart(1);
     if (window.MonarkCartWidget) window.MonarkCartWidget.flashPreview();
   });
+})();
 
-  // ---------------- Stripe Payment Request Button (Apple Pay/Google Pay/Link) ----------------
-  // Skipped entirely above the same 768px breakpoint css/shop.css's own
-  // @media gates this bar's display on -- no point paying for the
-  // canMakePayment() round trip (and its own console warnings about
-  // unregistered domains) on a viewport that can never show this bar anyway.
-  if (window.matchMedia('(max-width: 768px)').matches && window.MonarkStripe) {
-    const prContainer = document.getElementById('sticky-payment-request-button');
-    // Amount only ever feeds canMakePayment()'s eligibility check and
-    // whatever a real payment sheet WOULD display -- see the 'click' handler
-    // below for why no real sheet ever actually opens this round. Falls back
-    // to a single unit's price the same way #buy-now-btn's own "add 1 and
-    // go" behavior does, since the cart is typically still empty at this point.
-    const amount = Math.round((cart.getFinalTotal() || cart.PRODUCT.price) * 100);
-    const paymentRequest = window.MonarkStripe.paymentRequest({
-      country: 'FR',
-      currency: 'eur',
-      total: { label: cart.PRODUCT.name, amount },
-      requestPayerName: false,
-      requestPayerEmail: false
-    });
-    const prElements = window.MonarkStripe.elements();
+/* ---------------- Stripe Payment Request Button (Apple Pay/Google Pay/Link) ----------------
+   One real PaymentRequest, mounted into TWO Elements -- the main content
+   area's own row (next to Add to Cart, every breakpoint, replacing the old
+   standalone "Buy Now" button) and the sticky mobile bar's. Stripe supports
+   creating multiple paymentRequestButton Elements off the same
+   PaymentRequest instance; clicking either one fires the exact same
+   'paymentmethod' handler below, so there's only ever one place this needs
+   to be gotten right. No longer gated behind the 768px breakpoint -- this
+   now needs to run on desktop too, for the main content area's own button. */
+(function () {
+  const cart = window.MonarkCart;
+  const mainContainer = document.getElementById('main-payment-request-button');
+  const stickyContainer = document.getElementById('sticky-payment-request-button');
+  if (!cart || !window.MonarkStripe || !window.MonarkSupabase || (!mainContainer && !stickyContainer)) return;
+
+  function prLocale() {
+    return window.MonarkI18n && window.MonarkI18n.getLang() === 'fr' ? 'fr' : 'en';
+  }
+
+  // Whatever's already in the cart, or 1 unit if it's currently empty (there
+  // has to be something to buy) -- matches "Add to Cart"'s own always-adds-1
+  // behavior for a fresh visitor, without silently padding an extra unit
+  // onto a cart that already has some in it.
+  function currentQuantity() {
+    const items = cart.getCart();
+    return items.length ? items[0].quantity : 1;
+  }
+
+  function currentAmountCents() {
+    const items = cart.getCart();
+    const total = items.length ? cart.getFinalTotal() : cart.PRODUCT.price;
+    return Math.round(total * 100);
+  }
+
+  const paymentRequest = window.MonarkStripe.paymentRequest({
+    country: 'FR',
+    currency: 'eur',
+    total: { label: cart.PRODUCT.name, amount: currentAmountCents() },
+    // Needed to attach this order to an email (see the 'paymentmethod'
+    // handler's own comment on why) -- Apple Pay/Google Pay/Link all supply
+    // this from the payer's own saved wallet info, no extra typing for them.
+    requestPayerName: true,
+    requestPayerEmail: true
+  });
+
+  // BUG FIX: the amount above used to be computed once at page load and
+  // never touched again -- since the cart is normally still empty at that
+  // point, it fell back to a single unit's price and STAYED there
+  // regardless of how many units ended up in the cart by the time the
+  // button was actually clicked (Apple Pay always charged for 1, no matter
+  // the real quantity). Re-synced here on every cart change instead, so the
+  // sheet's own on-screen total never lies about what's about to be
+  // charged. The Edge Function still independently computes and charges the
+  // authoritative server-side amount (see create-checkout-session) -- this
+  // is what keeps the sheet's displayed total matching that.
+  function syncTotal() {
+    paymentRequest.update({ total: { label: cart.PRODUCT.name, amount: currentAmountCents() } });
+  }
+  document.addEventListener('cart:updated', syncTotal);
+
+  const mountedButtons = []; // [{ container, el }] -- rebuilt on every mountButtons() call (see langchange below)
+
+  function mountButtons() {
+    mountedButtons.forEach(({ el }) => el.unmount());
+    mountedButtons.length = 0;
+
+    // BUG FIX: Stripe only allows ONE paymentRequestButton Element per
+    // Elements *group* -- reusing a single stripe.elements(...) instance for
+    // both containers threw "Can only create one Element of type
+    // paymentRequestButton" (confirmed live) and broke the whole script,
+    // including everything after it in this IIFE. Each button needs its own
+    // Elements group; both groups can still share the one `paymentRequest`
+    // object above, so clicking either fires the same 'paymentmethod'
+    // handler below regardless of which group rendered it.
     // theme: 'light' -- Stripe's paymentRequestButton style API only takes
     // 'dark' (default) | 'light' | 'light-outline' (confirmed against
     // Stripe's own type definitions), not an arbitrary color; 'light' is
     // the solid-white variant.
-    const prButton = prElements.create('paymentRequestButton', {
-      paymentRequest,
-      style: { paymentRequestButton: { type: 'buy', theme: 'light', height: '44px' } }
-    });
+    if (mainContainer) {
+      const mainElements = window.MonarkStripe.elements({ locale: prLocale() });
+      mountedButtons.push({
+        container: mainContainer,
+        el: mainElements.create('paymentRequestButton', { paymentRequest, style: { paymentRequestButton: { type: 'buy', theme: 'light', height: '50px' } } })
+      });
+    }
+    if (stickyContainer) {
+      const stickyElements = window.MonarkStripe.elements({ locale: prLocale() });
+      mountedButtons.push({
+        container: stickyContainer,
+        el: stickyElements.create('paymentRequestButton', { paymentRequest, style: { paymentRequestButton: { type: 'buy', theme: 'light', height: '44px' } } })
+      });
+    }
 
     // canMakePayment() resolves null with nothing available (no Apple
     // Pay/Google Pay/Link on this device/browser, or -- true right now,
-    // pre domain-registration -- Apple Pay specifically) -- the container
-    // stays hidden and no gap is left in the bar; Add to Cart alone still
-    // fills it via its own flex:1.
+    // pre domain-registration -- Apple Pay specifically) -- both containers
+    // stay hidden and no gap is left in either row; Add to Cart alone still
+    // fills the space via its own flex sizing.
     paymentRequest.canMakePayment().then((result) => {
       if (!result) return;
-      prButton.mount('#sticky-payment-request-button');
-      prContainer.hidden = false;
-    });
-
-    // NOT a true one-tap express checkout yet -- preventDefault() stops the
-    // native Apple Pay/Google Pay/Link sheet from opening at all; this
-    // instead falls back to the same "add to cart, go to checkout.html"
-    // pattern #buy-now-btn above already uses. A real express checkout would
-    // need to confirm payment right from this sheet (its own PaymentIntent,
-    // shipping-address collection via
-    // paymentRequest.on('shippingaddresschange'), etc.) -- meaningfully more
-    // scope than this round; flagged here as a deliberate, disclosed
-    // shortcut rather than attempted partially.
-    paymentRequest.on('click', (ev) => {
-      ev.preventDefault();
-      cart.addToCart(1);
-      window.location.href = 'checkout.html';
+      mountedButtons.forEach(({ container, el }) => {
+        el.mount(container);
+        container.hidden = false;
+      });
     });
   }
+  mountButtons();
+
+  // Elements' own locale is fixed at creation time -- a language switch
+  // needs a fresh Elements group (and fresh Element instances) to pick up
+  // the new one. Reuses the same paymentRequest object throughout, so this
+  // never re-triggers canMakePayment() or changes what clicking either
+  // button does.
+  document.addEventListener('monark:langchange', mountButtons);
+
+  // ---------------- Real payment confirmation ----------------
+  // 'paymentmethod' fires once the user's already authenticated in the
+  // native sheet (Face ID/Touch ID/etc.) -- a PaymentMethod exists, but
+  // nothing has been charged yet, so bailing out below (missing-info path)
+  // is still completely safe.
+  paymentRequest.on('paymentmethod', async (ev) => {
+    // Empty cart means this click itself represents "buy 1 unit" -- add it
+    // now so quantity/amount below (and the order this becomes) matches
+    // what the sheet just showed the payer.
+    if (!cart.getCart().length) cart.addToCart(1);
+    syncTotal();
+
+    // MISSING INFO -> fall back to the full checkout flow instead of
+    // completing the payment blind. The one thing this button's own flow
+    // needs that checkout.html's normal flow doesn't strictly require up
+    // front is an email to attach the order to (public.orders has no
+    // shipping-address column at all, so that's never actually a blocker
+    // either way) -- a signed-in MonarkAccount session already has one; a
+    // guest wallet payment needs requestPayerEmail's own answer instead.
+    // Completing the native sheet as a no-op success and redirecting is the
+    // safe path here (see this handler's own opening comment on why);
+    // checkout.html's account gate + prefillShippingFromAccount() already
+    // pick up a signed-in session and pre-fill whatever profile data it
+    // has, so nothing new is needed there for that part.
+    //
+    // Only a REAL logged-in account (isGuest: false) takes priority over
+    // what the wallet itself just provided -- a local guest session is just
+    // an email string left in localStorage from possibly unrelated earlier
+    // browsing (e.g. a shared device), weaker evidence of who's actually
+    // paying right now than Apple Pay/Google Pay's own payer info, so it's
+    // only used as a last-resort fallback if the wallet didn't supply one.
+    const rawSession = window.MonarkAccount ? window.MonarkAccount.getSession() : null;
+    const loggedInSession = rawSession && !rawSession.isGuest ? rawSession : null;
+    const payerEmail = (loggedInSession && loggedInSession.email)
+      || ev.payerEmail
+      || (ev.paymentMethod.billing_details && ev.paymentMethod.billing_details.email)
+      || (rawSession && rawSession.email);
+    if (!payerEmail) {
+      ev.complete('success');
+      window.location.href = 'checkout.html';
+      return;
+    }
+
+    try {
+      const items = cart.getCart();
+      const quantity = items[0].quantity;
+      const { data, error } = await window.MonarkSupabase.functions.invoke('create-checkout-session', {
+        body: {
+          quantity,
+          promoCode: cart.getAppliedPromoCode() || undefined
+        }
+      });
+      if (error || !data || !data.clientSecret) {
+        console.error('create-checkout-session failed:', error || data);
+        ev.complete('fail');
+        return;
+      }
+
+      const { error: confirmError, paymentIntent } = await window.MonarkStripe.confirmCardPayment(
+        data.clientSecret,
+        { payment_method: ev.paymentMethod.id },
+        { handleActions: false }
+      );
+      if (confirmError) {
+        console.error('Payment Request Button confirmCardPayment failed:', confirmError.message);
+        ev.complete('fail');
+        return;
+      }
+      // Closes the native sheet -- must happen regardless of status below,
+      // per Stripe's own documented pattern for this event.
+      ev.complete('success');
+
+      let finalIntent = paymentIntent;
+      if (finalIntent.status === 'requires_action') {
+        // 3D Secure or similar -- the native sheet is already closed at this
+        // point (ev.complete() above), so Stripe's own redirect/challenge UI
+        // (if any) takes over from here.
+        const { error: actionError, paymentIntent: confirmedIntent } = await window.MonarkStripe.confirmCardPayment(data.clientSecret);
+        if (actionError || !confirmedIntent) return;
+        finalIntent = confirmedIntent;
+      }
+      if (finalIntent.status !== 'succeeded') return;
+
+      // Payment succeeded -- record the order the same way checkout.html
+      // does. Reuses the real signed-in session if there is one (so the
+      // order lands in that account's own history, not stranded as a
+      // separate guest row); otherwise recorded as a guest_email row under
+      // whatever email the wallet provided.
+      const session = loggedInSession || { email: payerEmail, isGuest: true };
+      const finalTotal = cart.getFinalTotal();
+      const appliedCode = cart.getAppliedPromoCode();
+      await window.MonarkAccount.recordOrder(session, {
+        productName: cart.PRODUCT.name,
+        quantity,
+        total: finalTotal,
+        promoCode: appliedCode || null
+      });
+      cart.clearCart();
+      cart.removePromoCode();
+      window.location.href = 'checkout.html?expressSuccess=1&total=' + encodeURIComponent(finalTotal.toFixed(2));
+    } catch (err) {
+      console.error('Payment Request Button confirm failed:', err);
+      ev.complete('fail');
+    }
+  });
 })();
 </script>
 <script src="js/promo-banner.js?v=20260722"></script>

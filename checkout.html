@@ -334,6 +334,30 @@
   const shippingForm = document.getElementById('checkout-form');
   function t(key, vars) { return window.MonarkI18n ? window.MonarkI18n.t(key, vars) : key; }
 
+  // Landed here right after a successful Payment Request Button purchase on
+  // product.html (Apple Pay/Google Pay/Link) -- payment was already
+  // confirmed and the order already recorded there (see product.html's own
+  // 'paymentmethod' handler); this just shows the same confirmation state a
+  // normal checkout submission ends on, using the total passed via the URL
+  // (the cart that total came from has already been cleared by the time
+  // this page loads, so there's nothing left to derive it from here).
+  // Short-circuits everything below -- the interactive accordion/Stripe
+  // Elements/promo forms have nothing to do on a page that's already done.
+  const expressParams = new URLSearchParams(window.location.search);
+  if (expressParams.get('expressSuccess') === '1') {
+    const expressTotal = parseFloat(expressParams.get('total'));
+    document.getElementById('checkout-form-state').hidden = true;
+    document.getElementById('checkout-confirmation').hidden = false;
+    const titleEl = document.getElementById('checkout-title');
+    titleEl.removeAttribute('data-i18n');
+    titleEl.textContent = t('checkout.thankYou');
+    document.getElementById('checkout-confirmation-total').textContent = t('checkout.confirmationTotal', {
+      total: money(isNaN(expressTotal) ? 0 : expressTotal)
+    });
+    window.scrollTo(0, 0);
+    return;
+  }
+
   /* ---------------- Accordion state machine ----------------
      Three sections (account/shipping/payment), only one ever "active"
      (expanded) at a time. A section that's been successfully validated once
