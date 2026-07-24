@@ -1,0 +1,11 @@
+// Cloudflare Workers (Static Assets) deployment config -- migrated from
+// Netlify. "name" matches package.json's own "name" and this repo's name
+// (monark-site), so it was left as-is rather than adjusted for a conflict;
+// none was found.
+{
+  "name": "monark-site",
+  "compatibility_date": "2026-07-24",
+  "assets": {
+    "directory": "./dist"
+  }
+}
