@@ -705,6 +705,8 @@
     return window.MonarkI18n && window.MonarkI18n.getLang() === 'fr' ? 'fr' : 'en';
   }
 
+  function t(key, vars) { return window.MonarkI18n ? window.MonarkI18n.t(key, vars) : key; }
+
   // Whatever's already in the cart, or 1 unit if it's currently empty (there
   // has to be something to buy) -- matches "Add to Cart"'s own always-adds-1
   // behavior for a fresh visitor, without silently padding an extra unit
@@ -745,6 +747,64 @@
     paymentRequest.update({ total: { label: cart.PRODUCT.name, amount: currentAmountCents() } });
   }
   document.addEventListener('cart:updated', syncTotal);
+
+  // ---------------- Keyboard-accessible fallback button ----------------
+  // CONFIRMED (prior round's investigation): once Tab moves focus into
+  // Stripe's paymentRequestButton iframe, it's a genuine dead end for
+  // keyboard users -- the iframe is cross-origin, so no code on this page
+  // can see or intercept any key event once focus is inside it (Tab
+  // forward included; instrumented directly: our own document-level
+  // keydown listener stops receiving events the moment focus crosses in).
+  // That's an upstream Stripe.js limitation (see the open GitHub issues
+  // this codebase's own history cites), not something fixable by changing
+  // how the iframe itself is built or styled.
+  //
+  // Excluding the iframe from the Tab sequence entirely (tabIndex = -1,
+  // set on each freshly-mounted iframe inside mountButtons() below) avoids
+  // the dead end, but by itself would make this whole payment option
+  // unreachable by keyboard -- trading a stuck focus for a silently
+  // skipped feature, not an actual fix. This real, native <button> takes
+  // the iframe's place in the Tab sequence instead: invisible and inert
+  // for mouse/touch users (who still see and use Stripe's own rendered
+  // button underneath, completely unchanged -- see
+  // .shop-payment-request-fallback's default opacity:0/pointer-events:none
+  // in css/shop.css, the same "off-screen until focused" convention
+  // css/style.css's .skip-link already established on this site), and only
+  // becomes visible -- with its own labeled border -- once real keyboard
+  // focus actually reaches it. Activating it (Enter/Space, native <button>
+  // semantics, no extra key handling needed here) calls
+  // paymentRequest.show() directly: Stripe's own documented way to trigger
+  // the exact same native Apple Pay/Google Pay/Link sheet from a custom
+  // button instead of its own Element -- full functional parity, not a
+  // dead-end substitute.
+  function createFallbackButton() {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'shop-payment-request-fallback';
+    btn.textContent = t('product.paymentRequestFallback');
+    btn.addEventListener('click', () => paymentRequest.show());
+    return btn;
+  }
+  // Created once, outside mountButtons() -- that function unmounts/remounts
+  // Stripe's OWN iframe on every language switch (see its own comment), but
+  // Element.unmount() only ever removes the node Stripe itself created, not
+  // sibling nodes appended by this page -- so this button is safe to create
+  // a single time and just have its label text re-synced on langchange,
+  // rather than torn down and recreated on every remount along with it.
+  const fallbackButtons = [];
+  if (mainContainer) {
+    const btn = createFallbackButton();
+    mainContainer.appendChild(btn);
+    fallbackButtons.push(btn);
+  }
+  if (stickyContainer) {
+    const btn = createFallbackButton();
+    stickyContainer.appendChild(btn);
+    fallbackButtons.push(btn);
+  }
+  document.addEventListener('monark:langchange', () => {
+    fallbackButtons.forEach((btn) => { btn.textContent = t('product.paymentRequestFallback'); });
+  });
 
   const mountedButtons = []; // [{ container, el }] -- rebuilt on every mountButtons() call (see langchange below)
 
@@ -838,6 +898,13 @@
       mountedButtons.forEach(({ container, el }) => {
         container.hidden = false;
         el.mount(container);
+        // Removed from the Tab sequence -- see createFallbackButton()'s own
+        // comment above for the full reasoning and what stands in for it.
+        // tabIndex (not the attribute) so this always sets the IDL
+        // property regardless of whether the iframe already carries some
+        // other tabindex value from Stripe itself.
+        const iframe = container.querySelector('iframe');
+        if (iframe) iframe.tabIndex = -1;
       });
     }).catch((err) => {
       console.error('Payment Request Button: canMakePayment() failed:', err && err.message);

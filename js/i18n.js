@@ -174,6 +174,13 @@
         // page's two Add to Cart buttons can read differently without one
         // affecting the other.
         stickyAddToCart: 'Add to Cart',
+        // Keyboard-only fallback for the Payment Request Button (Apple
+        // Pay/Google Pay/Link) -- invisible to mouse/touch users, who see
+        // and use Stripe's own rendered button instead; only ever shown to
+        // a keyboard user once Tab focus actually reaches it, so the label
+        // needs to stand alone (no visual wallet logo next to it) rather
+        // than mirror Stripe's own wordmark-only button text.
+        paymentRequestFallback: 'Pay with Apple Pay, Google Pay, or Link',
         returnPolicy: {
           summary: '14-Day Return Policy',
           body: 'You may return your sealed, unopened MONARK bottle within 14 days of delivery for a full refund, no questions asked. Once the security seal is broken, the bottle can no longer be returned for hygiene reasons, per EU consumer protection law. Read the full terms in our <a href="cgv.html">Terms &amp; Conditions of Sale</a>.'
@@ -293,7 +300,7 @@
         searchLabel: 'Search countries',
         searchPlaceholder: 'Search countries',
         noResults: 'No countries found',
-        errorInvalidFR: 'Please enter a valid French phone number (9 digits, e.g. 6 12 34 56 78).',
+        errorInvalidFR: 'Please enter a valid French phone number (e.g. 6 12 34 56 78).',
         errorInvalidGeneric: 'Please enter a valid phone number.'
       },
       account: {
@@ -627,6 +634,7 @@
         bottlesRemaining: 'flacons restants',
         addToCart: 'Ajouter au Panier — 100ML',
         stickyAddToCart: 'Ajouter au Panier',
+        paymentRequestFallback: 'Payer avec Apple Pay, Google Pay ou Link',
         returnPolicy: {
           summary: 'Retours sous 14 Jours',
           body: "Vous pouvez retourner votre flacon MONARK scellé et non ouvert dans les 14 jours suivant la livraison pour un remboursement intégral, sans questions. Une fois le sceau de sécurité brisé, le flacon ne peut plus être retourné pour des raisons d'hygiène, conformément au droit européen de la consommation. Consultez les conditions complètes dans nos <a href=\"cgv.html\">Conditions Générales de Vente</a>."
@@ -746,7 +754,7 @@
         searchLabel: 'Rechercher un pays',
         searchPlaceholder: 'Rechercher un pays',
         noResults: 'Aucun pays trouvé',
-        errorInvalidFR: 'Veuillez saisir un numéro de téléphone français valide (9 chiffres, ex. 6 12 34 56 78).',
+        errorInvalidFR: 'Veuillez saisir un numéro de téléphone français valide (ex. 6 12 34 56 78).',
         errorInvalidGeneric: 'Veuillez saisir un numéro de téléphone valide.'
       },
       account: {
