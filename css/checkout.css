@@ -454,7 +454,13 @@
    neutral tone as .checkout-account-intro above it. */
 #checkout-account-email-exists-note { color: var(--text-muted); }
 
-.checkout-account-options { display: flex; align-items: center; gap: 1.6rem; margin-top: 0.4rem; }
+/* Create Account + Continue as Guest split the row exactly in half (each
+   flex:1 1 0 from a zero basis, so both end up equal regardless of their own
+   text length) rather than sizing to their own content -- together with
+   .checkout-account-btn-sm's text-align:center below, this centers each
+   button's own label within its half instead of the old left-aligned,
+   content-sized pair. */
+.checkout-account-options { display: flex; align-items: center; gap: 1.2rem; margin-top: 0.4rem; }
 /* Same fix as .checkout-account-status[hidden] above, now needed here too --
    this wrapper (and the guest/create-toggle buttons inside it) are hidden
    for the first time by applyAuthOptionsVisibility() in js/account.js
@@ -470,6 +476,30 @@
 
 .checkout-account-create-form { margin-top: 1.6rem; }
 
+/* account.html only (see mountAccountGate()'s hideGuestOption in
+   js/account.js, which adds this class to the gate container at mount) --
+   there the create-account fields can appear immediately, with no
+   click-to-reveal toggle first, so its submit button reads better centered
+   under the form rather than left-aligned like checkout.html's (reached by
+   clicking "Create an account instead", still left as before). */
+.account-gate-center-create #checkout-account-create-submit-btn {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Right-aligned the same way "Modify Email" is (.checkout-account-email-echo
+   above) -- was sitting inline right after the Log In button by default
+   (both plain inline-block elements), unrelated to Log In visually despite
+   sharing a line with it. display:block + margin-left:auto pushes this
+   content-sized element to the row's right edge on its own line instead. */
+#checkout-account-forgot-password-btn {
+  display: block;
+  width: fit-content;
+  margin-left: auto;
+  margin-top: 0.8rem;
+}
+
 /* Secondary-weight sizing for the account step's non-primary actions (Log In,
    Continue as Guest, Create Account & Continue) -- none of these is the
    page's main CTA (that's "Place Order"), so they shouldn't carry the same
@@ -477,7 +507,19 @@
    as .promo-apply-btn, the page's other already-established "medium weight"
    button. */
 .checkout-account-btn-sm { margin-top: 1rem; padding: 0.6rem 1.4rem; font-size: 0.68rem; }
-.checkout-account-options .checkout-account-btn-sm { margin-top: 0; }
+.checkout-account-options .checkout-account-btn-sm { flex: 1 1 0; margin-top: 0; text-align: center; }
+
+/* Muted/secondary variant of .cta-button -- Continue as Guest (see
+   accountGateMarkup()'s swapped order in js/account.js, Create Account now
+   comes first) reads as the less-emphasized of the two choices: same
+   box/padding as its sibling .cta-button.checkout-account-btn-sm, just gray
+   instead of bronze, including on hover/active so it never flashes bronze
+   like the actually-primary action does. */
+.checkout-account-btn-secondary { border-color: var(--line); color: var(--text-muted); }
+@media (hover: hover) and (pointer: fine) {
+  .checkout-account-btn-secondary:hover { background: transparent; border-color: var(--text-muted); color: var(--text-on-dark); }
+}
+.checkout-account-btn-secondary:active { background: var(--text-muted); color: var(--bg-void); }
 
 /* Same treatment as .checkout-back-link (small mono uppercase, underlined,
    muted -> bronze on hover) but reset for use on a <button> instead of an

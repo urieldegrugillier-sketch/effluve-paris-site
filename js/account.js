@@ -497,8 +497,8 @@
         </form>
 
         <div class="checkout-account-options" id="checkout-account-options">
-          <button type="button" class="cta-button checkout-account-btn-sm" id="checkout-account-guest-btn" data-i18n="accountGate.continueAsGuest">Continue as Guest</button>
-          <button type="button" class="checkout-account-link-btn" id="checkout-account-create-toggle" data-i18n="accountGate.createAccountInstead">Create an account instead</button>
+          <button type="button" class="cta-button checkout-account-btn-sm" id="checkout-account-create-toggle" data-i18n="accountGate.createAccountInstead">Create an account instead</button>
+          <button type="button" class="cta-button checkout-account-btn-sm checkout-account-btn-secondary" id="checkout-account-guest-btn" data-i18n="accountGate.continueAsGuest">Continue as Guest</button>
         </div>
 
         <form id="checkout-account-create-form" class="checkout-account-create-form" novalidate hidden>
@@ -529,7 +529,7 @@
             <span data-i18n-html="accountGate.marketingLabel">I'd like to receive product updates, promotions, and the MONARK newsletter by email. You can change this anytime from your Account page &mdash; see our <a href="confidentialite.html" target="_blank" rel="noopener">Privacy Policy</a> for details.</span>
           </label>
           <p class="promo-message promo-message-error" id="checkout-account-create-error" aria-live="polite" hidden></p>
-          <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="accountGate.createAccountAndContinue">Create Account &amp; Continue</button>
+          <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-create-submit-btn" data-i18n="accountGate.createAccountAndContinue">Create Account &amp; Continue</button>
         </form>
         <p class="promo-message promo-message-success" id="checkout-account-confirm-pending" aria-live="polite" hidden></p>
       </div>
@@ -585,11 +585,18 @@
     };
     // account.html passes this true -- that page is only for logging into or
     // creating a real account, so "Continue as Guest" never makes sense
-    // there regardless of what the email-existence check below finds.
+    // there regardless of what the email-existence check below finds. Also
+    // gates a couple of related account.html-only UI differences below (the
+    // create-account form auto-expanding instead of needing a click, and its
+    // submit button being centered) -- all stem from the same "this page
+    // only ever has one thing left to do once Log In/Guest are ruled out"
+    // reasoning, so one flag covers all of them rather than adding a new
+    // option per behavior.
     const hideGuestOption = !!options.hideGuestOption;
 
     container.innerHTML = accountGateMarkup();
     if (global.MonarkI18n) global.MonarkI18n.apply(container);
+    if (hideGuestOption) container.classList.add('account-gate-center-create');
 
     const statusEl = container.querySelector('#checkout-account-status');
     const statusText = container.querySelector('#checkout-account-status-text');
@@ -678,25 +685,30 @@
     // email typed.
     let emailAlreadyExists = false;
 
-    // BUG FIX: loginForm used to be unconditionally visible here -- correct
-    // for checkout.html (an email that doesn't exist yet keeps Log In visible
-    // alongside Guest/Create, "unchanged" from before this feature), but
-    // wrong for account.html: with hideGuestOption on, an email that doesn't
-    // exist left Log In as the only prominent (.cta-button-styled) action
-    // with "Create an account instead" demoted to a small text link --
-    // reported live as "'Se connecter' shows as the primary action" for a
-    // genuinely new email. account.html's own spec was "if the email doesn't
-    // exist, only show Create Account (no guest choice)" -- "only" meaning
-    // Log In too, not just Guest. So: an existing email always offers Log In
-    // (both pages, unchanged); a new email hides Log In too, but only on the
-    // hideGuestOption page -- checkout.html's new-email case is untouched.
+    // BUG FIX: loginForm (Log In + Forgot password, both live inside it) used
+    // to stay visible whenever the email didn't exist, on BOTH pages -- only
+    // right for the exists=true case (there, Log In is genuinely the one
+    // correct action, on either page). A new email should never offer Log
+    // In: checkout.html's own live testing showed "Se connecter"/"Mot de
+    // passe oublie ?" still rendering for a never-used email, when only
+    // Guest/Create Account should. So loginForm now hides for ANY new email,
+    // not just on the hideGuestOption (account.html) page.
+    //
+    // account.html goes one step further: once Log In AND Guest are both
+    // ruled out (hideGuestOption), Create Account is the only thing left --
+    // no reason to make the user click "Create an account instead" first, so
+    // createToggle is skipped there and the create-account fields themselves
+    // are shown immediately (see the createForm.hidden line below).
+    // checkout.html's new-email case is otherwise untouched: Guest + the
+    // Create Account toggle both still show, same as before.
     function applyAuthOptionsVisibility() {
       emailExistsNote.hidden = !emailAlreadyExists;
       if (emailAlreadyExists) emailExistsNote.textContent = t('accountGate.emailExistsNote');
-      loginForm.hidden = !emailAlreadyExists && hideGuestOption;
+      loginForm.hidden = !emailAlreadyExists;
       guestBtn.hidden = emailAlreadyExists || hideGuestOption;
-      createToggle.hidden = emailAlreadyExists;
+      createToggle.hidden = emailAlreadyExists || hideGuestOption;
       optionsWrap.hidden = guestBtn.hidden && createToggle.hidden;
+      if (hideGuestOption && !emailAlreadyExists) createForm.hidden = false;
     }
 
     // Hides every sub-step of the gate, then reveals only the one asked for
@@ -803,16 +815,19 @@
       confirmPending.hidden = true;
       applyAuthOptionsVisibility();
       showStep('auth');
-      // loginForm can now be the hidden branch itself (see
+      // loginForm/createToggle can now both be the hidden branch (see
       // applyAuthOptionsVisibility() above) -- focusing a field inside a
-      // hidden form is a silent no-op, so fall back to the next focusable
-      // control actually on screen (createToggle, since guestBtn is only
-      // ever shown together with a visible loginForm -- see the same
-      // function's hideGuestOption logic).
+      // hidden element is a silent no-op, so fall through to whichever
+      // control is actually on screen: the login password field, else the
+      // create-account toggle (checkout.html, new email), else -- when
+      // account.html skipped straight to the create-account fields -- the
+      // first of those fields.
       if (!loginForm.hidden) {
         loginPasswordInput.focus();
       } else if (!createToggle.hidden) {
         createToggle.focus();
+      } else if (!createForm.hidden) {
+        createFirstNameInput.focus();
       }
     });
 
