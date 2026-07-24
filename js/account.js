@@ -889,7 +889,14 @@
         confirmPending.hidden = false;
         return;
       }
-      createdNote.textContent = t('accountGate.confirmationEmailSent', { email: newAccountEmail });
+      // BUG FIX: this used to say "a confirmation email has been sent to
+      // {email}" unconditionally -- leftover copy from the old localStorage
+      // mock, which never actually emailed anyone. Reaching this branch (not
+      // the needsEmailConfirmation one above) means Supabase already handed
+      // back a real session, i.e. no confirmation step exists for this
+      // signup (email confirmation is off, no SMTP configured) -- claiming
+      // an email was sent here was simply false.
+      createdNote.textContent = t('accountGate.accountCreated');
       createdNote.hidden = false;
       resolveSession();
     });
