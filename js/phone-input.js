@@ -18,7 +18,8 @@
    for ~200 country names in js/i18n.js. Flag icons are rendered from Unicode
    regional-indicator symbols (computed from the ISO code, not image assets)
    -- zero-dependency, and consistent with this codebase's "no large UI
-   framework, no new asset pipeline" convention. */
+   framework, no new asset pipeline" convention -- see flagHtml() below for
+   why that changed to small flag images instead. */
 (function (global) {
   // [ISO 3166-1 alpha-2, E.164 country calling code (no leading '+')].
   // Deliberately NOT globally unique on the dial-code column (e.g. every
@@ -73,8 +74,23 @@
   const DEFAULT_COUNTRY = 'FR';
   let uid = 0;
 
-  function flagEmoji(iso2) {
-    return String.fromCodePoint(...iso2.toUpperCase().split('').map((c) => 127397 + c.charCodeAt(0)));
+  // CONFIRMED LIVE ISSUE: Unicode regional-indicator flag emoji (the
+  // previous approach here) render as real flags on macOS/iOS/Android, but
+  // as plain two-letter text ("FR", "GB"...) on a real, current Chrome/
+  // Windows install with no color-flag font -- verified directly via
+  // screenshot during this feature's own testing, not a hypothetical. Since
+  // this is exactly the platform this site is most likely to be tested/used
+  // on, emoji alone isn't reliable enough for "real flags, not text codes".
+  // flagcdn.com serves tiny (~1-5KB), no-API-key, well-established SVG flag
+  // icons for every ISO code -- a couple of small <img> requests per visible
+  // flag, not a bundled asset pipeline, and the same "load a small external
+  // resource" pattern this site already uses for Google Fonts. Falls back to
+  // the bare ISO code (via the sibling .phone-country-*-flag-fallback span,
+  // hidden unless the image itself fails to load) if that request ever
+  // fails, so a network hiccup degrades to text instead of a broken-image icon.
+  function flagHtml(iso2, cls) {
+    const code = iso2.toLowerCase();
+    return `<img class="${cls}" src="https://flagcdn.com/${code}.svg" alt="" width="18" height="13" loading="lazy" onerror="this.hidden=true; this.nextElementSibling.hidden=false;"><span class="${cls}-fallback" hidden>${iso2}</span>`;
   }
 
   // Intl.DisplayNames is supported in every evergreen browser this site
@@ -149,7 +165,7 @@
     }
 
     function renderTrigger() {
-      triggerFlag.textContent = flagEmoji(selectedIso);
+      triggerFlag.innerHTML = flagHtml(selectedIso, 'phone-country-flag-img');
       triggerDial.textContent = '+' + (COUNTRIES.find(([iso]) => iso === selectedIso) || [null, ''])[1];
       trigger.setAttribute('aria-label', t('phoneInput.countrySelectorLabel') + ': ' + countryName(selectedIso, lang()));
     }
@@ -158,7 +174,7 @@
       const l = lang();
       list.innerHTML = filtered.map(([iso, dial], i) => `
         <li role="option" id="${idBase}-opt-${i}" data-iso="${iso}" aria-selected="${iso === selectedIso}">
-          <span class="phone-country-opt-flag" aria-hidden="true">${flagEmoji(iso)}</span>
+          <span class="phone-country-opt-flag" aria-hidden="true">${flagHtml(iso, 'phone-country-opt-flag-img')}</span>
           <span class="phone-country-opt-name">${countryName(iso, l)}</span>
           <span class="phone-country-opt-dial">+${dial}</span>
         </li>
@@ -289,6 +305,9 @@
     numberInput.addEventListener('blur', () => {
       numberInput.value = normalizeNumber(numberInput.value);
     });
+    numberInput.addEventListener('input', () => {
+      if (options.onChange) options.onChange(getValue());
+    });
 
     document.addEventListener('monark:langchange', () => {
       renderTrigger();
@@ -316,10 +335,26 @@
       renderTrigger();
     }
 
+    // Field is optional everywhere it's used (account creation, checkout
+    // Shipping) -- an empty number is always valid, this only judges a
+    // number the user actually entered. France gets the precise standard
+    // format check the task asked for (normalizeNumber() already strips a
+    // single leading 0, so "9 digits" and "10 digits starting with 0" both
+    // collapse to the same "9 digits after normalization" test here -- see
+    // that function's own comment). Every other country gets a lenient
+    // sanity range instead of hand-built per-country rules, which don't
+    // generalize across ~200 countries' real numbering plans.
+    function isValid() {
+      const v = getValue();
+      if (!v.number) return true;
+      if (v.country === 'FR') return v.number.length === 9;
+      return v.number.length >= 4 && v.number.length <= 14;
+    }
+
     renderTrigger();
     if (options.number || options.country) setValue({ number: options.number, country: options.country });
 
-    return { getValue, setValue, focus: () => numberInput.focus() };
+    return { getValue, setValue, isValid, focus: () => numberInput.focus() };
   }
 
   global.MonarkPhoneInput = { mount };

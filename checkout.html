@@ -207,6 +207,7 @@
                   <label class="checkout-field">
                     <span data-i18n="checkout.phone">Phone Number (optional)</span>
                     <div id="checkout-shipping-phone"></div>
+                    <p class="promo-message promo-message-error" id="checkout-error-phone" aria-live="polite" hidden></p>
                   </label>
                   <button type="button" class="cta-button checkout-accordion-next-btn" id="checkout-shipping-next-btn" data-i18n="checkout.nextStep" disabled>Next Step</button>
                 </div>
@@ -446,8 +447,14 @@
   // duplicated" component as the account gate's own create-account phone
   // field (see js/phone-input.js) -- defaults to France/+33 for a fresh,
   // empty field, same as that one.
+  const shippingPhoneError = document.getElementById('checkout-error-phone');
+  // onChange live-clears a shown error as the user edits -- same convention
+  // shippingFields' own `input` listeners already use below for every other
+  // field on this form (see updateShippingNextBtnState()'s own comment).
   const shippingPhoneWidget = window.MonarkPhoneInput
-    ? window.MonarkPhoneInput.mount(document.getElementById('checkout-shipping-phone'), {})
+    ? window.MonarkPhoneInput.mount(document.getElementById('checkout-shipping-phone'), {
+      onChange: () => { shippingPhoneError.hidden = true; }
+    })
     : null;
 
   // Pre-fills First/Last Name + Address/Address Line 2/City/Postal Code/Phone
@@ -589,6 +596,22 @@
         error.hidden = true;
       }
     });
+    // Phone isn't in shippingFields above (it's optional -- an empty field
+    // is fine, see js/phone-input.js's own isValid()) -- only checked for
+    // FORMAT when the user actually entered something, and only takes over
+    // firstInvalid if every required field already passed, so a phone
+    // format error never hides a still-missing required field behind it.
+    if (shippingPhoneWidget && !shippingPhoneWidget.isValid()) {
+      const phoneCountry = shippingPhoneWidget.getValue().country;
+      shippingPhoneError.textContent = t(phoneCountry === 'FR' ? 'phoneInput.errorInvalidFR' : 'phoneInput.errorInvalidGeneric');
+      shippingPhoneError.hidden = false;
+      if (!firstInvalid) firstInvalid = shippingPhoneWidget;
+    } else {
+      shippingPhoneError.hidden = true;
+    }
+    // Works for both cases firstInvalid can hold: a plain <input> (from
+    // shippingFields above) and js/phone-input.js's own returned widget
+    // object (from the phone check above) -- both expose a .focus() method.
     if (firstInvalid) firstInvalid.focus();
     updateShippingNextBtnState();
     return !firstInvalid;

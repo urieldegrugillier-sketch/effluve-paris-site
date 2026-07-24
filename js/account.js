@@ -498,7 +498,7 @@
           </label>
           <label class="account-toggle-row checkout-account-marketing-row">
             <input type="checkbox" id="checkout-account-create-marketing" checked>
-            <span data-i18n="accountGate.marketingLabel">I'd like to receive marketing emails and offers</span>
+            <span data-i18n-html="accountGate.marketingLabel">I'd like to receive product updates, promotions, and the MONARK newsletter by email. You can change this anytime from your Account page &mdash; see our <a href="confidentialite.html" target="_blank" rel="noopener">Privacy Policy</a> for details.</span>
           </label>
           <p class="promo-message promo-message-error" id="checkout-account-create-error" aria-live="polite" hidden></p>
           <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="accountGate.createAccountAndContinue">Create Account &amp; Continue</button>
@@ -592,7 +592,12 @@
 
     // Optional at account creation (no `required`) -- asking for a phone
     // number is friction a first-time signup shouldn't need to clear just to
-    // get an account; it can always be added later via Edit Profile.
+    // get an account; it can always be added later via Edit Profile. No
+    // onChange wired here -- same as every other create-form field, an error
+    // shown by the submit handler below stays until the next submit attempt
+    // re-validates, rather than live-clearing on input (this form has no
+    // such listener on ANY of its fields, so adding one just for phone would
+    // be a one-off inconsistency, not a fix).
     const createPhoneWidget = global.MonarkPhoneInput
       ? global.MonarkPhoneInput.mount(container.querySelector('#checkout-account-create-phone'), {})
       : null;
@@ -775,9 +780,13 @@
         showFieldError(createError, 'accountGate.errorPasswordMismatch');
         return;
       }
+      const phoneValue = createPhoneWidget ? createPhoneWidget.getValue() : null;
+      if (createPhoneWidget && !createPhoneWidget.isValid()) {
+        showFieldError(createError, phoneValue.country === 'FR' ? 'phoneInput.errorInvalidFR' : 'phoneInput.errorInvalidGeneric');
+        return;
+      }
       createError.hidden = true;
       const newAccountEmail = authEmailEcho.textContent;
-      const phoneValue = createPhoneWidget ? createPhoneWidget.getValue() : null;
       const result = await createAccount(newAccountEmail, createPasswordInput.value, {
         firstName: createFirstNameInput.value.trim(),
         lastName: createLastNameInput.value.trim(),

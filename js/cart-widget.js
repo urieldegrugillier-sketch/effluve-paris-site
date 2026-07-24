@@ -177,6 +177,17 @@
     if (e.key !== 'Tab') return;
     const focusable = getFocusablePreviewElements();
     if (!focusable.length) return;
+    // Empty-cart state: the close button is the ONLY focusable element (no
+    // qty/remove/checkout controls to cycle through -- see render()'s own
+    // early return for that state) -- trapping Tab here just forces an
+    // explicit Enter/Space on that one button to leave, friction this
+    // content-free state doesn't need. Let Tab move through/past it like a
+    // normal, non-modal element instead; the existing focusout listener
+    // above already schedules the preview closed once focus genuinely
+    // leaves it, so nothing further is needed here for that. Cart WITH
+    // items always has more than one focusable control (qty -/+, trash,
+    // Add Another, Buy Now), so this never touches that path.
+    if (focusable.length === 1 && !cart.getCart().length) return;
     e.preventDefault();
     const currentIndex = focusable.indexOf(document.activeElement);
     let nextIndex;

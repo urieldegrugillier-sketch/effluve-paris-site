@@ -285,14 +285,16 @@
         newPasswordLabel: 'New Password',
         setNewPasswordBtn: 'Set Password',
         phoneLabel: 'Phone Number (optional)',
-        marketingLabel: "I'd like to receive marketing emails and offers"
+        marketingLabel: 'I\'d like to receive product updates, promotions, and the MONARK newsletter by email. You can change this anytime from your Account page &mdash; see our <a href="confidentialite.html" target="_blank" rel="noopener">Privacy Policy</a> for details.'
       },
       phoneInput: {
         countrySelectorLabel: 'Country code',
         numberLabel: 'Phone number',
         searchLabel: 'Search countries',
         searchPlaceholder: 'Search countries',
-        noResults: 'No countries found'
+        noResults: 'No countries found',
+        errorInvalidFR: 'Please enter a valid French phone number (9 digits, e.g. 6 12 34 56 78).',
+        errorInvalidGeneric: 'Please enter a valid phone number.'
       },
       account: {
         pageTitle: 'My Account',
@@ -736,14 +738,16 @@
         newPasswordLabel: 'Nouveau Mot de Passe',
         setNewPasswordBtn: 'Définir le Mot de Passe',
         phoneLabel: 'Numéro de Téléphone (facultatif)',
-        marketingLabel: 'Je souhaite recevoir les e-mails marketing et les offres'
+        marketingLabel: 'Je souhaite recevoir par e-mail les actualités produits, les promotions et la newsletter MONARK. Vous pouvez modifier ce choix à tout moment depuis votre page Compte &mdash; consultez notre <a href="confidentialite.html" target="_blank" rel="noopener">Politique de Confidentialité</a> pour en savoir plus.'
       },
       phoneInput: {
         countrySelectorLabel: 'Indicatif du pays',
         numberLabel: 'Numéro de téléphone',
         searchLabel: 'Rechercher un pays',
         searchPlaceholder: 'Rechercher un pays',
-        noResults: 'Aucun pays trouvé'
+        noResults: 'Aucun pays trouvé',
+        errorInvalidFR: 'Veuillez saisir un numéro de téléphone français valide (9 chiffres, ex. 6 12 34 56 78).',
+        errorInvalidGeneric: 'Veuillez saisir un numéro de téléphone valide.'
       },
       account: {
         pageTitle: 'Mon Compte',
