@@ -511,7 +511,6 @@
           </label>
           <p class="promo-message promo-message-error" id="checkout-account-login-error" aria-live="polite" hidden></p>
           <span class="checkout-account-login-actions">
-            <span class="checkout-account-login-spacer" aria-hidden="true"></span>
             <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-login-submit-btn" data-i18n="accountGate.logInBtn">Log In</button>
             <button type="button" class="checkout-account-link-btn" id="checkout-account-forgot-password-btn" data-i18n="accountGate.forgotPassword">Forgot password?</button>
           </span>
