@@ -327,15 +327,30 @@ body.shop-page { background: var(--bg-void); }
    See product.html's own createFallbackButton() comment for the full
    reasoning (Stripe's iframe is a confirmed keyboard dead end, excluded
    from Tab via tabIndex=-1, this real <button> takes its place in the
-   sequence instead). Same "off-screen until focused" convention as
-   css/style.css's own .skip-link: invisible AND non-interactive
-   (pointer-events:none) for mouse/touch by default, so Stripe's own
-   rendered button underneath is what those users see and click, completely
-   unchanged -- this only ever becomes visible for a keyboard user once
-   focus actually lands on it. */
+   sequence instead).
+
+   BUG FIX / REGRESSION: this used to stay positioned exactly on top of the
+   Stripe-rendered button at all times (inset:0), relying only on
+   opacity:0 + pointer-events:none to keep it invisible/inert for mouse and
+   touch. That turned out to silently break the real Google Pay button on
+   mobile -- confirmed live at real mobile widths: no console error, no
+   layout issue, it just never rendered. Google Pay's own anti-clickjacking
+   check flags ANY element geometrically overlapping its button regardless
+   of that element's opacity or pointer-events -- neither changes the
+   underlying DOM geometry the check inspects, only how a human or the
+   event system perceives it. left:-9999px (not just opacity:0) is the
+   actual fix: genuinely off-screen, not just invisible, so there is zero
+   geometric overlap for that check to ever flag -- same "off-screen until
+   focused" TECHNIQUE css/style.css's own .skip-link already uses (that one
+   moves via `top`, this one via `left`, same idea), not just the same
+   verbal description of one. Only moves into place -- becoming the one
+   on-screen, on-top element -- for the brief window an actual keyboard
+   user has it focused, when nothing needs to click through to Stripe's
+   button underneath anyway. */
 .shop-payment-request-fallback {
   position: absolute;
-  inset: 0;
+  left: -9999px;
+  top: 0;
   z-index: 2;
   width: 100%;
   height: 100%;
@@ -365,6 +380,7 @@ body.shop-page { background: var(--bg-void); }
   transition: opacity 0.15s ease;
 }
 .shop-payment-request-fallback:focus {
+  left: 0;
   opacity: 1;
   pointer-events: auto;
   outline: 2px solid var(--accent-bronze-light);
