@@ -263,6 +263,7 @@
       accountGate: {
         modify: 'Modify',
         modifyEmail: 'Modify Email',
+        cancelEdit: 'Cancel',
         emailExistsNote: 'This email is already linked to an account. Please log in.',
         loggedInAs: 'Logged in as {email}',
         guestDefault: 'Continuing as {email} (Guest)',
@@ -719,6 +720,7 @@
       accountGate: {
         modify: 'Modifier',
         modifyEmail: 'Modifier l\'email',
+        cancelEdit: 'Annuler',
         emailExistsNote: 'Cet e-mail est déjà associé à un compte. Veuillez vous connecter.',
         loggedInAs: 'Connecté en tant que {email}',
         guestDefault: 'Poursuite en tant que {email} (Invité)',

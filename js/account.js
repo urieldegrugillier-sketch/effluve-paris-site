@@ -238,10 +238,20 @@
     return { ok: true };
   }
 
-  // No Supabase involvement at all -- a guest session is still just an
+  // No Supabase involvement of its own -- a guest session is still just an
   // email attached to this browser, not a registered account, exactly as
-  // before.
-  function continueAsGuest(email) {
+  // before. BUG FIX: now async -- mountAccountGate()'s changeBtn/
+  // modifyEmailBtn no longer log out immediately when clicked (see
+  // enterEmailEditMode()'s own comment, added so Cancel has an intact
+  // session to restore), so a real logged-in user choosing "Continue as
+  // Guest" for a different email can reach here while currentAuthUser is
+  // still set. getSession() checks currentAuthUser before GUEST_KEY, so
+  // without this the new guest email would be written but silently ignored
+  // -- the UI would keep reporting the old real session. logOut() first
+  // (only when there's actually a real session to clear -- it already
+  // no-ops otherwise) ensures the guest email set right after actually wins.
+  async function continueAsGuest(email) {
+    if (currentAuthUser) await logOut();
     localStorage.setItem(GUEST_KEY, String(email || '').trim());
     notifySessionChange();
   }
@@ -476,6 +486,7 @@
         </label>
         <p class="promo-message promo-message-error" id="checkout-account-email-error" aria-live="polite" hidden></p>
         <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-email-submit-btn" data-i18n="accountGate.continueBtn">Continue</button>
+        <button type="button" class="checkout-account-link-btn" id="checkout-account-email-cancel-btn" data-i18n="accountGate.cancelEdit" hidden>Cancel</button>
       </form>
 
       <div id="checkout-account-auth" hidden>
@@ -559,8 +570,14 @@
          as X" wording)
        - changeLabel: text for the button that logs out and re-shows the
          email step (checkout.html: "Modify"; account.html: "Log Out")
-       - onResolved(session): called once a session exists (on mount, and
-         after every successful log-in/guest/create-account/recovery)
+       - onResolved(session, { identityChanged }): called once a session
+         exists (on mount, and after every successful log-in/guest/create-
+         account/recovery, and after Cancel restores a session unchanged).
+         identityChanged is true only when this resolution followed a
+         completed changeBtn/modifyEmailBtn edit that landed on a genuinely
+         different email/guest-status than before -- false on every other
+         call, including Cancel (nothing changed) and the very first
+         resolution at mount (nothing to compare against).
        - onUnresolved(): called whenever there's no session (on mount, and
          after changeLabel's button is clicked)
      Returns { resolveSession } in case the host page ever needs to force a
@@ -586,17 +603,16 @@
     // account.html passes this true -- that page is only for logging into or
     // creating a real account, so "Continue as Guest" never makes sense
     // there regardless of what the email-existence check below finds. Also
-    // gates a couple of related account.html-only UI differences below (the
-    // create-account form auto-expanding instead of needing a click, and its
-    // submit button being centered) -- all stem from the same "this page
-    // only ever has one thing left to do once Log In/Guest are ruled out"
-    // reasoning, so one flag covers all of them rather than adding a new
-    // option per behavior.
+    // gates one related account.html-only UI difference below: the
+    // create-account form auto-expanding instead of needing a click, since
+    // that's the only thing left once Log In/Guest are both ruled out there.
+    // (The create-account submit button's centering used to be gated the
+    // same way, account.html-only -- now applies on both pages, see
+    // #checkout-account-create-submit-btn in css/checkout.css.)
     const hideGuestOption = !!options.hideGuestOption;
 
     container.innerHTML = accountGateMarkup();
     if (global.MonarkI18n) global.MonarkI18n.apply(container);
-    if (hideGuestOption) container.classList.add('account-gate-center-create');
 
     const statusEl = container.querySelector('#checkout-account-status');
     const statusText = container.querySelector('#checkout-account-status-text');
@@ -609,6 +625,7 @@
     const emailInput = container.querySelector('#checkout-account-email-input');
     const emailError = container.querySelector('#checkout-account-email-error');
     const emailSubmitBtn = container.querySelector('#checkout-account-email-submit-btn');
+    const emailCancelBtn = container.querySelector('#checkout-account-email-cancel-btn');
 
     const authBlock = container.querySelector('#checkout-account-auth');
     const authEmailEcho = container.querySelector('#checkout-account-auth-email');
@@ -734,6 +751,15 @@
     // though getSession() is null then too.
     let lastResolvedKey;
 
+    // Set by changeBtn/modifyEmailBtn's click handlers (see
+    // enterEmailEditMode() below) to whatever getSession() reported right
+    // before they forced the UI to the email step -- the exact state
+    // emailCancelBtn restores if the user backs out instead of finishing the
+    // edit. null whenever there's nothing to cancel back to (a genuinely
+    // fresh email step, or after Cancel/a completed edit already consumed
+    // it).
+    let previousSession = null;
+
     function resolveSession() {
       // Checked first, ahead of getSession() -- a password-recovery link
       // grants a real (temporary) Supabase session, so getSession() would
@@ -765,13 +791,29 @@
         emailError.hidden = true;
         createdNote.hidden = true;
         emailAlreadyExists = false;
+        previousSession = null;
+        emailCancelBtn.hidden = true;
         if (options.onUnresolved) options.onUnresolved();
         return;
       }
       statusText.textContent = statusLabel(session);
       statusEl.hidden = false;
       showStep(null);
-      if (options.onResolved) options.onResolved(session);
+      // previousSession is only ever non-null here in two cases: Cancel
+      // (which already nulled it out itself before calling resolveSession(),
+      // so this is always false for that path -- exactly right, Cancel
+      // shouldn't look like an identity change to the caller) or a
+      // successfully completed edit (enterEmailEditMode() set it, and
+      // nothing since has touched it). identityChanged tells the caller
+      // whether the resolved session is for a DIFFERENT email/guest-status
+      // than whatever was showing right before changeBtn/modifyEmailBtn was
+      // clicked -- checkout.html uses this to reset its own Shipping/Payment
+      // accordion progress specifically when the account actually changed
+      // (see its own onResolved), not on every resolution and not on Cancel.
+      const identityChanged = !!previousSession
+        && (previousSession.email !== session.email || previousSession.isGuest !== session.isGuest);
+      previousSession = null;
+      if (options.onResolved) options.onResolved(session, { identityChanged });
     }
 
     emailForm.addEventListener('submit', async (e) => {
@@ -853,8 +895,8 @@
       forgotPasswordStatus.hidden = false;
     });
 
-    guestBtn.addEventListener('click', () => {
-      continueAsGuest(authEmailEcho.textContent);
+    guestBtn.addEventListener('click', async () => {
+      await continueAsGuest(authEmailEcho.textContent);
       resolveSession();
     });
 
@@ -947,18 +989,69 @@
       }
     });
 
-    changeBtn.addEventListener('click', async () => {
-      await logOut();
-      resolveSession();
-    });
+    // BUG FIX: modifyEmailBtn (both pages) and checkout.html's changeBtn
+    // ("Modify") used to call logOut() the instant either was clicked -- for
+    // a real session that signs the user all the way out (a network round
+    // trip) before they've even typed a new email, and for a guest session
+    // it drops the guest email from localStorage -- so backing out via
+    // Cancel had nothing left to restore without asking them to re-enter
+    // everything. Routed through here, nothing is torn down: this just
+    // captures the still-fully-intact session (so Cancel can put it straight
+    // back) and shows the email step. The actual logOut() is deferred to
+    // whichever action the user actually completes -- see continueAsGuest()'s
+    // own comment (near the top of this file) for why "Continue as Guest"
+    // specifically still needs one (Log In/Create Account don't: Supabase's
+    // signIn/signUp replace the current session on their own).
+    function enterEmailEditMode() {
+      previousSession = getSession();
+      statusEl.hidden = true;
+      showStep('email');
+      emailInput.value = '';
+      emailError.hidden = true;
+      createdNote.hidden = true;
+      emailAlreadyExists = false;
+      emailCancelBtn.hidden = false;
+    }
 
-    // Separate from changeBtn above -- same underlying full reset (log out,
-    // land back on a genuinely empty email field), just reachable under an
-    // unambiguous "Modify Email" label rather than changeBtn's page-specific
-    // one (e.g. account.html's changeBtn reads "Log Out", which some users
-    // might hesitate to click just to try a different email).
-    modifyEmailBtn.addEventListener('click', async () => {
-      await logOut();
+    // changeBtn's own label differs by page ("Modify" on checkout.html,
+    // "Log Out" on account.html -- see changeLabel), and unlike
+    // modifyEmailBtn its two labels don't mean the same thing: "Log Out"
+    // says an immediate, real sign-out, not "let me edit this and maybe
+    // change my mind" -- so only checkout.html's "Modify" gets the deferred
+    // edit-mode treatment here. account.html keeps changeBtn as an immediate
+    // logOut() (matching what it plainly says); its own modifyEmailBtn
+    // ("Modify Email", same label/meaning on both pages, wired below) is
+    // that page's cancelable way to switch email without fully logging out.
+    if (hideGuestOption) {
+      changeBtn.addEventListener('click', async () => {
+        await logOut();
+        resolveSession();
+      });
+    } else {
+      changeBtn.addEventListener('click', enterEmailEditMode);
+    }
+
+    // Separate from changeBtn above -- same underlying edit-mode entry, just
+    // reachable under an unambiguous "Modify Email" label rather than
+    // changeBtn's page-specific one (e.g. account.html's changeBtn reads
+    // "Log Out", which some users might hesitate to click just to try a
+    // different email).
+    modifyEmailBtn.addEventListener('click', enterEmailEditMode);
+
+    // Undoes enterEmailEditMode() above -- only ever reachable when
+    // previousSession was actually captured (changeBtn/modifyEmailBtn set
+    // it, nothing else does), and since neither of those calls logOut()
+    // anymore, the underlying session was never touched: getSession() still
+    // reports it exactly as before. resolveSession()'s dedup would normally
+    // skip re-rendering an unchanged session (see its own BUG FIX comment),
+    // which is exactly wrong here -- we DID change what's on screen (forced
+    // it to the email step) even though the session itself didn't move -- so
+    // this clears the dedup sentinel first to force a fresh render of the
+    // still-intact session. No network call, no re-entering anything.
+    emailCancelBtn.addEventListener('click', () => {
+      previousSession = null;
+      emailCancelBtn.hidden = true;
+      lastResolvedKey = undefined;
       resolveSession();
     });
 
@@ -970,12 +1063,15 @@
     // resolveSession() would be a no-op: resolveSession()'s own dedup (see
     // its BUG FIX comment above) skips re-rendering when getSession() is
     // still null, which it already is at this point -- so this resets the UI
-    // directly instead.
+    // directly instead. previousSession (if any -- i.e. this was reached via
+    // changeBtn/modifyEmailBtn rather than a genuinely fresh email step) is
+    // left untouched, so Cancel is still available from here.
     authModifyEmailBtn.addEventListener('click', () => {
       showStep('email');
       emailInput.value = '';
       emailError.hidden = true;
       emailAlreadyExists = false;
+      emailCancelBtn.hidden = !previousSession;
       emailInput.focus();
     });
 

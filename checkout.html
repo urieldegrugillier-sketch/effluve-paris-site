@@ -505,7 +505,23 @@
       ? t('checkout.statusGuest', { email: session.email })
       : t('accountGate.loggedInAs', { email: session.email }),
     changeLabel: () => t('accountGate.modify'),
-    onResolved: async (session) => {
+    onResolved: async (session, { identityChanged } = {}) => {
+      // identityChanged is only true after a completed Modify/Modify-Email
+      // edit (see js/account.js's mountAccountGate() for exactly when) lands
+      // on a genuinely different email/guest-status -- Shipping/Payment's
+      // own "completed" state was prefilled/validated for whoever was signed
+      // in BEFORE that edit, so it needs to be won back for the new account
+      // rather than keep showing stale data/status. Payment's sectionState
+      // needs resetting explicitly (openAccordionSection('shipping') below
+      // only demotes a section that's currently 'active', not one already
+      // 'completed'). Not reset unconditionally: Cancel resolves the exact
+      // same session it started with (identityChanged false), and that needs
+      // to leave Shipping/Payment's progress alone entirely.
+      if (identityChanged) {
+        completedFlags.shipping = false;
+        completedFlags.payment = false;
+        sectionState.payment = 'pending';
+      }
       await prefillShippingFromAccount(session);
       completeAccordionSection('account', accountSummaryText(session));
       openAccordionSection('shipping');

@@ -451,8 +451,11 @@
    an account (see applyAuthOptionsVisibility() in js/account.js) -- plain
    .promo-message (no -success/-error variant class), since this isn't a
    failure, just a redirect toward Log In; text-muted keeps it in the same
-   neutral tone as .checkout-account-intro above it. */
-#checkout-account-email-exists-note { color: var(--text-muted); }
+   neutral tone as .checkout-account-intro above it. margin-bottom added on
+   top of .promo-message's own margin:0.7rem 0 0 (top-only) -- with nothing
+   below it, this note sat right on top of the Password field's label with no
+   breathing room. */
+#checkout-account-email-exists-note { color: var(--text-muted); margin-bottom: 1.2rem; }
 
 /* Create Account + Continue as Guest split the row exactly in half (each
    flex:1 1 0 from a zero basis, so both end up equal regardless of their own
@@ -476,13 +479,10 @@
 
 .checkout-account-create-form { margin-top: 1.6rem; }
 
-/* account.html only (see mountAccountGate()'s hideGuestOption in
-   js/account.js, which adds this class to the gate container at mount) --
-   there the create-account fields can appear immediately, with no
-   click-to-reveal toggle first, so its submit button reads better centered
-   under the form rather than left-aligned like checkout.html's (reached by
-   clicking "Create an account instead", still left as before). */
-.account-gate-center-create #checkout-account-create-submit-btn {
+/* Both pages -- was left-aligned by default (.cta-button is inline-block,
+   sized/positioned to its own content). display:block + auto side margins
+   centers it under the rest of the (full-width) create-account form. */
+#checkout-account-create-submit-btn {
   display: block;
   margin-left: auto;
   margin-right: auto;
