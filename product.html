@@ -749,47 +749,41 @@
   document.addEventListener('cart:updated', syncTotal);
 
   // ---------------- Keyboard-accessible fallback button ----------------
-  // CONFIRMED (prior round's investigation): once Tab moves focus into
+  // CONFIRMED (prior rounds' investigation): once Tab moves focus into
   // Stripe's paymentRequestButton iframe, it's a genuine dead end for
   // keyboard users -- the iframe is cross-origin, so no code on this page
-  // can see or intercept any key event once focus is inside it (Tab
-  // forward included; instrumented directly: our own document-level
-  // keydown listener stops receiving events the moment focus crosses in).
-  // That's an upstream Stripe.js limitation (see the open GitHub issues
-  // this codebase's own history cites), not something fixable by changing
-  // how the iframe itself is built or styled.
+  // can see or intercept any key event once focus is inside it. That's an
+  // upstream Stripe.js limitation (see the open GitHub issues this
+  // codebase's own history cites), not something fixable by changing how
+  // the iframe itself is built or styled. tabIndex = -1 on the iframe alone
+  // doesn't reliably keep real Chrome from still landing focus inside it
+  // either (confirmed live) -- so this real <button> takes the iframe's
+  // place in the Tab sequence instead, positioned as an absolute overlay
+  // exactly on top of it (see .shop-payment-request-fallback in
+  // css/shop.css): invisible and inert for mouse/touch users by default
+  // (opacity:0, pointer-events:none), who still see and click Stripe's own
+  // rendered button underneath completely unchanged, and only becomes
+  // visible -- with its own labeled border -- once keyboard focus actually
+  // lands on it. Activating it (Enter/Space, native <button> semantics, no
+  // extra key handling needed here) calls paymentRequest.show() directly:
+  // Stripe's own documented way to trigger the exact same native Apple
+  // Pay/Google Pay/Link sheet from a custom button instead of its own
+  // Element -- full functional parity, not a dead-end substitute.
   //
-  // BUG FIX / CONFIRMED LIVE: giving the iframe tabIndex = -1 alone does
-  // NOT reliably keep sequential Tab from entering a cross-origin iframe in
-  // real Chrome -- tested directly against the live deployed page (not a
-  // local mock): the iframe's tabIndex read back as -1 at the moment of the
-  // check, yet Tab still landed inside it and got stuck exactly as before.
-  // A synchronous 'focus' listener on the iframe ELEMENT ITSELF is what
-  // actually works instead -- unlike a keydown fired *inside* the iframe's
-  // own content (which our page genuinely cannot see, per the confirmed
-  // limitation above), a 'focus' event fires on the <iframe> element in
-  // OUR OWN document the instant it (or anything inside it) receives
-  // focus, in every tested browser -- confirmed live. Redirecting focus
-  // away in that same handler, before the user gets a chance to press Tab
-  // again from inside, bounces focus onto this real <button> instead --
-  // works for both Tab-forward and Shift+Tab-backward entry, since either
-  // direction fires the same 'focus' event. tabIndex = -1 is still set too,
-  // as cheap defense-in-depth (harmless even where it doesn't help), but
-  // this focus-bounce is the mechanism actually doing the work.
-  //
-  // This real, native <button> takes the iframe's place in the Tab
-  // sequence: invisible and inert for mouse/touch users (who still see and
-  // use Stripe's own rendered button underneath, completely unchanged --
-  // see .shop-payment-request-fallback's default opacity:0/pointer-
-  // events:none in css/shop.css, the same "off-screen until focused"
-  // convention css/style.css's .skip-link already established on this
-  // site), and only becomes visible -- with its own labeled border -- once
-  // real keyboard focus actually lands on it. Activating it (Enter/Space,
-  // native <button> semantics, no extra key handling needed here) calls
-  // paymentRequest.show() directly: Stripe's own documented way to trigger
-  // the exact same native Apple Pay/Google Pay/Link sheet from a custom
-  // button instead of its own Element -- full functional parity, not a
-  // dead-end substitute.
+  // BUG FIX: an earlier version of this fix caught focus REACTIVELY (a
+  // 'focus' listener on the iframe, bouncing it onto this button once
+  // already inside) -- functional, but visibly a two-step Tab: focus (and
+  // Stripe's own rendered button) flashed into view for a frame before the
+  // bounce redirected it, instead of one clean stop. preventTabIntoIframe()
+  // below fixes that by intercepting the Tab *keydown* itself, on whichever
+  // element currently has focus, BEFORE the browser ever resolves and moves
+  // focus anywhere -- e.preventDefault() there stops that resolution
+  // outright, so the iframe is never entered even momentarily, in either
+  // direction (Tab forward or Shift+Tab backward). The reactive 'focus'
+  // listener (still wired in mountButtons() below) stays only as a
+  // defensive fallback for any path preventTabIntoIframe() doesn't cover --
+  // it should never actually fire in ordinary Tab navigation once this is
+  // in place.
   //
   // Built and wired up fresh inside mountButtons() below (not once here at
   // the top) -- confirmed live that el.mount(container) clears out
@@ -814,6 +808,53 @@
   }
   document.addEventListener('monark:langchange', () => {
     fallbackButtons.forEach((btn) => { btn.textContent = t('product.paymentRequestFallback'); });
+  });
+
+  // Every element on the page the browser would actually consider a
+  // sequential Tab stop, in DOM order -- deliberately includes <iframe>
+  // explicitly (querySelectorAll needs it listed; there's no way to select
+  // "anything focusable" generically) and deliberately does NOT filter out
+  // tabIndex === -1 elements, since that's the exact case this exists to
+  // catch (the Stripe iframe keeps tabIndex=-1 too, see mountButtons()
+  // below, yet Chrome still visits it -- confirmed live -- so a filter
+  // based on what tabIndex=-1 is supposed to mean would just hide the one
+  // element this needs to find). getBoundingClientRect() width/height (not
+  // offsetParent, which is unconditionally null for position:fixed
+  // elements regardless of visibility -- and the sticky bar this also
+  // needs to cover is exactly that, see .shop-sticky-bar in css/shop.css)
+  // is what actually determines "visible" here.
+  function getPageFocusableElements() {
+    return Array.from(document.querySelectorAll('a[href], button, input, textarea, select, summary, iframe')).filter((el) => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return false;
+      const style = getComputedStyle(el);
+      return style.visibility !== 'hidden' && style.display !== 'none';
+    });
+  }
+
+  // The actual fix (see createFallbackButton()'s -- now mountFallbackButton()'s
+  // -- own comment above for the full reasoning): on every Tab press,
+  // checks whether the element sequential navigation is ABOUT to move focus
+  // to (in whichever direction, forward or Shift+Tab-backward) is one of
+  // our own Payment Request Button iframes -- and if so, redirects straight
+  // to that same container's fallback button instead, via
+  // e.preventDefault() on the keydown that would have caused the move. This
+  // runs BEFORE the browser resolves that move at all, so the iframe is
+  // never focused even momentarily -- no flash of Stripe's own rendered
+  // button, one clean Tab stop either direction.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const focusable = getPageFocusableElements();
+    const currentIndex = focusable.indexOf(document.activeElement);
+    if (currentIndex === -1) return;
+    const target = focusable[e.shiftKey ? currentIndex - 1 : currentIndex + 1];
+    if (!target || target.tagName !== 'IFRAME') return;
+    const container = [mainContainer, stickyContainer].find((c) => c && c.contains(target));
+    if (!container) return;
+    const fallbackBtn = container.querySelector('.shop-payment-request-fallback');
+    if (!fallbackBtn) return;
+    e.preventDefault();
+    fallbackBtn.focus();
   });
 
   const mountedButtons = []; // [{ container, el }] -- rebuilt on every mountButtons() call (see langchange below)
@@ -908,12 +949,17 @@
       mountedButtons.forEach(({ container, el }) => {
         container.hidden = false;
         el.mount(container);
-        // See mountFallbackButton()'s own comment above for the full
-        // reasoning -- tabIndex=-1 alone (confirmed live) doesn't stop Tab
-        // from entering this iframe, the 'focus' listener is what actually
-        // bounces focus onto the real fallback button instead. A fresh
-        // listener every time: el.mount() creates a brand new iframe node
-        // on every call (langchange remounts included), so there's no
+        // tabIndex=-1: cheap defense-in-depth, harmless even where it
+        // doesn't help (confirmed live it isn't sufficient by itself in
+        // Chrome). The 'focus' listener is a defensive fallback ONLY at
+        // this point -- the real fix is the document-level Tab-keydown
+        // interception (preventTabIntoIframe-equivalent, see
+        // getPageFocusableElements()'s own keydown listener above), which
+        // stops the browser from ever moving focus into the iframe in the
+        // first place; this listener firing at all would mean that
+        // interception somehow missed this specific path. A fresh listener
+        // every time: el.mount() creates a brand new iframe node on every
+        // call (langchange remounts included), so there's no
         // stale-listener-on-a-discarded-node risk to guard against here.
         const iframe = container.querySelector('iframe');
         const fallbackBtn = mountFallbackButton(container);
