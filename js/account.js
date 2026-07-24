@@ -678,16 +678,22 @@
     // email typed.
     let emailAlreadyExists = false;
 
-    // Login is always offered once an email is submitted -- what changes is
-    // everything else: an email that already has an account only offers
-    // Log In (see checkout-account-email-exists-note); Continue as Guest is
-    // additionally never offered at all on account.html (hideGuestOption,
-    // that page is account-creation/login only). The whole options row is
-    // hidden if nothing is left in it, so no empty gap is left behind when
-    // both its buttons are hidden (e.g. account.html + an existing email).
+    // BUG FIX: loginForm used to be unconditionally visible here -- correct
+    // for checkout.html (an email that doesn't exist yet keeps Log In visible
+    // alongside Guest/Create, "unchanged" from before this feature), but
+    // wrong for account.html: with hideGuestOption on, an email that doesn't
+    // exist left Log In as the only prominent (.cta-button-styled) action
+    // with "Create an account instead" demoted to a small text link --
+    // reported live as "'Se connecter' shows as the primary action" for a
+    // genuinely new email. account.html's own spec was "if the email doesn't
+    // exist, only show Create Account (no guest choice)" -- "only" meaning
+    // Log In too, not just Guest. So: an existing email always offers Log In
+    // (both pages, unchanged); a new email hides Log In too, but only on the
+    // hideGuestOption page -- checkout.html's new-email case is untouched.
     function applyAuthOptionsVisibility() {
       emailExistsNote.hidden = !emailAlreadyExists;
       if (emailAlreadyExists) emailExistsNote.textContent = t('accountGate.emailExistsNote');
+      loginForm.hidden = !emailAlreadyExists && hideGuestOption;
       guestBtn.hidden = emailAlreadyExists || hideGuestOption;
       createToggle.hidden = emailAlreadyExists;
       optionsWrap.hidden = guestBtn.hidden && createToggle.hidden;
@@ -797,7 +803,17 @@
       confirmPending.hidden = true;
       applyAuthOptionsVisibility();
       showStep('auth');
-      loginPasswordInput.focus();
+      // loginForm can now be the hidden branch itself (see
+      // applyAuthOptionsVisibility() above) -- focusing a field inside a
+      // hidden form is a silent no-op, so fall back to the next focusable
+      // control actually on screen (createToggle, since guestBtn is only
+      // ever shown together with a visible loginForm -- see the same
+      // function's hideGuestOption logic).
+      if (!loginForm.hidden) {
+        loginPasswordInput.focus();
+      } else if (!createToggle.hidden) {
+        createToggle.focus();
+      }
     });
 
     loginForm.addEventListener('submit', async (e) => {
