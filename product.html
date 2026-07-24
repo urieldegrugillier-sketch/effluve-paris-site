@@ -759,48 +759,58 @@
   // this codebase's own history cites), not something fixable by changing
   // how the iframe itself is built or styled.
   //
-  // Excluding the iframe from the Tab sequence entirely (tabIndex = -1,
-  // set on each freshly-mounted iframe inside mountButtons() below) avoids
-  // the dead end, but by itself would make this whole payment option
-  // unreachable by keyboard -- trading a stuck focus for a silently
-  // skipped feature, not an actual fix. This real, native <button> takes
-  // the iframe's place in the Tab sequence instead: invisible and inert
-  // for mouse/touch users (who still see and use Stripe's own rendered
-  // button underneath, completely unchanged -- see
-  // .shop-payment-request-fallback's default opacity:0/pointer-events:none
-  // in css/shop.css, the same "off-screen until focused" convention
-  // css/style.css's .skip-link already established on this site), and only
-  // becomes visible -- with its own labeled border -- once real keyboard
-  // focus actually reaches it. Activating it (Enter/Space, native <button>
-  // semantics, no extra key handling needed here) calls
+  // BUG FIX / CONFIRMED LIVE: giving the iframe tabIndex = -1 alone does
+  // NOT reliably keep sequential Tab from entering a cross-origin iframe in
+  // real Chrome -- tested directly against the live deployed page (not a
+  // local mock): the iframe's tabIndex read back as -1 at the moment of the
+  // check, yet Tab still landed inside it and got stuck exactly as before.
+  // A synchronous 'focus' listener on the iframe ELEMENT ITSELF is what
+  // actually works instead -- unlike a keydown fired *inside* the iframe's
+  // own content (which our page genuinely cannot see, per the confirmed
+  // limitation above), a 'focus' event fires on the <iframe> element in
+  // OUR OWN document the instant it (or anything inside it) receives
+  // focus, in every tested browser -- confirmed live. Redirecting focus
+  // away in that same handler, before the user gets a chance to press Tab
+  // again from inside, bounces focus onto this real <button> instead --
+  // works for both Tab-forward and Shift+Tab-backward entry, since either
+  // direction fires the same 'focus' event. tabIndex = -1 is still set too,
+  // as cheap defense-in-depth (harmless even where it doesn't help), but
+  // this focus-bounce is the mechanism actually doing the work.
+  //
+  // This real, native <button> takes the iframe's place in the Tab
+  // sequence: invisible and inert for mouse/touch users (who still see and
+  // use Stripe's own rendered button underneath, completely unchanged --
+  // see .shop-payment-request-fallback's default opacity:0/pointer-
+  // events:none in css/shop.css, the same "off-screen until focused"
+  // convention css/style.css's .skip-link already established on this
+  // site), and only becomes visible -- with its own labeled border -- once
+  // real keyboard focus actually lands on it. Activating it (Enter/Space,
+  // native <button> semantics, no extra key handling needed here) calls
   // paymentRequest.show() directly: Stripe's own documented way to trigger
   // the exact same native Apple Pay/Google Pay/Link sheet from a custom
   // button instead of its own Element -- full functional parity, not a
   // dead-end substitute.
-  function createFallbackButton() {
-    const btn = document.createElement('button');
+  //
+  // Built and wired up fresh inside mountButtons() below (not once here at
+  // the top) -- confirmed live that el.mount(container) clears out
+  // whatever was already in `container`, so a button appended here before
+  // the first mount ever happened was gone by the time canMakePayment()
+  // resolved and mount() actually ran. mountFallbackButton() below reuses
+  // an existing button instead of creating a new one if `container` still
+  // has one from a previous mount (harmless either way, just avoids
+  // needless churn on every language-switch remount).
+  const fallbackButtons = [];
+  function mountFallbackButton(container) {
+    let btn = container.querySelector('.shop-payment-request-fallback');
+    if (btn) return btn;
+    btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'shop-payment-request-fallback';
     btn.textContent = t('product.paymentRequestFallback');
     btn.addEventListener('click', () => paymentRequest.show());
+    container.appendChild(btn);
+    fallbackButtons.push(btn);
     return btn;
-  }
-  // Created once, outside mountButtons() -- that function unmounts/remounts
-  // Stripe's OWN iframe on every language switch (see its own comment), but
-  // Element.unmount() only ever removes the node Stripe itself created, not
-  // sibling nodes appended by this page -- so this button is safe to create
-  // a single time and just have its label text re-synced on langchange,
-  // rather than torn down and recreated on every remount along with it.
-  const fallbackButtons = [];
-  if (mainContainer) {
-    const btn = createFallbackButton();
-    mainContainer.appendChild(btn);
-    fallbackButtons.push(btn);
-  }
-  if (stickyContainer) {
-    const btn = createFallbackButton();
-    stickyContainer.appendChild(btn);
-    fallbackButtons.push(btn);
   }
   document.addEventListener('monark:langchange', () => {
     fallbackButtons.forEach((btn) => { btn.textContent = t('product.paymentRequestFallback'); });
@@ -898,13 +908,19 @@
       mountedButtons.forEach(({ container, el }) => {
         container.hidden = false;
         el.mount(container);
-        // Removed from the Tab sequence -- see createFallbackButton()'s own
-        // comment above for the full reasoning and what stands in for it.
-        // tabIndex (not the attribute) so this always sets the IDL
-        // property regardless of whether the iframe already carries some
-        // other tabindex value from Stripe itself.
+        // See mountFallbackButton()'s own comment above for the full
+        // reasoning -- tabIndex=-1 alone (confirmed live) doesn't stop Tab
+        // from entering this iframe, the 'focus' listener is what actually
+        // bounces focus onto the real fallback button instead. A fresh
+        // listener every time: el.mount() creates a brand new iframe node
+        // on every call (langchange remounts included), so there's no
+        // stale-listener-on-a-discarded-node risk to guard against here.
         const iframe = container.querySelector('iframe');
-        if (iframe) iframe.tabIndex = -1;
+        const fallbackBtn = mountFallbackButton(container);
+        if (iframe) {
+          iframe.tabIndex = -1;
+          iframe.addEventListener('focus', () => fallbackBtn.focus());
+        }
       });
     }).catch((err) => {
       console.error('Payment Request Button: canMakePayment() failed:', err && err.message);
