@@ -9,3 +9,14 @@ entrypoint = "./functions/create-checkout-session/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/create-checkout-session/*.html" ]
+
+# Server-side email-existence check for the account gate -- uses the
+# service-role key (see that function's own comment on why), so verify_jwt
+# stays false the same way create-checkout-session's does: it must be
+# callable by a guest with no session yet, gated only by the publishable
+# apikey header supabase-js already sends.
+[functions.check-email-exists]
+enabled = true
+verify_jwt = false
+import_map = "./functions/check-email-exists/deno.json"
+entrypoint = "./functions/check-email-exists/index.ts"

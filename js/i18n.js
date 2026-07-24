@@ -262,6 +262,8 @@
       },
       accountGate: {
         modify: 'Modify',
+        modifyEmail: 'Modify Email',
+        emailExistsNote: 'This email is already linked to an account. Please log in.',
         loggedInAs: 'Logged in as {email}',
         guestDefault: 'Continuing as {email} (Guest)',
         intro: 'Please enter your email to continue as a guest, log in, or create an account.',
@@ -716,6 +718,8 @@
       },
       accountGate: {
         modify: 'Modifier',
+        modifyEmail: 'Modifier l\'email',
+        emailExistsNote: 'Cet e-mail est déjà associé à un compte. Veuillez vous connecter.',
         loggedInAs: 'Connecté en tant que {email}',
         guestDefault: 'Poursuite en tant que {email} (Invité)',
         intro: "Veuillez saisir votre e-mail pour continuer en tant qu'invité, vous connecter ou créer un compte.",

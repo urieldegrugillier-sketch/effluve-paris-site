@@ -204,6 +204,27 @@
     return { ok: true, needsEmailConfirmation: false };
   }
 
+  // Server-side existence check via the check-email-exists Edge Function
+  // (supabase/functions/check-email-exists) -- see that function's own
+  // comment for why this can't be done client-side (no email column exposed,
+  // RLS blocks any other user's row, and probing signUp()/signInWithPassword()
+  // is exactly the enumeration attack Supabase's API design prevents). Used
+  // only by mountAccountGate() below to decide whether to show the login-only
+  // view or the normal guest/create-account choices. Fails open (returns
+  // false, the "doesn't exist" branch) on any network/server error, so a
+  // transient failure here degrades to today's full three-option flow
+  // instead of blocking the gate entirely.
+  async function checkEmailExists(email) {
+    const { data, error } = await client().functions.invoke('check-email-exists', {
+      body: { email: String(email || '').trim() }
+    });
+    if (error || !data || typeof data.exists !== 'boolean') {
+      console.error('MonarkAccount.checkEmailExists:', error ? error.message : 'unexpected response');
+      return false;
+    }
+    return data.exists;
+  }
+
   async function logIn(email, password) {
     const { error } = await client().auth.signInWithPassword({
       email: String(email || '').trim(),
@@ -440,7 +461,10 @@
     return `
       <p class="checkout-account-status" id="checkout-account-status" hidden>
         <span id="checkout-account-status-text"></span>
-        <button type="button" class="checkout-account-link-btn" id="checkout-account-change-btn"></button>
+        <span class="checkout-account-status-actions">
+          <button type="button" class="checkout-account-link-btn" id="checkout-account-change-btn"></button>
+          <button type="button" class="checkout-account-link-btn" id="checkout-account-modify-email-btn" data-i18n="accountGate.modifyEmail">Modify Email</button>
+        </span>
       </p>
       <p class="promo-message promo-message-success" id="checkout-account-created-note" aria-live="polite" hidden></p>
 
@@ -451,11 +475,15 @@
           <input type="email" id="checkout-account-email-input" autocomplete="email" required>
         </label>
         <p class="promo-message promo-message-error" id="checkout-account-email-error" aria-live="polite" hidden></p>
-        <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="accountGate.continueBtn">Continue</button>
+        <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-email-submit-btn" data-i18n="accountGate.continueBtn">Continue</button>
       </form>
 
       <div id="checkout-account-auth" hidden>
-        <p class="checkout-account-email-echo" id="checkout-account-auth-email"></p>
+        <p class="checkout-account-email-echo">
+          <span id="checkout-account-auth-email"></span>
+          <button type="button" class="checkout-account-link-btn" id="checkout-account-auth-modify-email-btn" data-i18n="accountGate.modifyEmail">Modify Email</button>
+        </p>
+        <p class="promo-message" id="checkout-account-email-exists-note" aria-live="polite" hidden></p>
 
         <form id="checkout-account-login-form" novalidate>
           <label class="checkout-field">
@@ -468,7 +496,7 @@
           <p class="promo-message" id="checkout-account-forgot-password-status" aria-live="polite" hidden></p>
         </form>
 
-        <div class="checkout-account-options">
+        <div class="checkout-account-options" id="checkout-account-options">
           <button type="button" class="cta-button checkout-account-btn-sm" id="checkout-account-guest-btn" data-i18n="accountGate.continueAsGuest">Continue as Guest</button>
           <button type="button" class="checkout-account-link-btn" id="checkout-account-create-toggle" data-i18n="accountGate.createAccountInstead">Create an account instead</button>
         </div>
@@ -555,6 +583,10 @@
         ? t('accountGate.guestDefault', { email: session.email })
         : t('accountGate.loggedInAs', { email: session.email });
     };
+    // account.html passes this true -- that page is only for logging into or
+    // creating a real account, so "Continue as Guest" never makes sense
+    // there regardless of what the email-existence check below finds.
+    const hideGuestOption = !!options.hideGuestOption;
 
     container.innerHTML = accountGateMarkup();
     if (global.MonarkI18n) global.MonarkI18n.apply(container);
@@ -562,15 +594,19 @@
     const statusEl = container.querySelector('#checkout-account-status');
     const statusText = container.querySelector('#checkout-account-status-text');
     const changeBtn = container.querySelector('#checkout-account-change-btn');
+    const modifyEmailBtn = container.querySelector('#checkout-account-modify-email-btn');
     const createdNote = container.querySelector('#checkout-account-created-note');
     changeBtn.textContent = changeLabel();
 
     const emailForm = container.querySelector('#checkout-account-email-form');
     const emailInput = container.querySelector('#checkout-account-email-input');
     const emailError = container.querySelector('#checkout-account-email-error');
+    const emailSubmitBtn = container.querySelector('#checkout-account-email-submit-btn');
 
     const authBlock = container.querySelector('#checkout-account-auth');
     const authEmailEcho = container.querySelector('#checkout-account-auth-email');
+    const authModifyEmailBtn = container.querySelector('#checkout-account-auth-modify-email-btn');
+    const emailExistsNote = container.querySelector('#checkout-account-email-exists-note');
 
     const loginForm = container.querySelector('#checkout-account-login-form');
     const loginPasswordInput = container.querySelector('#checkout-account-login-password');
@@ -578,6 +614,7 @@
     const forgotPasswordBtn = container.querySelector('#checkout-account-forgot-password-btn');
     const forgotPasswordStatus = container.querySelector('#checkout-account-forgot-password-status');
 
+    const optionsWrap = container.querySelector('#checkout-account-options');
     const guestBtn = container.querySelector('#checkout-account-guest-btn');
     const createToggle = container.querySelector('#checkout-account-create-toggle');
 
@@ -634,6 +671,28 @@
       return value.length >= 8 && /[A-Za-z]/.test(value) && /[0-9]/.test(value);
     }
 
+    // Set by the email-form submit handler below, right after the
+    // check-email-exists lookup resolves -- read here to decide which of the
+    // auth step's options are actually reachable. Reset to false whenever the
+    // gate leaves the auth step, so a stale result never leaks into the next
+    // email typed.
+    let emailAlreadyExists = false;
+
+    // Login is always offered once an email is submitted -- what changes is
+    // everything else: an email that already has an account only offers
+    // Log In (see checkout-account-email-exists-note); Continue as Guest is
+    // additionally never offered at all on account.html (hideGuestOption,
+    // that page is account-creation/login only). The whole options row is
+    // hidden if nothing is left in it, so no empty gap is left behind when
+    // both its buttons are hidden (e.g. account.html + an existing email).
+    function applyAuthOptionsVisibility() {
+      emailExistsNote.hidden = !emailAlreadyExists;
+      if (emailAlreadyExists) emailExistsNote.textContent = t('accountGate.emailExistsNote');
+      guestBtn.hidden = emailAlreadyExists || hideGuestOption;
+      createToggle.hidden = emailAlreadyExists;
+      optionsWrap.hidden = guestBtn.hidden && createToggle.hidden;
+    }
+
     // Hides every sub-step of the gate, then reveals only the one asked for
     // (or none, once a session exists) -- avoids repeating the same
     // multi-way "hide everything else" in each handler below. Also collapses
@@ -687,6 +746,7 @@
         emailInput.value = '';
         emailError.hidden = true;
         createdNote.hidden = true;
+        emailAlreadyExists = false;
         if (options.onUnresolved) options.onUnresolved();
         return;
       }
@@ -696,7 +756,7 @@
       if (options.onResolved) options.onResolved(session);
     }
 
-    emailForm.addEventListener('submit', (e) => {
+    emailForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = emailInput.value.trim();
       if (!email) {
@@ -708,6 +768,16 @@
         return;
       }
       emailError.hidden = true;
+
+      // Disabled for the round trip to check-email-exists so a slow network
+      // can't let the user submit twice (e.g. two different emails racing
+      // each other into authEmailEcho below).
+      emailSubmitBtn.disabled = true;
+      emailInput.disabled = true;
+      emailAlreadyExists = await checkEmailExists(email);
+      emailSubmitBtn.disabled = false;
+      emailInput.disabled = false;
+
       authEmailEcho.textContent = email;
       loginPasswordInput.value = '';
       loginError.hidden = true;
@@ -725,6 +795,7 @@
       createError.hidden = true;
       createForm.hidden = true;
       confirmPending.hidden = true;
+      applyAuthOptionsVisibility();
       showStep('auth');
       loginPasswordInput.focus();
     });
@@ -841,6 +912,33 @@
     changeBtn.addEventListener('click', async () => {
       await logOut();
       resolveSession();
+    });
+
+    // Separate from changeBtn above -- same underlying full reset (log out,
+    // land back on a genuinely empty email field), just reachable under an
+    // unambiguous "Modify Email" label rather than changeBtn's page-specific
+    // one (e.g. account.html's changeBtn reads "Log Out", which some users
+    // might hesitate to click just to try a different email).
+    modifyEmailBtn.addEventListener('click', async () => {
+      await logOut();
+      resolveSession();
+    });
+
+    // The auth step's own escape hatch -- reachable while a plausible email
+    // has been submitted but no session exists yet (mid login/guest/create,
+    // including the login-only view above when check-email-exists said the
+    // typed email already has an account). Unlike changeBtn/modifyEmailBtn,
+    // there's no real session to log out of here, and going through
+    // resolveSession() would be a no-op: resolveSession()'s own dedup (see
+    // its BUG FIX comment above) skips re-rendering when getSession() is
+    // still null, which it already is at this point -- so this resets the UI
+    // directly instead.
+    authModifyEmailBtn.addEventListener('click', () => {
+      showStep('email');
+      emailInput.value = '';
+      emailError.hidden = true;
+      emailAlreadyExists = false;
+      emailInput.focus();
     });
 
     // changeBtn's label and (if a session is already showing) statusText's

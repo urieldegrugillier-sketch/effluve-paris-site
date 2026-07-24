@@ -414,6 +414,13 @@
    resolve/collapse flow being restructured. */
 .checkout-account-status[hidden] { display: none; }
 
+/* Groups changeBtn ("Modify"/"Log Out") and the new "Modify Email" button on
+   the same side of the status row, so .checkout-account-status's own
+   justify-content: space-between still puts the status text on the left and
+   both actions together on the right, instead of pushing them to opposite
+   ends. */
+.checkout-account-status-actions { display: flex; align-items: center; gap: 1.2rem; }
+
 .checkout-account-intro {
   margin: 0 0 1.4rem;
   font-family: var(--font-body);
@@ -423,7 +430,16 @@
   max-width: 46ch;
 }
 
+/* Now holds the echoed email plus an inline "Modify Email" escape hatch
+   (see js/account.js's authModifyEmailBtn) -- flex row, same
+   space-between/gap treatment as .checkout-account-status above, so the
+   email stays left-aligned and the button sits at the same right edge as
+   every other secondary action in this flow. */
 .checkout-account-email-echo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   margin: 0 0 1rem;
   font-family: var(--font-mono);
   font-size: 0.72rem;
@@ -431,7 +447,26 @@
   color: var(--text-muted);
 }
 
+/* Shown only when check-email-exists finds the submitted email already has
+   an account (see applyAuthOptionsVisibility() in js/account.js) -- plain
+   .promo-message (no -success/-error variant class), since this isn't a
+   failure, just a redirect toward Log In; text-muted keeps it in the same
+   neutral tone as .checkout-account-intro above it. */
+#checkout-account-email-exists-note { color: var(--text-muted); }
+
 .checkout-account-options { display: flex; align-items: center; gap: 1.6rem; margin-top: 0.4rem; }
+/* Same fix as .checkout-account-status[hidden] above, now needed here too --
+   this wrapper (and the guest/create-toggle buttons inside it) are hidden
+   for the first time by applyAuthOptionsVisibility() in js/account.js
+   (login-only view, account.html's hideGuestOption); without this, their own
+   unconditional display:flex/inline-block would keep winning over the UA
+   [hidden]{display:none} rule at equal specificity, same bug as before. ID
+   selectors here so this stays scoped to exactly these three elements
+   rather than changing .checkout-account-options/.cta-button/
+   .checkout-account-link-btn's [hidden] behavior everywhere else they're used. */
+#checkout-account-options[hidden],
+#checkout-account-guest-btn[hidden],
+#checkout-account-create-toggle[hidden] { display: none; }
 
 .checkout-account-create-form { margin-top: 1.6rem; }
 

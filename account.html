@@ -530,6 +530,11 @@
       ? t('account.statusGuest', { email: session.email })
       : t('accountGate.loggedInAs', { email: session.email }),
     changeLabel: () => t('account.logOut'),
+    // This page is only for logging into or creating a real account -- a
+    // guest session lands here from checkout.html's own guest flow, not
+    // from a "Continue as Guest" choice made ON this page (see
+    // guestCreateBtn's own shortcut above).
+    hideGuestOption: true,
     onResolved: (session) => { showExtras(session); },
     onUnresolved: () => { hideExtras(); }
   });
