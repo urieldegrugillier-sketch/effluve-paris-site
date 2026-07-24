@@ -532,6 +532,12 @@
   margin-left: auto;
   margin-right: auto;
 }
+/* account.html: same Cancel+Continue pair, centered as a group here too --
+   checkout.html's own centering above is scoped to .account-gate-page-checkout,
+   so account.html needed this repeated under its own page class rather than
+   just moving the rule unscoped (checkout.html's list never asked for
+   anything to change here, only account.html's did). */
+.account-gate-page-account .checkout-account-email-actions { justify-content: center; }
 
 /* .checkout-account-login-actions wraps Log In + Forgot password? (see
    accountGateMarkup() in js/account.js) -- checkout.html's default here is
@@ -557,21 +563,46 @@
   margin-top: 0.8rem;
 }
 
+/* checkout.html: irrelevant, not part of that page's (block/right-align)
+   layout for this row at all -- kept out of the flow entirely so it can
+   never add stray whitespace there. */
+.checkout-account-login-spacer { display: none; }
+
 /* account.html only -- "Forgot password?" sits beside Log In instead of
    below it, its own text force-wrapped onto two lines (width narrow enough
    that "Forgot"/"Mot de passe" and "password?"/"oublié ?" don't fit on one
    line at this font-size) rather than the single line + right-align
-   checkout.html uses. align-items:center on the row keeps both vertically
-   centered against each other despite Forgot password's own box now being
-   taller (two lines) than Log In's (one). */
+   checkout.html uses.
+
+   BUG FIX: a plain centered flex row (justify-content:center on just Log
+   In + Forgot password) centers the PAIR as a group, which puts Log In
+   itself left-of-center -- pulled left by Forgot password's own width
+   sitting to its right with nothing to balance it on the left. The fix is
+   the standard "centered item with an asymmetric sibling" trick: an
+   invisible spacer (checkout-account-login-spacer, aria-hidden, matched to
+   Forgot password's own fixed width below) goes on the OTHER side of Log
+   In, so the group [spacer | Log In | Forgot password] is symmetric around
+   Log In and centering the group also centers Log In itself, with Forgot
+   password immediately to its right. align-items:center keeps Log In and
+   Forgot password vertically centered against each other despite Forgot
+   password's own box now being taller (two lines) than Log In's (one). */
 .account-gate-page-account .checkout-account-login-actions {
   display: flex;
+  justify-content: center;
   align-items: center;
   gap: 1rem;
 }
+.account-gate-page-account .checkout-account-login-spacer {
+  display: block;
+  width: 9em;
+}
 .account-gate-page-account #checkout-account-forgot-password-btn {
   display: block;
-  width: 7em;
+  /* Wide enough that "Mot de passe"/"Forgot" and "oublié ?"/"password?"
+     split onto exactly 2 lines (was 3 at the previous, narrower width) --
+     matches .checkout-account-login-spacer's own width above so the two
+     balance each other out around Log In. */
+  width: 9em;
   white-space: normal;
   margin-left: 0;
   margin-top: 0;
