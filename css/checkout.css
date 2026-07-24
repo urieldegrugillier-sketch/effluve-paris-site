@@ -583,6 +583,20 @@
   justify-content: center;
   align-items: center;
   gap: 1rem;
+  margin-top: 1rem;
+}
+/* BUG FIX: align-items:center centers each flex item's full MARGIN box, not
+   just its content -- #checkout-account-login-submit-btn still carried
+   .checkout-account-btn-sm's own margin-top:1rem (its normal spacing when
+   block-stacked, e.g. on checkout.html), while Forgot password's own rule
+   below already zeroes its margin-top out. That extra top margin on Log In
+   alone was enough to visibly skew the centering, pushing Log In's actual
+   content down relative to Forgot password's -- same fix already applied to
+   .checkout-account-email-actions (Continue/Cancel) for the same reason:
+   move the "space above this row" responsibility onto the row wrapper
+   itself (margin-top:1rem above) so every item inside starts even. */
+.account-gate-page-account .checkout-account-login-actions .checkout-account-btn-sm {
+  margin-top: 0;
 }
 .account-gate-page-account #checkout-account-forgot-password-btn {
   display: block;
