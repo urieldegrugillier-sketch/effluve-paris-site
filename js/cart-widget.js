@@ -141,27 +141,22 @@
      (+/- buttons, Add Another, clear-all, checkout/view-cart links, close)
      cycle; the icon is the trap's entry point and its Escape/close exit
      destination (see closePreviewAndReturnFocus() below), not a stop inside
-     the cycle. Including it caused a real feedback loop when tried: wrapping
-     Tab back to iconLink re-fires its own 'focus' listener below (needed for
-     the separate "Tab TO the icon from outside opens the preview" case),
-     which calls focusFirstPreviewElement() again and immediately yanks focus
-     back off the icon onto the close button -- confirmed via direct
-     instrumentation (checking document.activeElement a tick after each Tab
-     press cycled the icon back out within ~1 frame, every time). Nav-menu's
-     hamburger has no equivalent focus-reactive listener, so it never hits
-     this; excluding the icon here avoids it entirely instead of adding a
-     re-entrancy guard flag just to keep the icon in a cycle nothing actually
-     asked for (the task's own list of what should cycle names "close", not
-     the icon).
+     the cycle -- the task's own list of what should cycle names "close",
+     not the icon.
 
-     Unlike the nav menu -- which only ever opens via an explicit click --
-     this preview also opens on plain mouse hover (mouseenter), which must
+     This preview also opens on plain mouse hover (mouseenter), which must
      NOT hijack keyboard focus or trap Tab: a user hovering the cart icon
      while typing elsewhere on the page shouldn't have their next Tab press
      redirected into a preview they never focused. isPreviewEngaged() below
      gates both the Escape-close and Tab-trap handlers on focus actually
-     being inside the preview (or on the icon itself) -- true for the
-     keyboard-focus and click/tap open paths, false for a bare hover. */
+     being inside the preview (or on the icon itself) -- true once the
+     preview's been explicitly opened (click, tap, or Enter/Space on the
+     icon -- see its own click handler further below) and focus has landed
+     inside it, false for a bare hover, and ALSO false for simply having
+     tabbed to the icon without activating it (a deliberate fix -- that used
+     to auto-open the preview and yank focus in as a side effect of mere
+     focus, which broke forward Tab navigation for the rest of the page;
+     see the click handler's own comment for the full story). */
   function getFocusablePreviewElements() {
     return Array.from(preview.querySelectorAll('button, a[href], input'))
       .filter((el) => el.offsetParent !== null);
@@ -200,9 +195,11 @@
   }
 
   // Moves focus to the first real control inside the now-open preview --
-  // only called from paths that represent a deliberate/keyboard-relevant
-  // open (the icon's own 'focus' event, which fires for both Tab-to and
-  // click-to; see below), never from mouseenter.
+  // only called from paths that represent a deliberate activation (the
+  // icon's own 'click' event, which fires for a real click/tap AND for
+  // Enter/Space on the focused button; see that handler's own comment
+  // further below), never from mouseenter or from merely tabbing to the
+  // icon without activating it.
   //
   // Deferred two frames, not one -- same class-change -> transition-start
   // race documented in js/nav-menu.js's openMenu(): .cart-preview's own
@@ -221,37 +218,23 @@
     });
   }
 
-  // Set synchronously around the iconLink.focus() call in
-  // closePreviewAndReturnFocus() below -- focus events dispatch synchronously,
-  // so this reliably brackets just that one call. Without it, that focus()
-  // call fires iconLink's own 'focus' listener (needed for the separate "Tab
-  // TO the icon from outside opens the preview" case, wired just below) right
-  // back, which re-opens the preview and redirects focus into it again --
-  // confirmed via direct instrumentation that Escape/the × button were
-  // silently undoing their own close this way, every time.
-  let suppressIconFocusOpen = false;
-
   // Standard dialog-close behavior (ARIA APG): return focus to whatever
   // opened it. Used by the explicit close paths only (× button, Escape) --
   // hover-leave/outside-click/scroll closes (closePreview() on its own,
   // still used by those) have their own natural focus destination already
   // and shouldn't yank focus back to the icon out from under the user.
+  // No suppress-flag dance needed around this .focus() call (there used to
+  // be one) -- iconLink no longer has a 'focus' listener that would react to
+  // it, see the click handler further below for why.
   function closePreviewAndReturnFocus() {
     closePreview();
-    suppressIconFocusOpen = true;
     iconLink.focus();
-    suppressIconFocusOpen = false;
   }
 
   widget.addEventListener('mouseenter', openPreview);
   widget.addEventListener('mouseleave', scheduleClose);
   preview.addEventListener('mouseenter', () => clearTimeout(closeTimer));
   preview.addEventListener('mouseleave', scheduleClose);
-  iconLink.addEventListener('focus', () => {
-    if (suppressIconFocusOpen) return;
-    openPreview();
-    focusFirstPreviewElement();
-  });
   preview.addEventListener('focusin', openPreview);
   preview.addEventListener('focusout', scheduleClose);
 
@@ -264,27 +247,46 @@
     if (preview.classList.contains('cart-preview-open')) positionPreview();
   });
 
-  /* Mobile/tablet: the icon is now a plain button (no separate cart page to
-     navigate to -- this preview IS the cart), so tapping it should just
-     toggle the preview open/closed. Desktop is untouched: hover already
-     shows the preview there without needing a tap.
-     A tap's own 'click' fires AFTER a 'focus' event that the same tap
-     triggers on this button (real-device- and CDP-touch-confirmed ordering:
-     pointerdown -> focus -> click) -- and focus's own listener above already
-     calls openPreview(). Reading preview's open/closed state directly inside
-     the click handler below would therefore always see "open" (just set by
-     that focus, moments earlier), incorrectly closing every tap instead of
-     only the ones that were truly already open beforehand. Capturing the
-     state on 'pointerdown' -- before focus has fired -- gives the click
-     handler the true pre-tap state to decide from instead. */
-  let wasOpenBeforeTap = false;
-  iconLink.addEventListener('pointerdown', () => {
-    wasOpenBeforeTap = preview.classList.contains('cart-preview-open');
-  });
-  iconLink.addEventListener('click', () => {
+  /* BUG FIX: iconLink used to open the preview (and jump focus into it) on
+     plain 'focus' -- meaning the instant Tab reached the icon, before the
+     user did anything else. Confirmed via a full-page keyboard sweep that
+     this silently broke forward Tab navigation for the ENTIRE rest of the
+     page: the preview panel is appended to the very end of <body> (after
+     #hero, the footer, everything), so force-jumping focus into it landed
+     past all of that in DOM order -- and forward Tab can never recover a
+     position it's already been jumped past. Every subsequent Tab press was
+     left cycling only through whatever else also got appended late (the
+     preview panel itself, the cookie banner), wrapping back to the very
+     start of the document instead of ever reaching real page content.
+     Merely tabbing TO the icon should never have side effects; only an
+     actual activation should. 'click' is what handles that now, for both
+     directions:
+       - A real mouse/touch click or tap (MouseEvent.detail >= 1) keeps
+         going through its own branch below (mobile/tablet toggle, desktop
+         no-op since hover already opens/closes it there).
+       - Enter/Space on this focused <button> -- the standard way to
+         activate a button by keyboard -- fires this exact same 'click'
+         event too, but with detail === 0 (a native <button>'s own way of
+         reporting a keyboard-synthesized activation rather than a real
+         pointer click, with no separate keydown handling needed here).
+         That's the explicit, deliberate "open via keyboard" path this fix
+         adds, replacing the removed open-on-mere-focus behavior -- keyboard
+         users can still open the preview, just only by actually asking to,
+         the same as a click. */
+  iconLink.addEventListener('click', (e) => {
+    if (e.detail === 0) {
+      openPreview();
+      focusFirstPreviewElement();
+      return;
+    }
+    // Mobile/tablet only below: the icon is a plain toggle button there (no
+    // separate cart page to navigate to -- this preview IS the cart).
+    // Desktop is untouched, a no-op here -- hover already opens/closes the
+    // preview there (see widget's own mouseenter/mouseleave above), a click
+    // on top of that doesn't need to do anything further.
     if (!isMobileOrTablet()) return;
-    if (wasOpenBeforeTap) closePreview(); // was already open -- tap again dismisses it
-    // else: the 'focus' listener above already opened it moments ago.
+    if (preview.classList.contains('cart-preview-open')) closePreview();
+    else { openPreview(); focusFirstPreviewElement(); }
   });
   closeBtn.addEventListener('click', closePreviewAndReturnFocus);
 
