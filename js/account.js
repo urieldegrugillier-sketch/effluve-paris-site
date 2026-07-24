@@ -473,6 +473,7 @@
         <span id="checkout-account-status-text"></span>
         <span class="checkout-account-status-actions">
           <button type="button" class="checkout-account-link-btn" id="checkout-account-change-btn"></button>
+          <button type="button" class="checkout-account-link-btn" id="checkout-account-guest-upgrade-btn" data-i18n="accountGate.createAccountBtn" hidden>Create Account</button>
           <button type="button" class="checkout-account-link-btn" id="checkout-account-modify-email-btn" data-i18n="accountGate.modifyEmail">Modify Email</button>
         </span>
       </p>
@@ -485,8 +486,10 @@
           <input type="email" id="checkout-account-email-input" autocomplete="email" required>
         </label>
         <p class="promo-message promo-message-error" id="checkout-account-email-error" aria-live="polite" hidden></p>
-        <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-email-submit-btn" data-i18n="accountGate.continueBtn">Continue</button>
-        <button type="button" class="checkout-account-link-btn" id="checkout-account-email-cancel-btn" data-i18n="accountGate.cancelEdit" hidden>Cancel</button>
+        <span class="checkout-account-email-actions">
+          <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-email-submit-btn" data-i18n="accountGate.continueBtn">Continue</button>
+          <button type="button" class="checkout-account-link-btn" id="checkout-account-email-cancel-btn" data-i18n="accountGate.cancelEdit" hidden>Cancel</button>
+        </span>
       </form>
 
       <div id="checkout-account-auth" hidden>
@@ -617,9 +620,22 @@
     const statusEl = container.querySelector('#checkout-account-status');
     const statusText = container.querySelector('#checkout-account-status-text');
     const changeBtn = container.querySelector('#checkout-account-change-btn');
+    const guestUpgradeBtn = container.querySelector('#checkout-account-guest-upgrade-btn');
     const modifyEmailBtn = container.querySelector('#checkout-account-modify-email-btn');
     const createdNote = container.querySelector('#checkout-account-created-note');
     changeBtn.textContent = changeLabel();
+    // BUG FIX: changeBtn and modifyEmailBtn used to do the exact same thing
+    // (both entered the cancelable email-edit mode below) -- checkout.html
+    // showed two redundant buttons for one action. changeBtn keeps a real,
+    // distinct purpose on account.html (immediate logOut(), see its own
+    // conditional wiring further down), so it only makes sense to show there;
+    // checkout.html keeps just modifyEmailBtn, right-aligned same as before
+    // (see .checkout-account-status-actions in css/checkout.css). guestUpgradeBtn
+    // ("Create Account", checkout.html-only -- see its own click handler
+    // below) is the reverse case: hidden here at mount, toggled per-resolve
+    // based on session.isGuest instead, since guest-vs-logged-in can change
+    // after mount but hideGuestOption (which page this is) can't.
+    if (!hideGuestOption) changeBtn.hidden = true;
 
     const emailForm = container.querySelector('#checkout-account-email-form');
     const emailInput = container.querySelector('#checkout-account-email-input');
@@ -799,6 +815,14 @@
       statusText.textContent = statusLabel(session);
       statusEl.hidden = false;
       showStep(null);
+      // checkout.html only (hideGuestOption false) -- account.html has its
+      // own separate, pre-existing guest-to-create-account shortcut (see
+      // that page's own guestCreateBtn, in its order-history empty state),
+      // so this would just be a second, redundant way to do the same thing
+      // there. Re-evaluated on every resolve (not just at mount, unlike
+      // changeBtn's hiding above) since guest-vs-logged-in status can change
+      // session to session, where hideGuestOption itself never does.
+      guestUpgradeBtn.hidden = hideGuestOption || !session.isGuest;
       // previousSession is only ever non-null here in two cases: Cancel
       // (which already nulled it out itself before calling resolveSession(),
       // so this is always false for that path -- exactly right, Cancel
@@ -814,6 +838,32 @@
         && (previousSession.email !== session.email || previousSession.isGuest !== session.isGuest);
       previousSession = null;
       if (options.onResolved) options.onResolved(session, { identityChanged });
+    }
+
+    // Shared prep for entering the auth step with a fresh candidate email --
+    // clears every stateful field a PREVIOUS attempt could have left behind
+    // (typed password, name/marketing choices from an abandoned create-form
+    // fill-in, etc.) so none of it leaks into this one. Used by the normal
+    // email-form submit below and guestUpgradeBtn's shortcut further down
+    // (which already knows the email and skips typing/re-checking it),
+    // rather than duplicating this block in both.
+    function resetAuthStepFields(email) {
+      authEmailEcho.textContent = email;
+      loginPasswordInput.value = '';
+      loginError.hidden = true;
+      forgotPasswordStatus.hidden = true;
+      createFirstNameInput.value = '';
+      createLastNameInput.value = '';
+      createPasswordInput.value = '';
+      createConfirmInput.value = '';
+      if (createPhoneWidget) createPhoneWidget.setValue({ number: '', country: 'FR' });
+      // Checked by default every time this step is (re)shown, matching
+      // account.html's own marketing toggle default (see that page's
+      // marketingToggle.checked = acc.marketingOptIn !== false) -- opting in
+      // is the default state, not something the user has to actively choose.
+      if (createMarketingCheckbox) createMarketingCheckbox.checked = true;
+      createError.hidden = true;
+      confirmPending.hidden = true;
     }
 
     emailForm.addEventListener('submit', async (e) => {
@@ -838,36 +888,27 @@
       emailSubmitBtn.disabled = false;
       emailInput.disabled = false;
 
-      authEmailEcho.textContent = email;
-      loginPasswordInput.value = '';
-      loginError.hidden = true;
-      forgotPasswordStatus.hidden = true;
-      createFirstNameInput.value = '';
-      createLastNameInput.value = '';
-      createPasswordInput.value = '';
-      createConfirmInput.value = '';
-      if (createPhoneWidget) createPhoneWidget.setValue({ number: '', country: 'FR' });
-      // Checked by default every time this step is (re)shown, matching
-      // account.html's own marketing toggle default (see that page's
-      // marketingToggle.checked = acc.marketingOptIn !== false) -- opting in
-      // is the default state, not something the user has to actively choose.
-      if (createMarketingCheckbox) createMarketingCheckbox.checked = true;
-      createError.hidden = true;
+      resetAuthStepFields(email);
       createForm.hidden = true;
-      confirmPending.hidden = true;
       applyAuthOptionsVisibility();
       showStep('auth');
-      // loginForm/createToggle can now both be the hidden branch (see
-      // applyAuthOptionsVisibility() above) -- focusing a field inside a
-      // hidden element is a silent no-op, so fall through to whichever
-      // control is actually on screen: the login password field, else the
-      // create-account toggle (checkout.html, new email), else -- when
-      // account.html skipped straight to the create-account fields -- the
-      // first of those fields.
+      // BUG FIX: this used to fall back to createToggle.focus() when
+      // loginForm was hidden -- reported live as focus/selection visibly
+      // "stuck" on Create Account after just pressing Enter in the email
+      // field, nothing clicked. createToggle (and guestBtn next to it) are
+      // both full .cta-button-styled buttons now (see the Create Account/
+      // Continue as Guest reorder), so a browser focus ring on either reads
+      // as "this button is active/pressed" -- misleading when the user's
+      // actual action was submitting the email step, not choosing between
+      // these two. Only focus loginPasswordInput (a real field the user is
+      // about to type into, not a choice) when it's actually shown; when
+      // it's account.html's auto-expanded create form instead, focus its
+      // first field for the same reason. Otherwise (checkout.html, new
+      // email, Guest/Create Account both just choices to make) leave focus
+      // alone -- the hidden email input naturally releases it to the
+      // document, same as any other step change in this flow.
       if (!loginForm.hidden) {
         loginPasswordInput.focus();
-      } else if (!createToggle.hidden) {
-        createToggle.focus();
       } else if (!createForm.hidden) {
         createFirstNameInput.focus();
       }
@@ -1013,23 +1054,17 @@
       emailCancelBtn.hidden = false;
     }
 
-    // changeBtn's own label differs by page ("Modify" on checkout.html,
-    // "Log Out" on account.html -- see changeLabel), and unlike
-    // modifyEmailBtn its two labels don't mean the same thing: "Log Out"
-    // says an immediate, real sign-out, not "let me edit this and maybe
-    // change my mind" -- so only checkout.html's "Modify" gets the deferred
-    // edit-mode treatment here. account.html keeps changeBtn as an immediate
-    // logOut() (matching what it plainly says); its own modifyEmailBtn
-    // ("Modify Email", same label/meaning on both pages, wired below) is
-    // that page's cancelable way to switch email without fully logging out.
-    if (hideGuestOption) {
-      changeBtn.addEventListener('click', async () => {
-        await logOut();
-        resolveSession();
-      });
-    } else {
-      changeBtn.addEventListener('click', enterEmailEditMode);
-    }
+    // changeBtn is only ever visible on account.html now (hidden at mount on
+    // checkout.html, see above -- checkout.html's own "Modify" used to be a
+    // second button doing the exact same thing as modifyEmailBtn below, so
+    // it was removed rather than also switched to the deferred/cancelable
+    // behavior). "Log Out" is a genuinely different, immediate action from
+    // "Modify Email" -- account.html keeps this as a plain logOut(), not the
+    // deferred/cancelable enterEmailEditMode() modifyEmailBtn uses.
+    changeBtn.addEventListener('click', async () => {
+      await logOut();
+      resolveSession();
+    });
 
     // Separate from changeBtn above -- same underlying edit-mode entry, just
     // reachable under an unambiguous "Modify Email" label rather than
@@ -1037,6 +1072,36 @@
     // "Log Out", which some users might hesitate to click just to try a
     // different email).
     modifyEmailBtn.addEventListener('click', enterEmailEditMode);
+
+    // checkout.html-only guest upgrade shortcut (see guestUpgradeBtn.hidden
+    // in resolveSession() above) -- goes straight into the create-account
+    // fields with the guest's own email already filled in, rather than
+    // making them retype it through the plain email step + Continue +
+    // Create Account choice. logOut() clears the guest session (this is
+    // genuinely leaving guest status, not just "editing" it, so nothing here
+    // needs to be cancelable the way enterEmailEditMode() is); lastResolvedKey
+    // is preset to null first so resolveSession()'s own !session handling
+    // (which logOut()'s notifySessionChange() triggers) skips its generic
+    // "show the empty email step" reset instead of fighting with the
+    // specific state this handler drives to right after.
+    guestUpgradeBtn.addEventListener('click', async () => {
+      const session = getSession();
+      if (!session || !session.isGuest) return;
+      const guestEmail = session.email;
+      lastResolvedKey = null;
+      await logOut();
+      statusEl.hidden = true;
+      resetAuthStepFields(guestEmail);
+      emailAlreadyExists = false;
+      emailExistsNote.hidden = true;
+      loginForm.hidden = true;
+      guestBtn.hidden = true;
+      createToggle.hidden = true;
+      optionsWrap.hidden = true;
+      createForm.hidden = false;
+      showStep('auth');
+      createFirstNameInput.focus();
+    });
 
     // Undoes enterEmailEditMode() above -- only ever reachable when
     // previousSession was actually captured (changeBtn/modifyEmailBtn set

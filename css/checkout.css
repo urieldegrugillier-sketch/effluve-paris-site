@@ -414,12 +414,20 @@
    resolve/collapse flow being restructured. */
 .checkout-account-status[hidden] { display: none; }
 
-/* Groups changeBtn ("Modify"/"Log Out") and the new "Modify Email" button on
-   the same side of the status row, so .checkout-account-status's own
-   justify-content: space-between still puts the status text on the left and
-   both actions together on the right, instead of pushing them to opposite
-   ends. */
+/* Groups changeBtn ("Modify"/"Log Out"), guestUpgradeBtn ("Create Account"),
+   and modifyEmailBtn ("Modify Email") on the same side of the status row, so
+   .checkout-account-status's own justify-content: space-between still puts
+   the status text on the left and whichever of these three are actually
+   visible together on the right, instead of pushing them to opposite ends. */
 .checkout-account-status-actions { display: flex; align-items: center; gap: 1.2rem; }
+/* Same [hidden] specificity fix as elsewhere in this file (see
+   .checkout-account-status[hidden] above) -- both now toggle hidden/shown
+   dynamically (changeBtn per-page at mount, guestUpgradeBtn per-resolve
+   based on session.isGuest -- see js/account.js) where before they were
+   either always shown or hidden once and never un-hidden, so this was never
+   exercised on either of them until now. */
+#checkout-account-change-btn[hidden],
+#checkout-account-guest-upgrade-btn[hidden] { display: none; }
 
 .checkout-account-intro {
   margin: 0 0 1.4rem;
@@ -429,6 +437,16 @@
   color: var(--text-muted);
   max-width: 46ch;
 }
+
+/* Continue + Cancel (email-edit-mode, checkout-account-email-cancel-btn) --
+   same 1.2rem action-button gap as .checkout-account-status-actions/
+   .checkout-account-options elsewhere in this flow, was previously just
+   default inline-block whitespace between the two. margin-top:0 on the
+   button itself (normally 1rem, from .checkout-account-btn-sm) moved onto
+   this wrapper instead, so align-items:center isn't thrown off by Continue
+   having its own top margin that Cancel doesn't. */
+.checkout-account-email-actions { display: flex; align-items: center; gap: 1.2rem; margin-top: 1rem; }
+.checkout-account-email-actions .checkout-account-btn-sm { margin-top: 0; }
 
 /* Now holds the echoed email plus an inline "Modify Email" escape hatch
    (see js/account.js's authModifyEmailBtn) -- flex row, same
