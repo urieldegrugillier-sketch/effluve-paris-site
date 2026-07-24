@@ -438,20 +438,23 @@
   max-width: 46ch;
 }
 
-/* Continue + Cancel (email-edit-mode, checkout-account-email-cancel-btn) --
-   same 1.2rem action-button gap as .checkout-account-status-actions/
-   .checkout-account-options elsewhere in this flow, was previously just
-   default inline-block whitespace between the two. margin-top:0 on the
-   button itself (normally 1rem, from .checkout-account-btn-sm) moved onto
-   this wrapper instead, so align-items:center isn't thrown off by Continue
-   having its own top margin that Cancel doesn't. */
+/* Cancel + Continue (email-edit-mode, order swapped so Cancel comes first --
+   see accountGateMarkup() in js/account.js) -- same 1.2rem action-button gap
+   as .checkout-account-status-actions/.checkout-account-options elsewhere in
+   this flow, was previously just default inline-block whitespace between the
+   two. margin-top:0 on the button itself (normally 1rem, from
+   .checkout-account-btn-sm) moved onto this wrapper instead, so
+   align-items:center isn't thrown off by Continue having its own top margin
+   that Cancel doesn't. checkout.html additionally centers this whole group
+   (see .account-gate-page-checkout below) -- account.html leaves it
+   left-aligned, its own list never asked for that. */
 .checkout-account-email-actions { display: flex; align-items: center; gap: 1.2rem; margin-top: 1rem; }
 .checkout-account-email-actions .checkout-account-btn-sm { margin-top: 0; }
 
-/* Now holds the echoed email plus an inline "Modify Email" escape hatch
-   (see js/account.js's authModifyEmailBtn) -- flex row, same
-   space-between/gap treatment as .checkout-account-status above, so the
-   email stays left-aligned and the button sits at the same right edge as
+/* Now holds the echoed email plus an inline "Modify Email"/"Cancel" action
+   group (see js/account.js's authModifyEmailBtn/authCancelBtn) -- flex row,
+   same space-between/gap treatment as .checkout-account-status above, so the
+   email stays left-aligned and the actions sit at the same right edge as
    every other secondary action in this flow. */
 .checkout-account-email-echo {
   display: flex;
@@ -464,6 +467,15 @@
   letter-spacing: 0.05em;
   color: var(--text-muted);
 }
+/* Groups authCancelBtn (only shown mid cancelable edit -- see
+   js/account.js's authCancelBtn) and authModifyEmailBtn, same 1.2rem gap as
+   every other action-button cluster in this flow. */
+.checkout-account-email-echo-actions { display: flex; align-items: center; gap: 1.2rem; }
+/* Same [hidden] specificity fix as elsewhere in this file (see
+   .checkout-account-status[hidden] above) -- .checkout-account-link-btn's
+   own unconditional display:inline-block otherwise wins over the UA
+   [hidden]{display:none} rule at equal specificity. */
+#checkout-account-auth-cancel-btn[hidden] { display: none; }
 
 /* Shown only when check-email-exists finds the submitted email already has
    an account (see applyAuthOptionsVisibility() in js/account.js) -- plain
@@ -475,7 +487,7 @@
    breathing room. */
 #checkout-account-email-exists-note { color: var(--text-muted); margin-bottom: 1.2rem; }
 
-/* Create Account + Continue as Guest split the row exactly in half (each
+/* Continue as Guest + Create Account split the row exactly in half (each
    flex:1 1 0 from a zero basis, so both end up equal regardless of their own
    text length) rather than sizing to their own content -- together with
    .checkout-account-btn-sm's text-align:center below, this centers each
@@ -506,17 +518,78 @@
   margin-right: auto;
 }
 
-/* Right-aligned the same way "Modify Email" is (.checkout-account-email-echo
-   above) -- was sitting inline right after the Log In button by default
-   (both plain inline-block elements), unrelated to Log In visually despite
-   sharing a line with it. display:block + margin-left:auto pushes this
-   content-sized element to the row's right edge on its own line instead. */
+/* checkout.html only -- every primary action button centered EXCEPT the
+   small text-link-style actions (Modify Email, Forgot password?), which
+   keep their current right-aligned/inline treatment untouched. Continue as
+   Guest/Create Account (.checkout-account-options) and Create Account &
+   Continue (#checkout-account-create-submit-btn, right above) are already
+   centered unconditionally, on both pages -- only Continue and Log In still
+   needed their own centering, scoped here to checkout.html specifically
+   since account.html's own list never asked for this. */
+.account-gate-page-checkout .checkout-account-email-actions { justify-content: center; }
+.account-gate-page-checkout #checkout-account-login-submit-btn {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* .checkout-account-login-actions wraps Log In + Forgot password? (see
+   accountGateMarkup() in js/account.js) -- checkout.html's default here is
+   block (no special layout, same as if unwrapped): Log In flows normally,
+   Forgot password right-aligns on its own line below via the block rule
+   right after this one. account.html overrides both further down to sit the
+   two side by side instead -- see .account-gate-page-account below. */
+.checkout-account-login-actions { display: block; }
+
+/* checkout.html default -- right-aligned the same way "Modify Email" is
+   (.checkout-account-email-echo above), on its own line below Log In.
+   display:block + margin-left:auto pushes this content-sized element to the
+   row's right edge instead of sitting inline right after Log In (both plain
+   inline-block elements by default, unrelated to Log In visually despite
+   sharing a line with it). account.html wants this differently (2 lines,
+   side by side with Log In at the same height) -- see the
+   .account-gate-page-account override below, which wins on specificity
+   (ID + ancestor class beats plain ID). */
 #checkout-account-forgot-password-btn {
   display: block;
   width: fit-content;
   margin-left: auto;
   margin-top: 0.8rem;
 }
+
+/* account.html only -- "Forgot password?" sits beside Log In instead of
+   below it, its own text force-wrapped onto two lines (width narrow enough
+   that "Forgot"/"Mot de passe" and "password?"/"oublié ?" don't fit on one
+   line at this font-size) rather than the single line + right-align
+   checkout.html uses. align-items:center on the row keeps both vertically
+   centered against each other despite Forgot password's own box now being
+   taller (two lines) than Log In's (one). */
+.account-gate-page-account .checkout-account-login-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.account-gate-page-account #checkout-account-forgot-password-btn {
+  display: block;
+  width: 7em;
+  white-space: normal;
+  margin-left: 0;
+  margin-top: 0;
+}
+
+/* BUG FIX: "Modify Email" was overflowing off-screen on mobile once "Log
+   Out" also shares the gate's status row (see account.html's own inline
+   script, syncLogoutBtn()) -- two text-link actions plus the status text
+   don't fit one line at mobile widths. Log Out (a less-frequent, semi-
+   destructive action) relocates here, at the bottom of the Account section,
+   below 768px; :empty hides this slot entirely above that, where the script
+   leaves Log Out in its normal spot in the status row instead (no overflow
+   there -- more horizontal room, and account.html is the only page that
+   still shows changeBtn there at all). Already .checkout-account-link-btn
+   styled (moved as the same live element, not rebuilt) -- already reads as
+   the secondary/muted action this relocation is meant to demote it to. */
+.account-logout-slot { margin-top: 1.6rem; }
+.account-logout-slot:empty { display: none; }
 
 /* Secondary-weight sizing for the account step's non-primary actions (Log In,
    Continue as Guest, Create Account & Continue) -- none of these is the
@@ -527,12 +600,12 @@
 .checkout-account-btn-sm { margin-top: 1rem; padding: 0.6rem 1.4rem; font-size: 0.68rem; }
 .checkout-account-options .checkout-account-btn-sm { flex: 1 1 0; margin-top: 0; text-align: center; }
 
-/* Muted/secondary variant of .cta-button -- Continue as Guest (see
-   accountGateMarkup()'s swapped order in js/account.js, Create Account now
-   comes first) reads as the less-emphasized of the two choices: same
+/* Muted/secondary variant of .cta-button -- Continue as Guest (first in
+   reading order again -- see accountGateMarkup() in js/account.js) reads as
+   the less-emphasized of the two choices even though it comes first: same
    box/padding as its sibling .cta-button.checkout-account-btn-sm, just gray
    instead of bronze, including on hover/active so it never flashes bronze
-   like the actually-primary action does. */
+   like the actually-primary action (Create Account, second/right) does. */
 .checkout-account-btn-secondary { border-color: var(--line); color: var(--text-muted); }
 @media (hover: hover) and (pointer: fine) {
   .checkout-account-btn-secondary:hover { background: transparent; border-color: var(--text-muted); color: var(--text-on-dark); }
@@ -742,6 +815,37 @@
 }
 
 #account-delete-confirm { margin-top: 1rem; }
+
+/* "This action is irreversible" now its own line/element, separate from the
+   main "Delete your account permanently?" question (see account.html's
+   markup) -- a little extra breathing room + the same muted-rust tone as
+   .account-delete-btn above so the warning reads as distinct from ordinary
+   body copy, not just a second sentence tacked onto the first. */
+.account-delete-irreversible { margin-top: 0.4rem; color: #b5675c; }
+
+/* BUG FIX: reused .checkout-account-options here before (Confirm Delete +
+   Cancel), which meant it also inherited that class's flex:1 1 0 50/50-split
+   treatment meant for the account-gate's own Guest/Create Account choice --
+   Confirm Delete ended up stretched to half the container's full width
+   instead of sized to its own content like every other secondary button.
+   Own class instead: same gap, no forced equal-width split. */
+.account-delete-actions { display: flex; align-items: center; gap: 1.2rem; margin-top: 1rem; }
+.account-delete-actions .checkout-account-btn-sm { margin-top: 0; }
+
+/* Every "Save ..." button across this page (Edit Profile, Saved Shipping
+   Address, Saved Card, Preferences) centered consistently -- was left-aligned
+   by default (.cta-button is inline-block, sized/positioned to its own
+   content), same fix already applied to the account-gate's own
+   #checkout-account-create-submit-btn. Scoped to .account-section's own
+   forms specifically (not the account-gate's, which has its own submit
+   buttons/centering rules already) via plain descendant + type selectors --
+   every one of these forms' only <button type="submit"> is its Save button,
+   so no per-button ID is needed for this to stay precise. */
+.account-section form button[type="submit"] {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
 
 /* The confirm step's own primary action is still a real .cta-button (same
    element/sizing as every other secondary-weight action here, via

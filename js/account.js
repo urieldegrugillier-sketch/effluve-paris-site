@@ -230,10 +230,12 @@
       email: String(email || '').trim(),
       password: String(password || '')
     });
-    // Supabase deliberately returns the same generic error for "no such
-    // account" and "wrong password" -- so this doesn't (and shouldn't) try
-    // to tell them apart either; see accountGate.errorWrongPassword's
-    // updated copy in js/i18n.js.
+    // BUG FIX: accountGate.errorWrongPassword used to say "Incorrect email or
+    // password" -- this login form is only ever reached once check-email-
+    // exists has already confirmed the typed email DOES have an account (see
+    // mountAccountGate()'s applyAuthOptionsVisibility()), so implying the
+    // email itself might be wrong here was never actually possible and just
+    // added doubt. The copy now says only "Incorrect password" in js/i18n.js.
     if (error) return { ok: false, error: 'invalid' };
     return { ok: true };
   }
@@ -487,15 +489,18 @@
         </label>
         <p class="promo-message promo-message-error" id="checkout-account-email-error" aria-live="polite" hidden></p>
         <span class="checkout-account-email-actions">
-          <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-email-submit-btn" data-i18n="accountGate.continueBtn">Continue</button>
           <button type="button" class="checkout-account-link-btn" id="checkout-account-email-cancel-btn" data-i18n="accountGate.cancelEdit" hidden>Cancel</button>
+          <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-email-submit-btn" data-i18n="accountGate.continueBtn">Continue</button>
         </span>
       </form>
 
       <div id="checkout-account-auth" hidden>
         <p class="checkout-account-email-echo">
           <span id="checkout-account-auth-email"></span>
-          <button type="button" class="checkout-account-link-btn" id="checkout-account-auth-modify-email-btn" data-i18n="accountGate.modifyEmail">Modify Email</button>
+          <span class="checkout-account-email-echo-actions">
+            <button type="button" class="checkout-account-link-btn" id="checkout-account-auth-cancel-btn" data-i18n="accountGate.cancelEdit" hidden>Cancel</button>
+            <button type="button" class="checkout-account-link-btn" id="checkout-account-auth-modify-email-btn" data-i18n="accountGate.modifyEmail">Modify Email</button>
+          </span>
         </p>
         <p class="promo-message" id="checkout-account-email-exists-note" aria-live="polite" hidden></p>
 
@@ -505,14 +510,16 @@
             <input type="password" id="checkout-account-login-password" autocomplete="current-password" required>
           </label>
           <p class="promo-message promo-message-error" id="checkout-account-login-error" aria-live="polite" hidden></p>
-          <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="accountGate.logInBtn">Log In</button>
-          <button type="button" class="checkout-account-link-btn" id="checkout-account-forgot-password-btn" data-i18n="accountGate.forgotPassword">Forgot password?</button>
+          <span class="checkout-account-login-actions">
+            <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-login-submit-btn" data-i18n="accountGate.logInBtn">Log In</button>
+            <button type="button" class="checkout-account-link-btn" id="checkout-account-forgot-password-btn" data-i18n="accountGate.forgotPassword">Forgot password?</button>
+          </span>
           <p class="promo-message" id="checkout-account-forgot-password-status" aria-live="polite" hidden></p>
         </form>
 
         <div class="checkout-account-options" id="checkout-account-options">
-          <button type="button" class="cta-button checkout-account-btn-sm" id="checkout-account-create-toggle" data-i18n="accountGate.createAccountInstead">Create an account instead</button>
           <button type="button" class="cta-button checkout-account-btn-sm checkout-account-btn-secondary" id="checkout-account-guest-btn" data-i18n="accountGate.continueAsGuest">Continue as Guest</button>
+          <button type="button" class="cta-button checkout-account-btn-sm" id="checkout-account-create-toggle" data-i18n="accountGate.createAccountInstead">Create an account instead</button>
         </div>
 
         <form id="checkout-account-create-form" class="checkout-account-create-form" novalidate hidden>
@@ -616,6 +623,13 @@
 
     container.innerHTML = accountGateMarkup();
     if (global.MonarkI18n) global.MonarkI18n.apply(container);
+    // Generic per-page styling hook (css/checkout.css) for the handful of
+    // spots where the two pages now deliberately diverge in LAYOUT even
+    // though they share this exact markup -- e.g. account.html's Forgot
+    // Password treatment vs. checkout.html's, or which buttons get centered
+    // -- rather than a growing pile of one-off boolean options each gating
+    // a single CSS rule the way hideGuestOption/centerCreateButton used to.
+    container.classList.add(hideGuestOption ? 'account-gate-page-account' : 'account-gate-page-checkout');
 
     const statusEl = container.querySelector('#checkout-account-status');
     const statusText = container.querySelector('#checkout-account-status-text');
@@ -646,6 +660,7 @@
     const authBlock = container.querySelector('#checkout-account-auth');
     const authEmailEcho = container.querySelector('#checkout-account-auth-email');
     const authModifyEmailBtn = container.querySelector('#checkout-account-auth-modify-email-btn');
+    const authCancelBtn = container.querySelector('#checkout-account-auth-cancel-btn');
     const emailExistsNote = container.querySelector('#checkout-account-email-exists-note');
 
     const loginForm = container.querySelector('#checkout-account-login-form');
@@ -809,6 +824,7 @@
         emailAlreadyExists = false;
         previousSession = null;
         emailCancelBtn.hidden = true;
+        authCancelBtn.hidden = true;
         if (options.onUnresolved) options.onUnresolved();
         return;
       }
@@ -892,6 +908,11 @@
       createForm.hidden = true;
       applyAuthOptionsVisibility();
       showStep('auth');
+      // Reachable via changeBtn/modifyEmailBtn -- see enterEmailEditMode()
+      // -- previousSession carries over from there, so Cancel stays
+      // available here too, restoring the original session in one click
+      // instead of having to go back to the email step first.
+      authCancelBtn.hidden = !previousSession;
       // BUG FIX: this used to fall back to createToggle.focus() when
       // loginForm was hidden -- reported live as focus/selection visibly
       // "stuck" on Create Account after just pressing Enter in the email
@@ -1052,6 +1073,7 @@
       createdNote.hidden = true;
       emailAlreadyExists = false;
       emailCancelBtn.hidden = false;
+      authCancelBtn.hidden = true;
     }
 
     // changeBtn is only ever visible on account.html now (hidden at mount on
@@ -1077,21 +1099,25 @@
     // in resolveSession() above) -- goes straight into the create-account
     // fields with the guest's own email already filled in, rather than
     // making them retype it through the plain email step + Continue +
-    // Create Account choice. logOut() clears the guest session (this is
-    // genuinely leaving guest status, not just "editing" it, so nothing here
-    // needs to be cancelable the way enterEmailEditMode() is); lastResolvedKey
-    // is preset to null first so resolveSession()'s own !session handling
-    // (which logOut()'s notifySessionChange() triggers) skips its generic
-    // "show the empty email step" reset instead of fighting with the
-    // specific state this handler drives to right after.
-    guestUpgradeBtn.addEventListener('click', async () => {
+    // Create Account choice.
+    //
+    // BUG FIX: this used to call logOut() immediately, the same mistake
+    // enterEmailEditMode() used to make (see its own BUG FIX comment) --
+    // clearing the guest session on click left nothing for Cancel to restore
+    // if the user backed out of creating an account. Doesn't need an
+    // explicit logOut() at all, deferred or otherwise: the guest session is
+    // simply left alone here, and if createForm's own submit later succeeds,
+    // onAuthStateChange's own "a real session always wins over a leftover
+    // guest email" handling (top of this file) clears GUEST_KEY for free the
+    // moment the new real session lands. previousSession is set the same way
+    // enterEmailEditMode() sets it, so authCancelBtn below restores this
+    // exact guest session with nothing lost if the user changes their mind.
+    guestUpgradeBtn.addEventListener('click', () => {
       const session = getSession();
       if (!session || !session.isGuest) return;
-      const guestEmail = session.email;
-      lastResolvedKey = null;
-      await logOut();
+      previousSession = session;
       statusEl.hidden = true;
-      resetAuthStepFields(guestEmail);
+      resetAuthStepFields(session.email);
       emailAlreadyExists = false;
       emailExistsNote.hidden = true;
       loginForm.hidden = true;
@@ -1100,25 +1126,32 @@
       optionsWrap.hidden = true;
       createForm.hidden = false;
       showStep('auth');
+      authCancelBtn.hidden = false;
       createFirstNameInput.focus();
     });
 
-    // Undoes enterEmailEditMode() above -- only ever reachable when
-    // previousSession was actually captured (changeBtn/modifyEmailBtn set
-    // it, nothing else does), and since neither of those calls logOut()
+    // Shared by emailCancelBtn (email step) and authCancelBtn (auth step,
+    // reachable via a submitted email -- enterEmailEditMode() -- or
+    // guestUpgradeBtn's direct jump into the create-account fields above) --
+    // both undo whatever put the gate into an editable state, only ever
+    // reachable when previousSession was actually captured. Since neither
+    // enterEmailEditMode() nor guestUpgradeBtn calls logOut()/continueAsGuest()
     // anymore, the underlying session was never touched: getSession() still
     // reports it exactly as before. resolveSession()'s dedup would normally
     // skip re-rendering an unchanged session (see its own BUG FIX comment),
-    // which is exactly wrong here -- we DID change what's on screen (forced
-    // it to the email step) even though the session itself didn't move -- so
-    // this clears the dedup sentinel first to force a fresh render of the
-    // still-intact session. No network call, no re-entering anything.
-    emailCancelBtn.addEventListener('click', () => {
+    // which is exactly wrong here -- we DID change what's on screen even
+    // though the session itself didn't move -- so this clears the dedup
+    // sentinel first to force a fresh render of the still-intact session. No
+    // network call, no re-entering anything.
+    function cancelEmailEdit() {
       previousSession = null;
       emailCancelBtn.hidden = true;
+      authCancelBtn.hidden = true;
       lastResolvedKey = undefined;
       resolveSession();
-    });
+    }
+    emailCancelBtn.addEventListener('click', cancelEmailEdit);
+    authCancelBtn.addEventListener('click', cancelEmailEdit);
 
     // The auth step's own escape hatch -- reachable while a plausible email
     // has been submitted but no session exists yet (mid login/guest/create,
@@ -1137,6 +1170,7 @@
       emailError.hidden = true;
       emailAlreadyExists = false;
       emailCancelBtn.hidden = !previousSession;
+      authCancelBtn.hidden = true;
       emailInput.focus();
     });
 

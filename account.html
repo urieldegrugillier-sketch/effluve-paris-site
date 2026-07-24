@@ -58,6 +58,11 @@
            shared email/log-in/create-account flow checkout.html's own
            account step uses, see js/account.js. -->
       <div id="account-gate"></div>
+      <!-- Mobile-only relocation target for the gate's own "Log Out" button
+           -- see the inline script's syncLogoutBtn(). Empty (and hidden via
+           :empty in css/checkout.css) on desktop, where Log Out stays put in
+           the gate's own status row instead. -->
+      <div id="account-logout-slot" class="account-logout-slot"></div>
     </div>
 
     <!-- Edit Profile / Saved Address / Preferences / Delete Account: logged-in
@@ -123,7 +128,13 @@
         </div>
         <label class="checkout-field">
           <span data-i18n="account.phoneLabel">Phone Number</span>
-          <input type="tel" name="phone" autocomplete="tel">
+          <!-- Same country-selector component (flag + dial code, js/phone-input.js)
+               already used by checkout.html's Shipping section and the
+               account-gate's own create-account form -- was still a plain
+               <input type="tel"> here, the one place on the site that hadn't
+               been switched over yet. -->
+          <div id="account-phone"></div>
+          <p class="promo-message promo-message-error" id="account-address-phone-error" aria-live="polite" hidden></p>
         </label>
         <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="account.saveAddressBtn">Save Address</button>
         <p class="promo-message promo-message-success" id="account-address-success" aria-live="polite" hidden></p>
@@ -156,10 +167,14 @@
 
     <div id="account-preferences" class="account-section" hidden>
       <h2 class="checkout-section-heading" data-i18n="account.preferencesHeading">Preferences</h2>
-      <label class="account-toggle-row">
-        <input type="checkbox" id="account-marketing-toggle">
-        <span data-i18n="account.marketingLabel">Receive marketing emails</span>
-      </label>
+      <form id="account-preferences-form" novalidate>
+        <label class="account-toggle-row">
+          <input type="checkbox" id="account-marketing-toggle">
+          <span data-i18n="account.marketingLabel">Receive marketing emails</span>
+        </label>
+        <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="account.savePreferencesBtn">Save Changes</button>
+        <p class="promo-message promo-message-success" id="account-preferences-success" aria-live="polite" hidden></p>
+      </form>
     </div>
 
     <div id="account-order-history" class="account-section" hidden>
@@ -184,8 +199,9 @@
     <div id="account-danger" class="account-section" hidden>
       <button type="button" class="checkout-account-link-btn account-delete-btn" id="account-delete-btn" data-i18n="account.deleteAccountBtn">Delete Account</button>
       <div id="account-delete-confirm" hidden>
-        <p class="checkout-account-intro" data-i18n="account.deleteConfirmText">Delete your account permanently? This cannot be undone.</p>
-        <div class="checkout-account-options">
+        <p class="checkout-account-intro" data-i18n="account.deleteConfirmText">Delete your account permanently?</p>
+        <p class="checkout-account-intro account-delete-irreversible" data-i18n="account.deleteConfirmIrreversible">This action is irreversible.</p>
+        <div class="account-delete-actions">
           <button type="button" class="cta-button checkout-account-btn-sm account-delete-confirm-btn" id="account-delete-confirm-btn" data-i18n="account.deleteConfirmBtn">Confirm Delete</button>
           <button type="button" class="checkout-account-link-btn" id="account-delete-cancel-btn" data-i18n="account.deleteCancelBtn">Cancel</button>
         </div>
@@ -252,7 +268,15 @@
   const address2Input = addressForm.querySelector('[name="address2"]');
   const cityInput = addressForm.querySelector('[name="city"]');
   const postalInput = addressForm.querySelector('[name="postal"]');
-  const phoneInput = addressForm.querySelector('[name="phone"]');
+  const addressPhoneError = document.getElementById('account-address-phone-error');
+  // Same "shared, not duplicated" component as checkout.html's own Shipping
+  // phone field and the account-gate's create-account phone field (see
+  // js/phone-input.js) -- was still a plain <input type="tel"> here.
+  const addressPhoneWidget = window.MonarkPhoneInput
+    ? window.MonarkPhoneInput.mount(document.getElementById('account-phone'), {
+      onChange: () => { addressPhoneError.hidden = true; }
+    })
+    : null;
   const addressSuccess = document.getElementById('account-address-success');
 
   const paymentSection = document.getElementById('account-payment');
@@ -263,7 +287,9 @@
   const paymentSuccess = document.getElementById('account-payment-success');
 
   const preferencesSection = document.getElementById('account-preferences');
+  const preferencesForm = document.getElementById('account-preferences-form');
   const marketingToggle = document.getElementById('account-marketing-toggle');
+  const preferencesSuccess = document.getElementById('account-preferences-success');
 
   const orderHistory = document.getElementById('account-order-history');
   const guestOrderNote = document.getElementById('account-order-history-guest-note');
@@ -332,7 +358,8 @@
     address2Input.value = acc.address2 || '';
     cityInput.value = acc.city || '';
     postalInput.value = acc.postal || '';
-    phoneInput.value = acc.phone || '';
+    if (addressPhoneWidget) addressPhoneWidget.setValue({ number: acc.phone || '', country: acc.country || 'FR' });
+    addressPhoneError.hidden = true;
     addressSuccess.hidden = true;
 
     cardNameInput.value = acc.cardName || '';
@@ -345,6 +372,7 @@
     // check is only for accounts that predate it, so an old record without
     // the field at all still reads as opted-in rather than silently opted-out.
     marketingToggle.checked = acc.marketingOptIn !== false;
+    preferencesSuccess.hidden = true;
   }
 
   function showExtras(session) {
@@ -445,12 +473,21 @@
     e.preventDefault();
     const session = account.getSession();
     if (!session || session.isGuest) return;
+    const phoneValue = addressPhoneWidget ? addressPhoneWidget.getValue() : null;
+    if (addressPhoneWidget && !addressPhoneWidget.isValid()) {
+      addressPhoneError.textContent = t(phoneValue.country === 'FR' ? 'phoneInput.errorInvalidFR' : 'phoneInput.errorInvalidGeneric');
+      addressPhoneError.hidden = false;
+      return;
+    }
+    addressPhoneError.hidden = true;
     await account.updateAccount(session.email, {
       address: addressInput.value.trim(),
       address2: address2Input.value.trim(),
       city: cityInput.value.trim(),
       postal: postalInput.value.trim(),
-      phone: phoneInput.value.trim()
+      phone: phoneValue ? phoneValue.number : '',
+      dialCode: phoneValue ? phoneValue.dialCode : '',
+      country: phoneValue ? phoneValue.country : ''
     });
     addressSuccess.textContent = t('account.addressUpdated');
     addressSuccess.hidden = false;
@@ -475,13 +512,16 @@
     paymentSuccess.hidden = false;
   });
 
-  // Instant save on toggle, no separate submit button -- the checkbox's own
-  // new state already reads as the confirmation for a plain on/off
-  // preference like this one.
-  marketingToggle.addEventListener('change', async () => {
+  // BUG FIX: used to save instantly on toggle, no separate submit button --
+  // consistent with every other section here (Edit Profile, Address, Saved
+  // Card) having its own explicit Save button now instead.
+  preferencesForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
     const session = account.getSession();
     if (!session || session.isGuest) return;
     await account.updateAccount(session.email, { marketingOptIn: marketingToggle.checked });
+    preferencesSuccess.textContent = t('account.preferencesUpdated');
+    preferencesSuccess.hidden = false;
   });
 
   deleteBtn.addEventListener('click', () => { deleteConfirmBlock.hidden = false; });
@@ -538,6 +578,44 @@
     onResolved: (session) => { showExtras(session); },
     onUnresolved: () => { hideExtras(); }
   });
+
+  // MOBILE BUG FIX: "Modify Email" was overflowing off-screen on narrow
+  // viewports once "Log Out" (changeBtn, only ever shown on this page --
+  // see js/account.js's hideGuestOption handling) also shares the gate's own
+  // status row with it. Standard UX convention for a less-frequent,
+  // semi-destructive action is to demote it out of the primary info row
+  // rather than crowd it there, so below 768px (same breakpoint as every
+  // other mobile/desktop split in css/checkout.css) it moves to its own slot
+  // at the bottom of the Account section instead, leaving Modify Email alone
+  // in the row it was overflowing. Desktop has room for both -- nothing
+  // moves there. Log Out is relocated as the SAME live DOM node (not
+  // rebuilt), so its existing click handler/label just come along with it;
+  // it's also already .checkout-account-link-btn styled, i.e. already reads
+  // as the secondary/muted action this is meant to demote it to.
+  const logoutSlot = document.getElementById('account-logout-slot');
+  const logoutMobileQuery = window.matchMedia('(max-width: 768px)');
+  function syncLogoutBtn() {
+    const logoutBtn = document.getElementById('checkout-account-change-btn');
+    const statusEl = document.getElementById('checkout-account-status');
+    if (!logoutBtn || !statusEl) return;
+    // Moved out of the gate's own hidden subtree (statusEl) once relocated,
+    // so from here on its hidden state has to be kept in sync by hand --
+    // it no longer inherits "hidden because its ancestor is" the way it does
+    // while still inside statusEl.
+    logoutBtn.hidden = statusEl.hidden;
+    if (logoutMobileQuery.matches) {
+      logoutSlot.appendChild(logoutBtn);
+    } else {
+      const actionsRow = statusEl.querySelector('.checkout-account-status-actions');
+      if (actionsRow) actionsRow.prepend(logoutBtn);
+    }
+  }
+  logoutMobileQuery.addEventListener('change', syncLogoutBtn);
+  // Covers every later session change (js/account.js dispatches this on
+  // each one) -- the very first resolveSession() call at mount, right
+  // above, doesn't go through this event, hence the explicit call below.
+  document.addEventListener('account:updated', syncLogoutBtn);
+  syncLogoutBtn();
 })();
 </script>
 <script src="js/promo-banner.js?v=20260722"></script>
