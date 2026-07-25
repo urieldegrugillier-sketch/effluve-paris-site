@@ -269,33 +269,24 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      at its source. */
   position: absolute;
   transform: translateX(-50%);
-  font-family: var(--font-wordmark);
-  font-weight: 500;
-  /* 1.1rem -> 1.35rem -> 1.7rem: the mobile clamp()s below are bumped by the
-     same flat amount each round, for the same reason -- see their own
-     comment for why a flat shift (not a rescale) was chosen. */
-  font-size: 1.7rem;
-  /* Default line-height on this display font adds noticeably more vertical
-     space than the glyphs themselves need -- harmless at the old, smaller
-     size, but at this size it was the difference between the logo's
-     rendered box fitting inside .site-header's fixed padding and visually
-     pressing against it. line-height:1 keeps the box close to the actual
-     cap-height so the header's own padding (untouched, on purpose -- its
-     vertical footprint isn't supposed to change) still has room around it.
-     .nav-logo is a position:absolute flex child with no top/bottom set, so
-     it's still vertically centered within .site-nav's row by align-items:
-     center (the flex spec aligns auto-inset abspos children the same as
-     in-flow ones) -- tightening line-height doesn't touch that centering,
-     it just shrinks the box being centered. */
-  line-height: 1;
-  /* 0.22em, not the old Bodoni Moda value (0.3em) -- Poppins' letterforms
-     are inherently wider than Bodoni Moda's, so the same tracking read as
-     excessive once the font changed (see --font-wordmark's comment at
-     :root); dialed back after a visual check at both desktop and the
-     narrow mobile widths the clamps below target. */
-  letter-spacing: 0.22em;
-  color: var(--text-on-dark);
-  white-space: nowrap;
+}
+
+/* Effluve Paris wordmark image, replacing the old "MONARK" text (which used
+   --font-wordmark/Poppins -- see that variable's comment at :root; the
+   variable itself is still live for .loader-brand/.shop-footer-wordmark/
+   .shop-wordmark, just no longer referenced by this element). Sized by
+   height with width:auto so the SVG's own ~3.11:1 aspect ratio (1050.42 x
+   337.508 viewBox) is preserved automatically -- the height values here and
+   in the clamps below reuse the exact px the old font-size/line-height:1 box
+   was tuned to at each breakpoint, so the logo keeps the same vertical
+   footprint the text occupied rather than a freshly-guessed size. .nav-logo
+   is a position:absolute flex child with no top/bottom set, so it's still
+   vertically centered within .site-nav's row by align-items:center (the flex
+   spec aligns auto-inset abspos children the same as in-flow ones). */
+.nav-logo img {
+  display: block;
+  height: 1.7rem;
+  width: auto;
 }
 
 @media (min-width: 401px) and (max-width: 1024px) {
@@ -335,13 +326,17 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      UPDATE (round 2): shifted by another flat +0.35rem on top of that, same
      technique, same reasoning -- still no fresh safe-ceiling measurement
      against the hamburger/cart icons, just a further deliberate, moderate
-     bump. line-height:1 (see the base .nav-logo rule above) is what keeps
-     this larger text from pressing against .site-header's own padding,
-     which stays untouched on purpose. Worth a real spot-check on a narrow
-     device once this can be seen live. */
-  .nav-logo {
-    font-size: clamp(1.54rem, calc(0.655rem + 3.533vw), 2.5rem);
-    letter-spacing: clamp(0.02em, calc(-0.15em + 1.2vw), 0.28em);
+     bump. Worth a real spot-check on a narrow device once this can be seen
+     live.
+     UPDATE (image swap): these px values now size the Effluve Paris logo
+     <img> by height instead of the old "MONARK" text by font-size --
+     letter-spacing is gone (nothing to track-out on an image) and the
+     rendered width is derived from height via the SVG's fixed ~3.11:1
+     ratio, which comes out narrower than the old letter-spaced text ever
+     was at the same height, so the existing safe-ceiling fit against the
+     hamburger/cart icons still holds without needing to be re-measured. */
+  .nav-logo img {
+    height: clamp(1.54rem, calc(0.655rem + 3.533vw), 2.5rem);
   }
 }
 
@@ -353,9 +348,8 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      8.955px at a typical phone width like 390px.
      UPDATE: shifted by the same flat +0.25rem, then +0.35rem, as the upper
      segment above, for the same reasons -- see that comment. */
-  .nav-logo {
-    font-size: clamp(0.79rem, calc(-2.8375rem + 17.5vw), 1.55rem);
-    letter-spacing: clamp(0.01em, calc(-0.15em + 1.2vw), 0.28em);
+  .nav-logo img {
+    height: clamp(0.79rem, calc(-2.8375rem + 17.5vw), 1.55rem);
   }
 }
 
