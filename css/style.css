@@ -198,10 +198,11 @@ body::before {
   color: var(--accent-bronze);
   font-size: 0.349em;
   letter-spacing: 0.28em;
-  /* 0.04em -- 0.1em (itself already dialed back once from an original
-     0.3em) still read as too much daylight between the two lines relative
-     to how tight the header logo/hero signature pairing sits. */
-  margin-top: 0.04em;
+  /* 0.05em -- matched directly to .hero-signature a's own gap (the
+     equivalent EFFLUVE/PARIS spacing on the homepage signature) instead of
+     an independently-tuned value, so the loader and the homepage signature
+     read with identical spacing rather than just similarly-close ones. */
+  margin-top: 0.05em;
 }
 
 .loader-bar-track {
