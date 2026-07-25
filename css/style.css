@@ -969,15 +969,26 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 .hero-heading {
   margin: 0;
   font-family: var(--font-wordmark);
-  font-weight: 600;
+  /* 500, not 600 -- .hero-heading was rendering visibly heavier than
+     .loader-brand/.hero-signature despite all three sharing --font-wordmark
+     (Poppins), because this was the one still left at 600. Matching the
+     weight those two already use makes MONARK, the loader text, and the
+     EFFLUVE/PARIS signature all read as the same typeface family, just at
+     each element's own size. */
+  font-weight: 500;
   /* UPDATE (MONARK restored as the main title, EFFLUVE/PARIS demoted to a
      signature below it -- see .hero-signature further down): sized down
      from the original clamp(4.5rem, 15vw, 13rem) since .hero-signature now
      occupies additional vertical space underneath it and the two together
      need to fit the same 100vh .hero-standalone without clipping -- still
      comfortably the largest text on the page at every breakpoint (checked
-     at 1280/375/340px), just not at the original's full scale. */
-  font-size: clamp(3rem, 9vw, 7rem);
+     at 1280/375/340px), just not at the original's full scale.
+     UPDATE (more contrast vs. the signature): bumped further, from
+     clamp(3rem, 9vw, 7rem), while .hero-signature (below) was shrunk at the
+     same time -- widens the size gap between the giant title and the small
+     signature underneath it so the two read more clearly as "main title"
+     vs. "subdued signature" rather than two similarly-weighted titles. */
+  font-size: clamp(3.2rem, 9.5vw, 7.5rem);
   line-height: 0.92;
   /* 0.02em (Bodoni Moda's own value) reads as essentially untracked once
      letters are already this large -- bumped up so the wordmark's
@@ -1000,16 +1011,18 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    loader both use (see .hero-heading-line/.hero-heading-sub just below,
    shared with this element rather than duplicated) instead of a hero-scale
    treatment -- sized to feel like a signature, not a competing second
-   title. font-weight 500 and letter-spacing 0.28em (rather than
-   .hero-heading's own 600/0.03em) intentionally match .loader-brand's own
-   values, not the giant title's -- this is meant to echo the loader/header
-   logo's small-brand-mark feel, not scale down the hero title's own
-   proportions. */
+   title. font-weight 500 and letter-spacing 0.28em intentionally match
+   .loader-brand's own values (.hero-heading now matches too, see that
+   rule's own comment) -- this is meant to echo the loader/header logo's
+   small-brand-mark feel, not scale down the hero title's own proportions.
+   UPDATE (more contrast vs. MONARK): font-size shrunk from
+   clamp(1.4rem, 3vw, 2.2rem) at the same time .hero-heading (above) was
+   bumped up, so the size gap between the two widens from both ends. */
 .hero-signature {
   margin: 1.4rem 0 0;
   font-family: var(--font-wordmark);
   font-weight: 500;
-  font-size: clamp(1.4rem, 3vw, 2.2rem);
+  font-size: clamp(1.1rem, 2.4vw, 1.7rem);
   letter-spacing: 0.28em;
   color: #ffffff;
 }
@@ -1060,6 +1073,20 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   font-weight: 400;
   letter-spacing: 0.28em;
   -webkit-text-stroke: 0.3px var(--accent-bronze);
+}
+
+/* Small "Cliquez pour découvrir" line directly under .hero-signature --
+   var(--text-muted) (#8f887c), the site's existing muted/secondary text
+   color (already used by .hero-tagline, .section-body, etc.), not a new
+   gray. Centered via the inherited .hero-standalone text-align:center, same
+   as everything else in .hero-inner. */
+.hero-subtext {
+  margin: 0.8rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .hero-tagline {

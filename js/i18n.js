@@ -29,8 +29,9 @@
         acquire: 'Acquire'
       },
       hero: {
-        label: 'Eau de Parfum — First Decree',
+        label: 'Eau de Parfum',
         tagline: 'A scent built for men who rule rooms without entering them.',
+        subtext: 'Click to discover',
         scroll: 'Scroll to Begin the Reign'
       },
       s1: {
@@ -501,8 +502,9 @@
         acquire: 'Acquérir'
       },
       hero: {
-        label: 'Eau de Parfum — Premier Décret',
+        label: 'Eau de Parfum',
         tagline: "Un parfum conçu pour les hommes qui règnent sur une pièce sans jamais y entrer.",
+        subtext: 'Cliquez pour découvrir',
         scroll: 'Défilez pour que le Règne commence'
       },
       s1: {
