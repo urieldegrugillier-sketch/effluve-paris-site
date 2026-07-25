@@ -198,7 +198,9 @@ body::before {
   color: var(--accent-bronze);
   font-size: 0.349em;
   letter-spacing: 0.28em;
-  margin-top: 0.3em;
+  /* 0.1em, not the original 0.3em -- read as too much daylight between the
+     two lines relative to how tight the header logo/hero pairing sits. */
+  margin-top: 0.1em;
 }
 
 .loader-bar-track {
@@ -1018,18 +1020,25 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    absolute px tracking EFFLUVE has despite being a much smaller glyph,
    reading as oddly wide-spread -- redeclaring 0.03em here instead
    recomputes it relative to THIS element's own (smaller) font-size, keeping
-   the same proportional tracking at both sizes. Same reasoning for
-   -webkit-text-stroke: inherited as the literal 2.5px white .hero-heading
-   sets, which would ring a heavy white outline around bronze fill if left
-   alone -- redeclared here at a proportionally thinner width and in the
-   same bronze as the fill (so it just reinforces the strokes rather than
-   reading as a visible outline, the same effect the white-on-white stroke
-   has on EFFLUVE). */
+   the same proportional tracking at both sizes.
+   font-weight and -webkit-text-stroke both dial back from what EFFLUVE
+   uses, rather than just inheriting/scaling them, to match how much
+   lighter PARIS reads in both the header logo (a flat vector fill, no
+   stroke at all) and the loader: a first pass scaled the stroke width down
+   by the same 0.349 ratio as the font-size (0.9px, keeping stroke-to-
+   font-size proportional to EFFLUVE's own 2.5px) and left font-weight at
+   the inherited 600 -- still read visibly bolder/heavier than the header
+   logo's own thin PARIS once seen rendered, because proportional stroke
+   scaling alone doesn't fix a mismatched font-weight underneath it.
+   font-weight 400 (down from 600) plus a much thinner 0.3px stroke (mostly
+   just anti-aliasing crispness, not a visible outline) reads much closer to
+   the header logo's actual weight. */
 .hero-heading-sub {
   color: var(--accent-bronze);
   font-size: 0.349em;
+  font-weight: 400;
   letter-spacing: 0.03em;
-  -webkit-text-stroke: 0.9px var(--accent-bronze);
+  -webkit-text-stroke: 0.3px var(--accent-bronze);
 }
 
 .hero-letter { display: inline-block; }
