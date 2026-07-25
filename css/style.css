@@ -205,16 +205,24 @@ body::before {
    than left to inherit -- the same em-resolves-at-declaration-site reasoning
    applies) and the header logo's .nav-logo-subword -- smaller, bronze, not
    part of the main white brand line.
-   margin-left positions PARIS's own left edge at the same fraction (0.3782)
-   of EFFLUVE's rendered width that the hero signature's PARIS lands at --
-   plain text-align:center (the previous mechanism) gave 0.3753 here, close
-   but not identical, since "EFFLUVE" renders at a very slightly different
-   width-to-font-size ratio at the loader's own font-size than at the hero
-   signature's. EFFLUVE's width here measures ~5.866x .loader-brand's own
-   font-size (confirmed via live measurement at 1280/375/340px -- stable
-   across all three, so a genuine font-metric ratio, not rounding noise);
-   0.3782 of that, expressed as a multiple of THIS element's own font-size
-   (0.349em of .loader-brand's) instead: 0.3782 * 5.866 / 0.349 = 6.357em. */
+   position:relative + left (NOT margin-left) positions PARIS's own left
+   edge at the same fraction (0.3782) of EFFLUVE's rendered width that the
+   hero signature's PARIS lands at. margin-left was tried first and broke
+   .loader-brand's own centering: margin-left is a real box-model property,
+   so it grows the flex item's contribution to the column's auto cross-size
+   -- once PARIS's (own width + margin-left) exceeded EFFLUVE's width, PARIS
+   became the widest item, .loader-brand's own width grew to match IT
+   instead of EFFLUVE, and .loader-inner's text-align:center then centered
+   that wider, off-center-from-EFFLUVE box. position:relative's left offset
+   is purely a post-layout visual shift -- it does NOT contribute to the
+   item's flex-sizing footprint, so EFFLUVE (the only item that still
+   affects the container's width) stays correctly centered regardless of
+   how far PARIS is shifted. EFFLUVE's width here measures ~5.866x
+   .loader-brand's own font-size (confirmed via live measurement at
+   1280/375/340px -- stable across all three, so a genuine font-metric
+   ratio, not rounding noise); 0.3782 of that, expressed as a multiple of
+   THIS element's own font-size (0.349em of .loader-brand's) instead:
+   0.3782 * 5.866 / 0.349 = 6.357em. */
 .loader-brand-sub {
   color: var(--accent-bronze);
   font-size: 0.349em;
@@ -222,9 +230,14 @@ body::before {
   /* 0.05em -- matched directly to .hero-signature a's own gap (the
      equivalent EFFLUVE/PARIS spacing on the homepage signature) instead of
      an independently-tuned value, so the loader and the homepage signature
-     read with identical spacing rather than just similarly-close ones. */
+     read with identical spacing rather than just similarly-close ones.
+     Still margin-top, not top -- PARIS stays in normal flex flow (only its
+     horizontal position is visually offset via position:relative/left
+     below), so margin-top still stacks it under EFFLUVE exactly as before;
+     this line is unchanged from before this round's fix. */
   margin-top: 0.05em;
-  margin-left: 6.357em;
+  position: relative;
+  left: 6.357em;
 }
 
 .loader-bar-track {
