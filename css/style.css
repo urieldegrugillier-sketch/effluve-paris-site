@@ -953,7 +953,14 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   margin: 0;
   font-family: var(--font-wordmark);
   font-weight: 600;
-  font-size: clamp(4.5rem, 15vw, 13rem);
+  /* UPDATE (MONARK -> EFFLUVE / PARIS): "EFFLUVE" (7 letters) is longer than
+     "MONARK" (6) ever was, and this is now two stacked lines instead of one
+     -- both the floor and the vw slope were dialed back from the old
+     clamp(4.5rem, 15vw, 13rem) so the longer word still fits every
+     breakpoint without wrapping mid-word (checked at 1280/1024/768/375/
+     340/320px -- see .hero-heading-line's own comment for the two-line
+     layout itself). */
+  font-size: clamp(3.4rem, 11.5vw, 10rem);
   line-height: 0.92;
   /* 0.02em (Bodoni Moda's own value) reads as essentially untracked once
      letters are already this large -- bumped up so the wordmark's
@@ -967,6 +974,22 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   color: #ffffff;
   -webkit-text-stroke: 2.5px #ffffff;
 }
+
+/* UPDATE (MONARK -> EFFLUVE / PARIS): the <a> wrapping both lines (still the
+   product-page link, unchanged) is now a flex column instead of plain inline
+   flow, so "EFFLUVE" and "PARIS" stack as two centered lines rather than
+   running together on one. gap is in em (relative to .hero-heading's own
+   clamped font-size, inherited by the <a>), not rem/px, so the space between
+   the two words scales automatically with the responsive font-size instead
+   of needing its own breakpoint tuning. */
+.hero-heading a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.08em;
+}
+
+.hero-heading-line { display: block; }
 
 .hero-letter { display: inline-block; }
 
