@@ -269,29 +269,48 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      at its source. */
   position: absolute;
   transform: translateX(-50%);
+  /* UPDATE (split into two images): the single combined SVG (both words
+     baked into one fixed graphic, translateX(-50%) centering the graphic's
+     own bounding box) is gone -- EFFLUVE and PARIS are now two separate
+     <img>s (assets/icons/effluve-word-dark-bg.svg /
+     assets/icons/paris-word-dark-bg.svg, each cropped to a tight viewBox
+     around just that word, split out of the old combined file's two <g>
+     groups with the path data itself untouched -- see
+     assets/icons/effluve-logo-dark-bg.svg, kept as-is for any non-web use).
+     display:flex column + align-items:center stacks PARIS directly under
+     EFFLUVE and centers it to EFFLUVE's own width (PARIS is the narrower of
+     the two), so the STACK's width is exactly EFFLUVE's width -- meaning
+     translateX(-50%) now centers EFFLUVE itself on the header's true
+     midpoint, not a combined-graphic bounding box that happened to include
+     PARIS's own offset. --nav-logo-word-h drives EFFLUVE's height; PARIS and
+     the gap between them are both derived from it below so they scale
+     together and can't drift out of proportion at a breakpoint someone
+     forgets to update. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  --nav-logo-word-h: 2.1rem;
+  gap: calc(var(--nav-logo-word-h) * 0.08);
 }
 
-/* Effluve Paris wordmark image, replacing the old "MONARK" text (which used
-   --font-wordmark/Poppins -- see that variable's comment at :root; the
-   variable itself is still live for .loader-brand/.shop-footer-wordmark/
-   .shop-wordmark, just no longer referenced by this element). Sized by
-   height with width:auto so the SVG's own ~3.11:1 aspect ratio (1050.42 x
-   337.508 viewBox) is preserved automatically -- the height values here and
-   in the clamps below reuse the exact px the old font-size/line-height:1 box
-   was tuned to at each breakpoint, so the logo keeps the same vertical
-   footprint the text occupied rather than a freshly-guessed size. .nav-logo
-   is a position:absolute flex child with no top/bottom set, so it's still
-   vertically centered within .site-nav's row by align-items:center (the flex
-   spec aligns auto-inset abspos children the same as in-flow ones). */
-.nav-logo img {
+/* EFFLUVE (larger, on top). Sized by height with width:auto so the SVG's own
+   ~6.07:1 aspect ratio (942.48 x 155.32 viewBox, cropped tight to the glyphs
+   -- see assets/icons/effluve-word-dark-bg.svg) is preserved automatically. */
+.nav-logo-word {
   display: block;
-  /* 2.3rem, not the original 1.7rem -- bumped ~35% (same flat-factor scaling
-     applied to the clamps below) after the wordmark read too small next to
-     the promo banner above it. Still comes out narrower at this height than
-     the old letter-spaced "MONARK" text ever was at ITS old max (see the
-     clamp comment below), so it stays inside the same hamburger/cart
-     safe-ceiling that was directly measured for that text. */
-  height: 2.3rem;
+  height: var(--nav-logo-word-h);
+  width: auto;
+}
+
+/* PARIS (smaller, directly beneath). 0.349 reproduces the exact height ratio
+   the two words had in the original combined graphic (155.32 vs 54.188
+   viewBox units there -- PARIS was already proportioned smaller relative to
+   EFFLUVE; this just keeps that same relationship instead of guessing a new
+   one). Own ~6.40:1 aspect ratio (346.56 x 54.188 viewBox -- see
+   assets/icons/paris-word-dark-bg.svg) again preserved via width:auto. */
+.nav-logo-subword {
+  display: block;
+  height: calc(var(--nav-logo-word-h) * 0.349);
   width: auto;
 }
 
@@ -347,9 +366,69 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      boundary continuity at 400/401px without reintroducing the jump bug) --
      re-screenshotted at 1024/768/401px on both index.html (which also
      carries the Acquerir CTA next to the cart icon) and the plainer
-     product.html header to confirm no overlap at the new size. */
-  .nav-logo img {
-    height: clamp(2.08rem, calc(0.884rem + 4.77vw), 3.38rem);
+     product.html header to confirm no overlap at the new size.
+     UPDATE (split into two images + bigger again): these values sized the
+     single combined image by height; now they drive --nav-logo-word-h (see
+     the base .nav-logo rule above), i.e. just EFFLUVE's own height, with
+     PARIS derived from it. Every bound and the vw slope scaled by a flat
+     0.92x from their prior (combined-image) values -- 0.46 to convert
+     "combined graphic height" to "EFFLUVE's own height within that graphic"
+     (155.32/337.508 of it, unchanged by the split since the crop didn't
+     rescale anything) times 2x to go noticeably bigger than last round's
+     1.35x bump, per this round's request. Re-screenshotted at
+     1280/1101/1025/1024/768/401/400/375/340/320px on both index.html
+     (Acquerir CTA) and product.html (bare cart icon) -- EFFLUVE is now
+     visibly wider than the old combined graphic ever was at the same
+     height (single-word ~6.07:1 crop vs the combined graphic's ~3.11:1), so
+     this was re-measured against the hamburger/cart safe ceiling from
+     scratch rather than assumed safe by inheritance like the rounds above.
+     That first attempt used ONE clamp across the whole 401-1024px span (the
+     numbers this comment still describes) -- screenshotting exposed a
+     SECOND, new-to-this-round hazard the horizontal hamburger/cart check
+     doesn't catch: a VERTICAL one. .nav-logo is a two-image flex-column
+     stack now (EFFLUVE + gap + PARIS, see the base .nav-logo rule), tall
+     enough at this size that it can exceed .site-header's own padding
+     envelope and get visibly clipped by the promo banner above it -- .nav-
+     logo is absolutely positioned and centers on .site-nav's cross-axis
+     regardless of its own height, so it pokes out past the header's
+     padding-box edges (top first, since align-items:center splits any
+     excess evenly) once stack-height > 2*padding-top + row-height (row-
+     height being whatever the tallest in-flow sibling is, ~20px from the
+     cart icon -- unaffected by this change). That only bites here because
+     .site-header's OWN padding drops from 2rem to 1.4rem at max-width:768px
+     (see that rule far below) -- a breakpoint this logo-sizing block didn't
+     previously need to care about, since no earlier version of this element
+     was ever tall enough to reach the ceiling that smaller padding leaves.
+     Confirmed by direct measurement: at 768px the single-clamp version put
+     EFFLUVE at 2.917rem, a ~66.7px stack against a ~64.8px available
+     envelope -- a real, screenshotted top clip, not a near-miss. Split into
+     two tiers at exactly that 768px padding breakpoint (matching this
+     codebase's own established pattern -- see the 400/401px split above --
+     of separating clamps wherever the underlying safe-ceiling constraint
+     itself changes shape) so each can be fit to the vertical room actually
+     available in its own sub-range.
+     A first pass capped the ceiling at 2.80rem (targeting a ~0.8px total
+     margin, i.e. essentially zero) -- CDP getBoundingClientRect() measurement
+     (not just eyeballing a screenshot) at exactly 768px confirmed that margin
+     really was ~0.4px top/bottom, too thin to trust across browsers/font
+     rendering. Ceiling dropped further to 2.60rem, re-measured the same way:
+     ~2.7px margin top/bottom at 768px, a real, comfortable cushion this
+     time. */
+  .nav-logo {
+    --nav-logo-word-h: clamp(1.91rem, calc(1.156rem + 3.01vw), 2.60rem);
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* Upper segment of the split described in the 401-768px block above --
+     .site-header's padding is still the full 2rem here (the 1.4rem drop
+     only starts at max-width:768px), so this tier has real headroom (a
+     ~84px stack envelope, confirmed via the same CDP measurement -- 6.5px+
+     margin at both 769px and 1024px) and can keep tracking close to the
+     original single-clamp curve's own upper half, continuous with the
+     401-768px tier's own ceiling (2.60rem) at 769px. */
+  .nav-logo {
+    --nav-logo-word-h: clamp(2.60rem, calc(1.062rem + 3.2vw), 3.11rem);
   }
 }
 
@@ -362,9 +441,13 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      UPDATE: shifted by the same flat +0.25rem, then +0.35rem, as the upper
      segment above, for the same reasons -- see that comment.
      UPDATE (legibility bump): same flat 1.35x scale as the upper segment's
-     own bump above, for the same reasons -- see that comment. */
-  .nav-logo img {
-    height: clamp(1.07rem, calc(-3.83rem + 23.63vw), 2.09rem);
+     own bump above, for the same reasons -- see that comment.
+     UPDATE (split into two images + bigger again): same flat 0.92x
+     (0.46 combined-to-EFFLUVE-only conversion, 2x noticeably-bigger) as the
+     upper segment's own update above, applied to --nav-logo-word-h instead
+     of the old img height -- see that comment. */
+  .nav-logo {
+    --nav-logo-word-h: clamp(0.98rem, calc(-3.53rem + 21.75vw), 1.92rem);
   }
 }
 
