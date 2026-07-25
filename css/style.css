@@ -285,7 +285,13 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    spec aligns auto-inset abspos children the same as in-flow ones). */
 .nav-logo img {
   display: block;
-  height: 1.7rem;
+  /* 2.3rem, not the original 1.7rem -- bumped ~35% (same flat-factor scaling
+     applied to the clamps below) after the wordmark read too small next to
+     the promo banner above it. Still comes out narrower at this height than
+     the old letter-spaced "MONARK" text ever was at ITS old max (see the
+     clamp comment below), so it stays inside the same hamburger/cart
+     safe-ceiling that was directly measured for that text. */
+  height: 2.3rem;
   width: auto;
 }
 
@@ -334,9 +340,16 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      rendered width is derived from height via the SVG's fixed ~3.11:1
      ratio, which comes out narrower than the old letter-spaced text ever
      was at the same height, so the existing safe-ceiling fit against the
-     hamburger/cart icons still holds without needing to be re-measured. */
+     hamburger/cart icons still holds without needing to be re-measured.
+     UPDATE (legibility bump): every bound and the vw slope scaled by the
+     same flat 1.35x factor as the base desktop rule above (same technique
+     the two flat-shift rounds above this one already used to preserve
+     boundary continuity at 400/401px without reintroducing the jump bug) --
+     re-screenshotted at 1024/768/401px on both index.html (which also
+     carries the Acquerir CTA next to the cart icon) and the plainer
+     product.html header to confirm no overlap at the new size. */
   .nav-logo img {
-    height: clamp(1.54rem, calc(0.655rem + 3.533vw), 2.5rem);
+    height: clamp(2.08rem, calc(0.884rem + 4.77vw), 3.38rem);
   }
 }
 
@@ -347,9 +360,11 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      15px at 401 above), instead of the old single clamp's much smaller
      8.955px at a typical phone width like 390px.
      UPDATE: shifted by the same flat +0.25rem, then +0.35rem, as the upper
-     segment above, for the same reasons -- see that comment. */
+     segment above, for the same reasons -- see that comment.
+     UPDATE (legibility bump): same flat 1.35x scale as the upper segment's
+     own bump above, for the same reasons -- see that comment. */
   .nav-logo img {
-    height: clamp(0.79rem, calc(-2.8375rem + 17.5vw), 1.55rem);
+    height: clamp(1.07rem, calc(-3.83rem + 23.63vw), 2.09rem);
   }
 }
 
