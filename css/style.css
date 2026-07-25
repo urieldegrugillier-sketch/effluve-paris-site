@@ -198,9 +198,10 @@ body::before {
   color: var(--accent-bronze);
   font-size: 0.349em;
   letter-spacing: 0.28em;
-  /* 0.1em, not the original 0.3em -- read as too much daylight between the
-     two lines relative to how tight the header logo/hero pairing sits. */
-  margin-top: 0.1em;
+  /* 0.04em -- 0.1em (itself already dialed back once from an original
+     0.3em) still read as too much daylight between the two lines relative
+     to how tight the header logo/hero signature pairing sits. */
+  margin-top: 0.04em;
 }
 
 .loader-bar-track {
@@ -969,14 +970,14 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   margin: 0;
   font-family: var(--font-wordmark);
   font-weight: 600;
-  /* UPDATE (MONARK -> EFFLUVE / PARIS): "EFFLUVE" (7 letters) is longer than
-     "MONARK" (6) ever was, and this is now two stacked lines instead of one
-     -- both the floor and the vw slope were dialed back from the old
-     clamp(4.5rem, 15vw, 13rem) so the longer word still fits every
-     breakpoint without wrapping mid-word (checked at 1280/1024/768/375/
-     340/320px -- see .hero-heading-line's own comment for the two-line
-     layout itself). */
-  font-size: clamp(3.4rem, 11.5vw, 10rem);
+  /* UPDATE (MONARK restored as the main title, EFFLUVE/PARIS demoted to a
+     signature below it -- see .hero-signature further down): sized down
+     from the original clamp(4.5rem, 15vw, 13rem) since .hero-signature now
+     occupies additional vertical space underneath it and the two together
+     need to fit the same 100vh .hero-standalone without clipping -- still
+     comfortably the largest text on the page at every breakpoint (checked
+     at 1280/375/340px), just not at the original's full scale. */
+  font-size: clamp(3rem, 9vw, 7rem);
   line-height: 0.92;
   /* 0.02em (Bodoni Moda's own value) reads as essentially untracked once
      letters are already this large -- bumped up so the wordmark's
@@ -991,20 +992,37 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   -webkit-text-stroke: 2.5px #ffffff;
 }
 
-/* UPDATE (MONARK -> EFFLUVE / PARIS): the <a> wrapping both lines (still the
-   product-page link, unchanged) is now a flex column instead of plain inline
-   flow, so "EFFLUVE" and "PARIS" stack as two centered lines rather than
-   running together on one. gap is in em (relative to .hero-heading's own
-   clamped font-size, inherited by the <a>), not rem/px, so the space between
-   the two words scales automatically with the responsive font-size instead
-   of needing its own breakpoint tuning. */
-.hero-heading a {
+.hero-letter { display: inline-block; }
+
+/* UPDATE (MONARK restored, EFFLUVE/PARIS demoted to a signature): a small
+   brand signature under the giant MONARK title, reusing the same
+   EFFLUVE-large-white / PARIS-smaller-bronze pattern the header logo and
+   loader both use (see .hero-heading-line/.hero-heading-sub just below,
+   shared with this element rather than duplicated) instead of a hero-scale
+   treatment -- sized to feel like a signature, not a competing second
+   title. font-weight 500 and letter-spacing 0.28em (rather than
+   .hero-heading's own 600/0.03em) intentionally match .loader-brand's own
+   values, not the giant title's -- this is meant to echo the loader/header
+   logo's small-brand-mark feel, not scale down the hero title's own
+   proportions. */
+.hero-signature {
+  margin: 1.4rem 0 0;
+  font-family: var(--font-wordmark);
+  font-weight: 500;
+  font-size: clamp(1.4rem, 3vw, 2.2rem);
+  letter-spacing: 0.28em;
+  color: #ffffff;
+}
+
+/* UPDATE: flex column so "EFFLUVE" and "PARIS" stack as two centered lines
+   instead of running together on one -- gap is in em (relative to
+   .hero-signature's own font-size, inherited by the <a>), so the space
+   between the two words scales automatically with the responsive font-size
+   instead of needing its own breakpoint tuning. */
+.hero-signature a {
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* 0.05em, not the original 0.08em -- once .hero-heading-sub (below) shrinks
-     PARIS down, the same gap read as too loose relative to the now-smaller
-     second line, so it was tightened alongside that change. */
   gap: 0.05em;
 }
 
@@ -1012,36 +1030,37 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 
 /* PARIS: matches the header logo's own EFFLUVE/PARIS relationship
    (.nav-logo-word/.nav-logo-subword, --nav-logo-word-h * 0.349) instead of
-   inheriting full hero size/white -- smaller and in the bronze accent, not
-   part of the giant white wordmark. font-size and letter-spacing are both
-   redeclared in em rather than left to inherit: em lengths resolve to a
-   fixed px value AT the element that declares them, so simply inheriting
-   .hero-heading's own 0.03em letter-spacing would hand PARIS the same
-   absolute px tracking EFFLUVE has despite being a much smaller glyph,
-   reading as oddly wide-spread -- redeclaring 0.03em here instead
+   inheriting full signature size/white -- smaller and in the bronze accent,
+   not part of the white brand line above it. font-size and letter-spacing
+   are both redeclared in em rather than left to inherit: em lengths
+   resolve to a fixed px value AT the element that declares them, so simply
+   inheriting .hero-signature's own 0.28em letter-spacing would hand PARIS
+   the same absolute px tracking EFFLUVE has despite being a much smaller
+   glyph, reading as oddly wide-spread -- redeclaring 0.28em here instead
    recomputes it relative to THIS element's own (smaller) font-size, keeping
    the same proportional tracking at both sizes.
    font-weight and -webkit-text-stroke both dial back from what EFFLUVE
    uses, rather than just inheriting/scaling them, to match how much
    lighter PARIS reads in both the header logo (a flat vector fill, no
    stroke at all) and the loader: a first pass scaled the stroke width down
-   by the same 0.349 ratio as the font-size (0.9px, keeping stroke-to-
-   font-size proportional to EFFLUVE's own 2.5px) and left font-weight at
-   the inherited 600 -- still read visibly bolder/heavier than the header
+   by the same 0.349 ratio as the font-size and left font-weight at the
+   inherited value -- still read visibly bolder/heavier than the header
    logo's own thin PARIS once seen rendered, because proportional stroke
    scaling alone doesn't fix a mismatched font-weight underneath it.
-   font-weight 400 (down from 600) plus a much thinner 0.3px stroke (mostly
-   just anti-aliasing crispness, not a visible outline) reads much closer to
-   the header logo's actual weight. */
+   font-weight 400 plus a much thinner 0.3px stroke (mostly just
+   anti-aliasing crispness, not a visible outline) reads much closer to the
+   header logo's actual weight. .loader-brand-sub (see that rule) applies
+   the identical pattern/numbers to the loader's own PARIS line -- kept as a
+   separate class rather than reused here since it hangs off a differently
+   named parent (.loader-brand, not .hero-signature), but the reasoning and
+   values are the same. */
 .hero-heading-sub {
   color: var(--accent-bronze);
   font-size: 0.349em;
   font-weight: 400;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.28em;
   -webkit-text-stroke: 0.3px var(--accent-bronze);
 }
-
-.hero-letter { display: inline-block; }
 
 .hero-tagline {
   margin: 2rem auto 0;
