@@ -187,6 +187,20 @@ body::before {
   color: var(--text-on-dark);
 }
 
+.loader-brand-line { display: block; }
+
+/* PARIS: same EFFLUVE/PARIS treatment as .hero-heading-sub (see that rule's
+   own comment for why font-size/letter-spacing are redeclared here rather
+   than left to inherit -- the same em-resolves-at-declaration-site reasoning
+   applies) and the header logo's .nav-logo-subword -- smaller, bronze, not
+   part of the main white brand line. */
+.loader-brand-sub {
+  color: var(--accent-bronze);
+  font-size: 0.349em;
+  letter-spacing: 0.28em;
+  margin-top: 0.3em;
+}
+
 .loader-bar-track {
   width: 100%;
   height: 1px;
@@ -986,10 +1000,37 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.08em;
+  /* 0.05em, not the original 0.08em -- once .hero-heading-sub (below) shrinks
+     PARIS down, the same gap read as too loose relative to the now-smaller
+     second line, so it was tightened alongside that change. */
+  gap: 0.05em;
 }
 
 .hero-heading-line { display: block; }
+
+/* PARIS: matches the header logo's own EFFLUVE/PARIS relationship
+   (.nav-logo-word/.nav-logo-subword, --nav-logo-word-h * 0.349) instead of
+   inheriting full hero size/white -- smaller and in the bronze accent, not
+   part of the giant white wordmark. font-size and letter-spacing are both
+   redeclared in em rather than left to inherit: em lengths resolve to a
+   fixed px value AT the element that declares them, so simply inheriting
+   .hero-heading's own 0.03em letter-spacing would hand PARIS the same
+   absolute px tracking EFFLUVE has despite being a much smaller glyph,
+   reading as oddly wide-spread -- redeclaring 0.03em here instead
+   recomputes it relative to THIS element's own (smaller) font-size, keeping
+   the same proportional tracking at both sizes. Same reasoning for
+   -webkit-text-stroke: inherited as the literal 2.5px white .hero-heading
+   sets, which would ring a heavy white outline around bronze fill if left
+   alone -- redeclared here at a proportionally thinner width and in the
+   same bronze as the fill (so it just reinforces the strokes rather than
+   reading as a visible outline, the same effect the white-on-white stroke
+   has on EFFLUVE). */
+.hero-heading-sub {
+  color: var(--accent-bronze);
+  font-size: 0.349em;
+  letter-spacing: 0.03em;
+  -webkit-text-stroke: 0.9px var(--accent-bronze);
+}
 
 .hero-letter { display: inline-block; }
 
