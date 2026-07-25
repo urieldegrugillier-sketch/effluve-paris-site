@@ -289,8 +289,21 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  --nav-logo-word-h: 2.1rem;
-  gap: calc(var(--nav-logo-word-h) * 0.08);
+  /* UPDATE (scaled back ~17.5%): the prior round's 2.1rem (and the three
+     clamps below) read a bit too large -- every value in this block and the
+     three media queries below it was multiplied by the same flat 0.825
+     factor, which preserves the exact 400/401px and 768/769px boundary
+     continuity by construction (if two formulas agreed at a boundary before
+     a uniform scale, they still agree after it) without needing to
+     re-derive it. Still noticeably bigger than the round before the
+     two-image split (that round's EFFLUVE-equivalent desktop size was
+     ~1.06rem; this is 1.73rem). */
+  --nav-logo-word-h: 1.73rem;
+  /* 0.16, not 0.08 -- doubled for clearer visual separation between EFFLUVE
+     and PARIS, per request. Still a calc() off --nav-logo-word-h so the gap
+     scales with the wordmark at every breakpoint instead of needing its own
+     copy in each media query below. */
+  gap: calc(var(--nav-logo-word-h) * 0.16);
 }
 
 /* EFFLUVE (larger, on top). Sized by height with width:auto so the SVG's own
@@ -413,9 +426,15 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      really was ~0.4px top/bottom, too thin to trust across browsers/font
      rendering. Ceiling dropped further to 2.60rem, re-measured the same way:
      ~2.7px margin top/bottom at 768px, a real, comfortable cushion this
-     time. */
+     time.
+     UPDATE (scaled back ~17.5%): flat 0.825x on every bound and the vw
+     slope, same technique and same reasoning as the base .nav-logo rule's
+     own update above -- the vertical margin at 768px (already checked
+     against .site-header's tighter 1.4rem padding there, see above) can
+     only grow from shrinking this, so no fresh clipping risk; re-verified
+     anyway alongside the wider re-screenshot pass this round covers. */
   .nav-logo {
-    --nav-logo-word-h: clamp(1.91rem, calc(1.156rem + 3.01vw), 2.60rem);
+    --nav-logo-word-h: clamp(1.58rem, calc(0.954rem + 2.48vw), 2.15rem);
   }
 }
 
@@ -426,9 +445,11 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      ~84px stack envelope, confirmed via the same CDP measurement -- 6.5px+
      margin at both 769px and 1024px) and can keep tracking close to the
      original single-clamp curve's own upper half, continuous with the
-     401-768px tier's own ceiling (2.60rem) at 769px. */
+     401-768px tier's own ceiling (2.60rem) at 769px.
+     UPDATE (scaled back ~17.5%): same flat 0.825x as the 401-768px tier's
+     own update above -- see that comment. */
   .nav-logo {
-    --nav-logo-word-h: clamp(2.60rem, calc(1.062rem + 3.2vw), 3.11rem);
+    --nav-logo-word-h: clamp(2.15rem, calc(0.876rem + 2.64vw), 2.57rem);
   }
 }
 
@@ -445,9 +466,11 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      UPDATE (split into two images + bigger again): same flat 0.92x
      (0.46 combined-to-EFFLUVE-only conversion, 2x noticeably-bigger) as the
      upper segment's own update above, applied to --nav-logo-word-h instead
-     of the old img height -- see that comment. */
+     of the old img height -- see that comment.
+     UPDATE (scaled back ~17.5%): same flat 0.825x as the tiers above --
+     see the base .nav-logo rule's own update comment. */
   .nav-logo {
-    --nav-logo-word-h: clamp(0.98rem, calc(-3.53rem + 21.75vw), 1.92rem);
+    --nav-logo-word-h: clamp(0.809rem, calc(-2.91rem + 17.94vw), 1.58rem);
   }
 }
 
