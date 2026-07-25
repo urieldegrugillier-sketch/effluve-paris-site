@@ -177,8 +177,19 @@ body::before {
 
 .loader-inner { text-align: center; width: min(60vw, 360px); }
 
+/* inline-flex, not block -- needs to stay an inline-level box so
+   .loader-inner's text-align:center still centers it as a whole (same as
+   when it was plain display:block filling .loader-inner's width), while
+   flex-direction:column + align-items:flex-start (rather than block flow +
+   inherited text-align:center on each line) lets PARIS be positioned with
+   an explicit margin-left instead of independently re-centered under a
+   width it doesn't share with EFFLUVE -- see .loader-brand-sub's own
+   comment for why plain centering doesn't reproduce the hero's alignment
+   exactly. */
 .loader-brand {
-  display: block;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
   font-family: var(--font-wordmark);
   font-weight: 500;
   font-size: clamp(1.8rem, 4vw, 2.6rem);
@@ -193,7 +204,17 @@ body::before {
    own comment for why font-size/letter-spacing are redeclared here rather
    than left to inherit -- the same em-resolves-at-declaration-site reasoning
    applies) and the header logo's .nav-logo-subword -- smaller, bronze, not
-   part of the main white brand line. */
+   part of the main white brand line.
+   margin-left positions PARIS's own left edge at the same fraction (0.3782)
+   of EFFLUVE's rendered width that the hero signature's PARIS lands at --
+   plain text-align:center (the previous mechanism) gave 0.3753 here, close
+   but not identical, since "EFFLUVE" renders at a very slightly different
+   width-to-font-size ratio at the loader's own font-size than at the hero
+   signature's. EFFLUVE's width here measures ~5.866x .loader-brand's own
+   font-size (confirmed via live measurement at 1280/375/340px -- stable
+   across all three, so a genuine font-metric ratio, not rounding noise);
+   0.3782 of that, expressed as a multiple of THIS element's own font-size
+   (0.349em of .loader-brand's) instead: 0.3782 * 5.866 / 0.349 = 6.357em. */
 .loader-brand-sub {
   color: var(--accent-bronze);
   font-size: 0.349em;
@@ -203,6 +224,7 @@ body::before {
      an independently-tuned value, so the loader and the homepage signature
      read with identical spacing rather than just similarly-close ones. */
   margin-top: 0.05em;
+  margin-left: 6.357em;
 }
 
 .loader-bar-track {
