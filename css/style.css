@@ -341,21 +341,15 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      forgets to update. */
   display: flex;
   flex-direction: column;
-  /* flex-start, not center -- EFFLUVE (.nav-logo-word) is the widest item
-     and already defines this flex column's own cross-size, so flex-start
-     vs. center makes zero visual difference for it (it fills all the
-     available space either way). What it changes is PARIS
-     (.nav-logo-subword): centering it here made PARIS's own "P" land at
-     EFFLUVE's true geometric center-under-a-narrower-word position, which
-     measured out narrower/further-left than where the hero's PARIS (a
-     letter-spaced text line, wider relative to its own EFFLUVE than this
-     image's PARIS is to its EFFLUVE) actually lands -- see
-     .nav-logo-subword's own margin-left comment for the reference numbers.
-     Switching to flex-start and positioning PARIS with an explicit
-     margin-left instead lets it match the hero's measured position exactly
-     rather than each location independently "centering" onto two different
-     ratios purely because their PARIS/EFFLUVE width ratios differ. */
-  align-items: flex-start;
+  /* UPDATE (simplified back): a few rounds tried matching PARIS's offset to
+     the hero-signature's own (different) EFFLUVE/PARIS width ratio via
+     flex-start + a calculated margin-left -- dropped in favor of plain
+     centering here. align-items:center centers PARIS (.nav-logo-subword,
+     the narrower of the two images) directly under EFFLUVE
+     (.nav-logo-word, which -- being the widest item -- still defines this
+     flex column's own cross-size either way, so this choice only affects
+     PARIS's own position). */
+  align-items: center;
   /* UPDATE (scaled back ~17.5%): the prior round's 2.1rem (and the three
      clamps below) read a bit too large -- every value in this block and the
      three media queries below it was multiplied by the same flat 0.825
@@ -388,22 +382,10 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    EFFLUVE; this just keeps that same relationship instead of guessing a new
    one). Own ~6.40:1 aspect ratio (346.56 x 54.188 viewBox -- see
    assets/icons/paris-word-dark-bg.svg) again preserved via width:auto. */
-/* margin-left positions PARIS's own left edge (its "P") at the same
-   fraction of EFFLUVE's rendered width that the hero signature's PARIS
-   ("P" of PARIS vs. EFFLUVE's own text width, both measured live via
-   getBoundingClientRect/Range at 1280/375/340px) actually lands at --
-   0.3782 -- instead of this image's own true-center position (0.3162,
-   since this PARIS crop is proportionally wider relative to its own
-   EFFLUVE crop -- 0.368 width ratio -- than the hero's letter-spaced text
-   PARIS is to ITS EFFLUVE -- 0.244 -- so centering each independently put
-   the two at visibly different offsets despite both being "centered").
-   0.3782 of EFFLUVE's rendered width (var(--nav-logo-word-h) * 6.068, its
-   own aspect ratio) = var(--nav-logo-word-h) * 2.295. */
 .nav-logo-subword {
   display: block;
   height: calc(var(--nav-logo-word-h) * 0.349);
   width: auto;
-  margin-left: calc(var(--nav-logo-word-h) * 2.295);
 }
 
 @media (min-width: 401px) and (max-width: 1024px) {
