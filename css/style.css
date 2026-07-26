@@ -226,7 +226,12 @@ body::before {
 .loader-brand-sub {
   color: var(--accent-bronze);
   font-size: 0.349em;
-  letter-spacing: 0.28em;
+  /* 0.42em, not 0.28em -- matches .hero-heading-sub's own bump to the same
+     value, for noticeably more air between PARIS's letters in both places
+     (per request). Still redeclared here rather than left to inherit
+     .loader-brand's own 0.28em, for the same em-resolves-at-declaration-
+     site reason described in the comment above this rule. */
+  letter-spacing: 0.42em;
   /* 0.05em -- matched directly to .hero-signature a's own gap (the
      equivalent EFFLUVE/PARIS spacing on the homepage signature) instead of
      an independently-tuned value, so the loader and the homepage signature
@@ -1093,9 +1098,11 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    resolve to a fixed px value AT the element that declares them, so simply
    inheriting .hero-signature's own 0.28em letter-spacing would hand PARIS
    the same absolute px tracking EFFLUVE has despite being a much smaller
-   glyph, reading as oddly wide-spread -- redeclaring 0.28em here instead
+   glyph, reading as oddly wide-spread -- redeclaring a value here instead
    recomputes it relative to THIS element's own (smaller) font-size, keeping
-   the same proportional tracking at both sizes.
+   proportional tracking rather than a raw inherited px value (now 0.42em,
+   bumped from the original 0.28em redeclaration for noticeably more air
+   between PARIS's letters, per request).
    font-weight and -webkit-text-stroke both dial back from what EFFLUVE
    uses, rather than just inheriting/scaling them, to match how much
    lighter PARIS reads in both the header logo (a flat vector fill, no
@@ -1115,7 +1122,7 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   color: var(--accent-bronze);
   font-size: 0.349em;
   font-weight: 400;
-  letter-spacing: 0.28em;
+  letter-spacing: 0.42em;
   -webkit-text-stroke: 0.3px var(--accent-bronze);
 }
 
