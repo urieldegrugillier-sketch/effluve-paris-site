@@ -126,7 +126,7 @@
           </label>
           <label class="checkout-field">
             <span data-i18n="account.postalCodeLabel">Postal Code</span>
-            <input type="text" name="postal" autocomplete="postal-code">
+            <input type="text" name="postal" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]*">
           </label>
         </div>
         <label class="checkout-field">
@@ -153,11 +153,11 @@
         </label>
         <label class="checkout-field">
           <span data-i18n="account.cardNumberLabel">Card Number</span>
-          <input type="text" name="cardNumber" autocomplete="cc-number" placeholder="4242 4242 4242 4242">
+          <input type="text" name="cardNumber" autocomplete="cc-number" placeholder="4242 4242 4242 4242" inputmode="numeric">
         </label>
         <label class="checkout-field">
           <span data-i18n="account.cardExpiryLabel">Expiry</span>
-          <input type="text" name="cardExpiry" autocomplete="cc-exp" placeholder="MM / YY">
+          <input type="text" name="cardExpiry" autocomplete="cc-exp" placeholder="MM / YY" inputmode="numeric">
         </label>
         <!-- CVC is deliberately never asked for/stored here, mocked or not --
              same real-world practice as an actual payment processor (see

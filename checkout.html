@@ -203,7 +203,7 @@
                     </label>
                     <label class="checkout-field">
                       <span data-i18n="checkout.postalCode">Postal Code</span>
-                      <input type="text" name="postal" autocomplete="postal-code" required>
+                      <input type="text" name="postal" autocomplete="postal-code" required inputmode="numeric" pattern="[0-9]*">
                       <p class="promo-message promo-message-error" id="checkout-error-postal" data-i18n="checkout.errorPostal" aria-live="polite" hidden>Please enter your postal code.</p>
                     </label>
                   </div>
