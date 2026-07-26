@@ -232,13 +232,13 @@ body::before {
      .loader-brand's own 0.28em, for the same em-resolves-at-declaration-
      site reason described in the comment above this rule. */
   letter-spacing: 0.42em;
-  /* 0.02em, not 0.05em -- matches .hero-signature a's own reduced gap, so
-     the loader and the homepage signature keep reading with identical
-     vertical spacing rather than drifting apart again.
+  /* 0.008em -- matches .hero-signature a's own further-reduced gap, so the
+     loader and the homepage signature keep reading with identical vertical
+     spacing rather than drifting apart again.
      Still margin-top, not top -- PARIS stays in normal flex flow (only its
      horizontal position is visually offset via position:relative/left
      below), so margin-top still stacks it under EFFLUVE exactly as before. */
-  margin-top: 0.02em;
+  margin-top: 0.008em;
   position: relative;
   left: 6.357em;
 }
@@ -1083,9 +1083,10 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* 0.02em, not 0.05em -- brings EFFLUVE and PARIS noticeably closer
-     together vertically, per request. */
-  gap: 0.02em;
+  /* 0.008em -- 0.02em (itself already reduced from an original 0.05em)
+     still read as too much daylight, per request; brings EFFLUVE and PARIS
+     noticeably closer together again. */
+  gap: 0.008em;
 }
 
 .hero-heading-line { display: block; }
