@@ -890,14 +890,16 @@
     // (subtotal above is the discounted figure) -- this is purely the
     // informational savings amount, not a further deduction from total.
     const siteDiscount = cart.getSiteDiscountAmount();
-    // The "if you'd paid full price" reference total: original (undiscounted)
-    // product price + the real (waived) shipping fee, deliberately ignoring
-    // any promo code -- that's a further discount on top of, not part of,
-    // "original" pricing.
-    const originalTotal = cart.getOriginalCartTotal() + SHIPPING_FEE;
     // Display-only VAT amount "included" in the subtotal -- never folded into
-    // originalTotal/total above, exactly like SHIPPING_FEE.
+    // the real charged `total` above, exactly like SHIPPING_FEE.
     const vatAmount = subtotal * VAT_RATE;
+    // The "if you'd paid full price" reference total: original (undiscounted)
+    // product price + the real (waived) shipping fee + the waived VAT amount,
+    // deliberately ignoring any promo code -- that's a further discount on
+    // top of, not part of, "original" pricing. Every struck-through figure
+    // shown above (shipping, VAT) is folded in here so the struck total adds
+    // up to the sum of the other struck-through lines.
+    const originalTotal = cart.getOriginalCartTotal() + SHIPPING_FEE + vatAmount;
 
     const discountLine = promoCode ? `
       <div class="checkout-summary-line checkout-summary-discount">
