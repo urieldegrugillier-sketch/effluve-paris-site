@@ -849,6 +849,13 @@
   // any actual charged total.
   const SHIPPING_FEE = 5.90;
 
+  // French standard VAT rate -- purely a display line ("TVA offerte"),
+  // same waived-fee treatment as SHIPPING_FEE above: shown struck through
+  // next to "Free" for marketing effect, never added to or subtracted from
+  // any actual charged total (cart.PRODUCT.price is already the real,
+  // all-inclusive price charged).
+  const VAT_RATE = 0.20;
+
   function showPromoMessage(el, text, kind) {
     el.textContent = text;
     el.className = 'promo-message promo-message-' + kind;
@@ -888,6 +895,9 @@
     // any promo code -- that's a further discount on top of, not part of,
     // "original" pricing.
     const originalTotal = cart.getOriginalCartTotal() + SHIPPING_FEE;
+    // Display-only VAT amount "included" in the subtotal -- never folded into
+    // originalTotal/total above, exactly like SHIPPING_FEE.
+    const vatAmount = subtotal * VAT_RATE;
 
     const discountLine = promoCode ? `
       <div class="checkout-summary-line checkout-summary-discount">
@@ -904,6 +914,10 @@
       <div class="checkout-summary-line">
         <span>${t('checkout.shipping')}</span>
         <span><span class="checkout-summary-strike">${money(SHIPPING_FEE)}</span> <span class="checkout-summary-shipping-free">${t('checkout.free')}</span></span>
+      </div>
+      <div class="checkout-summary-line">
+        <span>${t('checkout.vat')}</span>
+        <span><span class="checkout-summary-strike">${money(vatAmount)}</span> <span class="checkout-summary-shipping-free">${t('checkout.free')}</span></span>
       </div>
       <div class="checkout-summary-line checkout-summary-discount">
         <span>${t('checkout.limitedTimeOffer')}</span>
