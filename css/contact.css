@@ -24,13 +24,26 @@
 
 /* .cta-button is display:inline-block text-only (see css/style.css) --
    flex + gap here lays the icon and label out side by side without
-   touching any of .cta-button's shared border/font/color/hover rules,
-   same targeted-override pattern #contact-submit-btn below already uses. */
+   touching any of .cta-button's shared border/font/color/hover rules.
+   Centering technique: #contact-submit-btn below centers via
+   display:block + margin-left/right:auto, but that only works there because
+   a <button>'s width:auto is intrinsically shrink-to-fit (a form-control
+   default, same as <input>/<select>) -- a plain <a> has no such special
+   case, so display:flex's own width:auto would stretch it to fill
+   .legal-content's full width instead, leaving nothing for margin:auto to
+   center. width:fit-content reproduces the button's shrink-to-fit sizing
+   explicitly, which is what actually makes margin-left/right:auto center it
+   as a compact box instead of leaving it flush at .legal-content's left
+   edge like the paragraphs above it (or stretched full-width). */
 .contact-whatsapp-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
+  width: fit-content;
   gap: 0.6rem;
   margin-top: 1.6rem;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .contact-whatsapp-icon { flex: 0 0 auto; }
