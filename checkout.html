@@ -256,6 +256,18 @@
                   </svg>
                 </button>
                 <div class="checkout-accordion-body" id="checkout-payment-body" hidden>
+                  <!-- Stripe Payment Request Button (Apple Pay/Google Pay/Link) --
+                       same stripe.paymentRequest()/canMakePayment() pattern as
+                       product.html's own express-buy button, mounted by
+                       initPaymentRequestButton() (inline script below) once this
+                       step is first reached -- see that function's own comment.
+                       Stays hidden together with the "or" divider right after it
+                       until canMakePayment() resolves a real eligible wallet;
+                       card-only browsers see no gap, straight to the card form
+                       below as before. -->
+                  <div id="checkout-payment-request-button" class="checkout-payment-request-button" hidden></div>
+                  <p class="checkout-payment-request-divider" id="checkout-payment-request-divider" hidden><span data-i18n="checkout.orDivider">or</span></p>
+
                   <!-- Real Stripe Elements Payment Element, mounted by
                        initStripePayment() (inline script below) once this
                        step is reached -- see that function's own comment.
@@ -263,9 +275,12 @@
                        {billingDetails: {name: 'never', address: 'never'}})
                        since Shipping already collected them; confirmPayment()
                        passes them through as this PaymentIntent's billing
-                       details instead of asking twice. Card-only this round,
-                       no redirect-based methods -- see the task's own Apple
-                       Pay follow-up note. -->
+                       details instead of asking twice. Still card-only for
+                       this manual-entry form itself -- Apple Pay/Google Pay
+                       now covered separately by the Payment Request Button
+                       above, which reuses this exact same PaymentIntent (see
+                       initPaymentRequestButton()'s own 'paymentmethod'
+                       handler). -->
                   <div id="checkout-stripe-payment-element" class="checkout-stripe-element"></div>
                   <p class="promo-message promo-message-error" id="checkout-stripe-error" aria-live="polite" hidden></p>
                   <p class="checkout-payment-note" data-i18n="checkout.paymentNote">Test mode — use card number 4242 4242 4242 4242, any future expiry date, and any 3-digit CVC.</p>
@@ -675,6 +690,7 @@
     completeAccordionSection('shipping', shippingSummaryText());
     openAccordionSection('payment');
     initStripePayment();
+    initPaymentRequestButton();
   });
 
   // ---------------- Stripe Elements (Payment Element) ----------------
@@ -831,6 +847,215 @@
     if (stripePaymentElement) stripePaymentElement.unmount();
     mountStripeElements();
   });
+
+  // ---------------- Stripe Payment Request Button (Apple Pay/Google Pay/Link) ----------------
+  // Same stripe.paymentRequest()/canMakePayment() pattern as product.html's
+  // own express-buy button (see that page's inline script for the full
+  // reasoning behind every choice reused verbatim below) -- one real
+  // PaymentRequest, mounted into the single container above the card Payment
+  // Element. Reuses the SAME PaymentIntent initStripePayment() already
+  // creates/updates for the card form (via stripeClientSecret below) rather
+  // than requesting a second one, so either payment method charges the exact
+  // same amount and completes through the exact same order-recording path
+  // (see completeOrder() further below).
+  const prContainer = document.getElementById('checkout-payment-request-button');
+  const prDivider = document.getElementById('checkout-payment-request-divider');
+  let prEligible = false; // true once canMakePayment() has resolved a real wallet
+  let prInitStarted = false; // guards against re-running canMakePayment() on every Payment-step visit
+  let prElement = null;
+  let prFallbackBtn = null;
+
+  const paymentRequest = stripe ? stripe.paymentRequest({
+    country: 'FR',
+    currency: 'eur',
+    total: { label: cart.PRODUCT.name, amount: Math.round(cart.getFinalTotal() * 100) },
+    // Needed to attach this order to an email/name the same way the card
+    // form's own Shipping step already does -- Apple Pay/Google Pay/Link all
+    // supply this from the payer's own saved wallet info, no extra typing.
+    requestPayerName: true,
+    requestPayerEmail: true
+  }) : null;
+
+  // Keeps the native sheet's own on-screen total in sync with whatever the
+  // Order Summary is currently showing (quantity edited via the header's
+  // mini-cart, or a promo code applied/removed) -- harmless to call even
+  // before any button has ever mounted. The Edge Function still
+  // independently computes and charges the authoritative server-side amount
+  // (see create-checkout-session) -- this is what keeps the sheet's
+  // displayed total matching that.
+  function syncPaymentRequestTotal() {
+    if (!paymentRequest || !cart.getCart().length) return;
+    paymentRequest.update({ total: { label: cart.PRODUCT.name, amount: Math.round(cart.getFinalTotal() * 100) } });
+  }
+  document.addEventListener('cart:updated', syncPaymentRequestTotal);
+
+  // ---------------- Keyboard-accessible fallback button ----------------
+  // Stripe's paymentRequestButton iframe is a confirmed keyboard dead end
+  // (cross-origin, so no code on this page can see or intercept a key event
+  // once focus is inside it) -- see product.html's own createFallbackButton/
+  // preventTabIntoIframe comments for the full investigation. Same fix
+  // reused here, scoped to this page's single container instead of that
+  // page's main+sticky pair.
+  function mountFallbackButton() {
+    if (prFallbackBtn) return prFallbackBtn;
+    prFallbackBtn = document.createElement('button');
+    prFallbackBtn.type = 'button';
+    prFallbackBtn.className = 'checkout-payment-request-fallback';
+    prFallbackBtn.textContent = t('product.paymentRequestFallback');
+    prFallbackBtn.addEventListener('click', () => paymentRequest.show());
+    prContainer.appendChild(prFallbackBtn);
+    return prFallbackBtn;
+  }
+  document.addEventListener('monark:langchange', () => {
+    if (prFallbackBtn) prFallbackBtn.textContent = t('product.paymentRequestFallback');
+  });
+
+  function getPageFocusableElements() {
+    return Array.from(document.querySelectorAll('a[href], button, input, textarea, select, summary, iframe')).filter((el) => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return false;
+      const style = getComputedStyle(el);
+      return style.visibility !== 'hidden' && style.display !== 'none';
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const focusable = getPageFocusableElements();
+    const currentIndex = focusable.indexOf(document.activeElement);
+    if (currentIndex === -1) return;
+    const target = focusable[e.shiftKey ? currentIndex - 1 : currentIndex + 1];
+    if (!target || target.tagName !== 'IFRAME' || !prContainer.contains(target)) return;
+    const fallbackBtn = prContainer.querySelector('.checkout-payment-request-fallback');
+    if (!fallbackBtn) return;
+    e.preventDefault();
+    fallbackBtn.focus();
+  });
+
+  // Builds (or rebuilds, on a language switch) the actual Stripe Element --
+  // separate from initPaymentRequestButton() below so a 'monark:langchange'
+  // mid-Payment-step doesn't need to re-run canMakePayment() a second time,
+  // exactly matching mountStripeElements()'s own split from initStripePayment().
+  function mountPaymentRequestButtonElement() {
+    if (prElement) prElement.unmount();
+    const prElements = stripe.elements({ locale: stripeLocale() });
+    prElement = prElements.create('paymentRequestButton', {
+      paymentRequest,
+      // theme: 'light'/height: '52px' match product.html's own main button --
+      // see that page's comment on why 52px is the correct, non-arbitrary value.
+      style: { paymentRequestButton: { type: 'default', theme: 'light', height: '52px' } }
+    });
+    prElement.mount(prContainer);
+    const iframe = prContainer.querySelector('iframe');
+    const fallbackBtn = mountFallbackButton();
+    if (iframe) {
+      iframe.tabIndex = -1;
+      iframe.addEventListener('focus', () => fallbackBtn.focus());
+    }
+  }
+
+  // Called once, the first time the Payment step is reached (see
+  // shippingNextBtn's own handler above) -- canMakePayment() resolves null
+  // with nothing available whenever the page isn't served over HTTPS, Apple
+  // Pay specifically hasn't had its domain registered with Stripe yet, or the
+  // browser/device genuinely has no eligible wallet configured. Both the
+  // button and the "or" divider stay hidden and leave no gap when that
+  // happens -- the card Payment Element below is completely unaffected
+  // either way. The info log below is left in (not a temporary debug line)
+  // specifically so a "why isn't this showing" question is
+  // self-diagnosable from the browser console instead of a silent no-op.
+  function initPaymentRequestButton() {
+    if (prInitStarted || !paymentRequest || !prContainer) return;
+    prInitStarted = true;
+    paymentRequest.canMakePayment().then((result) => {
+      if (!result) {
+        console.info('Payment Request Button: no eligible wallet (Apple Pay/Google Pay/Link) for this browser/page -- requires HTTPS and a configured wallet; Apple Pay additionally requires domain registration with Stripe.');
+        return;
+      }
+      prEligible = true;
+      // Unhide BEFORE mount() -- mounting into a still-hidden (display:none
+      // at that instant) container risks Stripe measuring/initializing the
+      // iframe against a 0x0 layout box it never revisits once the container
+      // becomes visible a tick later (confirmed live on product.html).
+      prContainer.hidden = false;
+      prDivider.hidden = false;
+      mountPaymentRequestButtonElement();
+    }).catch((err) => {
+      console.error('Payment Request Button: canMakePayment() failed:', err && err.message);
+    });
+  }
+
+  document.addEventListener('monark:langchange', () => {
+    if (!prEligible) return;
+    mountPaymentRequestButtonElement();
+  });
+
+  // ---------------- Real payment confirmation ----------------
+  // 'paymentmethod' fires once the user's already authenticated in the
+  // native sheet (Face ID/Touch ID/etc.) -- a PaymentMethod exists, but
+  // nothing has been charged yet. A session always exists by the time this
+  // button is even visible (Payment step is only reachable after Account has
+  // resolved, see STEP_ORDER above) -- unlike product.html's own version of
+  // this handler, there's no need to fall back to the full checkout flow for
+  // a missing email here, this already IS that flow.
+  if (paymentRequest) {
+    paymentRequest.on('paymentmethod', async (ev) => {
+      const session = window.MonarkAccount.getSession();
+      if (!session) { ev.complete('fail'); return; }
+
+      // Reuses initStripePayment()'s own in-flight/already-created
+      // PaymentIntent instead of creating a second one -- idempotent (keyed
+      // off stripePaymentIntentId), so this is a cheap no-op if the card
+      // Payment Element already finished initializing moments ago.
+      await initStripePayment();
+      if (!stripeClientSecret) {
+        ev.complete('fail');
+        showStripeError(t('checkout.stripeNotReady'));
+        return;
+      }
+
+      try {
+        const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
+          stripeClientSecret,
+          { payment_method: ev.paymentMethod.id },
+          { handleActions: false }
+        );
+        if (confirmError) {
+          console.error('Payment Request Button confirmCardPayment failed:', confirmError.message);
+          ev.complete('fail');
+          showStripeError(confirmError.message || t('checkout.stripeGenericError'));
+          return;
+        }
+        // Closes the native sheet -- must happen regardless of status below,
+        // per Stripe's own documented pattern for this event.
+        ev.complete('success');
+
+        let finalIntent = paymentIntent;
+        if (finalIntent.status === 'requires_action') {
+          // 3D Secure or similar -- the native sheet is already closed at
+          // this point (ev.complete() above), so Stripe's own
+          // redirect/challenge UI (if any) takes over from here.
+          const { error: actionError, paymentIntent: confirmedIntent } = await stripe.confirmCardPayment(stripeClientSecret);
+          if (actionError || !confirmedIntent) return;
+          finalIntent = confirmedIntent;
+        }
+        if (finalIntent.status !== 'succeeded') return;
+
+        // Payment succeeded -- completes the order the exact same way the
+        // card <form> submit below does (see completeOrder()), just reading
+        // name values from the same Shipping fields that flow already
+        // validated before Payment ever became reachable.
+        const items = cart.getCart();
+        const finalTotal = cart.getFinalTotal();
+        const appliedCode = cart.getAppliedPromoCode();
+        const firstNameVal = form.querySelector('[name="firstName"]').value.trim();
+        const lastNameVal = form.querySelector('[name="lastName"]').value.trim();
+        await completeOrder(session, { quantity: items[0].quantity, finalTotal, appliedCode, firstNameVal, lastNameVal });
+      } catch (err) {
+        console.error('Payment Request Button confirm failed:', err);
+        ev.complete('fail');
+      }
+    });
+  }
 
   // One consistent two-decimal formatter for every price on this page --
   // was a whole-euro money() plus a separate moneyCents() only for the
@@ -1032,6 +1257,68 @@
   const termsError = document.getElementById('checkout-terms-error');
   termsCheckbox.addEventListener('change', () => { termsError.hidden = true; });
 
+  // Shared order-completion path -- runs once real (test-mode) money has
+  // actually moved, regardless of which payment method got it there (this
+  // <form>'s own submit handler below, or the Payment Request Button's
+  // 'paymentmethod' handler further above): profile backfill, order-history
+  // row, cart teardown, then the same confirmation view either path ends on.
+  async function completeOrder(session, { quantity, finalTotal, appliedCode, firstNameVal, lastNameVal }) {
+    // Non-guest only: a guest has no profile row to backfill.
+    if (!session.isGuest) {
+      const account = await window.MonarkAccount.findAccount(session.email);
+      // Silent background fill of MISSING profile data only -- never
+      // overwrites a first/last name the account already has on file, per
+      // this feature's own spec. No UI, no confirmation message; the next
+      // visit to account.html's Edit Profile just already shows it filled in.
+      const profilePatch = {};
+      if (account && !account.firstName && firstNameVal) profilePatch.firstName = firstNameVal;
+      if (account && !account.lastName && lastNameVal) profilePatch.lastName = lastNameVal;
+      // Same silent, missing-only backfill for the phone/country Shipping
+      // collected -- never overwrites a phone number already on file (e.g.
+      // one entered at account creation).
+      if (account && !account.phone && shippingPhoneWidget) {
+        const phoneVal = shippingPhoneWidget.getValue();
+        if (phoneVal.number) {
+          profilePatch.phone = phoneVal.number;
+          profilePatch.dialCode = phoneVal.dialCode;
+          profilePatch.country = phoneVal.country;
+        }
+      }
+      if (Object.keys(profilePatch).length) await window.MonarkAccount.updateAccount(session.email, profilePatch);
+    }
+
+    // One order-history entry per completed checkout -- tied to the account
+    // for a logged-in session, or to session.email as a guest_email row
+    // otherwise (see js/account.js's recordOrder()). Single product line for
+    // now, matching every other "single product for now" comment already in
+    // this file.
+    await window.MonarkAccount.recordOrder(session, {
+      productName: cart.PRODUCT.name,
+      quantity,
+      total: finalTotal,
+      promoCode: appliedCode || null
+    });
+
+    cart.clearCart();
+    cart.removePromoCode();
+    formState.hidden = true;
+    confirmation.hidden = false;
+    // Overwrites the h1's own data-i18n="checkout.title" content directly --
+    // removeAttribute keeps a later language switch (MonarkI18n.apply(document))
+    // from stomping this back to "Checkout"/"Commande" once the order's
+    // already been placed.
+    title.removeAttribute('data-i18n');
+    title.textContent = t('checkout.thankYou');
+    confirmationTotal.textContent = appliedCode
+      ? t('checkout.confirmationTotalWithCode', { total: money(finalTotal), code: appliedCode })
+      : t('checkout.confirmationTotal', { total: money(finalTotal) });
+    // Swapping to the confirmation state doesn't itself move the viewport, so if
+    // the user had scrolled down to fill in the lower parts of the form, the
+    // title/confirmation would render wherever that scroll position happened to
+    // land -- sometimes cutting the title off above the fold.
+    window.scrollTo(0, 0);
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!cart.getCart().length) return;
@@ -1137,62 +1424,10 @@
         return;
       }
 
-      // Payment succeeded -- everything below only ever runs once real
-      // (test-mode) money has actually moved. Non-guest only: a guest has no
-      // profile row to backfill.
-      if (!session.isGuest) {
-        const account = await window.MonarkAccount.findAccount(session.email);
-        // Silent background fill of MISSING profile data only -- never
-        // overwrites a first/last name the account already has on file, per
-        // this feature's own spec. No UI, no confirmation message; the next
-        // visit to account.html's Edit Profile just already shows it filled in.
-        const profilePatch = {};
-        if (account && !account.firstName && firstNameVal) profilePatch.firstName = firstNameVal;
-        if (account && !account.lastName && lastNameVal) profilePatch.lastName = lastNameVal;
-        // Same silent, missing-only backfill for the phone/country this
-        // Shipping form just collected -- never overwrites a phone number
-        // already on file (e.g. one entered at account creation).
-        if (account && !account.phone && shippingPhoneWidget) {
-          const phoneVal = shippingPhoneWidget.getValue();
-          if (phoneVal.number) {
-            profilePatch.phone = phoneVal.number;
-            profilePatch.dialCode = phoneVal.dialCode;
-            profilePatch.country = phoneVal.country;
-          }
-        }
-        if (Object.keys(profilePatch).length) await window.MonarkAccount.updateAccount(session.email, profilePatch);
-      }
-
-      // One order-history entry per completed checkout -- tied to the
-      // account for a logged-in session, or to session.email as a
-      // guest_email row otherwise (see js/account.js's recordOrder()).
-      // Single product line for now, matching every other "single product
-      // for now" comment already in this file.
-      await window.MonarkAccount.recordOrder(session, {
-        productName: cart.PRODUCT.name,
-        quantity: items[0].quantity,
-        total: finalTotal,
-        promoCode: appliedCode || null
-      });
-
-      cart.clearCart();
-      cart.removePromoCode();
-      formState.hidden = true;
-      confirmation.hidden = false;
-      // Overwrites the h1's own data-i18n="checkout.title" content directly --
-      // removeAttribute keeps a later language switch (MonarkI18n.apply(document))
-      // from stomping this back to "Checkout"/"Commande" once the order's
-      // already been placed.
-      title.removeAttribute('data-i18n');
-      title.textContent = t('checkout.thankYou');
-      confirmationTotal.textContent = appliedCode
-        ? t('checkout.confirmationTotalWithCode', { total: money(finalTotal), code: appliedCode })
-        : t('checkout.confirmationTotal', { total: money(finalTotal) });
-      // Swapping to the confirmation state doesn't itself move the viewport, so if
-      // the user had scrolled down to fill in the lower parts of the form, the
-      // title/confirmation would render wherever that scroll position happened to
-      // land -- sometimes cutting the title off above the fold.
-      window.scrollTo(0, 0);
+      // Payment succeeded -- completes the order the exact same way the
+      // Payment Request Button's own 'paymentmethod' handler above does
+      // (see completeOrder()).
+      await completeOrder(session, { quantity: items[0].quantity, finalTotal, appliedCode, firstNameVal, lastNameVal });
     } finally {
       submitBtn.disabled = false;
     }

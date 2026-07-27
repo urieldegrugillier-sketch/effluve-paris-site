@@ -227,6 +227,12 @@
         city: 'City',
         postalCode: 'Postal Code',
         payment: 'Billing',
+        // Divider between the Payment Request Button (Apple Pay/Google
+        // Pay/Link) and the card form below -- only ever shown once that
+        // button itself is (see initPaymentRequestButton() in checkout.html's
+        // inline script), so a wallet-less browser never sees a stray "or"
+        // with nothing above it.
+        orDivider: 'or',
         paymentNote: 'Test mode — use card number 4242 4242 4242 4242, any future expiry date, and any 3-digit CVC.',
         stripeInitError: 'Could not load the payment form. Please refresh the page and try again.',
         stripeNotReady: "The payment form isn't ready yet. Please wait a moment and try again.",
@@ -694,6 +700,7 @@
         city: 'Ville',
         postalCode: 'Code Postal',
         payment: 'Facturation',
+        orDivider: 'ou',
         paymentNote: 'Mode test — utilisez le numéro de carte 4242 4242 4242 4242, une date d\'expiration future, et un CVC à 3 chiffres.',
         stripeInitError: 'Impossible de charger le formulaire de paiement. Veuillez actualiser la page et réessayer.',
         stripeNotReady: "Le formulaire de paiement n'est pas encore prêt. Veuillez patienter un instant et réessayer.",
