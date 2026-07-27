@@ -59,9 +59,13 @@
      <span class="placeholder">[CONTACT EMAIL &mdash; &Agrave; COMPL&Eacute;TER]</span>,
      or use the form below.</p>
 
-  <!-- WhatsApp deep link -- opens a chat to +33 6 05 89 38 97 (no pre-filled
-       text on this page, unlike checkout.html's support line -- there was
-       never a ?text= param here to begin with).
+  <!-- WhatsApp deep link -- opens a chat to +33 6 05 89 38 97 with a
+       pre-filled text message (general-purpose here, not order-specific
+       like checkout.html's support line -- "Hello, I have a question." /
+       "Bonjour, j'ai une question."). href goes through data-i18n-attr
+       (not just the button label) so the pre-filled message is in the
+       right language too -- see contact.whatsappHref in js/i18n.js, same
+       pattern checkout.whatsappHref already uses.
        UPDATE: target="_blank"/rel="noopener" removed -- on mobile (tested on
        two phones, Chrome + Safari), forcing a new tab/context interfered
        with the OS's wa.me -> WhatsApp app hand-off: the app opened the right
@@ -75,13 +79,14 @@
        https://api.whatsapp.com/send?phone=33605893897 -- removing
        target/rel alone didn't fix checkout.html's mobile pre-fill issue
        (confirmed on two real phones), so this page's link was moved to the
-       same URL format for consistency, even though it carries no ?text=
-       param itself to be affected either way. Reuses .cta-button for the
-       shared border/font/hover treatment (same pattern #contact-submit-btn
-       already uses -- see contact.css -- of only overriding
-       display/spacing on top of it), plus .contact-whatsapp-btn for the
-       icon+label flex layout. -->
-  <a href="https://api.whatsapp.com/send?phone=33605893897" class="cta-button contact-whatsapp-btn">
+       same URL format for consistency.
+       UPDATE: added the ?text= pre-filled message above, now that this page
+       is on the same api.whatsapp.com format checkout.html's working
+       pattern uses. Reuses .cta-button for the shared border/font/hover
+       treatment (same pattern #contact-submit-btn already uses -- see
+       contact.css -- of only overriding display/spacing on top of it),
+       plus .contact-whatsapp-btn for the icon+label flex layout. -->
+  <a href="https://api.whatsapp.com/send?phone=33605893897&text=Hello%2C%20I%20have%20a%20question." class="cta-button contact-whatsapp-btn" data-i18n-attr="href:contact.whatsappHref">
     <svg class="contact-whatsapp-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.86 12.86 0 0 0-.57-.011c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
       <path d="M12.017 2C6.508 2 2.033 6.475 2.033 11.984c0 1.99.52 3.856 1.51 5.48L2 22l4.657-1.522a9.912 9.912 0 0 0 5.36 1.556h.004c5.508 0 9.983-4.475 9.983-9.983 0-2.666-1.038-5.171-2.923-7.055A9.939 9.939 0 0 0 12.017 2Zm0 18.263a8.24 8.24 0 0 1-4.207-1.153l-.302-.18-3.126 1.022 1.038-3.05-.198-.312a8.223 8.223 0 0 1-1.264-4.406c0-4.554 3.707-8.261 8.264-8.261 2.206 0 4.28.86 5.84 2.421a8.207 8.207 0 0 1 2.42 5.845c0 4.554-3.707 8.074-8.465 8.074Z"/>
