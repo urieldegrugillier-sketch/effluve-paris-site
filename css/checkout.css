@@ -374,6 +374,30 @@
    css/style.css (shared with js/email-popup.js, which runs on every page,
    not just this one) -- see the comment there. */
 
+/* Understated WhatsApp support line under the order summary -- deliberately
+   NOT a .cta-button (that reads as a primary action, competing with Place
+   Order below); same font-body/text-muted fine-print weight as
+   .checkout-empty-note above, with only the "WhatsApp" word itself styled as
+   a link (bronze, real underline -- text-decoration, not the mono/uppercase/
+   border-bottom "button-ish" treatment .checkout-back-link uses elsewhere,
+   since this reads as a plain inline sentence, not a nav control). */
+.checkout-support-note {
+  margin: 1rem 0 0;
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.checkout-support-link {
+  color: var(--accent-bronze-light);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .checkout-support-link:hover { color: var(--text-on-dark); }
+}
+
 .checkout-summary-discount { color: var(--accent-bronze-light); }
 
 /* Same bronze accent as .checkout-summary-discount's own positive-state
