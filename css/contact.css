@@ -22,6 +22,19 @@
 
 .contact-form { margin-top: 2rem; }
 
+/* .cta-button is display:inline-block text-only (see css/style.css) --
+   flex + gap here lays the icon and label out side by side without
+   touching any of .cta-button's shared border/font/color/hover rules,
+   same targeted-override pattern #contact-submit-btn below already uses. */
+.contact-whatsapp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1.6rem;
+}
+
+.contact-whatsapp-icon { flex: 0 0 auto; }
+
 /* .cta-button is display:inline-block (see css/style.css) -- margin:auto
    only centers a block-level box, and left as inline-block the button just
    sits at the form's own left edge like every other field above it. Only
