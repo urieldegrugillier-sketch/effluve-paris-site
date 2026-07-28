@@ -281,7 +281,7 @@
                     <p class="promo-message promo-message-error" id="checkout-error-address" data-i18n="checkout.errorAddress" aria-live="polite" hidden>Please enter your address.</p>
                   </label>
                   <label class="checkout-field">
-                    <span data-i18n="checkout.addressLine2">Address Line 2 (optional)</span>
+                    <span data-i18n="checkout.addressLine2">Building, floor, access code… (optional)</span>
                     <!-- BUG FIX round 3: autocomplete="off" (round 2, see
                          Address's own comment above) didn't work either --
                          confirmed Chrome deliberately ignores "off" on
@@ -296,14 +296,22 @@
                          whatever autocomplete value sat next to it. Renamed
                          to name="extraDetails" -- see js/account.js's own
                          comment on the matching account-model rename -- with
-                         no other address-related substring in it. The
-                         visible label ("Address Line 2 (optional)"/
-                         "Complément d'adresse (facultatif)") is UNCHANGED --
-                         deliberately not touched here since Chrome's
-                         ML-based heuristic may also weigh label text, but
-                         changing user-facing copy needs a decision, not a
-                         unilateral edit; flagged in this round's own
-                         response instead. -->
+                         no other address-related substring in it. That
+                         alone still wasn't enough, though: the visible label
+                         ("Address Line 2 (optional)"/"Complément d'adresse
+                         (facultatif)") also contained "Address"/"adresse",
+                         and Chrome's autofill heuristic reads the text of
+                         the <label> a field is wrapped in as part of its own
+                         classification, independent of the name/id/
+                         autocomplete attributes.
+                         BUG FIX round 4: label text (checkout.addressLine2,
+                         see js/i18n.js) changed to "Building, floor, access
+                         code… (optional)"/"Bâtiment, étage, code d'accès…
+                         (facultatif)" -- describes what actually goes in
+                         this field without the word "address"/"adresse"
+                         anywhere in it. Field itself (name="extraDetails",
+                         optional, free text) is unchanged -- this is a
+                         wording-only change. -->
                     <input type="text" name="extraDetails" autocomplete="off">
                   </label>
                   <div class="checkout-field-row">

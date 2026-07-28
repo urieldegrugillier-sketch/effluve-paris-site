@@ -269,7 +269,15 @@
         nextStep: 'Next Step',
         accordionAccountSummaryGuest: '{email} (Guest)',
         accordionShippingSummary: 'Shipping to: {name}, {city}',
-        addressLine2: 'Address Line 2 (optional)',
+        // Label text changed from "Address Line 2 (optional)" -- literally
+        // contained "Address", which Chrome's autofill heuristic reads as
+        // part of its field classification via the <label> this input is
+        // wrapped in, independent of the name/id/autocomplete attributes
+        // (already fixed separately, see checkout.html's own input comment)
+        // -- so the word itself needed to go, not just the DOM attributes.
+        // Field itself (name="extraDetails", optional, free text) is
+        // unchanged; only this visible wording changed.
+        addressLine2: 'Building, floor, access code… (optional)',
         phone: 'Phone Number (optional)',
         termsLabel: 'I accept the <a href="cgv.html" target="_blank" rel="noopener">Terms &amp; Conditions of Sale</a>.',
         errorTerms: 'Please accept the Terms & Conditions of Sale to continue.',
@@ -347,7 +355,9 @@
         emailChangePending: 'Check your new email address to confirm the change.',
         addressHeading: 'Saved Shipping Address',
         addressLabel: 'Address',
-        addressLine2Label: 'Address Line 2',
+        // Same "no literal Address wording" fix as checkout.addressLine2
+        // above -- see that key's own comment.
+        addressLine2Label: 'Building, floor, access code…',
         cityLabel: 'City',
         postalCodeLabel: 'Postal Code',
         phoneLabel: 'Phone Number',
@@ -740,7 +750,7 @@
         nextStep: 'Étape Suivante',
         accordionAccountSummaryGuest: '{email} (Invité)',
         accordionShippingSummary: 'Livraison à : {name}, {city}',
-        addressLine2: "Complément d'adresse (facultatif)",
+        addressLine2: "Bâtiment, étage, code d'accès… (facultatif)",
         phone: 'Numéro de Téléphone (facultatif)',
         termsLabel: "J'accepte les <a href=\"cgv.html\" target=\"_blank\" rel=\"noopener\">Conditions Générales de Vente</a>.",
         errorTerms: 'Veuillez accepter les Conditions Générales de Vente pour continuer.',
@@ -815,7 +825,7 @@
         emailChangePending: 'Consultez votre nouvelle adresse e-mail pour confirmer le changement.',
         addressHeading: 'Adresse de Livraison Enregistrée',
         addressLabel: 'Adresse',
-        addressLine2Label: "Complément d'adresse",
+        addressLine2Label: "Bâtiment, étage, code d'accès…",
         cityLabel: 'Ville',
         postalCodeLabel: 'Code Postal',
         phoneLabel: 'Numéro de Téléphone',

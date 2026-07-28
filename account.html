@@ -124,7 +124,7 @@
           <input type="text" name="address" autocomplete="address-line1">
         </label>
         <label class="checkout-field">
-          <span data-i18n="account.addressLine2Label">Address Line 2</span>
+          <span data-i18n="account.addressLine2Label">Building, floor, access code…</span>
           <!-- BUG FIX round 3: autocomplete="off" (round 2) didn't work --
                confirmed Chrome deliberately ignores "off" on address-type
                fields, and its heuristic scans name/id and associated label
@@ -133,10 +133,18 @@
                substring "address") was very likely the actual trigger.
                Renamed to name="extraDetails" -- see js/account.js's own
                comment on the matching account-model rename -- with no other
-               address-related substring in it. Visible label text
-               UNCHANGED -- deliberately not touched (Chrome's ML heuristic
-               may also weigh label text, but changing user-facing copy
-               needs a decision, not a unilateral edit; flagged instead). -->
+               address-related substring in it.
+               BUG FIX round 4: that rename alone still wasn't enough -- the
+               visible label ("Address Line 2"/"Complément d'adresse") also
+               contained "Address"/"adresse", and Chrome's autofill heuristic
+               reads the <label> text a field is wrapped in as part of its
+               own classification, independent of name/id/autocomplete.
+               Changed (account.addressLine2Label, see js/i18n.js) to
+               "Building, floor, access code…"/"Bâtiment, étage, code
+               d'accès…" -- describes what actually goes here without the
+               word "address"/"adresse" anywhere in it. Field itself
+               (name="extraDetails", optional, free text) is unchanged --
+               this is a wording-only change. -->
           <input type="text" name="extraDetails" autocomplete="off">
         </label>
         <div class="checkout-field-row">
