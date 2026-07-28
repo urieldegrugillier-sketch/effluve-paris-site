@@ -410,6 +410,25 @@
 
 .checkout-summary-discount { color: var(--accent-bronze-light); }
 
+/* Live countdown note tucked under the "Limited-Time Offer" line (see
+   summaryLinesHtml() in the inline script) -- a third flex child inside that
+   same bordered row rather than a new sibling row of its own, so
+   .checkout-summary-line's own border-bottom still closes off this whole
+   "offer" group in one place instead of leaving the countdown looking like
+   it belongs to whatever comes after it. flex-wrap:wrap is scoped to this
+   one modifier (not the base .checkout-summary-line every other row also
+   uses) since only this row needs its third child to drop to its own line;
+   flex:1 0 100% on the note itself is what forces that wrap. */
+.checkout-summary-discount-with-countdown { flex-wrap: wrap; }
+.checkout-promo-countdown-note {
+  flex: 1 0 100%;
+  margin-top: 0.3rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
 /* Same bronze accent as .checkout-summary-discount's own positive-state
    treatment, but scoped to just the "Free" value (not the "Shipping" label
    too) -- the label stays the same muted color as "Subtotal" above it. */

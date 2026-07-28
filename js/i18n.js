@@ -133,7 +133,7 @@
       promoBanner: {
         ariaLabel: 'Promotional offer',
         offer: 'Limited-Time Offer −21% Off',
-        endsIn: 'Ends in ',
+        endsIn: 'Offer ends in ',
         dismiss: 'Dismiss'
       },
       cartWidget: {
@@ -166,7 +166,6 @@
         imageViewerAriaLabel: 'Image viewer',
         kicker: 'Eau de Parfum — 100ml',
         scentNotes: 'Bergamot · Incense · Amber',
-        priceNote: 'Limited-time offer — 21% off',
         // Stock progress bar's own label (see product.html's inline script,
         // renderStock()) -- deliberately doesn't show the {total} ceiling
         // (odd to tell a customer "out of 500"), just the remaining count.
@@ -625,7 +624,7 @@
       promoBanner: {
         ariaLabel: 'Offre promotionnelle',
         offer: 'Offre Limitée −21%',
-        endsIn: 'Se termine dans ',
+        endsIn: "Fin de l'offre dans ",
         dismiss: 'Fermer'
       },
       cartWidget: {
@@ -658,7 +657,6 @@
         imageViewerAriaLabel: "Visionneuse d'image",
         kicker: 'Eau de Parfum — 100ml',
         scentNotes: 'Bergamote · Encens · Ambre',
-        priceNote: 'Offre à durée limitée — 21 % de réduction',
         stockLabel: 'Plus que {count} en stock',
         addToCart: 'Ajouter au Panier — 100ML',
         stickyAddToCart: 'Ajouter au Panier',

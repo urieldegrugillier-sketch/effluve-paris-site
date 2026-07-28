@@ -37,30 +37,26 @@
   `;
   if (window.MonarkI18n) window.MonarkI18n.apply(banner);
 
-  /* Fictitious countdown -- purely psychological urgency, not a real
-     deadline. Always restarts at 03:52:16 on a fresh load (no localStorage
-     persistence, unlike DISMISS_KEY above); just stops at 00:00:00 rather
-     than doing anything to the banner itself once it hits zero. */
-  const COUNTDOWN_START_SECONDS = 3 * 3600 + 52 * 60 + 16;
-  let remainingSeconds = COUNTDOWN_START_SECONDS;
+  /* Countdown display only -- the actual target time/ticking lives in
+     js/promo-countdown.js (loaded before this script, see this page's own
+     <script> ordering), shared with product.html's and checkout.html's own
+     countdown displays so all three always show the exact same remaining
+     time rather than each running an independent timer that could drift a
+     second apart from the others. */
   const timerEl = banner.querySelector('#promo-banner-timer');
 
-  function formatCountdown(totalSeconds) {
-    const pad = (n) => String(n).padStart(2, '0');
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    return `${pad(h)}:${pad(m)}:${pad(s)}`;
-  }
-
-  let countdownInterval = setInterval(() => {
-    remainingSeconds -= 1;
-    if (remainingSeconds <= 0) {
-      remainingSeconds = 0;
-      clearInterval(countdownInterval);
-    }
-    timerEl.textContent = formatCountdown(remainingSeconds);
-  }, 1000);
+  // Last 2 digits (seconds) split into their own span so just that portion
+  // gets the gentle pulse animation (see .promo-timer-seconds in
+  // css/style.css) -- the hours/minutes prefix stays static text alongside
+  // it. Safe as innerHTML: both pieces come straight out of
+  // formatCountdown()'s own zero-padded digit-and-colon output, never from
+  // user input.
+  const unsubscribe = window.MonarkPromoCountdown.subscribe((secs) => {
+    const formatted = window.MonarkPromoCountdown.formatCountdown(secs);
+    const prefix = formatted.slice(0, -2);
+    const seconds = formatted.slice(-2);
+    timerEl.innerHTML = `${prefix}<span class="promo-timer-seconds">${seconds}</span>`;
+  });
 
   // Inserted before every other body child (including .site-header), not
   // just visually on top of it via z-index -- source order matches visual
@@ -72,11 +68,13 @@
 
   function dismiss() {
     localStorage.setItem(STORAGE_KEY, 'true');
-    // Removing the banner from the DOM doesn't stop its interval on its own
-    // -- setInterval keeps firing (and retaining timerEl/banner in its
-    // closure) until explicitly cleared, which would otherwise leak a
-    // dangling tick-every-second timer for the rest of the page's life.
-    clearInterval(countdownInterval);
+    // Removing the banner from the DOM doesn't stop it listening to the
+    // shared countdown on its own -- unsubscribe() drops this callback from
+    // js/promo-countdown.js's own listener list, which would otherwise keep
+    // retaining timerEl/banner in its closure and writing into a detached
+    // element for the rest of the page's life (the shared timer itself
+    // keeps running either way -- other subscribers, if any, are unaffected).
+    unsubscribe();
     document.documentElement.classList.remove('promo-banner-active');
     // Matches .site-header's own `transition: top 0.4s ease` (css/style.css)
     // -- the banner slides/fades out over the same duration the header takes

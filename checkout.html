@@ -447,6 +447,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js?v=20260722"></script>
 <script src="js/i18n.js?v=20260722"></script>
+<!-- Loaded here, ahead of the big inline script below -- that script's own
+     renderSummary() (which needs window.MonarkPromoCountdown to render the
+     "Limited-Time Offer" line's countdown note) runs synchronously on page
+     load, well before the bottom-of-body script tags near
+     js/promo-banner.js would otherwise load this. -->
+<script src="js/promo-countdown.js?v=20260722"></script>
 <script src="js/header-position-fix.js?v=20260722"></script>
 <script src="js/footer-active-page.js?v=20260722"></script>
 <script src="js/cart.js?v=20260722"></script>
@@ -1226,9 +1232,10 @@
         <span>${t('checkout.vat')}</span>
         <span><span class="checkout-summary-strike">${money(vatAmount)}</span> <span class="checkout-summary-shipping-free">${t('checkout.free')}</span></span>
       </div>
-      <div class="checkout-summary-line checkout-summary-discount">
+      <div class="checkout-summary-line checkout-summary-discount checkout-summary-discount-with-countdown">
         <span>${t('checkout.limitedTimeOffer')}</span>
         <span>&minus;${money(siteDiscount)}</span>
+        <span class="checkout-promo-countdown-note">${t('promoBanner.endsIn')}<span class="promo-countdown-value checkout-promo-countdown-value">${window.MonarkPromoCountdown ? window.MonarkPromoCountdown.formatCountdown(window.MonarkPromoCountdown.getRemainingSeconds()) : ''}</span></span>
       </div>
       ${discountLine}
       <div class="checkout-summary-line checkout-summary-total">
@@ -1332,6 +1339,25 @@
   // uses for its own template-string content.
   document.addEventListener('monark:langchange', renderSummary);
   renderSummary();
+
+  // Same shared countdown js/promo-banner.js's own banner (and product.html's
+  // own price-note display) subscribes to (see js/promo-countdown.js) --
+  // always the exact same remaining time, never a second independent timer.
+  // Looks up .checkout-promo-countdown-value fresh on every tick (rather than
+  // caching the element once) since renderSummary() fully replaces all three
+  // summary containers' innerHTML on every cart change/language switch,
+  // which would otherwise leave this writing into detached, no-longer-visible
+  // nodes after the very first re-render.
+  if (window.MonarkPromoCountdown) {
+    window.MonarkPromoCountdown.subscribe((secs) => {
+      const formatted = window.MonarkPromoCountdown.formatCountdown(secs);
+      const prefix = formatted.slice(0, -2);
+      const seconds = formatted.slice(-2);
+      document.querySelectorAll('.checkout-promo-countdown-value').forEach((el) => {
+        el.innerHTML = `${prefix}<span class="promo-timer-seconds">${seconds}</span>`;
+      });
+    });
+  }
 
   const termsCheckbox = document.getElementById('checkout-terms-checkbox');
   const termsError = document.getElementById('checkout-terms-error');

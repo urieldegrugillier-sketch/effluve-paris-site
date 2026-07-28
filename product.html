@@ -99,7 +99,15 @@
          pricing/promotions backend; the real transactional price stays 149,
          matching js/cart.js's PRODUCT.price, which this does not touch. -->
     <p class="shop-price"><span class="shop-price-original">&euro;189</span><span class="shop-price-current">&euro;149</span></p>
-    <p class="shop-price-note" data-i18n="product.priceNote">Limited-time offer &mdash; 21% off</p>
+    <!-- Live countdown, replacing the old static "Limited-time offer — 21%
+         off" text -- reuses the exact same promoBanner.endsIn label as the
+         site-wide banner and js/promo-countdown.js's own shared timer (see
+         the inline script below), so this always shows the identical
+         remaining time as the banner, never a second independent countdown
+         that could drift out of sync with it. -->
+    <p class="shop-price-note" id="product-countdown">
+      <span id="product-countdown-label">Offer ends in </span><span class="promo-countdown-value" id="product-countdown-timer">03:52:16</span>
+    </p>
     <!-- Progress bar (bronze fill on the same muted --line track used
          throughout the site) replacing the old raw "32/500" ratio -- showing
          the 500 ceiling to a customer read as odd, and a bar communicates
@@ -1122,6 +1130,31 @@
       console.error('Payment Request Button confirm failed:', err);
       ev.complete('fail');
     }
+  });
+})();
+</script>
+<script src="js/promo-countdown.js?v=20260722"></script>
+<script>
+(function () {
+  // Same shared countdown js/promo-banner.js's own banner subscribes to
+  // (see js/promo-countdown.js) -- this page's own display always shows the
+  // exact same remaining time, never a second independent timer.
+  function t(key, vars) { return window.MonarkI18n ? window.MonarkI18n.t(key, vars) : key; }
+  const labelEl = document.getElementById('product-countdown-label');
+  const timerEl = document.getElementById('product-countdown-timer');
+  if (!labelEl || !timerEl || !window.MonarkPromoCountdown) return;
+
+  function renderLabel() {
+    labelEl.textContent = t('promoBanner.endsIn');
+  }
+  renderLabel();
+  document.addEventListener('monark:langchange', renderLabel);
+
+  window.MonarkPromoCountdown.subscribe((secs) => {
+    const formatted = window.MonarkPromoCountdown.formatCountdown(secs);
+    const prefix = formatted.slice(0, -2);
+    const seconds = formatted.slice(-2);
+    timerEl.innerHTML = `${prefix}<span class="promo-timer-seconds">${seconds}</span>`;
   });
 })();
 </script>

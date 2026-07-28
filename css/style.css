@@ -1889,11 +1889,70 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      to the bold headline/timer above it, so nothing else needs to change. */
 }
 
-/* Bold, not a separate color -- same font/color family as the rest of the
-   banner (see .promo-banner-text above), just heavier so the countdown
-   reads as distinct from the surrounding copy without a second accent
-   color or a size bump that would grow the banner's own compact height. */
-.promo-banner-timer { font-weight: 700; }
+/* Bold AND visually set apart from the surrounding black banner text via a
+   small dark chip -- NOT literal ivory/white text directly on the bronze
+   background, deliberately: verified via the same contrast math
+   .promo-banner-timer-line's own comment above already relies on
+   (WCAG relative-luminance formula) that white (#ede7dd) on this banner's
+   bronze background lands at only ~3.75:1, under the 4.5:1 floor this text
+   size needs (it's well short of WCAG's "large text" size/weight exemption
+   too) -- an accessibility regression the existing black-on-bronze text
+   was specifically written to avoid (see that same comment). Ivory text on
+   a small var(--bg-ink) chip instead reaches the same "distinct accent
+   color" the countdown needs (near-white against dark ink is one of this
+   site's own highest-contrast, most established text/background pairings)
+   without failing contrast against the banner itself. font-size is a ratio
+   (em, not rem) of whatever context this class sits in -- reused as-is by
+   .promo-countdown-value below at each page's own different base size. */
+.promo-banner-timer {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 1.3em;
+  letter-spacing: 0.02em;
+  color: var(--text-on-dark);
+  background: var(--bg-ink);
+  padding: 0.05em 0.4em;
+  border-radius: 2px;
+}
+
+/* Gentle pulse on the seconds digits specifically (not the whole timer) --
+   opacity dip + a modest scale bump, never a hard blink/flash, so it reads
+   as a quiet "still counting" cue rather than a gimmicky alarm. Same
+   1s-ease-in-out-infinite loop wherever this class is used (banner,
+   product.html, checkout.html) -- it doesn't need to be restarted in exact
+   lockstep with js/promo-countdown.js's own per-second textContent write to
+   look right; a continuous loop at the same ~1s cadence already reads as
+   synchronized. */
+@keyframes promo-timer-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.08); }
+}
+.promo-timer-seconds {
+  display: inline-block;
+  animation: promo-timer-pulse 1s ease-in-out infinite;
+}
+
+/* Shared by product.html's price-note area and checkout.html's discount
+   line (see each page's own inline script) -- both show the exact same
+   js/promo-countdown.js-driven value as the banner, styled to match each
+   page's own already-established "highlight" accent (var(--accent-bronze-
+   light), the same color .shop-price-note/.checkout-summary-discount
+   already use) rather than the banner's own dark-chip treatment, which
+   only exists to solve THAT element's specific bronze-background contrast
+   problem -- these two sit on the pages' own dark background already, where
+   bronze-light-on-dark is already a proven, high-contrast pairing used
+   throughout both pages, no chip needed. */
+.promo-countdown-label {
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.promo-countdown-value {
+  font-weight: 700;
+  font-size: 1.15em;
+  letter-spacing: 0.02em;
+  color: var(--accent-bronze-light);
+}
 
 /* Same close-button treatment as .email-popup-close -- absolutely positioned
    inside its own fixed-position container, small × glyph, opacity-based
