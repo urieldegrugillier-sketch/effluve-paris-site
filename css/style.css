@@ -1936,9 +1936,16 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    site's own highest-contrast, most established text/background pairings)
    without failing contrast against the banner itself. font-size is a ratio
    (em, not rem) of whatever context this class sits in -- reused as-is by
-   .promo-countdown-value below at each page's own different base size. */
+   .promo-countdown-value below at each page's own different base size.
+   margin-left provides the gap before the chip that used to be a trailing
+   space character baked into promoBanner.endsIn's own translation string --
+   removed (see js/i18n.js) because that space sat INSIDE
+   .promo-banner-timer-label, so its own underline stretched across that
+   blank space into the gap rather than stopping at the last visible letter
+   of "dans"/"in". Spacing now lives here, on the chip, instead. */
 .promo-banner-timer {
   display: inline-block;
+  margin-left: 0.35em;
   font-weight: 700;
   font-size: 1.3em;
   letter-spacing: 0.02em;
@@ -1981,6 +1988,7 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   text-transform: uppercase;
 }
 .promo-countdown-value {
+  margin-left: 0.35em;
   font-weight: 700;
   font-size: 1.15em;
   letter-spacing: 0.02em;

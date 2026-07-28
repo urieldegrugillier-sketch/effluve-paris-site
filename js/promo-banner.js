@@ -30,7 +30,7 @@
   // via its own textContent write (see the setInterval below) and would be
   // wiped by a language switch if it were caught in the same swap.
   banner.innerHTML = `
-    <p class="promo-banner-text"><a href="product.html"><span class="promo-banner-timer-line"><span class="promo-banner-timer-label" data-i18n="promoBanner.endsIn">Ends in </span><span class="promo-banner-timer" id="promo-banner-timer">03:52:16</span></span></a></p>
+    <p class="promo-banner-text"><a href="product.html"><span class="promo-banner-timer-line"><span class="promo-banner-timer-label" data-i18n="promoBanner.endsIn">Ends in</span><span class="promo-banner-timer" id="promo-banner-timer">03:52:16</span></span></a></p>
     <button type="button" class="promo-banner-close" aria-label="Dismiss" data-i18n-attr="aria-label:promoBanner.dismiss">&times;</button>
   `;
   if (window.MonarkI18n) window.MonarkI18n.apply(banner);

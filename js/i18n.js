@@ -132,7 +132,13 @@
       },
       promoBanner: {
         ariaLabel: 'Promotional offer',
-        endsIn: 'Offer ends in ',
+        // No trailing space (used to have one) -- this text sits inside
+        // .promo-banner-timer-label, which is underlined; a trailing space
+        // baked into the string got underlined too, stretching the line
+        // into the gap before the countdown chip. The gap itself now comes
+        // from margin-left on .promo-banner-timer/.promo-countdown-value
+        // instead (see css/style.css).
+        endsIn: 'Offer ends in',
         dismiss: 'Dismiss'
       },
       cartWidget: {
@@ -622,7 +628,7 @@
       },
       promoBanner: {
         ariaLabel: 'Offre promotionnelle',
-        endsIn: "Fin de l'offre dans ",
+        endsIn: "Fin de l'offre dans",
         dismiss: 'Fermer'
       },
       cartWidget: {
