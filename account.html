@@ -114,14 +114,24 @@
                there -- degrades to a plain text input otherwise (see that
                file's own comment).
                Same fix rounds as checkout.html's own copy of this field (see
-               that page's own comment for the full reasoning): round 1
-               ("street-address" -> "address-line1") and round 2
-               (autocomplete="off" on Address Line 2 below) didn't stop
-               Chrome's saved-address autofill from splitting the house
-               number here from the street name into Address Line 2; round 3
-               (see that field's own comment below) is the one that actually
-               addresses it. -->
-          <input type="text" name="address" autocomplete="address-line1">
+               that page's own comment for the full reasoning). Rounds 1-4
+               fixed Address Line 2 leaking the street name into itself, but
+               left a NEW symptom once that field stopped accepting an
+               address-shaped role at all: Chrome had nowhere left to put the
+               route/street-name sub-component of a saved profile's split
+               address, so it just discarded that piece instead of
+               misplacing it -- this field kept showing only the house
+               number.
+               BUG FIX round 5: autocomplete="address-line1" ("line 1 of a
+               multi-line address") changed to "street-address" ("the entire
+               address as one field/blob," per the WHATWG spec) -- now that
+               there's no address-line2-shaped neighbor for Chrome to split
+               against, this is the more accurate token for a single field
+               meant to hold the whole address. name="address"/id are
+               unchanged and still clearly address-shaped -- confirmed the
+               neighboring field's renames (address2 -> extraDetails) never
+               touched this field itself. -->
+          <input type="text" name="address" autocomplete="street-address">
         </label>
         <label class="checkout-field">
           <span data-i18n="account.addressLine2Label">Building, floor, access code…</span>

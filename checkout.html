@@ -266,18 +266,32 @@
                          fix it: Chrome's saved-address autofill still split
                          the house number into this field and the street name
                          into Address Line 2 below.
-                         BUG FIX round 2 (see Address Line 2's own comment for
-                         the actual fix that round 1 was missing): Chrome
-                         apparently maps a saved profile's internal
-                         street_number/route sub-components positionally
-                         across whichever two adjacent fields it recognizes as
-                         address-type slots, regardless of which specific
-                         address-line1/2 token each carries -- correct tokens
-                         alone don't stop it from treating the NEXT field as
-                         a second slot to split into. Address Line 2 no
-                         longer advertises itself as an address slot at all,
-                         which is what actually needs to change here. -->
-                    <input type="text" name="address" autocomplete="address-line1" required>
+                         BUG FIX rounds 2-4 (see Address Line 2's own comment
+                         for the full history): renamed that field's
+                         name="address2" -> name="extraDetails" and its
+                         visible label off anything containing
+                         "address"/"adresse", so Chrome no longer recognizes
+                         it as an address-type slot at all -- confirmed this
+                         part worked (the street name stopped landing there).
+                         BUG FIX round 5: with no sibling address-line2 slot
+                         left for Chrome to split a saved profile's internal
+                         street_number/route sub-components across, it
+                         started just discarding the route/street-name piece
+                         instead of misplacing it -- this field (still tagged
+                         "address-line1", meaning "line 1 of a multi-line
+                         address") was apparently still only being offered
+                         the street_number sub-component, not the full
+                         address. Switched to autocomplete="street-address",
+                         which per the WHATWG spec means "the entire address
+                         as one field/blob," not one line of a multi-line
+                         address -- now that there's no address-line2-shaped
+                         neighbor to pair against, this is the more accurate
+                         token for "one field, whole address" and the
+                         combination this codebase hasn't tried before (round
+                         1 used this same token, but WITH the old
+                         address-line2-shaped neighbor still in place; the
+                         neighbor is what's different this time). -->
+                    <input type="text" name="address" autocomplete="street-address" required>
                     <p class="promo-message promo-message-error" id="checkout-error-address" data-i18n="checkout.errorAddress" aria-live="polite" hidden>Please enter your address.</p>
                   </label>
                   <label class="checkout-field">
