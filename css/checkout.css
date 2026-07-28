@@ -1041,6 +1041,45 @@
 .checkout-terms-row span { text-transform: none; letter-spacing: 0.02em; font-size: 0.78rem; font-family: var(--font-body); font-weight: 300; }
 .checkout-terms-row a { color: var(--accent-bronze-light); }
 
+/* Hermès-style trust-badge row below the whole accordion (see checkout.html's
+   own markup comment for why it's a sibling of <form id="checkout-form">
+   rather than nested inside Payment's own collapsible body) -- three quiet
+   icon+label pairs, no borders/boxes around any one of them, just the same
+   hairline var(--line) divider convention already used for
+   .checkout-accordion-section's own border-bottom above, between each pair
+   instead of around them. flex:1 1 0/min-width:0 on each badge (same
+   shrink-to-fit reasoning as .checkout-field, see that rule's own comment)
+   is what keeps three side-by-side items readable down to a narrow phone
+   width instead of overflowing. */
+.checkout-trust-badges {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.8rem;
+  border-top: 1px solid var(--line);
+}
+.checkout-trust-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 0.8rem;
+  text-align: center;
+}
+.checkout-trust-badge + .checkout-trust-badge { border-left: 1px solid var(--line); }
+.checkout-trust-badge svg { flex-shrink: 0; color: var(--text-muted); }
+.checkout-trust-badge span {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
 /* Marketing-consent checkbox at account creation (js/account.js's
    accountGateMarkup()) -- same "full sentence, not a short label" case as
    .checkout-terms-row just above (see that rule's own comment), so it gets

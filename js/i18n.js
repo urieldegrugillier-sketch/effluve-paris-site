@@ -268,7 +268,13 @@
         termsLabel: 'I accept the <a href="cgv.html" target="_blank" rel="noopener">Terms &amp; Conditions of Sale</a>.',
         errorTerms: 'Please accept the Terms & Conditions of Sale to continue.',
         mobileOrderSummaryHeading: 'Payment',
-        cartHeading: 'Cart'
+        cartHeading: 'Cart',
+        // Trust-badge row below the accordion (see checkout.html's own markup
+        // comment) -- three short labels, one per icon, never longer than a
+        // couple of words since they wrap under a small fixed-width icon.
+        trustShipping: 'Free shipping',
+        trustReturns: 'Returns & exchanges',
+        trustPayment: 'Secure payment'
       },
       accountGate: {
         modify: 'Modify',
@@ -736,7 +742,10 @@
         termsLabel: "J'accepte les <a href=\"cgv.html\" target=\"_blank\" rel=\"noopener\">Conditions Générales de Vente</a>.",
         errorTerms: 'Veuillez accepter les Conditions Générales de Vente pour continuer.',
         mobileOrderSummaryHeading: 'Paiement',
-        cartHeading: 'Panier'
+        cartHeading: 'Panier',
+        trustShipping: 'Livraison gratuite',
+        trustReturns: 'Retours & échanges',
+        trustPayment: 'Paiement sécurisé'
       },
       accountGate: {
         modify: 'Modifier',
