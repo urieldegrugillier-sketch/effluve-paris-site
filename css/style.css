@@ -2208,7 +2208,13 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   border: 1px solid var(--line);
   color: var(--text-on-dark);
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  /* Was 0.82rem (13.12px) -- found during the sitewide mobile-zoom audit
+     (see css/checkout.css's own .checkout-field input comment for the full
+     reasoning): below 16px, so tapping into this sitewide email-capture
+     popup auto-zoomed the page on mobile like every other affected field.
+     Padding already generous enough (0.9rem 1rem) not to need adjusting
+     alongside this. */
+  font-size: 1rem;
   text-align: center;
   transition: border-color 0.3s ease;
 }

@@ -242,10 +242,27 @@
   background: none;
   border: none;
   border-bottom: 1px solid var(--line);
-  padding: 0.6rem 0;
+  /* padding bumped from 0.6rem to 0.65rem alongside the font-size increase
+     just below -- keeps roughly the same visual weight/proportion around
+     the now-taller text rather than leaving it looking suddenly cramped. */
+  padding: 0.65rem 0;
   color: var(--text-on-dark);
   font-family: var(--font-body);
-  font-size: 0.9rem;
+  /* BUG FIX: was 0.9rem (14.4px) -- below the 16px floor under which iOS
+     Safari (and other mobile browsers following the same convention)
+     auto-zooms the page on focus, and never zooms back out afterward. This
+     is the single shared rule behind nearly every real text-entry field on
+     checkout.html, account.html, and contact.html (all wrapped in
+     .checkout-field), including ones that don't look like it at a glance --
+     .phone-number-input and .phone-country-search both nest inside a
+     .checkout-field too and inherit this same rule (with higher specificity
+     than their own dedicated font-size declarations, see each of those
+     rules' own updated comments) -- so this one change is the actual fix
+     for effectively every sitewide form field in scope, not just the
+     obvious ones. 1rem assumes the standard 16px root font-size, confirmed
+     for this site: no font-size override exists on <html>/<body> in
+     css/style.css. */
+  font-size: 1rem;
   transition: border-color 0.3s ease;
 }
 .checkout-field input:focus,
@@ -330,7 +347,15 @@
   padding: 0.7rem 1rem;
   color: var(--text-on-dark);
   font-family: var(--font-body);
-  font-size: 0.85rem;
+  /* Was 0.85rem -- confirmed live this never actually rendered: this field
+     nests inside a .checkout-field wrapper (see that class's own comment on
+     why phone-input.js is mounted that way), so .checkout-field input's
+     higher-specificity font-size (class+type vs. this rule's class-only
+     selector) already won regardless of what's declared here. Matched to
+     1rem anyway so this declaration stops being a dead value that would
+     silently reintroduce the sub-16px mobile-zoom bug if the DOM nesting or
+     the shared rule ever changes later. */
+  font-size: 1rem;
 }
 .phone-country-search:focus { outline: none; }
 .phone-country-search::placeholder { color: var(--text-muted); }
