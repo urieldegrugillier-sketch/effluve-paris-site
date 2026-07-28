@@ -86,16 +86,19 @@
    measurement" approach as .shop-hero's own 80px header-height constant.
    45px covers every width down to ~430px now that the old "Limited-Time
    Offer -21% Off" headline is gone and .promo-banner-timer-line is back to
-   a single line at that width (44.5px measured); re-measuring at 430px vs
-   400px found the actual wrap point for "Fin de l'offre dans"/"Offer ends
-   in" + the countdown chip together onto two lines sits between those two
-   widths (44.5px above it, 64.5px below), hence the max-width:420px
-   override just below -- a single hardcoded constant can't cover both
-   without either a gap above the banner on desktop or the header
-   overlapping it on narrow phones. */
+   a single line at that width (44.5px measured). Below that, rather than
+   letting "Fin de l'offre dans"/"Offer ends in" + the countdown chip wrap
+   onto a second line (which the max-width:420px block used to accommodate
+   with a taller 65px reservation), .promo-banner-timer-line's own font-size
+   below that same breakpoint is reduced instead (see that rule further
+   down) -- same text, same wording, just small enough to fit on one line
+   even at the tightest widths tested (340/375/400px, in both languages --
+   French's "Fin de l'offre dans" is the longer, binding case). Back to a
+   single line at every width again, so this only needs one (smaller)
+   constant, re-measured at 38.3px, rounded up. */
 html.promo-banner-active { --promo-banner-h: 45px; }
 @media (max-width: 420px) {
-  html.promo-banner-active { --promo-banner-h: 65px; }
+  html.promo-banner-active { --promo-banner-h: 39px; }
 }
 
 html {
@@ -1897,6 +1900,19 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 .promo-banner-timer-line {
   font-size: 0.92rem;
   font-weight: 700;
+}
+
+/* Desktop's 0.92rem wraps "Fin de l'offre dans"/"Offer ends in" + the
+   countdown chip onto two lines below ~430px (see --promo-banner-h's own
+   comment at :root) -- same text, not shortened, just smaller here so the
+   full line fits on one row again. 0.7rem is the exact point French (the
+   longer of the two, "Fin de l'offre dans") starts wrapping at 340px, the
+   tightest width tested; 0.68rem keeps a small margin below that rather
+   than sitting exactly on the measured edge. .promo-banner-timer's own
+   font-size (em, not rem) scales down proportionally with this
+   automatically, no separate override needed for the digits. */
+@media (max-width: 420px) {
+  .promo-banner-timer-line { font-size: 0.68rem; }
 }
 
 /* Bold AND visually set apart from the surrounding black banner text via a
