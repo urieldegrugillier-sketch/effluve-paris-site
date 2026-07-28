@@ -1104,14 +1104,18 @@
   width: 1px;
   background: var(--line);
 }
-.checkout-trust-badge svg { flex-shrink: 0; color: var(--text-muted); }
+/* White (--text-on-dark, the same near-white used for hero/body text
+   elsewhere -- not a raw #fff) rather than the muted tone every other small
+   mono label on this page uses (chevrons, "Qty", etc.) -- these three are
+   meant to read as confident reassurances, not quiet metadata. */
+.checkout-trust-badge svg { flex-shrink: 0; color: var(--text-on-dark); }
 .checkout-trust-badge span {
   font-family: var(--font-mono);
   font-size: 0.62rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   line-height: 1.35;
-  color: var(--text-muted);
+  color: var(--text-on-dark);
 }
 
 /* Marketing-consent checkbox at account creation (js/account.js's
