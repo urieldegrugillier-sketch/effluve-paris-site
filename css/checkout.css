@@ -117,6 +117,16 @@
      second one inside Billing would just be a redundant duplicate control
      on the same page. */
   .checkout-billing-mobile-promo { display: none; }
+  /* Same reasoning again for the trust-badge row's own mobile-only copy --
+     the Order Summary column's own copy (top of .checkout-summary-col at
+     this width via `order: 2` above) is already visible, so this one at the
+     bottom of the Payment column would just repeat it a second time.
+     Two classes (not just .checkout-trust-badges-mobile alone) so this wins
+     on specificity over .checkout-trust-badges's own `display: flex` below
+     regardless of source order -- confirmed live that a single-class
+     override here lost that tie-break (same 0,1,0 specificity, base rule
+     simply comes later in the file) and both copies rendered at once. */
+  .checkout-trust-badges.checkout-trust-badges-mobile { display: none; }
 }
 
 .checkout-section-heading {
@@ -1041,35 +1051,59 @@
 .checkout-terms-row span { text-transform: none; letter-spacing: 0.02em; font-size: 0.78rem; font-family: var(--font-body); font-weight: 300; }
 .checkout-terms-row a { color: var(--accent-bronze-light); }
 
-/* Hermès-style trust-badge row below the whole accordion (see checkout.html's
-   own markup comment for why it's a sibling of <form id="checkout-form">
-   rather than nested inside Payment's own collapsible body) -- three quiet
+/* Hermès-style trust-badge row (see checkout.html's own markup comments on
+   its two copies -- desktop at the bottom of the Order Summary column,
+   mobile-only copy at the bottom of the Payment column) -- three quiet
    icon+label pairs, no borders/boxes around any one of them, just the same
    hairline var(--line) divider convention already used for
    .checkout-accordion-section's own border-bottom above, between each pair
-   instead of around them. flex:1 1 0/min-width:0 on each badge (same
+   instead of around them.
+
+   BUG FIX: the divider used to be a `border-left` on the 2nd/3rd badge
+   itself, with the container's own `gap` as the ONLY other spacing --
+   confirmed live via getBoundingClientRect() that this put the divider
+   1.8rem from the badge to its LEFT but only 0.8rem from the badge to its
+   RIGHT (gap + that badge's own left padding stack on one side of the
+   border, only the next badge's left padding sits on the other), nowhere
+   near equidistant. Fixed by dropping the container `gap` and each badge's
+   own left/right padding entirely, and instead drawing the divider as an
+   absolutely-positioned ::before exactly at each non-first badge's own left
+   edge (left: 0, not inset by any padding) -- with badges laid out via
+   flex:1 1 0/min-width:0 (equal widths regardless of content, same
    shrink-to-fit reasoning as .checkout-field, see that rule's own comment)
-   is what keeps three side-by-side items readable down to a narrow phone
-   width instead of overflowing. */
+   and no gap between them at all, that left edge IS the exact midpoint
+   between two equal-width neighbors, without needing to hand-tune any
+   padding/gap combination to land there. --checkout-trust-badge-pad (equal
+   on every badge, both sides) is the only thing controlling how far each
+   icon/label sits from that shared boundary now, so it's trivially
+   symmetric by construction rather than by coincidence. */
 .checkout-trust-badges {
+  --checkout-trust-badge-pad: 1.3rem;
   display: flex;
-  justify-content: center;
-  gap: 1rem;
   margin-top: 2rem;
   padding-top: 1.8rem;
   border-top: 1px solid var(--line);
 }
 .checkout-trust-badge {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.6rem;
   flex: 1 1 0;
   min-width: 0;
-  padding: 0 0.8rem;
+  padding: 0 var(--checkout-trust-badge-pad);
   text-align: center;
 }
-.checkout-trust-badge + .checkout-trust-badge { border-left: 1px solid var(--line); }
+.checkout-trust-badge:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+}
 .checkout-trust-badge svg { flex-shrink: 0; color: var(--text-muted); }
 .checkout-trust-badge span {
   font-family: var(--font-mono);
