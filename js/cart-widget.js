@@ -119,9 +119,29 @@
     justOpened = true;
     setTimeout(() => { justOpened = false; }, 0);
   }
+  // Mobile/tablet only: tracks "has the icon already been explicitly TAPPED
+  // once while the preview was closed" -- separate from the CSS class
+  // openPreview()/scheduleClose()/closePreview() already toggle, because
+  // that class alone can't tell a real second tap apart from a first one.
+  // CONFIRMED (real-device + automated pointer-simulation testing): a touch
+  // tap fires a synthetic 'mouseenter' on the target before its own 'click'
+  // (same browser compatibility behavior desktop's hover already listens
+  // for via widget's own mouseenter handler) -- so by the time THIS click
+  // handler runs, the preview may already be marked open from that same
+  // tap's own leading mouseenter, making "is the class already there"
+  // indistinguishable from a genuine second tap. This flag is only ever set
+  // by the click handler's own tap-open branch below (never by
+  // openPreview() itself, which hover/focusin also call), so a hover-driven
+  // open never counts as "already tapped" -- only two real, separate clicks
+  // do. Reset alongside the CSS class everywhere that class comes off, so a
+  // closed-then-reopened preview always needs a fresh first tap again.
+  let mobileTapOpened = false;
   function scheduleClose() {
     clearTimeout(closeTimer);
-    closeTimer = setTimeout(() => preview.classList.remove('cart-preview-open'), 150);
+    closeTimer = setTimeout(() => {
+      preview.classList.remove('cart-preview-open');
+      mobileTapOpened = false;
+    }, 150);
   }
   // Immediate, not debounced like scheduleClose() -- used by explicit user
   // dismissal (the × button, tap-to-toggle, outside tap/scroll), where a
@@ -130,6 +150,7 @@
   function closePreview() {
     clearTimeout(closeTimer);
     preview.classList.remove('cart-preview-open');
+    mobileTapOpened = false;
   }
 
   /* ---------------- Modal focus trap ----------------
@@ -262,8 +283,8 @@
      actual activation should. 'click' is what handles that now, for both
      directions:
        - A real mouse/touch click or tap (MouseEvent.detail >= 1) keeps
-         going through its own branch below (mobile/tablet toggle, desktop
-         no-op since hover already opens/closes it there).
+         going through its own branch below (mobile/tablet first-tap-opens/
+         second-tap-navigates, desktop navigates straight to checkout).
        - Enter/Space on this focused <button> -- the standard way to
          activate a button by keyboard -- fires this exact same 'click'
          event too, but with detail === 0 (a native <button>'s own way of
@@ -272,21 +293,47 @@
          That's the explicit, deliberate "open via keyboard" path this fix
          adds, replacing the removed open-on-mere-focus behavior -- keyboard
          users can still open the preview, just only by actually asking to,
-         the same as a click. */
+         the same as a click. Deliberately kept as "always open the preview"
+         even after the desktop/mobile changes below: hover (desktop's own
+         way of revealing the preview to a mouse user) has no keyboard
+         equivalent, so Enter/Space on this button is the ONLY way a
+         keyboard-only desktop user can ever see cart contents before
+         checking out -- routing it straight to checkout.html instead, like
+         a real click now does, would remove that entirely rather than just
+         changing how it's reached. */
   iconLink.addEventListener('click', (e) => {
     if (e.detail === 0) {
       openPreview();
       focusFirstPreviewElement();
       return;
     }
-    // Mobile/tablet only below: the icon is a plain toggle button there (no
-    // separate cart page to navigate to -- this preview IS the cart).
-    // Desktop is untouched, a no-op here -- hover already opens/closes the
-    // preview there (see widget's own mouseenter/mouseleave above), a click
-    // on top of that doesn't need to do anything further.
-    if (!isMobileOrTablet()) return;
-    if (preview.classList.contains('cart-preview-open')) closePreview();
-    else { openPreview(); focusFirstPreviewElement(); }
+    // Desktop: navigates straight to checkout instead of toggling the
+    // preview via click -- hover (see widget's own mouseenter/mouseleave
+    // above) is still there for anyone who wants to glance at the cart
+    // first, this just gives a click its own, more direct destination
+    // rather than repeating what hover already does.
+    if (!isMobileOrTablet()) {
+      window.location.href = 'checkout.html';
+      return;
+    }
+    // Mobile/tablet: unchanged first tap (opens the preview, since this IS
+    // the cart page there -- no separate page to send a first tap to yet).
+    // Second tap, while the preview is ALREADY open, now navigates to
+    // checkout instead of just closing it -- the user has already seen the
+    // cart at that point (that's what the first tap was for), so a second
+    // deliberate tap on the same icon reads as "yes, take me to checkout"
+    // rather than "never mind, close this". Checks mobileTapOpened (see its
+    // own comment above), NOT the preview's own open CSS class -- the class
+    // alone can't tell this real second tap apart from a first tap whose
+    // own leading synthetic mouseenter already opened the preview via hover
+    // before this same click ever fired.
+    if (mobileTapOpened) {
+      window.location.href = 'checkout.html';
+    } else {
+      openPreview();
+      focusFirstPreviewElement();
+      mobileTapOpened = true;
+    }
   });
   closeBtn.addEventListener('click', closePreviewAndReturnFocus);
 

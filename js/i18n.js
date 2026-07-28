@@ -132,7 +132,6 @@
       },
       promoBanner: {
         ariaLabel: 'Promotional offer',
-        offer: 'Limited-Time Offer −21% Off',
         endsIn: 'Offer ends in ',
         dismiss: 'Dismiss'
       },
@@ -623,7 +622,6 @@
       },
       promoBanner: {
         ariaLabel: 'Offre promotionnelle',
-        offer: 'Offre Limitée −21%',
         endsIn: "Fin de l'offre dans ",
         dismiss: 'Fermer'
       },

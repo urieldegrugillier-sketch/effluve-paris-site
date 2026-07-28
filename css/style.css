@@ -84,11 +84,19 @@
 /* Measured directly (real getBoundingClientRect() height at the banner's
    fixed font-size/padding, not estimated) -- same "confirmed via direct
    measurement" approach as .shop-hero's own 80px header-height constant.
-   45px (was 34px) since js/promo-banner.js's countdown timer made
-   .promo-banner-text a consistent two lines instead of one -- re-measured
-   after that change, identical at every breakpoint tested (desktop, 390px,
-   320px) since the two-line layout no longer depends on wrapping. */
+   45px covers every width down to ~430px now that the old "Limited-Time
+   Offer -21% Off" headline is gone and .promo-banner-timer-line is back to
+   a single line at that width (44.5px measured); re-measuring at 430px vs
+   400px found the actual wrap point for "Fin de l'offre dans"/"Offer ends
+   in" + the countdown chip together onto two lines sits between those two
+   widths (44.5px above it, 64.5px below), hence the max-width:420px
+   override just below -- a single hardcoded constant can't cover both
+   without either a gap above the banner on desktop or the header
+   overlapping it on narrow phones. */
 html.promo-banner-active { --promo-banner-h: 45px; }
+@media (max-width: 420px) {
+  html.promo-banner-active { --promo-banner-h: 65px; }
+}
 
 html {
   scroll-behavior: auto;
@@ -1852,10 +1860,12 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Vertical padding trimmed from 0.6rem now that .promo-banner-text is
-     reliably two lines (see its own comment) -- keeps the taller banner
-     from growing more than the countdown line itself actually adds. */
-  padding: 0.45rem 2.6rem;
+  /* Bumped back up from the old two-line layout's trimmed 0.45rem now that
+     the "Limited-Time Offer -21% Off" headline above the countdown is gone
+     (single, larger line left instead) -- a bit more vertical breathing
+     room around one bigger line reads better than the tighter padding a
+     smaller two-line block needed. */
+  padding: 0.55rem 2.6rem;
   background: var(--accent-bronze);
   color: #000;
   transition: transform 0.4s ease, opacity 0.4s ease;
@@ -1864,7 +1874,6 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 .promo-banner-text {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   text-align: center;
@@ -1872,21 +1881,22 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 
 .promo-banner-text a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
-/* Second line, always (see the markup comment in js/promo-banner.js for
-   why this isn't just left to wrap at narrow widths). Slightly smaller and
-   dimmed relative to the offer headline above it so it reads as a
-   secondary detail, not a second, equally-weighted message. */
+/* Single line now -- the old "Limited-Time Offer -21% Off" headline this
+   used to sit below (dimmer/smaller, a "secondary detail" under that
+   headline) is gone, so this is the banner's only remaining content and
+   reads as the primary message instead: noticeably larger than the old
+   0.6rem ("more visual room without the removed line" -- enlarged enough
+   that the single-line banner doesn't look sparse), and bold (was normal
+   weight; only the digits were bold before). .promo-banner-timer's own
+   font-size is expressed in em specifically so it keeps scaling
+   proportionally off whatever this ends up set to, no separate edit needed
+   there. Still full-opacity (not dimmed) for the same contrast-math reason
+   already established elsewhere on this page (see .promo-banner-timer's
+   own comment) -- black text at any opacity less than 1 on this bronze
+   background risks dropping under WCAG AA's 4.5:1 floor. */
 .promo-banner-timer-line {
-  display: block;
-  margin-top: 0.2rem;
-  font-size: 0.6rem;
-  /* No opacity dimming (was 0.8) -- verified via direct contrast calculation
-     that blending pure-black text toward the bronze background like that
-     drops it to ~3.9:1, under WCAG AA's 4.5:1 floor for this size text; full
-     opacity keeps it at the same ~4.56:1 already relied on elsewhere for
-     black-on-bronze text (see .cookie-banner-accept's own
-     comments). The smaller font-size alone already reads as secondary next
-     to the bold headline/timer above it, so nothing else needs to change. */
+  font-size: 0.92rem;
+  font-weight: 700;
 }
 
 /* Bold AND visually set apart from the surrounding black banner text via a

@@ -21,18 +21,16 @@
   banner.setAttribute('role', 'region');
   banner.setAttribute('aria-label', 'Promotional offer');
   banner.setAttribute('data-i18n-attr', 'aria-label:promoBanner.ariaLabel');
-  // Two lines always (not just wrapped at narrow widths) -- one consistent,
-  // measured height at every breakpoint (css/style.css's --promo-banner-h)
-  // instead of the single-line version wrapping unpredictably once this
-  // countdown text was added, which would silently mismatch that constant
-  // and either gap or overlap .site-header depending on viewport width.
-  // "Offer" and "Ends in " are tagged individually (not the whole <p> via one
+  // Single line now (the old "Limited-Time Offer -21% Off" headline above
+  // this was removed -- the countdown itself already carries the "offer"
+  // framing via promoBanner.endsIn, a second line just repeating it added
+  // nothing). "Ends in " is tagged individually (not the whole <p> via one
   // data-i18n) so MonarkI18n.apply() only ever overwrites textContent on
-  // those two spans -- the countdown span in between ticks every second via
-  // its own textContent write (see the setInterval below) and would be wiped
-  // by a language switch if it were caught in the same swap.
+  // that one span -- the countdown span right after it ticks every second
+  // via its own textContent write (see the setInterval below) and would be
+  // wiped by a language switch if it were caught in the same swap.
   banner.innerHTML = `
-    <p class="promo-banner-text"><a href="product.html"><span data-i18n="promoBanner.offer">Limited-Time Offer &minus;21% Off</span><br><span class="promo-banner-timer-line"><span data-i18n="promoBanner.endsIn">Ends in </span><span class="promo-banner-timer" id="promo-banner-timer">03:52:16</span></span></a></p>
+    <p class="promo-banner-text"><a href="product.html"><span class="promo-banner-timer-line"><span data-i18n="promoBanner.endsIn">Ends in </span><span class="promo-banner-timer" id="promo-banner-timer">03:52:16</span></span></a></p>
     <button type="button" class="promo-banner-close" aria-label="Dismiss" data-i18n-attr="aria-label:promoBanner.dismiss">&times;</button>
   `;
   if (window.MonarkI18n) window.MonarkI18n.apply(banner);
