@@ -931,7 +931,31 @@
     stripePaymentElement = stripeElements.create('payment', {
       // Shipping already collected name + address -- Payment Element isn't
       // asked to collect either again.
-      fields: { billingDetails: { name: 'never', address: 'never' } }
+      fields: { billingDetails: { name: 'never', address: 'never' } },
+      // BUG FIX: wallets left unset here used to default to Stripe's own
+      // {applePay:'auto', googlePay:'auto', link:'auto'} -- meaning the
+      // Payment Element could independently render ITS OWN embedded Link
+      // button (Stripe's own official "Payer en toute sécurité avec Link"
+      // wording, confirmed live -- not any of this page's own strings) on
+      // top of the manual card fields, entirely separate from and in
+      // addition to the dedicated Payment Request Button already mounted
+      // above (#checkout-payment-request-button, which already covers
+      // Apple Pay/Google Pay/Link in one unified, custom-styled,
+      // keyboard-accessible component -- see its own comment). Confirmed
+      // live (real, non-headless Chrome) that this Payment Element mounts
+      // its card fields correctly with no Link session recognized; the
+      // reported bug -- Link button + divider + nothing else, no card
+      // fields at all -- only reproduces for a session Stripe recognizes as
+      // Link-eligible, which this sandbox has no way to simulate (needs
+      // real HTTPS + a real Link-registered email). Rather than depend on
+      // Stripe's own current (and evidently not always reliable -- see the
+      // "legacy wallets integration" deprecation warning this page already
+      // logs) behavior for collapsing/expanding manual entry next to its
+      // wallet buttons, wallets are explicitly turned off here so this
+      // Element only ever renders card fields -- Apple Pay/Google Pay/Link
+      // stay exclusively the dedicated PRB's job, never duplicated (or,
+      // per the reported bug, substituted) here.
+      wallets: { applePay: 'never', googlePay: 'never', link: 'never' }
     });
     stripePaymentElement.mount('#checkout-stripe-payment-element');
   }
