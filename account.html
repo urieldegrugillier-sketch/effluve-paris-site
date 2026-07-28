@@ -113,17 +113,27 @@
                js/places-autocomplete.js if a real API key is configured
                there -- degrades to a plain text input otherwise (see that
                file's own comment).
-               BUG FIX: same autocomplete token fix as checkout.html's own
-               copy of this field (see that page's own comment) --
-               "street-address" confused Chrome's saved-address autofill
-               into splitting the house number here from the street name
-               into Address Line 2 below; "address-line1" is the correct
-               token for a field with its own address-line2 sibling. -->
+               Same two-round autocomplete fix as checkout.html's own copy of
+               this field (see that page's own comment for the full
+               reasoning): round 1 ("street-address" -> "address-line1")
+               didn't stop Chrome's saved-address autofill from splitting the
+               house number here from the street name into Address Line 2;
+               round 2 (see that field's own comment below) is the one that
+               actually addresses it. -->
           <input type="text" name="address" autocomplete="address-line1">
         </label>
         <label class="checkout-field">
           <span data-i18n="account.addressLine2Label">Address Line 2</span>
-          <input type="text" name="address2" autocomplete="address-line2">
+          <!-- autocomplete="off" (was "address-line2") -- correct per spec,
+               but Chrome apparently maps a saved profile's internal
+               street_number/route sub-components positionally across
+               whichever two adjacent fields it recognizes as address-type
+               slots, regardless of which specific token each one carries.
+               "off" removes this field from that candidate set entirely
+               (a valid WHATWG token meaning "don't offer autofill here"),
+               rather than just relabeling it -- still a normal, freely-
+               typeable optional field for manual typing either way. -->
+          <input type="text" name="address2" autocomplete="off">
         </label>
         <div class="checkout-field-row">
           <label class="checkout-field">
