@@ -200,7 +200,6 @@
           summary: 'Full Ingredients List (INCI)',
           allergensNote: 'May contain allergens regulated under EU cosmetic regulation — full list available upon request.'
         },
-        backToExperience: 'Back to experience',
         shippingFaqLink: 'Shipping, returns & more — FAQ',
         numberedBatch: 'Numbered Batch',
         notMassProduced: 'Not Mass-Produced',
@@ -679,7 +678,6 @@
           summary: 'Liste Complète des Ingrédients (INCI)',
           allergensNote: 'Peut contenir des allergènes réglementés selon la réglementation cosmétique UE — liste complète disponible sur demande.'
         },
-        backToExperience: "Retour à l'expérience",
         shippingFaqLink: 'Livraison, retours et plus — FAQ',
         numberedBatch: 'Lot Numéroté',
         notMassProduced: 'Non Produit en Série',
