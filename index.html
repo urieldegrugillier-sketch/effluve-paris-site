@@ -105,6 +105,65 @@
   </div>
 </section>
 
+<!-- WHY EFFLUVE PARIS -- static trust/value section, right after the hero and
+     before the scroll-jacked story sequence below. Deliberately NOT one of
+     the .scroll-section/data-enter/data-leave entries further down: those are
+     absolutely-positioned and only exist within #scroll-container's own
+     900vh, GSAP-choreographed timeline (see js/app.js) -- this section is
+     plain normal-flow content instead, permanently visible rather than
+     fading in/out on scroll like S1-S6 do.
+     position:relative + z-index:20 on .why-effluve (see css/style.css) is
+     required, not cosmetic: .canvas-wrap (z-index:5) and #dark-overlay
+     (z-index:15) below are position:fixed and cover the full viewport from
+     page load onward, and a plain position:static element can never paint
+     above a fixed one regardless of z-index -- confirmed already for
+     .shop-footer (see that rule's own comment); this section needs the same
+     fix to actually stay visible as the user scrolls past it, rather than
+     getting silently painted over. -->
+<section class="why-effluve" id="why-effluve">
+  <div class="why-effluve-inner">
+    <h2 class="why-effluve-heading" data-i18n="home.whyEffluve.heading">Why Effluve Paris?</h2>
+    <div class="why-effluve-grid">
+      <div class="why-effluve-item">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M8.5 11C7 8 6.5 4.5 8 2C9 3.5 9.5 6 9.5 9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15.5 11C17 8 17.5 4.5 16 2C15 3.5 14.5 6 14.5 9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="12" cy="16" r="5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h3 class="why-effluve-item-title" data-i18n="home.whyEffluve.item1.title">Cruelty-free</h3>
+        <p class="why-effluve-item-body" data-i18n="home.whyEffluve.item1.body">We never test our products on animals.</p>
+      </div>
+      <div class="why-effluve-item">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="8" y="10" width="8" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="10" y="5.5" width="4" height="4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10.8 3.5h2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M17 5.5l1.8-1M18.2 8h2M17 10.5l1.8 1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h3 class="why-effluve-item-title" data-i18n="home.whyEffluve.item2.title">Long-lasting fragrance</h3>
+        <p class="why-effluve-item-body" data-i18n="home.whyEffluve.item2.body">An Eau de Parfum concentration built to last from morning to night.</p>
+      </div>
+      <div class="why-effluve-item">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3.2l6.5 2.7v5.4c0 4.6-2.8 7.5-6.5 8.5c-3.7-1-6.5-3.9-6.5-8.5V5.9L12 3.2z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M9 12l2 2 4-4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h3 class="why-effluve-item-title" data-i18n="home.whyEffluve.item3.title">Satisfaction guaranteed</h3>
+        <p class="why-effluve-item-body" data-i18n="home.whyEffluve.item3.body">Returns and exchanges within 14 days.</p>
+      </div>
+      <div class="why-effluve-item">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M10 3h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10.5 3v5.3l-4.2 9a1.6 1.6 0 0 0 1.45 2.27h8.5a1.6 1.6 0 0 0 1.45-2.27l-4.2-9V3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8.3 15.5h7.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h3 class="why-effluve-item-title" data-i18n="home.whyEffluve.item4.title">Ingredients imported from Italy</h3>
+        <p class="why-effluve-item-body" data-i18n="home.whyEffluve.item4.body">Raw materials sourced from Italy's finest suppliers.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- CANVAS -->
 <div class="canvas-wrap" id="canvas-wrap">
   <canvas id="canvas"></canvas>

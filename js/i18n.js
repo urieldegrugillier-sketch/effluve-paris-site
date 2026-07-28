@@ -34,6 +34,33 @@
         subtext: 'Click to discover',
         scroll: 'Scroll to Begin the Reign'
       },
+      // Static trust/value section right after the hero (index.html) -- see
+      // that page's own comment on why this sits outside the scroll-jacked
+      // #scroll-container system (s1-s6 above/below). trustReturns/"14 days"
+      // deliberately matches product.html's own stated return policy
+      // (product.returnPolicy, 14 days) and checkout's trust badges, not a
+      // separate, differently-worded claim.
+      home: {
+        whyEffluve: {
+          heading: 'Why Effluve Paris?',
+          item1: {
+            title: 'Cruelty-free',
+            body: 'We never test our products on animals.'
+          },
+          item2: {
+            title: 'Long-lasting fragrance',
+            body: 'An Eau de Parfum concentration built to last from morning to night.'
+          },
+          item3: {
+            title: 'Satisfaction guaranteed',
+            body: 'Returns and exchanges within 14 days.'
+          },
+          item4: {
+            title: 'Ingredients imported from Italy',
+            body: "Raw materials sourced from Italy's finest suppliers."
+          }
+        }
+      },
       s1: {
         label: '001 / The Signature',
         heading: 'Composure Is the Loudest Thing a Man Can Wear.',
@@ -539,6 +566,27 @@
         tagline: "Un parfum conçu pour les hommes qui règnent sur une pièce sans jamais y entrer.",
         subtext: 'Cliquez pour découvrir',
         scroll: 'Défilez pour que le Règne commence'
+      },
+      home: {
+        whyEffluve: {
+          heading: 'Pourquoi Effluve Paris ?',
+          item1: {
+            title: 'Sans cruauté',
+            body: "Nous ne testons jamais nos produits sur les animaux."
+          },
+          item2: {
+            title: 'Parfum longue tenue',
+            body: 'Une concentration Eau de Parfum pensée pour tenir du matin au soir.'
+          },
+          item3: {
+            title: 'Satisfait ou remboursé',
+            body: 'Retours et échanges sous 14 jours.'
+          },
+          item4: {
+            title: "Ingrédients importés d'Italie",
+            body: 'Des matières premières sélectionnées auprès des meilleurs fournisseurs italiens.'
+          }
+        }
       },
       s1: {
         label: '001 / La Signature',

@@ -1186,6 +1186,93 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   50% { transform: translateY(6px); }
 }
 
+/* ================= WHY EFFLUVE PARIS (static, index.html only) ================= */
+/* Plain normal-flow section, NOT one of the .scroll-section/data-enter
+   entries below -- no absolute positioning, no opacity animation, always
+   visible. position:relative + z-index:20 matches #scroll-container's own
+   z-index (see that rule) -- required so this paints above the fixed
+   .canvas-wrap (z-index:5)/#dark-overlay (z-index:15), exactly the same fix
+   already documented on .shop-footer for the identical reason (a
+   position:static element can never paint above a position:fixed one
+   regardless of z-index). */
+.why-effluve {
+  position: relative;
+  z-index: 20;
+  background: var(--bg-void);
+  padding: 11vh 6vw;
+}
+
+.why-effluve-inner { max-width: 1080px; margin: 0 auto; }
+
+.why-effluve-heading {
+  margin: 0 0 6vh;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.8rem, 3.2vw, 2.6rem);
+  text-align: center;
+  color: var(--text-on-dark);
+}
+
+.why-effluve-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3vw;
+}
+
+.why-effluve-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+/* Bronze-light (not the darker --accent-bronze the rest of the site's solid
+   CTA fills use) -- thin 1.3px strokes at this size read faint/hard to spot
+   against --bg-void in the darker tone; the lighter bronze is this site's own
+   established choice for accents on a dark background elsewhere (chevrons,
+   discount text). Same stroke-width:1.3/round-cap/round-join/fill:none line-
+   icon convention as the checkout trust badges (css/checkout.css) -- reused
+   here, not reinvented, for visual consistency between the two. */
+.why-effluve-item svg { flex-shrink: 0; color: var(--accent-bronze-light); }
+
+.why-effluve-item-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-on-dark);
+}
+
+.why-effluve-item-body {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  font-weight: 300;
+  color: var(--text-muted);
+  max-width: 26ch;
+}
+
+/* Same 768px breakpoint this file already uses for "mobile/tablet" layout
+   switches elsewhere (.stats-grid, .checkout-grid) -- 2x2 reads cleanly at
+   tablet/large-phone widths where 4 columns would squeeze each item too
+   narrow, without yet needing the further drop to one column. */
+@media (max-width: 768px) {
+  .why-effluve { padding: 8vh 8vw; }
+  .why-effluve-heading { margin-bottom: 5vh; }
+  .why-effluve-grid { grid-template-columns: repeat(2, 1fr); gap: 5vh 6vw; }
+}
+
+/* Confirmed via direct measurement at 375/340px: 2 columns still fit without
+   wrapping awkwardly, but each item's own ~26ch body text combined with a
+   narrower column started wrapping to 5-6 short lines, reading cramped next
+   to its neighbor. One column reads noticeably cleaner at these widths. */
+@media (max-width: 560px) {
+  .why-effluve-grid { grid-template-columns: 1fr; gap: 5vh; }
+  .why-effluve-item-body { max-width: 32ch; }
+}
+
 /* ================= CANVAS ================= */
 
 .canvas-wrap {
