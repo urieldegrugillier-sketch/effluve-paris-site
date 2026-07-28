@@ -167,7 +167,10 @@
         kicker: 'Eau de Parfum — 100ml',
         scentNotes: 'Bergamot · Incense · Amber',
         priceNote: 'Limited-time offer — 21% off',
-        bottlesRemaining: 'bottles remaining',
+        // Stock progress bar's own label (see product.html's inline script,
+        // renderStock()) -- deliberately doesn't show the {total} ceiling
+        // (odd to tell a customer "out of 500"), just the remaining count.
+        stockLabel: 'Only {count} left in stock',
         addToCart: 'Add to Cart — 100ML',
         // Sticky mobile buy bar only (product.html) -- shorter than the main
         // page's own addToCart above since the bar is a compact, persistent
@@ -657,7 +660,7 @@
         kicker: 'Eau de Parfum — 100ml',
         scentNotes: 'Bergamote · Encens · Ambre',
         priceNote: 'Offre à durée limitée — 21 % de réduction',
-        bottlesRemaining: 'flacons restants',
+        stockLabel: 'Plus que {count} en stock',
         addToCart: 'Ajouter au Panier — 100ML',
         stickyAddToCart: 'Ajouter au Panier',
         paymentRequestFallback: 'Payer avec Apple Pay, Google Pay ou Link',

@@ -100,7 +100,23 @@
          matching js/cart.js's PRODUCT.price, which this does not touch. -->
     <p class="shop-price"><span class="shop-price-original">&euro;189</span><span class="shop-price-current">&euro;149</span></p>
     <p class="shop-price-note" data-i18n="product.priceNote">Limited-time offer &mdash; 21% off</p>
-    <p class="shop-stock"><span id="stock-count">32</span> / <span id="stock-total">500</span> <span data-i18n="product.bottlesRemaining">bottles remaining</span></p>
+    <!-- Progress bar (bronze fill on the same muted --line track used
+         throughout the site) replacing the old raw "32/500" ratio -- showing
+         the 500 ceiling to a customer read as odd, and a bar communicates
+         "running low" at a glance without inviting the gamified-e-commerce
+         math a bare number does. Width/label both set by renderStock() in
+         the inline script below (the live Supabase stock_remaining/
+         stock_total read, once it resolves, replaces the 32/500 fallback
+         baked in here so the bar still looks correct pre-fetch or if that
+         request ever fails). aria-live/role="progressbar" makes the one
+         thing that actually changed (the count) announced to screen readers
+         without re-announcing the whole row on every re-render. -->
+    <div class="shop-stock" role="progressbar" aria-valuemin="0" aria-valuemax="500" aria-valuenow="32" id="stock-progress">
+      <p class="shop-stock-label" id="stock-label">Only 32 left in stock</p>
+      <div class="shop-stock-track">
+        <div class="shop-stock-fill" id="stock-fill" style="width: 6.4%"></div>
+      </div>
+    </div>
     <div class="shop-cta-row">
       <button class="cta-button shop-add-to-cart" type="button" id="add-to-cart-btn" data-i18n="product.addToCart">Add to Cart &mdash; 100ML</button>
       <!-- Stripe mounts its own iframe button here (Apple Pay/Google
@@ -581,12 +597,30 @@
 </script>
 <script>
 (function () {
-  // Static fallback, shown until (or unless) the live read below succeeds --
-  // keeps the page looking correct even before SUPABASE_URL/
-  // SUPABASE_PUBLISHABLE_KEY (js/supabase-client.js) are filled in with real
-  // values, or if that request fails for any reason.
-  const stockEl = document.getElementById('stock-count');
-  const stockTotalEl = document.getElementById('stock-total');
+  function t(key, vars) { return window.MonarkI18n ? window.MonarkI18n.t(key, vars) : key; }
+
+  const progressEl = document.getElementById('stock-progress');
+  const labelEl = document.getElementById('stock-label');
+  const fillEl = document.getElementById('stock-fill');
+
+  // Static fallback (32/500) baked into the markup itself, re-rendered
+  // through this same function so the bar width/label/aria stay in sync
+  // with whatever numbers are currently showing -- keeps the page looking
+  // correct even before SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY
+  // (js/supabase-client.js) are filled in with real values, or if the live
+  // read below ever fails.
+  let remaining = 32;
+  let total = 500;
+  function renderStock() {
+    if (!progressEl || !labelEl || !fillEl || !total) return;
+    const pct = Math.max(0, Math.min(100, (remaining / total) * 100));
+    fillEl.style.width = pct + '%';
+    progressEl.setAttribute('aria-valuemax', total);
+    progressEl.setAttribute('aria-valuenow', remaining);
+    labelEl.textContent = t('product.stockLabel', { count: remaining });
+  }
+  renderStock();
+  document.addEventListener('monark:langchange', renderStock);
 
   // Live read from public.products (publicly readable per its RLS policy) --
   // single-row table for now (one MONARK edition), so the first row is the
@@ -606,8 +640,9 @@
           if (error) console.error('product stock read:', error.message);
           return;
         }
-        if (stockEl && data.stock_remaining !== null && data.stock_remaining !== undefined) stockEl.textContent = data.stock_remaining;
-        if (stockTotalEl && data.stock_total !== null && data.stock_total !== undefined) stockTotalEl.textContent = data.stock_total;
+        if (data.stock_remaining !== null && data.stock_remaining !== undefined) remaining = data.stock_remaining;
+        if (data.stock_total !== null && data.stock_total !== undefined) total = data.stock_total;
+        renderStock();
       });
   }
 

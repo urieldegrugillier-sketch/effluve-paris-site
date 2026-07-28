@@ -245,13 +245,32 @@ body.shop-page { background: var(--bg-void); }
   color: var(--accent-bronze-light);
 }
 
-.shop-stock {
-  margin: 0 0 1.8rem;
+/* Stock progress bar (replaces the old raw "32/500" text) -- thin bronze
+   fill on the same muted --line track used for hairline dividers/borders
+   throughout the rest of the site, not a loud gamified-e-commerce style.
+   max-width keeps the bar from stretching edge-to-edge on wide desktop
+   layouts, where a full-width sliver would look disproportionately long
+   next to the compact price/label text above it; it still shrinks to fit
+   naturally on narrow phones via the column's own width. */
+.shop-stock { margin: 0 0 1.8rem; max-width: 260px; }
+.shop-stock-label {
+  margin: 0 0 0.5rem;
   font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+.shop-stock-track {
+  height: 2px;
+  background: var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.shop-stock-fill {
+  height: 100%;
+  background: var(--accent-bronze);
+  border-radius: inherit;
 }
 
 .shop-cta-row {
