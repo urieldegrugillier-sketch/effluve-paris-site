@@ -1057,7 +1057,11 @@
    icon+label pairs, no borders/boxes around any one of them, just the same
    hairline var(--line) divider convention already used for
    .checkout-accordion-section's own border-bottom above, between each pair
-   instead of around them.
+   instead of around them. No border-top on the row itself (removed -- it
+   read as a stray extra rule bracketing the row on both copies: directly
+   below the WhatsApp line on desktop, directly above the row on mobile);
+   margin-top alone still gives it breathing room from whatever precedes it
+   in each column.
 
    BUG FIX: the divider used to be a `border-left` on the 2nd/3rd badge
    itself, with the container's own `gap` as the ONLY other spacing --
@@ -1081,8 +1085,6 @@
   --checkout-trust-badge-pad: 1.3rem;
   display: flex;
   margin-top: 2rem;
-  padding-top: 1.8rem;
-  border-top: 1px solid var(--line);
 }
 .checkout-trust-badge {
   position: relative;
