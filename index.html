@@ -122,7 +122,7 @@
      getting silently painted over. -->
 <section class="why-effluve" id="why-effluve">
   <div class="why-effluve-inner">
-    <h2 class="why-effluve-heading" data-i18n="home.whyEffluve.heading">Why Effluve Paris?</h2>
+    <h2 class="why-effluve-heading" data-i18n-html="home.whyEffluve.heading">Why<br class="mobile-only-break"> Effluve Paris?</h2>
     <div class="why-effluve-grid">
       <div class="why-effluve-item">
         <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -246,9 +246,23 @@
           <span class="stat-value"><span class="stat-number" data-value="19" data-decimals="0">19</span><span class="stat-suffix">%</span></span>
           <span class="stat-label" data-i18n="s5.stat2">Eau de Parfum concentration</span>
         </div>
+        <!-- Was an animated "7" (data-value/.stat-number), claiming "7
+             countries of origin, for nine raw materials" -- neither figure
+             was backed by real data (no per-ingredient origin list exists
+             anywhere on the site; product.html's own actual INCI ingredient
+             list is just Alcool Denat/Aqua/two colorants/Parfum, and even
+             the "nine" referred to S3's named scent notes, not that list).
+             Replaced with a plain text stat (.stat-text, not .stat-number --
+             deliberately NOT given data-value/data-decimals, so
+             js/app.js's count-up animation loop -- which targets every
+             .stat-number unconditionally -- skips this one rather than
+             trying to animate a word) stating the one fact that IS true and
+             single-valued: the product is manufactured in Italy. No raw-
+             materials country-count claim at all now, rather than inventing
+             a replacement number. -->
         <div class="stat">
-          <span class="stat-value"><span class="stat-number" data-value="7" data-decimals="0">7</span><span class="stat-suffix"></span></span>
-          <span class="stat-label" data-i18n="s5.stat3">Countries of origin, for nine raw materials</span>
+          <span class="stat-value"><span class="stat-text" data-i18n="s5.stat3value">Italy</span></span>
+          <span class="stat-label" data-i18n="s5.stat3">Country of manufacture</span>
         </div>
         <div class="stat">
           <span class="stat-value"><span class="stat-number" data-value="500" data-decimals="0">500</span><span class="stat-suffix"></span></span>

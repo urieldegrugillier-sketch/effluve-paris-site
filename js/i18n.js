@@ -42,14 +42,24 @@
       // separate, differently-worded claim.
       home: {
         whyEffluve: {
-          heading: 'Why Effluve Paris?',
+          // <br class="mobile-only-break"> only breaks the line at mobile
+          // widths (see css/style.css's .mobile-only-break) -- invisible,
+          // and therefore a no-op, at desktop, where this reads as one line
+          // same as before. Rendered via data-i18n-html (see index.html),
+          // not plain data-i18n, since the tag needs to survive the
+          // translation swap.
+          heading: 'Why<br class="mobile-only-break"> Effluve Paris?',
           item1: {
             title: 'Cruelty-free',
             body: 'We never test our products on animals.'
           },
           item2: {
             title: 'Long-lasting fragrance',
-            body: 'An Eau de Parfum concentration built to last from morning to night.'
+            // Reworded from "morning to night" -- the real figure (see S5's
+            // own 8hrs stat, .stat1) is 8 hours, not an all-day claim.
+            // "Among the longest" rather than "the longest" -- compelling
+            // without an unverifiable absolute-superlative claim.
+            body: 'An exceptional wear time of up to 8 hours, among the longest in the eau de parfum market.'
           },
           item3: {
             title: 'Satisfaction guaranteed',
@@ -99,7 +109,12 @@
         label: '005 / In Numbers',
         stat1: 'Sillage that lingers past midnight',
         stat2: 'Eau de Parfum concentration',
-        stat3: 'Countries of origin, for nine raw materials',
+        // Reworded from "Countries of origin, for nine raw materials" --
+        // neither number was backed by real per-ingredient data (see
+        // index.html's own markup comment on this stat). stat3value is the
+        // plain-text stat itself (Italy), not an animated number.
+        stat3: 'Country of manufacture',
+        stat3value: 'Italy',
         stat4: 'Bottles per numbered edition'
       },
       s6: {
@@ -569,14 +584,14 @@
       },
       home: {
         whyEffluve: {
-          heading: 'Pourquoi Effluve Paris ?',
+          heading: 'Pourquoi<br class="mobile-only-break"> Effluve Paris ?',
           item1: {
             title: 'Sans cruauté',
             body: "Nous ne testons jamais nos produits sur les animaux."
           },
           item2: {
             title: 'Parfum longue tenue',
-            body: 'Une concentration Eau de Parfum pensée pour tenir du matin au soir.'
+            body: "Une tenue exceptionnelle allant jusqu'à 8 heures, parmi les plus longues du marché pour une eau de parfum."
           },
           item3: {
             title: 'Satisfait ou remboursé',
@@ -626,7 +641,8 @@
         label: '005 / En Chiffres',
         stat1: 'Un sillage qui persiste après minuit',
         stat2: 'Concentration en Eau de Parfum',
-        stat3: "Pays d'origine, pour neuf matières premières",
+        stat3: 'Pays de fabrication',
+        stat3value: 'Italie',
         stat4: 'Flacons par édition numérotée'
       },
       s6: {

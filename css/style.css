@@ -138,6 +138,17 @@ body {
 
 img, canvas { display: block; max-width: 100%; }
 
+/* Sitewide utility -- a <br> that only breaks the line at mobile widths,
+   invisible (and therefore a no-op) at desktop, so a heading can read as one
+   line above this breakpoint and two below it without needing two separate
+   translated strings. First use: .why-effluve-heading (index.html). Same
+   768px "mobile/tablet" threshold this file already uses elsewhere
+   (.stats-grid, .checkout-grid, .why-effluve-grid). */
+.mobile-only-break { display: none; }
+@media (max-width: 768px) {
+  .mobile-only-break { display: inline; }
+}
+
 a { color: inherit; text-decoration: none; }
 
 button { font-family: inherit; cursor: pointer; }
@@ -1453,6 +1464,21 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   font-family: var(--font-display);
   font-weight: 700;
   font-size: clamp(3.2rem, 6vw, 5.2rem);
+  color: var(--text-on-dark);
+  line-height: 1;
+}
+
+/* Same slot/role as .stat-number (a stat's own big headline value) but for a
+   WORD ("Italy"/"Italie") rather than a digit -- deliberately smaller than
+   .stat-number's own clamp(3.2rem, 6vw, 5.2rem): confirmed live that size was
+   tuned for 1-3 character digits and wrapped/overflowed a word-length stat
+   at this grid's narrower widths (2-column at <=768px). Same font-family/
+   weight/color/line-height otherwise, so it still reads as "one of the
+   stats," just legibly sized for its own content. */
+.stat-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.7rem, 3.4vw, 2.7rem);
   color: var(--text-on-dark);
   line-height: 1;
 }
