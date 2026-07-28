@@ -1882,7 +1882,14 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   text-align: center;
 }
 
-.promo-banner-text a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.promo-banner-text a { color: inherit; }
+
+/* BUG FIX: text-decoration used to live on .promo-banner-text a itself,
+   underlining the entire link -- label AND the countdown digit-chip after
+   it, since both sit inside that one <a>. Scoped to just the label span
+   (see js/promo-banner.js's own markup) instead, so the underline stops
+   right after "dans"/"in" rather than running under the timer too. */
+.promo-banner-timer-label { text-decoration: underline; text-underline-offset: 2px; }
 
 /* Single line now -- the old "Limited-Time Offer -21% Off" headline this
    used to sit below (dimmer/smaller, a "secondary detail" under that
