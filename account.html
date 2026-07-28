@@ -113,27 +113,31 @@
                js/places-autocomplete.js if a real API key is configured
                there -- degrades to a plain text input otherwise (see that
                file's own comment).
-               Same two-round autocomplete fix as checkout.html's own copy of
-               this field (see that page's own comment for the full
-               reasoning): round 1 ("street-address" -> "address-line1")
-               didn't stop Chrome's saved-address autofill from splitting the
-               house number here from the street name into Address Line 2;
-               round 2 (see that field's own comment below) is the one that
-               actually addresses it. -->
+               Same fix rounds as checkout.html's own copy of this field (see
+               that page's own comment for the full reasoning): round 1
+               ("street-address" -> "address-line1") and round 2
+               (autocomplete="off" on Address Line 2 below) didn't stop
+               Chrome's saved-address autofill from splitting the house
+               number here from the street name into Address Line 2; round 3
+               (see that field's own comment below) is the one that actually
+               addresses it. -->
           <input type="text" name="address" autocomplete="address-line1">
         </label>
         <label class="checkout-field">
           <span data-i18n="account.addressLine2Label">Address Line 2</span>
-          <!-- autocomplete="off" (was "address-line2") -- correct per spec,
-               but Chrome apparently maps a saved profile's internal
-               street_number/route sub-components positionally across
-               whichever two adjacent fields it recognizes as address-type
-               slots, regardless of which specific token each one carries.
-               "off" removes this field from that candidate set entirely
-               (a valid WHATWG token meaning "don't offer autofill here"),
-               rather than just relabeling it -- still a normal, freely-
-               typeable optional field for manual typing either way. -->
-          <input type="text" name="address2" autocomplete="off">
+          <!-- BUG FIX round 3: autocomplete="off" (round 2) didn't work --
+               confirmed Chrome deliberately ignores "off" on address-type
+               fields, and its heuristic scans name/id and associated label
+               text for address-shaped keywords regardless of the
+               autocomplete attribute. name="address2" itself (the literal
+               substring "address") was very likely the actual trigger.
+               Renamed to name="extraDetails" -- see js/account.js's own
+               comment on the matching account-model rename -- with no other
+               address-related substring in it. Visible label text
+               UNCHANGED -- deliberately not touched (Chrome's ML heuristic
+               may also weigh label text, but changing user-facing copy
+               needs a decision, not a unilateral edit; flagged instead). -->
+          <input type="text" name="extraDetails" autocomplete="off">
         </label>
         <div class="checkout-field-row">
           <label class="checkout-field">
@@ -284,7 +288,9 @@
   const addressSection = document.getElementById('account-address');
   const addressForm = document.getElementById('account-address-form');
   const addressInput = addressForm.querySelector('[name="address"]');
-  const address2Input = addressForm.querySelector('[name="address2"]');
+  // Renamed from address2Input/name="address2" -- see that field's own
+  // markup comment (Chrome autofill heuristic fix).
+  const extraDetailsInput = addressForm.querySelector('[name="extraDetails"]');
   const cityInput = addressForm.querySelector('[name="city"]');
   const postalInput = addressForm.querySelector('[name="postal"]');
   const addressPhoneError = document.getElementById('account-address-phone-error');
@@ -374,7 +380,7 @@
     profileSuccess.hidden = true;
 
     addressInput.value = acc.address || '';
-    address2Input.value = acc.address2 || '';
+    extraDetailsInput.value = acc.extraDetails || '';
     cityInput.value = acc.city || '';
     postalInput.value = acc.postal || '';
     if (addressPhoneWidget) addressPhoneWidget.setValue({ number: acc.phone || '', country: acc.country || 'FR' });
@@ -501,7 +507,7 @@
     addressPhoneError.hidden = true;
     await account.updateAccount(session.email, {
       address: addressInput.value.trim(),
-      address2: address2Input.value.trim(),
+      extraDetails: extraDetailsInput.value.trim(),
       city: cityInput.value.trim(),
       postal: postalInput.value.trim(),
       phone: phoneValue ? phoneValue.number : '',

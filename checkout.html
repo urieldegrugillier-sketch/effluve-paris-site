@@ -282,21 +282,29 @@
                   </label>
                   <label class="checkout-field">
                     <span data-i18n="checkout.addressLine2">Address Line 2 (optional)</span>
-                    <!-- autocomplete="off" (was "address-line2") -- the
-                         correct token per WHATWG spec didn't stop Chrome from
-                         still treating this as a second address-type slot to
-                         positionally split the street name into (see
-                         Address's own comment above). "off" is itself a
-                         valid WHATWG autofill token ("the field doesn't have
-                         a purpose relevant for autofill"/"don't offer to
-                         fill this in") -- it removes this field from Chrome's
-                         set of address-type candidates entirely rather than
-                         just relabeling it, so there's nothing left for it to
-                         split into. Still a completely normal, freely-
-                         typeable optional text input either way -- "off"
-                         only affects autofill suggestions, not manual
-                         typing. -->
-                    <input type="text" name="address2" autocomplete="off">
+                    <!-- BUG FIX round 3: autocomplete="off" (round 2, see
+                         Address's own comment above) didn't work either --
+                         confirmed Chrome deliberately ignores "off" on
+                         address-type fields (a documented Chrome policy
+                         change specifically so sites can't disable autofill
+                         on payment/address fields), and its heuristic looks
+                         well beyond the autocomplete attribute anyway --
+                         name/id, and any associated label text, are scanned
+                         for address-shaped keywords too. name="address2"
+                         itself was very likely the actual trigger (the
+                         literal substring "address"), independent of
+                         whatever autocomplete value sat next to it. Renamed
+                         to name="extraDetails" -- see js/account.js's own
+                         comment on the matching account-model rename -- with
+                         no other address-related substring in it. The
+                         visible label ("Address Line 2 (optional)"/
+                         "Complément d'adresse (facultatif)") is UNCHANGED --
+                         deliberately not touched here since Chrome's
+                         ML-based heuristic may also weigh label text, but
+                         changing user-facing copy needs a decision, not a
+                         unilateral edit; flagged in this round's own
+                         response instead. -->
+                    <input type="text" name="extraDetails" autocomplete="off">
                   </label>
                   <div class="checkout-field-row">
                     <label class="checkout-field">
@@ -640,7 +648,11 @@
       firstName: account.firstName,
       lastName: account.lastName,
       address: account.address,
-      address2: account.address2,
+      // Key doubles as the DOM `name` attribute looked up just below --
+      // matches the Address Line 2 field's own renamed name="extraDetails"
+      // (see that field's own comment on why), and the renamed
+      // account.extraDetails model property (see js/account.js).
+      extraDetails: account.extraDetails,
       city: account.city,
       postal: account.postal
     };
@@ -1528,7 +1540,7 @@
               name: `${firstNameVal} ${lastNameVal}`.trim(),
               address: {
                 line1: form.querySelector('[name="address"]').value.trim(),
-                line2: form.querySelector('[name="address2"]').value.trim() || undefined,
+                line2: form.querySelector('[name="extraDetails"]').value.trim() || undefined,
                 city: form.querySelector('[name="city"]').value.trim(),
                 postal_code: form.querySelector('[name="postal"]').value.trim(),
                 // Stripe requires every address sub-field once

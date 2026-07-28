@@ -106,7 +106,16 @@
       lastName: row.last_name || '',
       dob: row.date_of_birth || '',
       address: row.address || '',
-      address2: row.address_line_2 || '',
+      // Client-side model property renamed from address2 -> extraDetails
+      // (Supabase column itself, address_line_2, is untouched -- this is
+      // purely a client-side/DOM naming fix, not a schema change). See
+      // checkout.html's/account.html's own markup comment on this field's
+      // name="address2" -> name="extraDetails" rename: Chrome's autofill
+      // heuristic scans field name/id for address-shaped keywords
+      // regardless of the autocomplete attribute, and "address2" was very
+      // likely what it was keying off. Kept in sync here so the whole
+      // client-side model uses the same name the DOM field now does.
+      extraDetails: row.address_line_2 || '',
       city: row.city || '',
       postal: row.postal_code || '',
       phone: row.phone || '',
@@ -273,7 +282,7 @@
   }
 
   // patch may carry: email, password, firstName, lastName, dob, address,
-  // address2, city, postal, phone, dialCode, country, marketingOptIn,
+  // extraDetails, city, postal, phone, dialCode, country, marketingOptIn,
   // cardName, cardNumber, cardExpiry -- shallow-merged the same way the old localStorage version
   // worked, just routed to three different places now: email/password go to
   // Supabase Auth, the profile fields go to public.profiles, and the
@@ -315,7 +324,7 @@
     if (cleanPatch.lastName !== undefined) profilePatch.last_name = cleanPatch.lastName;
     if (cleanPatch.dob !== undefined) profilePatch.date_of_birth = cleanPatch.dob || null;
     if (cleanPatch.address !== undefined) profilePatch.address = cleanPatch.address;
-    if (cleanPatch.address2 !== undefined) profilePatch.address_line_2 = cleanPatch.address2;
+    if (cleanPatch.extraDetails !== undefined) profilePatch.address_line_2 = cleanPatch.extraDetails;
     if (cleanPatch.city !== undefined) profilePatch.city = cleanPatch.city;
     if (cleanPatch.postal !== undefined) profilePatch.postal_code = cleanPatch.postal;
     if (cleanPatch.phone !== undefined) profilePatch.phone = cleanPatch.phone;
