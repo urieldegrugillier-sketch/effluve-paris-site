@@ -26,11 +26,18 @@ js/               Mostly one file per concern, self-mounting/site-wide
                   only on checkout.html + account.html; i18n.js is the
                   shared FR/EN translation engine + dictionary.
 
-assets/
+assets/           Copied into dist/ wholesale by scripts/build.js -- only put
+                  things here the live site actually loads.
   icons/          Favicons (favicon.ico, favicon-16/32.png, apple-touch-icon.png)
-  images/, video/ Product/brand imagery and source video
+  images/         Product/brand imagery
   frames/         Scroll-scrubbed .webp frames for index.html's canvas
                   animation (see js/app.js's framePath())
+
+source-media/     NOT copied into dist/ -- raw/source material kept for
+                  reference (e.g. the original video assets/frames/ was cut
+                  from), git-tracked but never shipped to production.
+  video/          SEG00_V03_Upscaled.mp4 -- source video for frames/'s .webp
+                  sequence; nothing on the live site loads this file directly.
 
 scripts/build.js  Production minifier (see "Production build" below)
 dist/             Build output (minified css/js) -- generated, not source;
