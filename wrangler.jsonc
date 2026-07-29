@@ -6,6 +6,15 @@
   "name": "monark-site",
   "compatibility_date": "2026-07-24",
   "assets": {
-    "directory": "./dist"
+    "directory": "./dist",
+    // Without this, an unmatched route falls through to Cloudflare's own
+    // generic "HTTP ERROR 404" page instead of our branded dist/404.html --
+    // confirmed live (effluve-paris.fr/une-page-qui-nexiste-pas showed
+    // Cloudflare's default page, not ours). "404-page" makes Workers Static
+    // Assets look for a 404.html at the asset root (or nearest parent dir)
+    // and serve it with a genuine 404 status -- not "single-page-application"
+    // (that serves index.html with 200, which is wrong for a real 404 and
+    // would also conflict with 404.html's own noindex tag never being seen).
+    "not_found_handling": "404-page"
   }
 }
