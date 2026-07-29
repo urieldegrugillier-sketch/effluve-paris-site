@@ -1,6 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- PLACEHOLDER DOMAIN: every <loc> below uses https://effluve-paris.fr/ --
-     replace with the real production domain once it's set, before launch. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 
   <url>
@@ -15,20 +13,6 @@
     <lastmod>2026-07-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
-  </url>
-
-  <url>
-    <loc>https://effluve-paris.fr/checkout.html</loc>
-    <lastmod>2026-07-15</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-
-  <url>
-    <loc>https://effluve-paris.fr/account.html</loc>
-    <lastmod>2026-07-17</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
   </url>
 
   <url>
@@ -61,13 +45,6 @@
 
   <url>
     <loc>https://effluve-paris.fr/confidentialite.html</loc>
-    <lastmod>2026-07-15</lastmod>
-    <changefreq>yearly</changefreq>
-    <priority>0.1</priority>
-  </url>
-
-  <url>
-    <loc>https://effluve-paris.fr/404.html</loc>
     <lastmod>2026-07-15</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.1</priority>
