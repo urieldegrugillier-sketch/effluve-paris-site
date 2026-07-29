@@ -856,15 +856,35 @@ body.shop-page { background: var(--bg-void); }
      per-position tuning. max-width + allowed wrapping is a second layer of
      the same guarantee, in case a translation's description ever runs
      longer than the ones tested here. */
+  /* BUG FIX: confirmed live on a real iPhone -- tapping a note correctly
+     set .note-word-active (the underline/color change worked), but the
+     tooltip itself was never actually SEEN. Root cause: bottom:2rem put it
+     well inside .shop-sticky-bar's own footprint (position:fixed,
+     bottom:var(--cookie-banner-h), ~90px tall including buffer -- same
+     figure already measured/used for .shop-notes's own padding fix above)
+     AND this rule's z-index (5, inherited from the base rule above) was far
+     below the sticky bar's (220) and the cookie banner's (300, see
+     css/style.css) -- opacity:1 was genuinely reached, just entirely
+     hidden behind two other fixed-position layers. Fixed on both axes at
+     once, not just one: bottom is pushed up past BOTH the sticky bar AND
+     (if present) the cookie banner, using the same var(--cookie-banner-h)
+     + 90px figure so it lands just clear of the sticky bar's top edge
+     (matching the "raise the offset" approach, not just a higher z-index
+     stacked awkwardly on top of the bar); z-index is also raised past both
+     as a second, independent layer of defense in case a longer translated
+     string ever makes the cookie banner taller than this estimate accounts
+     for -- kept below .lightbox's 400 so that modal still always wins if
+     both were ever somehow open together. */
   .note-desc {
     position: fixed;
     left: 50%;
     top: auto;
-    bottom: 2rem;
+    bottom: calc(2rem + 90px + var(--cookie-banner-h));
     transform: translateX(-50%) translateY(6px);
     max-width: min(280px, calc(100vw - 2rem));
     white-space: normal;
     text-align: center;
+    z-index: 310;
   }
   .note-word-wrap.note-word-active .note-desc {
     transform: translateX(-50%) translateY(0);
