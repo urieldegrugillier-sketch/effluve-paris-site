@@ -24,9 +24,7 @@
      (see the note on sitemap.xml's inclusion of it anyway, in README.md). -->
 <meta name="robots" content="noindex, nofollow">
 
-<!-- PLACEHOLDER DOMAIN -- replace https://YOUR-DOMAIN-HERE.com with the real
-     production domain once it's set, before launch. -->
-<link rel="canonical" href="https://YOUR-DOMAIN-HERE.com/checkout.html">
+<link rel="canonical" href="https://effluve-paris.fr/checkout.html">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -328,6 +326,21 @@
                          wording-only change. -->
                     <input type="text" name="extraDetails" autocomplete="off">
                   </label>
+                  <label class="checkout-field">
+                    <span data-i18n="checkout.country">Country</span>
+                    <!-- Restricted to the only two countries this business
+                         actually ships to (France/Belgium, both with free
+                         shipping) -- a plain 2-option <select> rather than a
+                         full country list, so an unsupported country can't
+                         even be selected in the first place. Still re-checked
+                         in validateShippingForm() below (defense in depth,
+                         and it's what the postal-code format branches on). -->
+                    <select name="country" autocomplete="country" required>
+                      <option value="FR" data-i18n="checkout.countryFR">France</option>
+                      <option value="BE" data-i18n="checkout.countryBE">Belgium</option>
+                    </select>
+                    <p class="promo-message promo-message-error" id="checkout-error-country" data-i18n="checkout.errorCountry" aria-live="polite" hidden>Shipping is currently only available to France and Belgium.</p>
+                  </label>
                   <div class="checkout-field-row">
                     <label class="checkout-field">
                       <span data-i18n="checkout.city">City</span>
@@ -495,8 +508,8 @@
 
 <!-- FOOTER -->
 <footer class="shop-footer">
-  <a href="index.html" class="shop-footer-wordmark">MONARK</a>
-  <p class="shop-footer-copy" data-i18n="footer.copyright">&copy; 2025 MONARK. All rights reserved.</p>
+  <a href="index.html" class="shop-footer-wordmark">Effluve Paris</a>
+  <p class="shop-footer-copy" data-i18n="footer.copyright">&copy; 2026 Effluve Paris. All rights reserved.</p>
   <nav class="footer-legal-links">
     <a href="faq.html" data-i18n="footer.faq">FAQ</a>
     <a href="contact.html" data-i18n="footer.contact">Contact</a>
@@ -676,7 +689,16 @@
       // account.extraDetails model property (see js/account.js).
       extraDetails: account.extraDetails,
       city: account.city,
-      postal: account.postal
+      postal: account.postal,
+      // account.country is really the phone widget's own dial-code country
+      // (js/phone-input.js's full country list, see its setValue() call just
+      // below) -- not validated against France/Belgium. Only ever used here
+      // to pre-select Belgium specifically; anything else (including France,
+      // blank, or some unrelated country from a saved phone number) leaves
+      // the <select> on its default France, since setting it to a value with
+      // no matching <option> would otherwise leave the field showing no
+      // selection at all.
+      country: account.country === 'BE' ? 'BE' : undefined
     };
     Object.keys(fieldMap).forEach((name) => {
       const value = fieldMap[name];
@@ -800,6 +822,27 @@
     input.addEventListener('input', () => { error.hidden = true; updateShippingNextBtnState(); });
   });
 
+  // Only France and Belgium are actually shippable/supported (both with free
+  // shipping, see SHIPPING_FEE's own waiver further below) -- the <select> in
+  // the HTML already restricts a customer to just these two values, but this
+  // is re-checked here too (defense in depth against the value being changed
+  // some other way) and is also what branches the postal-code format check
+  // just below, since France uses 5-digit codes and Belgium uses 4.
+  const ALLOWED_SHIPPING_COUNTRIES = ['FR', 'BE'];
+  const countryInput = form.querySelector('[name="country"]');
+  const countryError = document.getElementById('checkout-error-country');
+  const postalInput = form.querySelector('[name="postal"]');
+  const postalError = document.getElementById('checkout-error-postal');
+  countryInput.addEventListener('change', () => {
+    countryError.hidden = true;
+    // Previously-entered postal code may no longer match the new country's
+    // digit count (e.g. a 5-digit FR code left in place after switching to
+    // BE) -- re-validated on the next Next Step click like everything else,
+    // this just clears the now-stale error rather than leaving it displayed
+    // against the old country.
+    postalError.hidden = true;
+  });
+
   function validateShippingForm() {
     let firstInvalid = null;
     shippingFields.forEach(({ input, error }) => {
@@ -810,6 +853,26 @@
         error.hidden = true;
       }
     });
+    if (!ALLOWED_SHIPPING_COUNTRIES.includes(countryInput.value)) {
+      countryError.hidden = false;
+      if (!firstInvalid) firstInvalid = countryInput;
+    } else {
+      countryError.hidden = true;
+    }
+    // Format is only checked once the field has a value -- an empty postal
+    // code is already caught (and focused) by the shippingFields loop above,
+    // so this never overwrites that "please enter" message with a format one.
+    const postalVal = postalInput.value.trim();
+    if (postalVal) {
+      const postalPattern = countryInput.value === 'BE' ? /^\d{4}$/ : /^\d{5}$/;
+      if (!postalPattern.test(postalVal)) {
+        postalError.textContent = t('checkout.errorPostalFormat', { digits: countryInput.value === 'BE' ? 4 : 5 });
+        postalError.hidden = false;
+        if (!firstInvalid) firstInvalid = postalInput;
+      } else {
+        postalError.hidden = true;
+      }
+    }
     // Phone isn't in shippingFields above (it's optional -- an empty field
     // is fine, see js/phone-input.js's own isValid()) -- only checked for
     // FORMAT when the user actually entered something, and only takes over
@@ -1574,9 +1637,10 @@
       // Edge Function) -- Apple Pay/etc. are a later follow-up, not reachable
       // this round. Billing name/address reuse what Shipping already
       // collected (Payment Element itself asks for neither -- see its own
-      // `fields` option in mountStripeElements()); country is hardcoded FR,
-      // matching the site's own France/Belgium-only shipping scope (no
-      // country selector exists anywhere in this form).
+      // `fields` option in mountStripeElements()), including the Shipping
+      // step's own France/Belgium country <select> -- validateShippingForm()
+      // above already guarantees this is 'FR' or 'BE' by the time Place
+      // Order can be reached.
       const { error: stripeConfirmError, paymentIntent } = await stripe.confirmPayment({
         elements: stripeElements,
         confirmParams: {
@@ -1597,7 +1661,7 @@
                 // throws an IntegrationError rather than just treating it
                 // as omitted.
                 state: '',
-                country: 'FR'
+                country: form.querySelector('[name="country"]').value
               }
             }
           }

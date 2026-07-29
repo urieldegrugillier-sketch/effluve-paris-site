@@ -30,10 +30,10 @@
   const MOCK_CARD_KEY_PREFIX = 'monark_mock_card_';
 
   // PLACEHOLDER -- replace once the real production domain is live, same
-  // convention as README.md's "https://YOUR-DOMAIN-HERE.com" note (canonical
+  // convention as README.md's "https://effluve-paris.fr" note (canonical
   // links, robots.txt, sitemap.xml). Supabase redirects the user here after
   // they click the password-reset link in their email.
-  const PASSWORD_RESET_REDIRECT_URL = 'https://YOUR-DOMAIN-HERE.com/account.html';
+  const PASSWORD_RESET_REDIRECT_URL = 'https://effluve-paris.fr/account.html';
 
   let currentAuthUser = null; // { id, email } | null -- kept in sync below
   let currentProfile = null; // last-fetched public.profiles row for currentAuthUser, cleared on any auth change

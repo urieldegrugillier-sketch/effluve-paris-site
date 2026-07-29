@@ -65,7 +65,7 @@ hosting/deploy process is set up later.
 
 ## Before launch — placeholders to replace
 
-- `https://YOUR-DOMAIN-HERE.com` — appears in every page's `<link rel="canonical">`,
+- `https://effluve-paris.fr` — appears in every page's `<link rel="canonical">`,
   `index.html`/`product.html`'s Open Graph/Twitter tags, `robots.txt`, and
   `sitemap.xml`. Replace with the real production domain.
 

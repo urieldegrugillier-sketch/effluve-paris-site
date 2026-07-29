@@ -128,7 +128,7 @@
         note: 'Ships in matte black, wax-sealed packaging.'
       },
       footer: {
-        copyright: '© 2025 MONARK. All rights reserved.',
+        copyright: '© 2026 Effluve Paris. All rights reserved.',
         faq: 'FAQ',
         contact: 'Contact',
         legalNotice: 'Legal Notice',
@@ -274,6 +274,9 @@
         firstName: 'First Name',
         lastName: 'Last Name',
         address: 'Address',
+        country: 'Country',
+        countryFR: 'France',
+        countryBE: 'Belgium',
         city: 'City',
         postalCode: 'Postal Code',
         payment: 'Billing',
@@ -296,6 +299,8 @@
         errorAddress: 'Please enter your address.',
         errorCity: 'Please enter your city.',
         errorPostal: 'Please enter your postal code.',
+        errorPostalFormat: 'Please enter a valid {digits}-digit postal code.',
+        errorCountry: 'Shipping is currently only available to France and Belgium.',
         emptyCartNote: 'Your cart is empty. <a href="product.html">Shop MONARK</a> first.',
         qty: 'Qty',
         subtotal: 'Subtotal',
@@ -434,7 +439,7 @@
         intro: 'Everything you need to know before, during, and after you acquire MONARK.',
         shipping: {
           heading: 'Shipping & Delivery',
-          body: 'Orders currently ship within 5&ndash;10 business days, to France and Belgium, with shipping always included in the price. Every bottle travels in matte black, wax-sealed packaging, designed to arrive exactly as it left us.'
+          body: 'Orders currently ship within 5&ndash;7 business days, to France and Belgium, with shipping always included in the price. Every bottle travels in matte black, wax-sealed packaging, designed to arrive exactly as it left us.'
         },
         returns: {
           heading: 'Returns & Refunds',
@@ -516,7 +521,7 @@
         s4Body: 'Payment is made online, at the time of ordering, by credit card or any other payment method offered on the site, via a secure payment provider: <span class="placeholder">[PAYMENT PROVIDER — TO BE COMPLETED]</span>.',
         s5Heading: '5. Delivery',
         s5Body1: 'Products are delivered to the address provided by the customer when placing the order.',
-        s5Body2: 'Delivery zones: France and Belgium.<br>Estimated delivery times: 5&ndash;10 business days.<br>Delivery fees: shipping is always free, included in the product price &mdash; not a threshold-based discount.',
+        s5Body2: 'Delivery zones: France and Belgium.<br>Estimated delivery times: 5&ndash;7 business days.<br>Delivery fees: shipping is always free, included in the product price &mdash; not a threshold-based discount.',
         s6Heading: '6. Right of Withdrawal',
         s6Body1: 'In accordance with Articles L221-18 et seq. of the French Consumer Code, the customer has a period of fourteen (14) clear days from receipt of the product to exercise their right of withdrawal with MONARK, without having to state any reason or pay any penalty, except, where applicable, for return shipping costs.',
         s6Body2: 'To exercise this right, the customer must notify their decision to withdraw by means of an unambiguous statement (postal mail, email, or withdrawal form) sent to <span class="placeholder">[EMAIL / CONTACT ADDRESS — TO BE COMPLETED]</span> before the 14-day period expires.',
@@ -659,7 +664,7 @@
         note: 'Expédié dans un emballage noir mat, scellé à la cire.'
       },
       footer: {
-        copyright: '© 2025 MONARK. Tous droits réservés.',
+        copyright: '© 2026 Effluve Paris. Tous droits réservés.',
         faq: 'FAQ',
         contact: 'Contact',
         legalNotice: 'Mentions Légales',
@@ -785,6 +790,9 @@
         firstName: 'Prénom',
         lastName: 'Nom',
         address: 'Adresse',
+        country: 'Pays',
+        countryFR: 'France',
+        countryBE: 'Belgique',
         city: 'Ville',
         postalCode: 'Code Postal',
         payment: 'Facturation',
@@ -802,6 +810,8 @@
         errorAddress: 'Veuillez saisir votre adresse.',
         errorCity: 'Veuillez saisir votre ville.',
         errorPostal: 'Veuillez saisir votre code postal.',
+        errorPostalFormat: 'Veuillez saisir un code postal valide à {digits} chiffres.',
+        errorCountry: "La livraison n'est actuellement disponible qu'en France et en Belgique.",
         emptyCartNote: 'Votre panier est vide. <a href="product.html">Découvrez MONARK</a> avant de continuer.',
         qty: 'Qté',
         subtotal: 'Sous-total',
@@ -927,7 +937,7 @@
         intro: "Tout ce qu'il faut savoir avant, pendant et après l'acquisition de MONARK.",
         shipping: {
           heading: 'Expédition et Livraison',
-          body: 'Les commandes sont actuellement expédiées sous 5 à 10 jours ouvrés, vers la France et la Belgique, la livraison étant toujours incluse dans le prix. Chaque flacon voyage dans un emballage noir mat, scellé à la cire, conçu pour arriver exactement tel qu\'il nous a quittés.'
+          body: 'Les commandes sont actuellement expédiées sous 5 à 7 jours ouvrés, vers la France et la Belgique, la livraison étant toujours incluse dans le prix. Chaque flacon voyage dans un emballage noir mat, scellé à la cire, conçu pour arriver exactement tel qu\'il nous a quittés.'
         },
         returns: {
           heading: 'Retours et Remboursements',
@@ -1009,7 +1019,7 @@
         s4Body: 'Le paiement s\'effectue en ligne, au moment de la commande, par carte bancaire ou tout autre moyen de paiement proposé sur le site, via un prestataire de paiement sécurisé : <span class="placeholder">[PRESTATAIRE DE PAIEMENT — À COMPLÉTER]</span>.',
         s5Heading: '5. Livraison',
         s5Body1: 'Les produits sont livrés à l\'adresse indiquée par le client lors de la commande.',
-        s5Body2: 'Zones de livraison : France et Belgique.<br>Délais de livraison estimés : 5 à 10 jours ouvrés.<br>Frais de livraison : la livraison est toujours offerte, incluse dans le prix du produit — et non une remise à partir d\'un certain seuil d\'achat.',
+        s5Body2: 'Zones de livraison : France et Belgique.<br>Délais de livraison estimés : 5 à 7 jours ouvrés.<br>Frais de livraison : la livraison est toujours offerte, incluse dans le prix du produit — et non une remise à partir d\'un certain seuil d\'achat.',
         s6Heading: '6. Droit de Rétractation',
         s6Body1: "Conformément aux articles L221-18 et suivants du Code de la consommation, le client dispose d'un délai de quatorze (14) jours francs à compter de la réception du produit pour exercer son droit de rétractation auprès de MONARK, sans avoir à justifier de motifs ni à payer de pénalités, à l'exception, le cas échéant, des frais de retour.",
         s6Body2: 'Pour exercer ce droit, le client doit notifier sa décision de rétractation au moyen d\'une déclaration dénuée d\'ambiguïté (courrier postal, e-mail, ou formulaire de rétractation) envoyée à <span class="placeholder">[E-MAIL / ADRESSE DE CONTACT — À COMPLÉTER]</span> avant l\'expiration du délai de 14 jours.',

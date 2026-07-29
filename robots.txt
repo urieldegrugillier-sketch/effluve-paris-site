@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 
 # Placeholder domain -- replace once the real domain is set before launch.
-Sitemap: https://YOUR-DOMAIN-HERE.com/sitemap.xml
+Sitemap: https://effluve-paris.fr/sitemap.xml
