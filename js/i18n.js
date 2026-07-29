@@ -42,13 +42,13 @@
       // separate, differently-worded claim.
       home: {
         whyEffluve: {
-          // <br class="mobile-only-break"> only breaks the line at mobile
-          // widths (see css/style.css's .mobile-only-break) -- invisible,
-          // and therefore a no-op, at desktop, where this reads as one line
-          // same as before. Rendered via data-i18n-html (see index.html),
-          // not plain data-i18n, since the tag needs to survive the
-          // translation swap.
-          heading: 'Why<br class="mobile-only-break"> Effluve Paris?',
+          // EN stays one line at every width (per explicit instruction) --
+          // unlike the FR heading below, no .mobile-only-break here. Space
+          // before "?" is intentional (also per explicit instruction), not
+          // standard English typography. Still rendered via data-i18n-html
+          // (see index.html) for consistency with the FR string, even
+          // though this one has no markup of its own to preserve.
+          heading: 'Why Effluve Paris ?',
           item1: {
             title: 'Cruelty-free',
             body: 'We never test our products on animals.'
@@ -111,10 +111,12 @@
         stat2: 'Eau de Parfum concentration',
         // Reworded from "Countries of origin, for nine raw materials" --
         // neither number was backed by real per-ingredient data (see
-        // index.html's own markup comment on this stat). stat3value is the
-        // plain-text stat itself (Italy), not an animated number.
+        // index.html's own markup comment on this stat). Animated as "1"
+        // (this section's existing data-value count-up pattern) rather than
+        // the country name itself; stat3caption is the small sub-caption
+        // under the label that actually names the country (Italy).
         stat3: 'Country of manufacture',
-        stat3value: 'Italy',
+        stat3caption: 'Made in Italy',
         stat4: 'Bottles per numbered edition'
       },
       s6: {
@@ -584,6 +586,9 @@
       },
       home: {
         whyEffluve: {
+          // FR keeps the two-line mobile break (.mobile-only-break, see
+          // css/style.css); EN does not -- see the EN heading's comment
+          // above for why.
           heading: 'Pourquoi<br class="mobile-only-break"> Effluve Paris ?',
           item1: {
             title: 'Sans cruauté',
@@ -642,7 +647,7 @@
         stat1: 'Un sillage qui persiste après minuit',
         stat2: 'Concentration en Eau de Parfum',
         stat3: 'Pays de fabrication',
-        stat3value: 'Italie',
+        stat3caption: 'Fabriqué en Italie',
         stat4: 'Flacons par édition numérotée'
       },
       s6: {
