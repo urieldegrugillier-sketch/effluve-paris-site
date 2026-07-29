@@ -532,7 +532,7 @@
         s8Heading: '8. Warranties',
         s8Body: 'All products sold on the site benefit from the legal guarantee of conformity (Articles L217-3 et seq. of the French Consumer Code) and the legal guarantee against hidden defects (Articles 1641 et seq. of the French Civil Code).',
         s9Heading: '9. Disputes and Jurisdiction',
-        s9Body: 'These Terms are governed by <span class="placeholder">[GOVERNING LAW — TO BE COMPLETED]</span>. In the event of a dispute, an amicable solution will be sought before any legal action, in particular via the consumer mediator <span class="placeholder">[MEDIATOR — TO BE COMPLETED]</span>. Failing an amicable agreement, the courts of <span class="placeholder">[COMPETENT JURISDICTION — TO BE COMPLETED]</span> shall have sole jurisdiction.'
+        s9Body: 'These Terms are governed by French law. In the event of a dispute, an amicable solution will be sought before any legal action, in particular via the consumer mediator <span class="placeholder">[MEDIATOR — TO BE COMPLETED]</span>. Failing an amicable agreement, the French courts shall have sole jurisdiction.'
       },
       privacyPolicy: {
         pageTitle: 'Privacy Policy',
@@ -549,7 +549,7 @@
         s3Heading: '3. Legal Basis for Processing',
         s3Body: "The processing of your data is based, depending on the case, on: performance of the sales contract (for order processing), consent (for the newsletter and non-essential cookies), Effluve Paris's legitimate interest (service improvement, security), and compliance with legal obligations (invoicing, accounting).",
         s4Heading: '4. Data Retention Period',
-        s4Body: 'Your data is retained for the period necessary to fulfill the purposes for which it was collected, and in particular: order-related data is retained for the period required by accounting and tax obligations (<span class="placeholder">[PERIOD — TO BE COMPLETED]</span>); prospect data is retained <span class="placeholder">[PERIOD — TO BE COMPLETED]</span> from the last contact.',
+        s4Body: 'Your data is retained for the period necessary to fulfill the purposes for which it was collected, and in particular: order-related data is retained for the period required by accounting and tax obligations (10 years); prospect data is retained for 3 years from the last contact.',
         s5Heading: '5. Your Rights',
         s5Intro: 'In accordance with Articles 15 to 22 of the GDPR, you have the following rights over your personal data:',
         s5Right1: '<strong>Right of access</strong>: to obtain confirmation that your data is being processed and to obtain a copy of it;',
@@ -567,6 +567,7 @@
         transfersItem1: 'Hosting (Cloudflare, Inc.): a company based in the United States, operating a global network of servers.',
         transfersItem2: 'Database (Supabase Pte. Ltd.): a company based in Singapore; our data is hosted and primarily processed in Ireland (EU), but Supabase relies on subprocessors based in the United States (including Amazon Web Services, Google, Cloudflare) for its hosting and support services.',
         transfersItem3: 'Payment (Stripe, LLC / Stripe Payments Europe Limited): a company based in the United States, with a European subsidiary (Ireland); some data passes through US-based subprocessors (Twilio, Google, Salesforce) as part of payment processing and technical support.',
+        transfersItem4: 'Fonts (Google Fonts): company based in the United States.',
         transfersSafeguards: 'These transfers are governed by the European Commission\'s Standard Contractual Clauses, ensuring an adequate level of protection for your personal data.',
         s7Heading: '8. Cookies',
         s7Body: 'This site uses cookies to improve your browsing experience, measure site traffic, and, subject to your consent, for personalization purposes. You can accept or reject non-essential cookies via the consent banner shown on your first visit. You can also change your preferences at any time by clearing the browsing data stored by your browser for this site.',
@@ -1031,7 +1032,7 @@
         s8Heading: '8. Garanties',
         s8Body: 'Tous les produits vendus sur le site bénéficient de la garantie légale de conformité (articles L217-3 et suivants du Code de la consommation) et de la garantie légale des vices cachés (articles 1641 et suivants du Code civil).',
         s9Heading: '9. Litiges et Juridiction',
-        s9Body: 'Les présentes Conditions sont soumises à <span class="placeholder">[DROIT APPLICABLE — À COMPLÉTER]</span>. En cas de litige, une solution amiable sera recherchée avant toute action judiciaire, notamment auprès du médiateur de la consommation <span class="placeholder">[MÉDIATEUR — À COMPLÉTER]</span>. À défaut d\'accord amiable, les tribunaux de <span class="placeholder">[JURIDICTION COMPÉTENTE — À COMPLÉTER]</span> seront seuls compétents.'
+        s9Body: 'Les présentes Conditions sont soumises au droit français. En cas de litige, une solution amiable sera recherchée avant toute action judiciaire, notamment auprès du médiateur de la consommation <span class="placeholder">[MÉDIATEUR — À COMPLÉTER]</span>. À défaut d\'accord amiable, les tribunaux français seront seuls compétents.'
       },
       privacyPolicy: {
         pageTitle: 'Politique de Confidentialité',
@@ -1048,7 +1049,7 @@
         s3Heading: '3. Base Légale du Traitement',
         s3Body: 'Le traitement de vos données repose, selon les cas, sur : l\'exécution du contrat de vente (pour le traitement des commandes), le consentement (pour la newsletter et les cookies non essentiels), l\'intérêt légitime d\'Effluve Paris (amélioration du service, sécurité), et le respect d\'obligations légales (facturation, comptabilité).',
         s4Heading: '4. Durée de Conservation des Données',
-        s4Body: 'Vos données sont conservées pendant la durée nécessaire à la réalisation des finalités pour lesquelles elles ont été collectées, et notamment : les données liées aux commandes sont conservées pendant la durée imposée par les obligations comptables et fiscales (<span class="placeholder">[DURÉE — À COMPLÉTER]</span>) ; les données prospects sont conservées <span class="placeholder">[DURÉE — À COMPLÉTER]</span> à compter du dernier contact.',
+        s4Body: 'Vos données sont conservées pendant la durée nécessaire à la réalisation des finalités pour lesquelles elles ont été collectées, et notamment : les données liées aux commandes sont conservées pendant la durée imposée par les obligations comptables et fiscales (10 ans) ; les données prospects sont conservées 3 ans à compter du dernier contact.',
         s5Heading: '5. Vos Droits',
         s5Intro: 'Conformément aux articles 15 à 22 du RGPD, vous disposez des droits suivants sur vos données personnelles :',
         s5Right1: '<strong>Droit d\'accès</strong> : obtenir la confirmation que vos données sont traitées et en obtenir une copie ;',
@@ -1066,6 +1067,7 @@
         transfersItem1: 'Hébergement (Cloudflare, Inc.) : société basée aux États-Unis, opérant un réseau mondial de serveurs.',
         transfersItem2: "Base de données (Supabase Pte. Ltd.) : société basée à Singapour ; nos données sont hébergées et principalement traitées en Irlande (UE), mais Supabase fait appel à des sous-traitants basés aux États-Unis (dont Amazon Web Services, Google, Cloudflare) pour ses services d'hébergement et de support.",
         transfersItem3: "Paiement (Stripe, LLC / Stripe Payments Europe Limited) : société basée aux États-Unis, avec une filiale européenne (Irlande) ; certaines données transitent par des sous-traitants américains (Twilio, Google, Salesforce) dans le cadre du traitement des paiements et du support technique.",
+        transfersItem4: 'Polices de caractères (Google Fonts) : société basée aux États-Unis.',
         transfersSafeguards: 'Ces transferts sont encadrés par les Clauses Contractuelles Types de la Commission européenne, garantissant un niveau de protection adéquat pour vos données personnelles.',
         s7Heading: '8. Cookies',
         s7Body: 'Ce site utilise des cookies pour améliorer votre expérience de navigation, mesurer l\'audience du site et, sous réserve de votre consentement, à des fins de personnalisation. Vous pouvez accepter ou refuser les cookies non essentiels via la bannière de consentement affichée lors de votre première visite. Vous pouvez également modifier vos préférences à tout moment en supprimant les données de navigation stockées par votre navigateur pour ce site.',
