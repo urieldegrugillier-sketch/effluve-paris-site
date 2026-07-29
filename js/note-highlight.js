@@ -68,26 +68,12 @@
     render();
   }
 
-  // TEMP DEBUG -- remove once Uriel confirms via Safari's remote Web
-  // Inspector (Mac + iPhone, Settings > Safari > Advanced > Web Inspector on
-  // the phone, then Safari > Develop > [device] > product.html on the Mac)
-  // whether these fire at all on his real device. If neither logs on tap,
-  // the handlers themselves aren't the problem (something upstream is
-  // swallowing the touch, e.g. an overlapping element) -- if touchTap logs
-  // but nothing visibly happens, the bug is in render()/CSS, not event
-  // binding.
-  const DEBUG = true;
-  function log(label, word) {
-    if (DEBUG) console.log('[note-highlight]', label, (word.textContent || '').trim());
-  }
-
   // Guards the click that (on touch devices) fires right after touchend has
   // already handled the same tap -- see touchTap() below for why.
   let lastTouchWord = null;
   let lastTouchAt = 0;
 
   function onClick(e) {
-    log('click', e.currentTarget);
     // Stops the document-level listener below from immediately clearing
     // what this same click is about to set, once it bubbles up.
     e.stopPropagation();
@@ -99,10 +85,7 @@
     // exact element a moment ago, skip -- otherwise the trailing synthetic
     // click (when WebKit still fires one despite preventDefault) would
     // toggle it right back off again.
-    if (word === lastTouchWord && Date.now() - lastTouchAt < 500) {
-      log('click skipped (already handled by touchend)', word);
-      return;
-    }
+    if (word === lastTouchWord && Date.now() - lastTouchAt < 500) return;
     toggle(word);
   }
 
@@ -116,7 +99,6 @@
   // above) as a safety net if this listener itself doesn't fire for some
   // reason.
   function touchTap(e) {
-    log('touchend', e.currentTarget);
     const word = e.currentTarget;
     lastTouchWord = word;
     lastTouchAt = Date.now();
@@ -181,10 +163,6 @@
   }
 
   if (!document.querySelector('.note-word')) return;
-  // TEMP DEBUG -- if this never appears in the console on Uriel's device,
-  // the script itself isn't running (load/cache/network issue) rather than
-  // the click/touchend handlers failing to fire once bound.
-  console.log('[note-highlight] loaded, binding', document.querySelectorAll('.note-word').length, 'note-word elements');
   bind();
   document.addEventListener('monark:langchange', () => { clearAll(); bind(); });
 
