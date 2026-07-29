@@ -28,6 +28,11 @@
 }
 
 .skip-link:focus { top: 0; outline: none; }
+/* The bordered box itself only exists on-screen once focused (top:-100px
+   otherwise), which is already a strong focus indicator on its own -- this
+   layers the sitewide bronze ring on top anyway, for consistency with
+   every other focusable element rather than being the one silent exception. */
+.skip-link:focus-visible { outline: 2px solid var(--accent-bronze-light); outline-offset: 2px; }
 
 :root {
   --bg-void: #0a0908;
@@ -79,6 +84,34 @@
      way to get this right at every combination instead of guessing a
      worst-case number that's wrong for some of them. */
   --cookie-banner-h: 0px;
+}
+
+/* ================= FOCUS (sitewide, keyboard/AT only) ================= */
+/* :focus-visible, not :focus -- browsers already suppress the ring on a
+   plain mouse click where it wouldn't make sense (a :focus-visible
+   heuristic standardizes exactly that), so this only ever shows for
+   keyboard/assistive-tech navigation, never a mouse click. Bronze rather
+   than the browser default blue, matching the two bronze focus rules that
+   already existed before this one (.shop-carousel in css/shop.css, and the
+   Payment Request Button's keyboard-only fallback buttons in css/shop.css +
+   css/checkout.css) -- 2px solid / 2px offset mirrors those fallback
+   buttons' own values exactly, so this is standardizing an existing
+   pattern as the sitewide default rather than inventing a new one.
+   A handful of components already set their own outline:none on plain
+   :focus (trading it for a border-color change instead, so mouse and
+   keyboard focus both still got SOME visible feedback) -- those are
+   higher-specificity class selectors that would otherwise silently keep
+   beating this rule for keyboard users too, since :focus and :focus-visible
+   both match simultaneously on a keyboard-focused element. Each one gets
+   its own paired :focus-visible override right next to its existing :focus
+   rule instead of being listed as exceptions here, so the override lives
+   next to the rule it's overriding -- see css/style.css's own
+   .skip-link/.email-popup-input, css/checkout.css's .checkout-field/
+   .phone-country-trigger/.phone-country-search, and css/contact.css's
+   .custom-select-trigger. */
+:focus-visible {
+  outline: 2px solid var(--accent-bronze-light);
+  outline-offset: 2px;
 }
 
 /* Measured directly (real getBoundingClientRect() height at the banner's
@@ -2337,6 +2370,7 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 }
 
 .email-popup-input:focus { outline: none; border-color: var(--accent-bronze-light); }
+.email-popup-input:focus-visible { outline: 2px solid var(--accent-bronze-light); outline-offset: 2px; }
 .email-popup-input::placeholder { color: var(--text-muted); }
 
 /* Filled-bronze treatment, matching .cart-preview-buy's

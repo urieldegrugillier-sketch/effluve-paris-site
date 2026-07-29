@@ -268,6 +268,9 @@
 .checkout-field input:focus,
 .checkout-field select:focus,
 .checkout-field textarea:focus { outline: none; border-color: var(--accent-bronze-light); }
+.checkout-field input:focus-visible,
+.checkout-field select:focus-visible,
+.checkout-field textarea:focus-visible { outline: 2px solid var(--accent-bronze-light); outline-offset: 2px; }
 .checkout-field input:disabled { color: var(--text-muted); cursor: not-allowed; }
 
 /* BUG FIX: the shared rule above only sets `color` on the <select> itself
@@ -347,6 +350,7 @@
 }
 .phone-country-trigger:focus,
 .phone-country-trigger[aria-expanded="true"] { outline: none; border-color: var(--accent-bronze-light); }
+.phone-country-trigger:focus-visible { outline: 2px solid var(--accent-bronze-light); outline-offset: 2px; }
 
 /* Flag images (js/phone-input.js's flagHtml()) -- small SVGs from flagcdn.com,
    not emoji: a real Chrome/Windows install renders regional-indicator flag
@@ -400,7 +404,12 @@
      the shared rule ever changes later. */
   font-size: 1rem;
 }
-.phone-country-search:focus { outline: none; }
+/* BUG FIX: previously outline:none with no replacement at all -- unlike its
+   sibling .phone-country-trigger just above, this had no border-color
+   change either, so a keyboard user tabbing into this search field got zero
+   visible focus feedback. Matched to that sibling's own treatment. */
+.phone-country-search:focus { outline: none; border-color: var(--accent-bronze-light); }
+.phone-country-search:focus-visible { outline: 2px solid var(--accent-bronze-light); outline-offset: 2px; }
 .phone-country-search::placeholder { color: var(--text-muted); }
 
 .phone-country-list {

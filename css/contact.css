@@ -106,6 +106,7 @@
 
 .custom-select-trigger:focus,
 .custom-select-trigger[aria-expanded="true"] { outline: none; border-color: var(--accent-bronze-light); }
+.custom-select-trigger:focus-visible { outline: 2px solid var(--accent-bronze-light); outline-offset: 2px; }
 
 .custom-select-chevron {
   flex: 0 0 auto;

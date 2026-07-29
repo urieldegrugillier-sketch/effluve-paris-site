@@ -163,6 +163,17 @@ body.shop-page { background: var(--bg-void); }
   opacity: 1;
 }
 
+/* BUG FIX: .carousel-dot's own transition:all (for the width/height/
+   background/opacity morph into .active above) otherwise also caught the
+   sitewide bronze :focus-visible outline (css/style.css), fading it in over
+   the same 0.3s instead of appearing instantly like every other focused
+   element on the site -- confirmed via direct computed-style sampling
+   (outline-color measurably mid-interpolation at 100/200ms after tabbing
+   in). Narrowing the transitioned properties specifically while focused
+   removes outline from that list so it snaps in immediately, without
+   touching the (still animated) size/color morph itself. */
+.carousel-dot:focus-visible { transition-property: width, height, background, opacity; }
+
 .shop-hero-details {
   flex: 1 1 50%;
   max-width: 50%;
