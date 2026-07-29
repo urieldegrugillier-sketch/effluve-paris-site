@@ -553,8 +553,10 @@ body.shop-page { background: var(--bg-void); }
      own hover underline never crowds a wrapped line below it at narrow
      widths -- same fix as index.html's pyramid tier headings, css/style.css,
      which had a confirmed, measured overlap between wrapped lines at its
-     own (tighter) line-height. */
-  line-height: 1.6;
+     own (tighter) line-height. Dialed back from 1.6 to 1.4 per feedback
+     that the original value read as too generous -- 1.4 still comfortably
+     clears any wrapped-line crowding at narrow widths. */
+  line-height: 1.4;
   color: var(--text-on-dark);
   text-align: right;
 }
@@ -594,8 +596,9 @@ body.shop-page { background: var(--bg-void); }
    is needed. */
 /* margin gives each note a bit more breathing room from its neighbor on
    either side of the existing " &middot; " separator, on top of whatever
-   line-height above now also provides between wrapped lines. */
-.note-word-wrap { position: relative; display: inline-block; margin: 0.15em 0.1em; }
+   line-height above now also provides between wrapped lines. Trimmed from
+   0.15em/0.1em per feedback that the original values read as too generous. */
+.note-word-wrap { position: relative; display: inline-block; margin: 0.1em 0.06em; }
 
 .note-word {
   cursor: pointer;
@@ -817,9 +820,24 @@ body.shop-page { background: var(--bg-void); }
   }
   .shop-detail-col { padding: 2.2rem 1.4rem; }
 
-  /* bottom kept at the same fixed 2rem as the desktop rule above -- only
-     top/side padding differs by breakpoint here, same as before. */
-  .shop-notes { padding: 6vh 8vw 2rem; }
+  /* BUG FIX: bottom padding bumped well past the desktop rule's plain 2rem
+     specifically at this breakpoint -- confirmed via elementFromPoint()
+     hit-testing across the ENTIRE scroll range that .shop-sticky-bar
+     (position:fixed, ~67px tall, see the STICKY BUY BAR section) sits
+     directly over this section's Heart/Base Notes rows for a wide stretch
+     of scroll positions, intercepting taps meant for the note words
+     underneath it (mobile users tapping a note here got no response --
+     they were actually tapping the sticky bar). There WAS a clear,
+     tappable scroll position past the bar's footprint, but only within the
+     final ~200px of the page's total scroll range -- easy to undershoot,
+     since the words are already visible well before that point. The extra
+     padding here guarantees a comfortably wide, early-arriving clear zone
+     instead of squeezing it right up against the very bottom of the page.
+     var(--cookie-banner-h) (see css/style.css's :root, 0px until a real,
+     not-yet-dismissed cookie banner sets it) is added on top since that
+     banner sits in this exact same footprint too, and shifts the sticky
+     bar itself up by its own height while showing. */
+  .shop-notes { padding: 6vh 8vw calc(2rem + 90px + var(--cookie-banner-h)); }
   .shop-notes-row { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
   .shop-notes-names { text-align: left; }
 

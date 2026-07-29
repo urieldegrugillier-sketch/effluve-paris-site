@@ -47,11 +47,8 @@
     render();
   }
 
-  function onClick(e) {
-    // Stops the document-level listener below from immediately clearing
-    // what this same click is about to set, once it bubbles up.
-    e.stopPropagation();
-    const target = targetFor(e.currentTarget);
+  function toggle(word) {
+    const target = targetFor(word);
     // BUG FIX: a click always lands on whatever's currently hovered (you
     // can't click something your pointer isn't over) -- touch devices
     // additionally fire a synthetic mouseenter as part of the SAME tap that
@@ -69,6 +66,66 @@
       preview = target;
     }
     render();
+  }
+
+  // TEMP DEBUG -- remove once Uriel confirms via Safari's remote Web
+  // Inspector (Mac + iPhone, Settings > Safari > Advanced > Web Inspector on
+  // the phone, then Safari > Develop > [device] > product.html on the Mac)
+  // whether these fire at all on his real device. If neither logs on tap,
+  // the handlers themselves aren't the problem (something upstream is
+  // swallowing the touch, e.g. an overlapping element) -- if touchTap logs
+  // but nothing visibly happens, the bug is in render()/CSS, not event
+  // binding.
+  const DEBUG = true;
+  function log(label, word) {
+    if (DEBUG) console.log('[note-highlight]', label, (word.textContent || '').trim());
+  }
+
+  // Guards the click that (on touch devices) fires right after touchend has
+  // already handled the same tap -- see touchTap() below for why.
+  let lastTouchWord = null;
+  let lastTouchAt = 0;
+
+  function onClick(e) {
+    log('click', e.currentTarget);
+    // Stops the document-level listener below from immediately clearing
+    // what this same click is about to set, once it bubbles up.
+    e.stopPropagation();
+    const word = e.currentTarget;
+    // BUG FIX: real iPhone Safari was confirmed (by Uriel, on-device) to
+    // still not open the tooltip on tap even after prior WebKit-tested
+    // fixes -- touchTap() below now handles the tap directly rather than
+    // waiting for WebKit's synthetic click. If that already ran for this
+    // exact element a moment ago, skip -- otherwise the trailing synthetic
+    // click (when WebKit still fires one despite preventDefault) would
+    // toggle it right back off again.
+    if (word === lastTouchWord && Date.now() - lastTouchAt < 500) {
+      log('click skipped (already handled by touchend)', word);
+      return;
+    }
+    toggle(word);
+  }
+
+  // BUG FIX: added as a supplement (not replacement) to onClick above after
+  // Uriel confirmed on his own iPhone that tapping a note-word still didn't
+  // open the tooltip, despite this working under Playwright's WebKit +
+  // touch emulation -- acknowledged gap between emulated and real iOS
+  // Safari that can't be fully diagnosed in this sandbox. touchend fires
+  // earlier and more reliably than a tap's synthetic click on iOS, so this
+  // acts as the primary path on real touch devices, with onClick (guarded
+  // above) as a safety net if this listener itself doesn't fire for some
+  // reason.
+  function touchTap(e) {
+    log('touchend', e.currentTarget);
+    const word = e.currentTarget;
+    lastTouchWord = word;
+    lastTouchAt = Date.now();
+    // Suppresses WebKit's trailing synthetic mouseenter/focus/click for this
+    // same tap so toggle() below is the only thing that runs for it -- the
+    // onClick guard above is a second layer in case preventDefault doesn't
+    // fully suppress the click in some iOS version/edge case.
+    e.preventDefault();
+    toggle(word);
   }
 
   function onEnter(e) {
@@ -106,11 +163,16 @@
   function bind() {
     document.querySelectorAll('.note-word').forEach((word) => {
       word.removeEventListener('click', onClick);
+      word.removeEventListener('touchend', touchTap);
       word.removeEventListener('mouseenter', onEnter);
       word.removeEventListener('mouseleave', onLeave);
       word.removeEventListener('focus', onFocus);
       word.removeEventListener('blur', onBlur);
       word.addEventListener('click', onClick);
+      // { passive: false } -- touchend listeners default to passive:false
+      // already, but stated explicitly since touchTap()'s preventDefault()
+      // depends on it and browser defaults for this have shifted before.
+      word.addEventListener('touchend', touchTap, { passive: false });
       word.addEventListener('mouseenter', onEnter);
       word.addEventListener('mouseleave', onLeave);
       word.addEventListener('focus', onFocus);
@@ -119,6 +181,10 @@
   }
 
   if (!document.querySelector('.note-word')) return;
+  // TEMP DEBUG -- if this never appears in the console on Uriel's device,
+  // the script itself isn't running (load/cache/network issue) rather than
+  // the click/touchend handlers failing to fire once bound.
+  console.log('[note-highlight] loaded, binding', document.querySelectorAll('.note-word').length, 'note-word elements');
   bind();
   document.addEventListener('monark:langchange', () => { clearAll(); bind(); });
 

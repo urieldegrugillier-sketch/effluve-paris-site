@@ -1453,14 +1453,16 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   font-family: var(--font-display);
   font-weight: 600;
   font-size: clamp(1.7rem, 2.8vw, 2.8rem);
-  /* BUG FIX: was 1.15 -- confirmed via direct measurement (getBoundingClientRect
-     on each .note-word) that at this size, the two wrapped lines' own line
+  /* Was 1.15 -- confirmed via direct measurement (getBoundingClientRect on
+     each .note-word) that at this size, the two wrapped lines' own line
      boxes actually OVERLAPPED by ~14px (line 1's bottom edge sat well below
      line 2's top edge), tight enough that a word's own hover underline
      (border-bottom, right at that line's baseline) visually crowded into
-     the next line's text. 1.6 clears that with comfortable room to spare
-     (1.5 was tried first and only got to a ~1px overlap -- still touching). */
-  line-height: 1.6;
+     the next line's text. Went to 1.6 first (confirmed clean, +2.3px gap),
+     then dialed back to 1.4 per feedback that 1.6 read as too generous --
+     re-confirmed via the same measurement this still clears the overlap
+     (positive gap, not just "less negative"), just with less air than 1.6. */
+  line-height: 1.4;
   color: var(--text-on-dark);
 }
 
@@ -1506,8 +1508,16 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      updatePyramidTiers() now sets pointer-events on the TIER container
      itself (auto only for whichever is actually active, none for the
      other two) instead, so .note-word here correctly inherits none from an
-     inactive parent and auto from the active one, with no override needed. */
-  cursor: default;
+     inactive parent and auto from the active one, with no override needed.
+
+     cursor:pointer (not default) for the same reason product.html's
+     .note-word uses it -- WebKit on iOS only synthesizes a :hover state
+     (and can eat the first tap reproducing it, instead of firing click) for
+     elements it considers "clickable," which cursor:pointer is one of the
+     signals for. Mobile now has real tap feedback via .note-word-active
+     below (JS-driven, see js/note-highlight.js), so this isn't purely
+     decorative on desktop anymore either. */
+  cursor: pointer;
   border-bottom: 1px solid transparent;
   transition: border-color 0.3s ease;
 }
@@ -1528,7 +1538,7 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    block's right) -- the same rule works correctly at both without a media
    query. Mobile's own vertical gap between the three stacked lines is set
    separately, in the mobile breakpoint below where they become block. */
-.tier-heading .note-word-line { margin-right: 0.35em; }
+.tier-heading .note-word-line { margin-right: 0.25em; }
 
 /* ================= STATS ================= */
 
@@ -1862,7 +1872,18 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      this heading and the first tier's own label was exactly 0px, i.e. the two
      lines of text rendered flush against each other. */
   .pyramid-heading { margin-bottom: 2rem; }
-  .pyramid-tier { position: relative; top: auto; transform: none; opacity: 1 !important; margin-bottom: 3rem; }
+  /* BUG FIX: .pyramid-tier's base rule (desktop) sets pointer-events:none,
+     relying on js/app.js's updatePyramidTiers() to switch it to auto only
+     for whichever tier is scroll-active -- but that function is gated
+     behind `if (isDesktop)` and never runs on mobile at all. Since mobile's
+     tiers are no longer absolutely-positioned/overlapping (position:relative
+     above, all three always visible) there's no overlap left to guard
+     against, so the active-tier gating isn't needed here -- confirmed via
+     elementFromPoint() that without this, EVERY tap anywhere in a mobile
+     pyramid tier fell through to .pyramid-inner instead of the tapped
+     .note-word, since inherited pointer-events:none blocks the entire
+     subtree from hit-testing, not just the tier element itself. */
+  .pyramid-tier { position: relative; top: auto; transform: none; opacity: 1 !important; pointer-events: auto; margin-bottom: 3rem; }
   .pyramid-tier .section-inner { max-width: 100%; text-align: left !important; padding: 1.4rem; background: rgba(10, 9, 8, 0.72); border-left: 2px solid var(--accent-bronze); }
   .pyramid-tier.align-right .section-inner { text-align: left !important; }
 
@@ -1877,7 +1898,7 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      line on its own) -- hidden outright rather than left in, so there's no
      risk of it rendering as a stray extra blank line between notes 2 and 3
      specifically (the only pair that had one to begin with). */
-  .tier-heading .note-word-line { display: block; margin-bottom: 0.3em; }
+  .tier-heading .note-word-line { display: block; margin-bottom: 0.2em; }
   .tier-heading .note-word-line:last-child { margin-bottom: 0; }
   .tier-heading br { display: none; }
 
