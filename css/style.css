@@ -1839,6 +1839,20 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   .pyramid-tier .section-inner { max-width: 100%; text-align: left !important; padding: 1.4rem; background: rgba(10, 9, 8, 0.72); border-left: 2px solid var(--accent-bronze); }
   .pyramid-tier.align-right .section-inner { text-align: left !important; }
 
+  /* Each tier heading's three notes (see js/i18n.js's s3.tier1-3.heading
+     strings) wrap each note + its trailing period in its own
+     .note-word-line, specifically so this breakpoint can force one note
+     per line -- desktop's existing two-line break (a single <br> between
+     the 2nd and 3rd note, e.g. "Bergamot. Lemon." / "Pink Pepper.") is left
+     completely alone; .note-word-line only becomes block-level here, under
+     this same mobile breakpoint. The original <br> becomes redundant once
+     every note is already its own block (each one already starts a new
+     line on its own) -- hidden outright rather than left in, so there's no
+     risk of it rendering as a stray extra blank line between notes 2 and 3
+     specifically (the only pair that had one to begin with). */
+  .tier-heading .note-word-line { display: block; }
+  .tier-heading br { display: none; }
+
   .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 2.4rem 1.4rem; }
 
   /* justify-content:center is the actual fix for the large empty void that

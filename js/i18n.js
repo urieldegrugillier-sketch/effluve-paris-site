@@ -86,17 +86,17 @@
         heading: 'What the Breaking Reveals.',
         tier1: {
           label: 'Opening — The First Strike',
-          heading: '<span class="note-word" tabindex="0">Bergamot</span>. <span class="note-word" tabindex="0">Lemon</span>.<br><span class="note-word" tabindex="0">Pink Pepper</span>.',
+          heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Bergamot</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Lemon</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Pink Pepper</span>.</span>',
           body: 'The introduction is a blade, not a handshake. Italian bergamot and bright lemon arrive first, cut through with the dry heat of pink pepper — a greeting that ends conversations before they start.'
         },
         tier2: {
           label: 'The Heart — What Remains',
-          heading: '<span class="note-word" tabindex="0">Lavender</span>. <span class="note-word" tabindex="0">Geranium</span>.<br><span class="note-word" tabindex="0">Incense</span>.',
+          heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Lavender</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Geranium</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Incense</span>.</span>',
           body: 'Beneath the strike, something older settles in. Lavender and geranium soften only enough to let incense rise — smoke curling off a private ritual no one else is invited to witness.'
         },
         tier3: {
           label: 'The Base — What Lasts',
-          heading: '<span class="note-word" tabindex="0">Ambergris</span>. <span class="note-word" tabindex="0">Cedarwood</span>.<br><span class="note-word" tabindex="0">Musk</span>.',
+          heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Ambergris</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Cedarwood</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Musk</span>.</span>',
           body: 'This is the part that stays on the skin long after the room has emptied. Ambergris and cedarwood root the composition in something ancient; musk closes the door behind it. This is not a scent you wear. It is one you leave behind.'
         }
       },
@@ -630,17 +630,17 @@
         heading: 'Ce Que la Brisure Révèle.',
         tier1: {
           label: 'Tête — La Première Frappe',
-          heading: '<span class="note-word" tabindex="0">Bergamote</span>. <span class="note-word" tabindex="0">Citron</span>.<br><span class="note-word" tabindex="0">Poivre Rose</span>.',
+          heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Bergamote</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Citron</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Poivre Rose</span>.</span>',
           body: "L'introduction est une lame, pas une poignée de main. La bergamote italienne et le citron éclatant arrivent en premier, tranchés par la chaleur sèche du poivre rose — un salut qui met fin aux conversations avant qu'elles ne commencent."
         },
         tier2: {
           label: 'Le Cœur — Ce Qui Demeure',
-          heading: '<span class="note-word" tabindex="0">Lavande</span>. <span class="note-word" tabindex="0">Géranium</span>.<br><span class="note-word" tabindex="0">Encens</span>.',
+          heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Lavande</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Géranium</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Encens</span>.</span>',
           body: "Sous la frappe, quelque chose de plus ancien s'installe. La lavande et le géranium n'adoucissent que le strict nécessaire pour laisser l'encens s'élever — une fumée qui s'échappe d'un rituel privé auquel personne d'autre n'est convié."
         },
         tier3: {
           label: 'Le Fond — Ce Qui Persiste',
-          heading: '<span class="note-word" tabindex="0">Ambre Gris</span>. <span class="note-word" tabindex="0">Bois de Cèdre</span>.<br><span class="note-word" tabindex="0">Musc</span>.',
+          heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Ambre Gris</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Bois de Cèdre</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Musc</span>.</span>',
           body: "C'est la part qui demeure sur la peau bien après que la pièce s'est vidée. L'ambre gris et le bois de cèdre ancrent la composition dans quelque chose d'ancien ; le musc referme la porte derrière elle. Ce n'est pas un parfum que l'on porte. C'est un parfum que l'on laisse derrière soi."
         }
       },

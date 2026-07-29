@@ -568,15 +568,28 @@ body.shop-page { background: var(--bg-void); }
    would visibly shift the other two every time.
    tabindex="0" + aria-describedby ties each word to its own description
    for screen readers, same as a native title tooltip would announce.
-   js/note-highlight.js adds .note-word-active on click/tap (touch has no
-   real :hover), and clears it on an outside tap so a pinned-open note
-   doesn't stay stuck. transitions here are already covered by
-   css/style.css's sitewide prefers-reduced-motion wildcard reset, so no
-   extra reduced-motion rule is needed. */
+
+   BUG FIX: .note-desc's reveal used to also key off a bare :hover/
+   :focus-visible~ (independent of .note-word-active) -- confirmed live,
+   this meant clicking one note (pinning it open via .note-word-active) and
+   then hovering a DIFFERENT note showed both tooltips at once, since CSS's
+   own :hover trigger had no awareness of the other one already pinned open
+   by JS. js/note-highlight.js now owns every trigger (click, hover,
+   keyboard focus) and .note-word-active is the ONLY thing the reveal below
+   keys off, so there's one source of truth for which note is showing
+   regardless of input method. cursor:pointer (was cursor:default) is a
+   second, related fix -- confirmed on a real device that tapping a note
+   with cursor:default sometimes needed a SECOND tap to register a click at
+   all (a known mobile-Safari quirk: a hover-reactive element without a
+   pointer cursor can have its first tap consumed simulating :hover instead
+   of firing click); pointer signals real interactivity and skips that.
+   transitions here are already covered by css/style.css's sitewide
+   prefers-reduced-motion wildcard reset, so no extra reduced-motion rule
+   is needed. */
 .note-word-wrap { position: relative; display: inline-block; }
 
 .note-word {
-  cursor: default;
+  cursor: pointer;
   border-bottom: 1px solid transparent;
   transition: color 0.3s ease, border-color 0.3s ease;
 }
@@ -607,8 +620,6 @@ body.shop-page { background: var(--bg-void); }
   transition: opacity 0.25s ease, transform 0.25s ease;
   z-index: 5;
 }
-.note-word-wrap:hover .note-desc,
-.note-word:focus-visible ~ .note-desc,
 .note-word-wrap.note-word-active .note-desc {
   opacity: 1;
   transform: translateX(-50%) translateY(6px);
@@ -817,8 +828,6 @@ body.shop-page { background: var(--bg-void); }
     white-space: normal;
     text-align: center;
   }
-  .note-word-wrap:hover .note-desc,
-  .note-word:focus-visible ~ .note-desc,
   .note-word-wrap.note-word-active .note-desc {
     transform: translateX(-50%) translateY(0);
   }
