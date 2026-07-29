@@ -35,6 +35,43 @@
 <meta name="twitter:description" content="Numbered batch, matte black wax-sealed packaging. Bergamot, Lemon, Pink Pepper. Lavender, Geranium, Incense. Ambergris, Cedarwood, Musk.">
 <meta name="twitter:image" content="https://effluve-paris.fr/assets/images/F01_V4_OnlineRef.webp">
 
+<!-- JSON-LD Product schema, for Google rich results (price/availability in
+     search, not a review star rating -- no aggregateRating/review block on
+     purpose: this site has no real customer reviews yet, and fabricating a
+     rating count is exactly the kind of structured-data spam Google's own
+     guidelines call out and penalize. Add one only once a genuine reviews
+     section exists to source it from. Mirrors the Open Graph block above
+     (same name/description/image), and cart.js's PRODUCT.price (149) for
+     the real transactional price -- kept in sync by hand since this is
+     static markup, not generated from that file. availability is a static
+     "InStock" default (see renderStock()'s own live Supabase
+     stock_remaining/stock_total read further down -- fallback is 32/500,
+     nowhere near zero); revisit only if real stock ever approaches 0. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "Effluve Paris Eau de Parfum — 100ml",
+  "description": "Acquire Effluve Paris Eau de Parfum. 100ml, numbered batch, matte black wax-sealed packaging. Bergamot, Lemon, Pink Pepper. Lavender, Geranium, Incense. Ambergris, Cedarwood, Musk.",
+  "image": "https://effluve-paris.fr/assets/images/F01_V4_OnlineRef.webp",
+  "brand": {
+    "@type": "Brand",
+    "name": "Effluve Paris"
+  },
+  "offers": {
+    "@type": "Offer",
+    "url": "https://effluve-paris.fr/product.html",
+    "priceCurrency": "EUR",
+    "price": "149.00",
+    "availability": "https://schema.org/InStock",
+    "seller": {
+      "@type": "Organization",
+      "name": "Effluve Paris"
+    }
+  }
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Poppins split out with display=block instead of swap -- see index.html's
