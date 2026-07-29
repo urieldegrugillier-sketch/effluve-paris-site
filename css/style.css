@@ -2665,3 +2665,45 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 @media (max-width: 768px) {
   .cart-preview { width: min(92vw, 340px); }
 }
+
+/* ================= REDUCED MOTION ================= */
+/* Targeted, not a blanket "kill every animation" switch. The GSAP/
+   ScrollTrigger-driven canvas frame scrubbing, S1-S6 section reveals, hero
+   circle-wipe, pyramid tier crossfade, CTA fade, dark overlay, and stat
+   counters (all in js/app.js) are this site's actual narrative content, not
+   decorative motion -- deliberately left alone, and none of the rules below
+   can touch them anyway: GSAP tweens write inline styles directly via its
+   own ticker every frame, never through CSS transition/animation at all, so
+   they're already outside the reach of a CSS-only reduced-motion rule
+   regardless of how broadly it's scoped.
+   What this section DOES reduce: every hover/focus color/border/transform
+   micro-transition sitewide (nav links, buttons, the cart-preview shine
+   sweep, accordions, etc.) via the wildcard rule below, plus two purely
+   decorative infinite-loop @keyframes (the countdown seconds pulse, the
+   hero's bobbing scroll-indicator arrow) turned off outright, plus the
+   loader's own fade-out -- which is what actually reveals the hero
+   underneath on first load -- shortened rather than either left at its full
+   0.8s or cut to fully instant (a hard flash-of-content read as more
+   jarring than a brief fade, not less).
+   transition-duration (not display:none/opacity:1) is the mechanism for the
+   wildcard rule so every hover/focus STATE still changes, just without the
+   animated ease -- and 0.01ms rather than a literal 0s, since some browsers/
+   assistive tech have historically handled a genuinely zero-length
+   transition inconsistently (imperceptible either way).
+   Deliberately does NOT touch animation-duration/-iteration-count sitewide
+   -- css/checkout.css's own checkout-postal-autofill @keyframes is a
+   functional detection hook (used to catch Chrome autofill landing on the
+   Shipping step's postal field), not decorative, and resetting animation
+   properties globally risked interfering with it for no real benefit (it's
+   already imperceptibly short, 0.001s). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+  }
+
+  .promo-timer-seconds { animation: none; }
+  .scroll-arrow { animation: none; }
+
+  #loader { transition-duration: 0.25s !important; }
+}
