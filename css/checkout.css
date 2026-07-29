@@ -272,6 +272,32 @@
 
 .checkout-field textarea { resize: vertical; }
 
+/* Country-vs-autofill fix (checkout.html Shipping step only): Chrome's own
+   autofill policy never overwrites a field the user already manually
+   edited, which is exactly what leaves the Country <select> stuck on a
+   stale manual pick when a later browser-autofill (of the rest of the
+   address) lands a postal code that no longer matches it -- and since the
+   field is silently skipped, autofill never fires an input/change event on
+   it for anything to react to. There's no reliable event on a SKIPPED
+   field, so this instead detects autofill landing on the POSTAL field
+   itself (its 4-vs-5-digit shape is what Country is validated against
+   anyway) via the standard :-webkit-autofill + zero-duration-animation
+   trick -- the one signal Chrome commits to firing even when plain
+   input/change isn't -- picked up by the matching 'animationstart'
+   listener in checkout.html's inline script, which re-syncs Country to
+   match. Animates a custom property (no visual effect) rather than an
+   empty keyframe block, since some engines skip firing the event for a
+   no-op animation. Scoped to #checkout-shipping-body specifically so this
+   never applies to account.html's own (country-less) postal field. */
+@keyframes checkout-postal-autofill {
+  from { --checkout-postal-autofill-tick: 0; }
+  to { --checkout-postal-autofill-tick: 1; }
+}
+#checkout-shipping-body input[name="postal"]:-webkit-autofill {
+  animation-name: checkout-postal-autofill;
+  animation-duration: 0.001s;
+}
+
 .checkout-field-row { display: flex; gap: 1.4rem; }
 .checkout-field-row .checkout-field { flex: 1 1 0; }
 

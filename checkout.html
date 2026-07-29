@@ -843,6 +843,32 @@
     postalError.hidden = true;
   });
 
+  // Real-device bug: manually select Belgium, then trigger Chrome's saved-
+  // address autofill (e.g. picking a saved FRENCH address) -- every other
+  // field gets correctly overwritten, but Country silently stays on
+  // "Belgique". Chrome's autofill never overwrites a field the user already
+  // manually changed, so it just skips this <select> entirely -- no
+  // input/change event fires on it for anything to react to; the
+  // :-webkit-autofill-driven 'animationstart' below (see the matching
+  // @keyframes in css/checkout.css) is what catches it instead, reading the
+  // digit count of whatever autofill just put in Postal (5 = France, 4 =
+  // Belgium, the only two this form supports) and correcting Country to
+  // match. Dispatches a real 'change' so the listener just above (and
+  // validateShippingForm()'s always-fresh countryInput.value read) both stay
+  // in sync -- purely additive: manual selection through the dropdown never
+  // triggers :-webkit-autofill, so this never fires for it.
+  postalInput.addEventListener('animationstart', (e) => {
+    if (e.animationName !== 'checkout-postal-autofill') return;
+    const digits = postalInput.value.trim();
+    let matchedCountry = null;
+    if (/^\d{5}$/.test(digits)) matchedCountry = 'FR';
+    else if (/^\d{4}$/.test(digits)) matchedCountry = 'BE';
+    if (matchedCountry && countryInput.value !== matchedCountry) {
+      countryInput.value = matchedCountry;
+      countryInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
+
   function validateShippingForm() {
     let firstInvalid = null;
     shippingFields.forEach(({ input, error }) => {
