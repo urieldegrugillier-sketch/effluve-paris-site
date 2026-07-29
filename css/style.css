@@ -1459,6 +1459,50 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 
 .tier-top .section-label, .tier-top .tier-heading { color: var(--accent-bronze-light); }
 
+/* Hover/tap micro-interaction on the pyramid's individual note words
+   (Bergamot/Lemon/Pink Pepper, etc.) -- the .note-word wrapping actually
+   lives in js/i18n.js's s3.tier1-3.heading strings, since these headings
+   are data-i18n-html (index.html's own copy in the markup is just the
+   pre-JS fallback). Underline only, no color shift: tier-top's own heading
+   is ALREADY --accent-bronze-light (the rule just above), so a hover color
+   change to that same bronze would be invisible there. border-bottom:
+   currentColor reads correctly against either tier-top's bronze text or the
+   other two tiers' plain --text-on-dark without needing a per-tier
+   exception.
+   Deliberately no text-reveal tooltip here, unlike product.html's own
+   version of this (css/shop.css) -- this section's own .section-body
+   paragraph right below each heading already tells that tier's story in
+   prose, so a second explanatory layer per word would be redundant rather
+   than additive, and this section's pinned/scroll-choreographed layout
+   (js/app.js's updatePyramidTiers()) is precise enough that a popping
+   tooltip risked fighting it for no real gain.
+   tabindex="0" (set per word in the i18n strings) makes these keyboard-
+   focusable, picking up the sitewide bronze :focus-visible ring (see the
+   REDUCED MOTION section further down) for free -- and this transition is
+   already covered by that same section's wildcard transition-duration
+   reset, so no extra reduced-motion rule is needed here.
+   js/note-highlight.js adds .note-word-active on click/tap, since touch
+   devices have no real :hover to fall back on. */
+.tier-heading .note-word {
+  /* BUG FIX: .pyramid-tier itself is pointer-events:none (prevents an
+     inactive/crossfading-out tier from intercepting hover/clicks meant for
+     whatever's visually on top of it during the crossfade) -- confirmed via
+     direct testing that this silently blocked hover/focus/click on
+     anything inside it too, including these words, with zero visual
+     feedback and no console error to explain why. Re-enabling it narrowly
+     on just the words themselves (not the whole tier) keeps the crossfade
+     behavior everywhere else unchanged. */
+  pointer-events: auto;
+  cursor: default;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.3s ease;
+}
+.tier-heading .note-word:hover,
+.tier-heading .note-word:focus-visible,
+.tier-heading .note-word.note-word-active {
+  border-color: currentColor;
+}
+
 /* ================= STATS ================= */
 
 .section-stats {

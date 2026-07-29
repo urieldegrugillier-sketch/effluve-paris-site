@@ -86,17 +86,17 @@
         heading: 'What the Breaking Reveals.',
         tier1: {
           label: 'Opening — The First Strike',
-          heading: 'Bergamot. Lemon.<br>Pink Pepper.',
+          heading: '<span class="note-word" tabindex="0">Bergamot</span>. <span class="note-word" tabindex="0">Lemon</span>.<br><span class="note-word" tabindex="0">Pink Pepper</span>.',
           body: 'The introduction is a blade, not a handshake. Italian bergamot and bright lemon arrive first, cut through with the dry heat of pink pepper — a greeting that ends conversations before they start.'
         },
         tier2: {
           label: 'The Heart — What Remains',
-          heading: 'Lavender. Geranium.<br>Incense.',
+          heading: '<span class="note-word" tabindex="0">Lavender</span>. <span class="note-word" tabindex="0">Geranium</span>.<br><span class="note-word" tabindex="0">Incense</span>.',
           body: 'Beneath the strike, something older settles in. Lavender and geranium soften only enough to let incense rise — smoke curling off a private ritual no one else is invited to witness.'
         },
         tier3: {
           label: 'The Base — What Lasts',
-          heading: 'Ambergris. Cedarwood.<br>Musk.',
+          heading: '<span class="note-word" tabindex="0">Ambergris</span>. <span class="note-word" tabindex="0">Cedarwood</span>.<br><span class="note-word" tabindex="0">Musk</span>.',
           body: 'This is the part that stays on the skin long after the room has emptied. Ambergris and cedarwood root the composition in something ancient; musk closes the door behind it. This is not a scent you wear. It is one you leave behind.'
         }
       },
@@ -255,11 +255,11 @@
         matteBlackPackaging: 'Matte Black, Wax-Sealed Packaging',
         notesKicker: 'The Composition',
         topNotes: 'Top Notes',
-        topNotesNames: 'Bergamot · Lemon · Pink Pepper',
+        topNotesNames: '<span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-bergamot">Bergamot</span><span class="note-desc" id="note-desc-bergamot">Bright, citrus opening</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-lemon">Lemon</span><span class="note-desc" id="note-desc-lemon">Sharp, sunlit zest</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-pinkpepper">Pink Pepper</span><span class="note-desc" id="note-desc-pinkpepper">Dry, peppered heat</span></span>',
         heartNotes: 'Heart Notes',
-        heartNotesNames: 'Lavender · Geranium · Incense',
+        heartNotesNames: '<span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-lavender">Lavender</span><span class="note-desc" id="note-desc-lavender">Soft herbal calm</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-geranium">Geranium</span><span class="note-desc" id="note-desc-geranium">Green, rosy depth</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-incense">Incense</span><span class="note-desc" id="note-desc-incense">Smoke, quiet ritual</span></span>',
         baseNotes: 'Base Notes',
-        baseNotesNames: 'Ambergris · Cedarwood · Musk'
+        baseNotesNames: '<span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-ambergris">Ambergris</span><span class="note-desc" id="note-desc-ambergris">Warm, ancient amber</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-cedarwood">Cedarwood</span><span class="note-desc" id="note-desc-cedarwood">Dry, rooted wood</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-musk">Musk</span><span class="note-desc" id="note-desc-musk">Skin-close, lingering</span></span>'
       },
       checkout: {
         title: 'Checkout',
@@ -630,17 +630,17 @@
         heading: 'Ce Que la Brisure Révèle.',
         tier1: {
           label: 'Tête — La Première Frappe',
-          heading: 'Bergamote. Citron.<br>Poivre Rose.',
+          heading: '<span class="note-word" tabindex="0">Bergamote</span>. <span class="note-word" tabindex="0">Citron</span>.<br><span class="note-word" tabindex="0">Poivre Rose</span>.',
           body: "L'introduction est une lame, pas une poignée de main. La bergamote italienne et le citron éclatant arrivent en premier, tranchés par la chaleur sèche du poivre rose — un salut qui met fin aux conversations avant qu'elles ne commencent."
         },
         tier2: {
           label: 'Le Cœur — Ce Qui Demeure',
-          heading: 'Lavande. Géranium.<br>Encens.',
+          heading: '<span class="note-word" tabindex="0">Lavande</span>. <span class="note-word" tabindex="0">Géranium</span>.<br><span class="note-word" tabindex="0">Encens</span>.',
           body: "Sous la frappe, quelque chose de plus ancien s'installe. La lavande et le géranium n'adoucissent que le strict nécessaire pour laisser l'encens s'élever — une fumée qui s'échappe d'un rituel privé auquel personne d'autre n'est convié."
         },
         tier3: {
           label: 'Le Fond — Ce Qui Persiste',
-          heading: 'Ambre Gris. Bois de Cèdre.<br>Musc.',
+          heading: '<span class="note-word" tabindex="0">Ambre Gris</span>. <span class="note-word" tabindex="0">Bois de Cèdre</span>.<br><span class="note-word" tabindex="0">Musc</span>.',
           body: "C'est la part qui demeure sur la peau bien après que la pièce s'est vidée. L'ambre gris et le bois de cèdre ancrent la composition dans quelque chose d'ancien ; le musc referme la porte derrière elle. Ce n'est pas un parfum que l'on porte. C'est un parfum que l'on laisse derrière soi."
         }
       },
@@ -773,11 +773,11 @@
         matteBlackPackaging: 'Emballage Noir Mat, Scellé à la Cire',
         notesKicker: 'La Composition',
         topNotes: 'Notes de Tête',
-        topNotesNames: 'Bergamote · Citron · Poivre Rose',
+        topNotesNames: '<span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-bergamot">Bergamote</span><span class="note-desc" id="note-desc-bergamot">Ouverture agrume, lumineuse</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-lemon">Citron</span><span class="note-desc" id="note-desc-lemon">Zeste vif, ensoleillé</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-pinkpepper">Poivre Rose</span><span class="note-desc" id="note-desc-pinkpepper">Chaleur sèche, poivrée</span></span>',
         heartNotes: 'Notes de Cœur',
-        heartNotesNames: 'Lavande · Géranium · Encens',
+        heartNotesNames: '<span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-lavender">Lavande</span><span class="note-desc" id="note-desc-lavender">Calme herbacé, doux</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-geranium">Géranium</span><span class="note-desc" id="note-desc-geranium">Profondeur verte, rosée</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-incense">Encens</span><span class="note-desc" id="note-desc-incense">Fumée, rituel silencieux</span></span>',
         baseNotes: 'Notes de Fond',
-        baseNotesNames: 'Ambre Gris · Bois de Cèdre · Musc'
+        baseNotesNames: '<span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-ambergris">Ambre Gris</span><span class="note-desc" id="note-desc-ambergris">Ambre chaud, ancien</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-cedarwood">Bois de Cèdre</span><span class="note-desc" id="note-desc-cedarwood">Bois sec, enraciné</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-musk">Musc</span><span class="note-desc" id="note-desc-musk">Proche peau, persistant</span></span>'
       },
       checkout: {
         title: 'Commande',
