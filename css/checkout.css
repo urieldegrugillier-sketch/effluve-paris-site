@@ -270,6 +270,23 @@
 .checkout-field textarea:focus { outline: none; border-color: var(--accent-bronze-light); }
 .checkout-field input:disabled { color: var(--text-muted); cursor: not-allowed; }
 
+/* BUG FIX: the shared rule above only sets `color` on the <select> itself
+   (background:none is intentional there -- the CLOSED control shows the
+   page's own dark background through its underline-only style, matching
+   every other field). The OPEN native dropdown list is a separate
+   browser-rendered surface that doesn't inherit that transparency and
+   defaults to a plain white popup regardless, leaving --text-on-dark's
+   near-white/ivory text almost unreadable against it. <option> needs its
+   own explicit background-color for the browsers that respect per-option
+   styling (Chrome, Firefox) -- this can't restyle the popup chrome itself
+   everywhere (e.g. Safari's native picker ignores it), but fixes contrast
+   in every browser that allows it at all, without touching the closed
+   control's own look. */
+.checkout-field option {
+  color: var(--text-on-dark);
+  background-color: var(--bg-void);
+}
+
 .checkout-field textarea { resize: vertical; }
 
 /* Country-vs-autofill fix (checkout.html Shipping step only): Chrome's own
