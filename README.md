@@ -69,41 +69,46 @@ hosting/deploy process is set up later.
   `index.html`/`product.html`'s Open Graph/Twitter tags, `robots.txt`, and
   `sitemap.xml`. Replace with the real production domain.
 
-## Security headers (configure at the hosting level — Hostinger/CloudPanel)
+## Security headers
 
-A static file server can't set real HTTP response headers, so every page just
-carries `<meta name="referrer" content="strict-origin-when-cross-origin">` as
-the one baseline a meta tag can actually provide. Everything below needs to be
-configured server-side once there's a real host:
+Configured via the `_headers` file at the project root (copied into `dist/`
+by `scripts/build.js`, same as `robots.txt`/`sitemap.xml`) — Cloudflare
+Workers Static Assets reads this file directly, no server-side config needed
+beyond it being present in `assets.directory` (see `wrangler.jsonc`). The
+`<meta name="referrer">` tag still exists on every page too, but the
+`Referrer-Policy` header below is the real enforcement point.
 
-| Header | Recommended value | Why |
+| Header | Value | Why |
 |---|---|---|
 | `X-Content-Type-Options` | `nosniff` | No downside; always set this. |
 | `X-Frame-Options` | `DENY` | Nothing on this site needs to be framed. |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` | Already set via meta tag too; the header is the real enforcement point. |
-| `Content-Security-Policy` | see below | Needs site-specific tuning — see caveat. |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Matches the meta tag. |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | Site is HTTPS-only via Cloudflare already. |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Unused APIs, disabled. Deliberately does **not** restrict `payment` — Stripe's Payment Request Button (Apple Pay/Google Pay) depends on it. |
+| `Content-Security-Policy` | see `_headers` | See caveat below. |
 
-**CSP caveat, read before turning this on:** a naive strict CSP will break
-this site as currently built. Several pages (`checkout.html`, `account.html`,
-`product.html`, `index.html`) have substantial **inline** `<script>` blocks
-(not just external `.js` files), and JS across the codebase sets
-`element.style.xxx` directly in many places (transforms, opacity, etc.) — both
-of those are inline-style/inline-script usage that a strict
-`script-src`/`style-src` (without `'unsafe-inline'`, a nonce, or a hash list)
-will silently block. Two honest paths:
+**CSP caveat:** ships `'unsafe-inline'` for both `script-src` and `style-src`.
+Several pages (`checkout.html`, `account.html`, `product.html`, `index.html`,
+`contact.html`) have genuine inline `<script>` blocks (not just external
+`.js` files), plus one inline `style=""` attribute (`product.html`'s stock
+bar) and an inline `onerror=` handler (`js/phone-input.js`'s flag `<img>`
+fallback) — a strict policy without `'unsafe-inline'` (or per-block nonces/
+hashes, which this static-output build has no mechanism to generate/keep in
+sync) would silently break all of them. `element.style.xxx` JS assignments
+(GSAP transforms/opacity, etc.) are *not* affected either way — CSP's
+`style-src` only governs markup-level style sources (`<style>` tags, `<link
+rel=stylesheet>`, inline `style=""` attributes), not runtime CSSOM
+mutations. Every other directive (`script-src`'s domain allow-list,
+`connect-src`, `frame-src`, `object-src 'none'`, `frame-ancestors 'none'`,
+etc.) is fully enforced with no such carve-out.
 
-1. Ship `'unsafe-inline'` for `script-src`/`style-src` now (a real but modest
-   improvement over no CSP at all — still blocks e.g. injected `<img
-   src=x onerror=...>` payloads landing in `src`/`href` attributes, restricts
-   `frame-ancestors`, restricts third-party script origins to an allow-list),
-   e.g.:
-   ```
-   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';
-   ```
-2. Move the remaining inline `<script>` blocks into external files first, then
-   ship a real `script-src 'self' https://cdn.jsdelivr.net` with no
-   `'unsafe-inline'` — meaningfully stronger, but a real refactor, not a
-   drop-in header change.
+One gap to know about: `js/places-autocomplete.js` loads
+`https://maps.googleapis.com` if a real Google Places API key is ever
+configured there (it's currently a placeholder, so this path is dead code
+today — see that file's own comment). If/when that key goes in,
+`https://maps.googleapis.com` also needs adding to `_headers`' `script-src`
+and `connect-src`, or Places autocomplete will silently stop working under
+CSP.
 
 ## Forms — spam/abuse notes (no backend yet, so nothing is actually exploitable today)
 

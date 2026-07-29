@@ -94,12 +94,16 @@ function copyAssets() {
 }
 
 // robots.txt/sitemap.xml -- expected at the site root by crawlers, same
-// "just needs to exist in dist/" reasoning as the HTML files above.
+// "just needs to exist in dist/" reasoning as the HTML files above. _headers
+// is Cloudflare Workers Static Assets' own convention for response headers
+// (security headers, CSP, etc.) -- same reasoning: it only takes effect if
+// it's actually inside the deployed assets.directory (./dist, see
+// wrangler.jsonc), not the repo root.
 function copyRootFiles() {
-  ['robots.txt', 'sitemap.xml'].forEach((file) => {
+  ['robots.txt', 'sitemap.xml', '_headers'].forEach((file) => {
     fs.copyFileSync(path.join(ROOT, file), path.join(DIST_DIR, file));
   });
-  console.log('  robots.txt, sitemap.xml copied');
+  console.log('  robots.txt, sitemap.xml, _headers copied');
 }
 
 async function main() {
