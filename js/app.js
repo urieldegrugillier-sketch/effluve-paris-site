@@ -742,7 +742,12 @@ function updatePyramidTiers(p) {
   if (p < tiersEnter || p > leave) {
     if (activeTierIndex !== -1) {
       activeTierIndex = -1;
-      tiers.forEach((tier) => gsap.to(tier, { opacity: 0, duration: 0.3, ease: 'power2.out' }));
+      // See the idx-switch branch below for why pointerEvents is set here
+      // too, not just opacity.
+      tiers.forEach((tier) => {
+        gsap.set(tier, { pointerEvents: 'none' });
+        gsap.to(tier, { opacity: 0, duration: 0.3, ease: 'power2.out' });
+      });
     }
     return;
   }
@@ -755,11 +760,31 @@ function updatePyramidTiers(p) {
     activeTierIndex = idx;
     tiers.forEach((tier, i) => {
       if (i === idx) {
+        // BUG FIX: all three tiers share the exact same absolute position
+        // (this is how the crossfade works at all) -- css/style.css's own
+        // .pyramid-tier is pointer-events:none by default specifically so
+        // an inactive tier can never intercept hover/clicks meant for
+        // whatever's stacked on top of it, but .note-word (the hoverable
+        // fragrance-note spans inside .tier-heading) used to unconditionally
+        // force pointer-events:auto back on for EVERY tier regardless of
+        // which one was actually active. Confirmed live via
+        // elementFromPoint() hit-testing: tier-base (align-left, same as
+        // tier-top, and LAST in DOM order so it paints on top) was silently
+        // stealing hover/clicks meant for tier-top's "Bergamot"/"Lemon" --
+        // tier-heart (align-right) never overlapped anything so it was
+        // never affected, matching exactly what was reported. Setting
+        // pointerEvents directly on the tier container here (immediate via
+        // gsap.set, not animated) instead of forcing it open on .note-word
+        // itself means only the currently-active tier is ever interactive;
+        // css/style.css no longer overrides pointer-events on .note-word at
+        // all, so it correctly inherits none from an inactive parent.
+        gsap.set(tier, { pointerEvents: 'auto' });
         gsap.fromTo(tier, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power2.out' });
         gsap.fromTo(tier.querySelectorAll('.section-label, .tier-heading, .section-body'),
           { y: 30, opacity: 0 },
           { y: 0, opacity: 1, duration: 0.7, stagger: 0.1, ease: 'power3.out', delay: 0.05 });
       } else {
+        gsap.set(tier, { pointerEvents: 'none' });
         gsap.to(tier, { opacity: 0, duration: 0.4, ease: 'power2.out' });
       }
     });

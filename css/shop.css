@@ -549,6 +549,12 @@ body.shop-page { background: var(--bg-void); }
 .shop-notes-names {
   font-family: var(--font-display);
   font-size: clamp(1.05rem, 2vw, 1.6rem);
+  /* Extra room (was unset, inheriting the page's own default) so a word's
+     own hover underline never crowds a wrapped line below it at narrow
+     widths -- same fix as index.html's pyramid tier headings, css/style.css,
+     which had a confirmed, measured overlap between wrapped lines at its
+     own (tighter) line-height. */
+  line-height: 1.6;
   color: var(--text-on-dark);
   text-align: right;
 }
@@ -586,12 +592,26 @@ body.shop-page { background: var(--bg-void); }
    transitions here are already covered by css/style.css's sitewide
    prefers-reduced-motion wildcard reset, so no extra reduced-motion rule
    is needed. */
-.note-word-wrap { position: relative; display: inline-block; }
+/* margin gives each note a bit more breathing room from its neighbor on
+   either side of the existing " &middot; " separator, on top of whatever
+   line-height above now also provides between wrapped lines. */
+.note-word-wrap { position: relative; display: inline-block; margin: 0.15em 0.1em; }
 
 .note-word {
   cursor: pointer;
   border-bottom: 1px solid transparent;
   transition: color 0.3s ease, border-color 0.3s ease;
+  /* Real tap-target size, not just the glyph box -- measured the rendered
+     word at mobile widths at only ~27px tall, well under the ~44px minimum
+     touch target both Apple's and Google's own platform guidelines
+     recommend. The underlying tap-to-toggle logic itself tested reliably
+     (isolated, fresh-page WebKit/touch runs all succeeded), so this doesn't
+     fix a logic bug -- it's a real-world "missed the word by a few px"
+     margin of safety, inline-block so the extra padding actually expands
+     the clickable box rather than just adding visual whitespace around
+     static inline text. */
+  display: inline-block;
+  padding: 0.35em 0.15em;
 }
 .note-word:hover,
 .note-word:focus-visible,

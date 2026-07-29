@@ -1453,7 +1453,14 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   font-family: var(--font-display);
   font-weight: 600;
   font-size: clamp(1.7rem, 2.8vw, 2.8rem);
-  line-height: 1.15;
+  /* BUG FIX: was 1.15 -- confirmed via direct measurement (getBoundingClientRect
+     on each .note-word) that at this size, the two wrapped lines' own line
+     boxes actually OVERLAPPED by ~14px (line 1's bottom edge sat well below
+     line 2's top edge), tight enough that a word's own hover underline
+     (border-bottom, right at that line's baseline) visually crowded into
+     the next line's text. 1.6 clears that with comfortable room to spare
+     (1.5 was tried first and only got to a ~1px overlap -- still touching). */
+  line-height: 1.6;
   color: var(--text-on-dark);
 }
 
@@ -1484,15 +1491,22 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    js/note-highlight.js adds .note-word-active on click/tap, since touch
    devices have no real :hover to fall back on. */
 .tier-heading .note-word {
-  /* BUG FIX: .pyramid-tier itself is pointer-events:none (prevents an
-     inactive/crossfading-out tier from intercepting hover/clicks meant for
-     whatever's visually on top of it during the crossfade) -- confirmed via
-     direct testing that this silently blocked hover/focus/click on
-     anything inside it too, including these words, with zero visual
-     feedback and no console error to explain why. Re-enabling it narrowly
-     on just the words themselves (not the whole tier) keeps the crossfade
-     behavior everywhere else unchanged. */
-  pointer-events: auto;
+  /* pointer-events is deliberately NOT overridden here (a previous round
+     forced it to auto unconditionally, to work around .pyramid-tier's own
+     base pointer-events:none) -- BUG FIX: confirmed via elementFromPoint()
+     hit-testing that this backfired. All three tiers share the exact same
+     absolute position (that's how the crossfade works at all), and forcing
+     .note-word open regardless of which tier was actually active meant an
+     INACTIVE tier's words could still intercept hover/clicks meant for the
+     active one wherever they overlapped -- specifically tier-base
+     (align-left, same as tier-top, and last in DOM order so it paints on
+     top) was silently stealing "Bergamot"/"Lemon" (tier-top)'s hover;
+     tier-heart (align-right) never overlapped anything so it was
+     unaffected, matching exactly what was reported. js/app.js's
+     updatePyramidTiers() now sets pointer-events on the TIER container
+     itself (auto only for whichever is actually active, none for the
+     other two) instead, so .note-word here correctly inherits none from an
+     inactive parent and auto from the active one, with no override needed. */
   cursor: default;
   border-bottom: 1px solid transparent;
   transition: border-color 0.3s ease;
@@ -1502,6 +1516,19 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 .tier-heading .note-word.note-word-active {
   border-color: currentColor;
 }
+
+/* BUG FIX: horizontal breathing room between two notes sharing a line
+   (e.g. "Bergamot. Lemon.") -- previously separated only by the period +
+   single space already in the text, tight enough at this font-size to read
+   as cluttered once a word's own hover underline is added. margin-right on
+   .note-word-line (not .note-word itself, so the period stays snug against
+   its own word) is a no-op at desktop where it's inline (margin-right still
+   applies to inline boxes, just not top/bottom) and equally a no-op at
+   mobile where it becomes display:block (nothing sits to a full-width
+   block's right) -- the same rule works correctly at both without a media
+   query. Mobile's own vertical gap between the three stacked lines is set
+   separately, in the mobile breakpoint below where they become block. */
+.tier-heading .note-word-line { margin-right: 0.35em; }
 
 /* ================= STATS ================= */
 
@@ -1850,7 +1877,8 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      line on its own) -- hidden outright rather than left in, so there's no
      risk of it rendering as a stray extra blank line between notes 2 and 3
      specifically (the only pair that had one to begin with). */
-  .tier-heading .note-word-line { display: block; }
+  .tier-heading .note-word-line { display: block; margin-bottom: 0.3em; }
+  .tier-heading .note-word-line:last-child { margin-bottom: 0; }
   .tier-heading br { display: none; }
 
   .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 2.4rem 1.4rem; }
