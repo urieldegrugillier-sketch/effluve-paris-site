@@ -20,3 +20,14 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/check-email-exists/deno.json"
 entrypoint = "./functions/check-email-exists/index.ts"
+
+# Server-side promo code lookup for checkout.html's Promo Code field -- see
+# that function's own comment for why (previously a hardcoded map shipped in
+# js/cart.js). verify_jwt stays false the same way the other two do: it must
+# be callable by a guest with no session yet, gated only by the publishable
+# apikey header supabase-js already sends.
+[functions.validate-promo-code]
+enabled = true
+verify_jwt = false
+import_map = "./functions/validate-promo-code/deno.json"
+entrypoint = "./functions/validate-promo-code/index.ts"

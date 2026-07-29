@@ -98,30 +98,55 @@
   }
 
   /* ---------------- Promo codes ----------------
-     Hardcoded code -> discount-fraction map. There's no backend to validate or
-     track redemptions against, so this flat object *is* the whole system for
-     now -- add more codes here as flat entries when needed. MONARK10 is also
-     the code js/email-popup.js's 10%-off signup flow shows people, so the two
-     stay in sync by construction rather than by two copies of the same string.
-     The applied code itself lives in localStorage (not the cart items array)
-     so it naturally survives quantity changes and persists into checkout.html,
-     same as the cart contents do. */
+     Validated server-side (supabase/functions/validate-promo-code, backed by
+     the public.promo_codes table) rather than against a hardcoded local map
+     -- no discount rate (or which strings even count as valid codes) ships
+     in client-side code anymore. supabase/functions/create-checkout-session
+     independently re-checks the same table when it computes the actual
+     Stripe charge, so this module is never trusted for the real amount --
+     only for the UI preview (the success message, the displayed total).
+     The applied code AND its server-confirmed rate are persisted together as
+     one JSON blob in localStorage (not the cart items array), so they
+     survive quantity changes and persist into checkout.html same as the cart
+     contents do, and so every synchronous read below (getPromoDiscountRate/
+     getDiscountAmount/getFinalTotal -- called constantly, e.g. on every
+     render) can stay synchronous without a network round-trip on every read;
+     only applyPromoCode() itself needs to await the server. */
   const PROMO_STORAGE_KEY = 'monark_promo_code';
-  const PROMO_CODES = {
-    MONARK10: 0.10
-  };
 
-  function getAppliedPromoCode() {
-    const code = localStorage.getItem(PROMO_STORAGE_KEY);
-    return code && Object.prototype.hasOwnProperty.call(PROMO_CODES, code) ? code : null;
+  function readAppliedPromo() {
+    try {
+      const raw = localStorage.getItem(PROMO_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed.code === 'string' && typeof parsed.rate === 'number' ? parsed : null;
+    } catch (e) {
+      // Covers a stale pre-migration value too (this key used to hold a bare
+      // code string, not JSON) -- treated the same as "nothing applied"
+      // rather than thrown, matching readCart()'s own malformed-data handling.
+      return null;
+    }
   }
 
-  function applyPromoCode(rawCode) {
+  function getAppliedPromoCode() {
+    const applied = readAppliedPromo();
+    return applied ? applied.code : null;
+  }
+
+  async function applyPromoCode(rawCode) {
     const code = String(rawCode || '').trim().toUpperCase();
-    if (!Object.prototype.hasOwnProperty.call(PROMO_CODES, code)) return { ok: false };
-    localStorage.setItem(PROMO_STORAGE_KEY, code);
+    if (!code || !global.MonarkSupabase) return { ok: false };
+    let data, error;
+    try {
+      ({ data, error } = await global.MonarkSupabase.functions.invoke('validate-promo-code', { body: { code } }));
+    } catch (e) {
+      return { ok: false };
+    }
+    if (error || !data || !data.valid || typeof data.discountPercent !== 'number') return { ok: false };
+    const rate = data.discountPercent / 100;
+    localStorage.setItem(PROMO_STORAGE_KEY, JSON.stringify({ code, rate }));
     document.dispatchEvent(new CustomEvent('cart:updated', { detail: { items: readCart() } }));
-    return { ok: true, code, rate: PROMO_CODES[code] };
+    return { ok: true, code, rate };
   }
 
   function removePromoCode() {
@@ -130,8 +155,8 @@
   }
 
   function getPromoDiscountRate() {
-    const code = getAppliedPromoCode();
-    return code ? PROMO_CODES[code] : 0;
+    const applied = readAppliedPromo();
+    return applied ? applied.rate : 0;
   }
 
   function getDiscountAmount() {
@@ -144,7 +169,6 @@
 
   global.MonarkCart = {
     PRODUCT,
-    PROMO_CODES,
     addToCart,
     updateQuantity,
     removeFromCart,

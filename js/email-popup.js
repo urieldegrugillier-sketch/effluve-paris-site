@@ -18,11 +18,14 @@
   const CAPTURED_KEY = 'monark_captured_emails';
   const TRIGGER_DELAY_MS = 6000;
   const COOKIE_BANNER_POLL_MS = 300;
-  // The code shown here must be one of js/cart.js's PROMO_CODES entries --
-  // checkout.html validates whatever's typed into its own promo field against
-  // that same map, so reading it from there (rather than hardcoding the
-  // string a second time) keeps the two from ever drifting apart.
-  const PROMO_CODE = (window.MonarkCart && Object.keys(window.MonarkCart.PROMO_CODES)[0]) || 'MONARK10';
+  // The code shown here must be an active row in the public.promo_codes
+  // table (see supabase/functions/validate-promo-code) -- js/cart.js no
+  // longer ships a client-side map of valid codes to read this from (that's
+  // the whole point: the discount rate and which strings are valid codes at
+  // all now live server-side only), so this is hardcoded as plain marketing
+  // copy instead. Advertising the code itself is expected/intentional; it's
+  // only the discount VALUE and validation logic that had to move server-side.
+  const PROMO_CODE = 'MONARK10';
 
   if (localStorage.getItem(DISMISS_KEY)) return;
 

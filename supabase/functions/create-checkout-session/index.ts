@@ -18,16 +18,6 @@ import Stripe from "stripe";
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
 
-// Mirrors js/cart.js's PROMO_CODES map -- there's no promo-codes table yet,
-// so this is the one other place (besides cart.js) that has to know the
-// valid codes/rates, kept deliberately tiny and hand-synced with that file
-// for now. A real promo-codes table would let both this function and
-// cart.js read from one source instead of two independently-maintained
-// copies -- a follow-up, not attempted here.
-const PROMO_CODES: Record<string, number> = {
-  MONARK10: 0.10,
-};
-
 interface RequestBody {
   quantity?: unknown;
   promoCode?: unknown;
@@ -72,9 +62,34 @@ export default {
       return Response.json({ error: "Could not determine order amount." }, { status: 500 });
     }
 
+    // Server-side promo lookup -- the discount actually charged is never
+    // taken from the client either. checkout.html/js/cart.js's own
+    // applyPromoCode() calls the separate validate-promo-code function
+    // purely for the UI preview (the success message, the displayed total);
+    // that response is never trusted here. Same active/expires_at/max_uses
+    // checks as validate-promo-code -- duplicated rather than shared,
+    // matching this project's existing pattern of self-contained
+    // single-file functions (no _shared/ import between check-email-exists/
+    // create-checkout-session either). Any lookup failure (including "code
+    // not found") is treated as no discount rather than an error -- an
+    // invalid/stale promo code shouldn't block placing an order at full price.
+    let discountRate = 0;
+    if (rawPromoCode) {
+      const { data: promo } = await ctx.supabase
+        .from("promo_codes")
+        .select("discount_percent, active, max_uses, times_used, expires_at")
+        .eq("code", rawPromoCode)
+        .maybeSingle();
+      const isValid =
+        !!promo &&
+        promo.active &&
+        (!promo.expires_at || new Date(promo.expires_at) > new Date()) &&
+        (promo.max_uses === null || promo.times_used < promo.max_uses);
+      if (isValid) discountRate = promo!.discount_percent / 100;
+    }
+
     // Stripe wants the smallest currency unit (cents for EUR).
     let amount = Math.round(product.price * quantity * 100);
-    const discountRate = PROMO_CODES[rawPromoCode];
     const appliedPromoCode = discountRate ? rawPromoCode : "";
     if (discountRate) amount = Math.round(amount * (1 - discountRate));
 

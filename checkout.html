@@ -1480,8 +1480,10 @@
   // desktop column and the mobile Paiement section, vs. a plain button
   // click for Billing's own -- see wirePromoForm()/wireBillingPromoTrigger()
   // below and the HTML comment on why Billing's can't be a <form>).
-  function attemptApplyPromo(inputEl, messageEl) {
-    const result = cart.applyPromoCode(inputEl.value);
+  // Async now -- cart.applyPromoCode() validates against the server (see
+  // supabase/functions/validate-promo-code) instead of a local hardcoded map.
+  async function attemptApplyPromo(inputEl, messageEl) {
+    const result = await cart.applyPromoCode(inputEl.value);
     if (result.ok) {
       inputEl.value = result.code;
       showPromoMessage(messageEl, t('checkout.promoSuccess', { percent: Math.round(result.rate * 100) }), 'success');
