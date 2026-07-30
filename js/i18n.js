@@ -124,7 +124,7 @@
         heading: 'The Reign Is Bottled. Claim Yours.',
         body: 'A scent built for men who rule rooms without entering them.',
         badge: 'Limited-Time −21% Off',
-        button: 'Acquire MONARK — 100ml',
+        button: 'Acquire MONARK | 100ml',
         note: 'Ships in a matte black box, wrapped in protective plastic.'
       },
       footer: {
@@ -171,7 +171,7 @@
         errorInvalid: 'Please enter a valid email address.',
         confirmedKicker: 'Confirmed',
         confirmedHeading: 'Your Code: {code}',
-        confirmedCopy: '10% off your first bottle — enter it at checkout. Sent to {email} too, for safekeeping.',
+        confirmedCopy: '10% off your first bottle, enter it at checkout. Sent to {email} too, for safekeeping.',
         newsletterDisclosure: "You've also been subscribed to our newsletter."
       },
       promoBanner: {
@@ -676,7 +676,7 @@
         heading: 'Le Règne Est Mis en Flacon. Réclamez le Vôtre.',
         body: "Un parfum conçu pour les hommes qui règnent sur une pièce sans jamais y entrer.",
         badge: 'Offre Limitée −21%',
-        button: 'Acquérir MONARK — 100ml',
+        button: 'Acquérir MONARK | 100ml',
         note: 'Expédié dans une boîte noire mate, enveloppée d\'un film plastique protecteur.'
       },
       footer: {
@@ -723,7 +723,7 @@
         errorInvalid: 'Veuillez saisir une adresse e-mail valide.',
         confirmedKicker: 'Confirmé',
         confirmedHeading: 'Votre Code : {code}',
-        confirmedCopy: '10% de réduction sur votre premier flacon — à saisir lors du paiement. Également envoyé à {email}, pour vos archives.',
+        confirmedCopy: '10% de réduction sur votre premier flacon, à saisir lors du paiement. Également envoyé à {email}, pour vos archives.',
         newsletterDisclosure: 'Vous avez également été inscrit(e) à notre newsletter.'
       },
       promoBanner: {

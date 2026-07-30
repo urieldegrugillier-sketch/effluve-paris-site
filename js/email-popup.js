@@ -176,7 +176,7 @@
         const heading = window.MonarkI18n ? window.MonarkI18n.t('emailPopup.confirmedHeading', { code: PROMO_CODE }) : `Your Code: ${PROMO_CODE}`;
         const copyTemplate = window.MonarkI18n
           ? window.MonarkI18n.t('emailPopup.confirmedCopy', { email: EMAIL_TOKEN })
-          : `10% off your first bottle -- enter it at checkout. Sent to ${EMAIL_TOKEN} too, for safekeeping.`;
+          : `10% off your first bottle, enter it at checkout. Sent to ${EMAIL_TOKEN} too, for safekeeping.`;
         const copyHtml = copyTemplate.replace(EMAIL_TOKEN, '<span class="email-popup-confirmed-email"></span>');
         // Separate line, separate key from copyHtml above -- this is the
         // newsletter subscription disclosure specifically, distinct from
