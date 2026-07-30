@@ -73,7 +73,7 @@
           <p class="email-popup-copy" data-i18n="emailPopup.copy">Join the list before we run out of bottles.</p>
           <form class="email-popup-form" novalidate>
             <input type="email" class="email-popup-input" placeholder="you@email.com" required aria-label="Email address" data-i18n-attr="placeholder:emailPopup.emailPlaceholder;aria-label:emailPopup.emailAriaLabel">
-            <p class="email-popup-consent" data-i18n="emailPopup.consent">By submitting, you agree to receive marketing emails from MONARK.</p>
+            <p class="email-popup-consent" data-i18n="emailPopup.consent">By submitting, you agree to receive marketing emails from Effluve Paris.</p>
             <p class="promo-message promo-message-error email-popup-error" aria-live="polite" hidden></p>
             <button type="submit" class="cta-button email-popup-submit" data-i18n="emailPopup.submit">Claim My 10%</button>
           </form>

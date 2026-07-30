@@ -1230,18 +1230,18 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   50% { transform: translateY(6px); }
 }
 
-/* ================= WHY EFFLUVE PARIS (static, index.html only) ================= */
-/* Plain normal-flow section, NOT one of the .scroll-section/data-enter
-   entries below -- no absolute positioning, no opacity animation, always
-   visible. position:relative + z-index:20 matches #scroll-container's own
-   z-index (see that rule) -- required so this paints above the fixed
-   .canvas-wrap (z-index:5)/#dark-overlay (z-index:15), exactly the same fix
-   already documented on .shop-footer for the identical reason (a
-   position:static element can never paint above a position:fixed one
-   regardless of z-index). */
+/* ================= WHY EFFLUVE PARIS (static, product.html only) =================
+   Plain normal-flow section (shared css/style.css, not css/shop.css, since
+   it originally lived on index.html before moving here to replace that
+   page's old spec-detail strip). Used to need position:relative + z-index:20
+   on index.html specifically -- that page has a position:fixed
+   .canvas-wrap/#dark-overlay pair a plain position:static element can never
+   paint above regardless of z-index (same reasoning documented on
+   .shop-footer's own rule), and this section sat in normal document flow
+   right past them. product.html has no such fixed layer for this to need to
+   clear, so that workaround is dropped here rather than carried over
+   unnecessarily. */
 .why-effluve {
-  position: relative;
-  z-index: 20;
   background: var(--bg-void);
   padding: 11vh 6vw;
 }
@@ -1810,6 +1810,15 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 
 .cta-text-col .section-body { margin-left: auto; }
 
+/* Tightens the gap to .cta-discount-badge right above it -- .cta-button's
+   own base margin-top (2.2rem) is tuned for sitting directly under plain
+   paragraph text elsewhere (S1/S2/S4, 404.html); here it comes right after
+   the discount badge instead, and the same value read as an oversized gap
+   between the two, confirmed via screenshot. Scoped to this column so
+   .cta-button's shared base value (and every other page reusing it) is
+   untouched. */
+.cta-text-col .cta-button { margin-top: 0.6rem; }
+
 .cta-button {
   display: inline-block;
   margin-top: 2.2rem;
@@ -2019,7 +2028,7 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   .cta-text-col .section-inner { max-width: 100%; text-align: center; background: none; border: none; padding: 0; }
   .cta-text-col .section-heading { font-size: clamp(1.8rem, 7vw, 2.6rem); margin: 0.6rem 0 0.8rem; }
   .cta-text-col .section-body { margin-left: auto; margin-right: auto; }
-  .cta-text-col .cta-button { margin-top: 1.4rem; padding: 0.9rem 1.8rem; }
+  .cta-text-col .cta-button { margin-top: 0.6rem; padding: 0.9rem 1.8rem; }
   .cta-text-col .section-note { margin-top: 0.9rem; }
 }
 

@@ -12,12 +12,14 @@ body.shop-page { background: var(--bg-void); }
 /* ================= HERO ================= */
 
 .shop-hero {
-  /* calc(100vh - 300px) left ~220px of untouched space below the hero, which is
-     exactly enough for .shop-details-strip to peek into the initial viewport —
-     the opposite problem from before. The hero now claims nearly the entire
-     remaining viewport (just 20px of breathing room past the 80px header) so the
-     strip starts below the fold; the .shop-carousel max-height below (not this
-     min-height) is what now controls the product image's own size. */
+  /* calc(100vh - 300px) left ~220px of untouched space below the hero, which was
+     enough for the section right after it (originally .shop-details-strip, since
+     replaced by .why-effluve — see that section's own comment) to peek into the
+     initial viewport — the opposite problem from before. The hero now claims
+     nearly the entire remaining viewport (just 20px of breathing room past the
+     80px header) so that next section starts below the fold; the .shop-carousel
+     max-height below (not this min-height) is what now controls the product
+     image's own size. */
   min-height: calc(100vh - 80px - var(--promo-banner-h));
   width: 100%;
   display: flex;
@@ -463,48 +465,6 @@ body.shop-page { background: var(--bg-void); }
   .shop-back-link:hover { color: var(--text-on-dark); border-color: var(--accent-bronze-light); }
 }
 
-/* ================= DETAILS STRIP ================= */
-
-.shop-details-strip {
-  display: flex;
-  align-items: stretch;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-
-.shop-detail-col {
-  flex: 1 1 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  padding: 3.2rem 2rem;
-  text-align: center;
-}
-
-.shop-detail-divider {
-  flex: 0 0 1px;
-  align-self: stretch;
-  background: linear-gradient(to bottom, transparent, rgba(156, 107, 46, 0.4) 20%, rgba(156, 107, 46, 0.4) 80%, transparent);
-}
-
-.shop-detail-primary {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-on-dark);
-}
-
-.shop-detail-secondary {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
 /* ================= OLFACTORY NOTES ================= */
 
 /* padding-bottom split out to a fixed 2rem (was the same 9vh as top/
@@ -520,10 +480,13 @@ body.shop-page { background: var(--bg-void); }
 }
 
 /* margin-top adds breathing room above "LA COMPOSITION" itself, on top of
-   .shop-notes's own padding-top -- .shop-details-strip's border-bottom
-   (its divider line) sat too close to this heading otherwise. margin-bottom
-   -- see .shop-notes's own padding-bottom comment above on why this is the
-   same 2rem value. */
+   .shop-notes's own padding-top -- originally needed because the old
+   .shop-details-strip section right before this one (since replaced by
+   .why-effluve) had its own border-bottom divider line sitting too close to
+   this heading otherwise; kept as-is since it still reads well with
+   .why-effluve's own bottom padding in that same spot. margin-bottom -- see
+   .shop-notes's own padding-bottom comment above on why this is the same
+   2rem value. */
 .shop-notes-kicker { display: block; text-align: center; margin-top: 1.5rem; margin-bottom: 2rem; }
 
 .shop-notes-row {
@@ -741,7 +704,8 @@ body.shop-page { background: var(--bg-void); }
 }
 
 /* Same 768px breakpoint the rest of this file already switches mobile/
-   tablet layout at (.shop-notes-row, .shop-details-strip, etc.). */
+   tablet layout at (.shop-notes-row, .why-effluve, etc. -- see css/style.css
+   for that shared section's own mobile breakpoints). */
 @media (max-width: 768px) {
   .shop-reviews { padding: 0 8vw 6vh; }
   .shop-reviews-kicker { margin-bottom: 2.2rem; }
@@ -909,16 +873,6 @@ body.shop-page { background: var(--bg-void); }
      sticky bar's own @media uses, so the two never overlap: this row
      disappears exactly where that bar starts being able to show. */
   .shop-cta-row { display: none; }
-
-  .shop-details-strip { flex-direction: column; }
-  .shop-detail-divider {
-    flex: 0 0 1px;
-    align-self: center;
-    width: 60%;
-    height: 1px;
-    background: linear-gradient(to right, transparent, rgba(156, 107, 46, 0.4), transparent);
-  }
-  .shop-detail-col { padding: 2.2rem 1.4rem; }
 
   /* BUG FIX: bottom padding bumped well past the desktop rule's plain 2rem
      specifically at this breakpoint -- confirmed via elementFromPoint()
