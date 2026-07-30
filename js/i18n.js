@@ -73,37 +73,37 @@
       },
       s1: {
         label: '001 / The Signature',
-        heading: 'Composure Is the Loudest Thing a Man Can Wear.',
-        body: 'MONARK is not sprayed — it is declared. A single breath of bergamot and pink pepper cuts the air first, sharp as a decision made and never revisited. What follows is not softness. It is restraint with teeth.'
+        heading: 'Composure Speaks Loudest.',
+        body: "MONARK isn't sprayed, it's declared. A breath of bergamot and pink pepper cuts the air, sharp as a decision with no way back. Not softness, restraint with teeth."
       },
       s2: {
         label: '002 / The Genesis',
         heading: 'The Shell Was Never the Point.',
-        body: "Glass cracks. Shards scatter into the dark, and what's left behind is not ruin — a single black core, molten and whole, the true shape that was always beneath the bottle. MONARK was built on the same law: strip a man of the armor he performs, and what remains isn't weaker. It's undiluted."
+        body: "Glass breaks, and beneath the shards a black core emerges, molten, whole, the true shape the bottle concealed. MONARK follows the same law: stripped of his armor, a man doesn't weaken. He's revealed, undiluted."
       },
       s3: {
         label: '003 / The Composition',
         heading: 'What the Breaking Reveals.',
         tier1: {
-          label: 'Opening — The First Strike',
+          label: 'Opening / The First Strike',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Bergamot</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Lemon</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Pink Pepper</span>.</span>',
-          body: 'The introduction is a blade, not a handshake. Italian bergamot and bright lemon arrive first, cut through with the dry heat of pink pepper — a greeting that ends conversations before they start.'
+          body: "The opening cuts, it doesn't greet. Italian bergamot, bright lemon, lifted by the dry heat of pink pepper, an introduction that ends conversation before it starts."
         },
         tier2: {
-          label: 'The Heart — What Remains',
+          label: 'The Heart / What Remains',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Lavender</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Geranium</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Incense</span>.</span>',
-          body: 'Beneath the strike, something older settles in. Lavender and geranium soften only enough to let incense rise — smoke curling off a private ritual no one else is invited to witness.'
+          body: 'Beneath the strike settles something older. Lavender and geranium soften just enough to let incense rise, smoke from a private ritual, closed to everyone else.'
         },
         tier3: {
-          label: 'The Base — What Lasts',
+          label: 'The Base / What Lasts',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Ambergris</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Cedarwood</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Musk</span>.</span>',
-          body: 'This is the part that stays on the skin long after the room has emptied. Ambergris and cedarwood root the composition in something ancient; musk closes the door behind it. This is not a scent you wear. It is one you leave behind.'
+          body: "This is what stays on skin, long after the room empties. Ambergris and cedarwood root the blend in something old; musk shuts the door. You don't wear this scent. You leave it behind."
         }
       },
       s4: {
         label: '004 / The Provenance',
-        heading: 'Sourced Like a Crown Is Forged — Rarely, and Without Compromise.',
-        body: 'Cedarwood cut from single-forest stands in the Atlas Mountains. Ambergris aged before it ever meets the blend. Every batch of MONARK is mixed by hand in lots too small to rush and too exact to repeat perfectly — which is precisely the point.'
+        heading: 'Rare as a Crown, Without Compromise.',
+        body: "Cedar comes from a single forest in the Atlas Mountains. Ambergris ages long before the blend. Every MONARK batch is mixed by hand, in quantities too small to rush, too precise to repeat exactly. That's the point."
       },
       s5: {
         label: '005 / In Numbers',
