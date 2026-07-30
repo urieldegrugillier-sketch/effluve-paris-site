@@ -44,6 +44,13 @@
   margin-top: 1.6rem;
   margin-left: auto;
   margin-right: auto;
+  /* justify-content:center above only centers the icon+label as a group
+     along the flex row -- it doesn't touch text-align inside the label
+     itself, so once the label wraps to two lines (its own
+     <br class="mobile-only-break"> at mobile widths, see js/i18n.js's
+     contact.whatsappBtn), the second line defaulted to the browser's
+     ordinary left-aligned text and visibly hung left under the first. */
+  text-align: center;
 }
 
 .contact-whatsapp-icon { flex: 0 0 auto; }

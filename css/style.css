@@ -2013,8 +2013,16 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    .cart-preview-buy/.email-popup-submit -- pure black text, not --bg-void,
    for the same WCAG AA contrast reason those use) so it reads as the more
    prominent of the two actions here; "Back to The Experience" stays the
-   plain outlined .cta-button. */
-.notfound-acquire-btn { background: var(--accent-bronze); border-color: var(--accent-bronze); color: #000; }
+   plain outlined .cta-button.
+   BUG FIX: color:#000 alone was silently losing to .legal-content a's own
+   color: var(--accent-bronze-light) (element+class beats a single class on
+   specificity, regardless of which rule comes later in the file) -- this
+   page's <main> carries .notfound-content AND .legal-content both, so that
+   sitewide "legal page link" color rule was reaching this button too,
+   leaving bronze-light (gold) text on the bronze fill. Qualifying with
+   .notfound-actions (already wrapping this button) makes it two classes,
+   which outranks .legal-content a's one-class-plus-element combination. */
+.notfound-actions .notfound-acquire-btn { background: var(--accent-bronze); border-color: var(--accent-bronze); color: #000; }
 
 /* ================= FOOTER (site-wide) ================= */
 

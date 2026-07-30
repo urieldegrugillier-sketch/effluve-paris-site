@@ -465,7 +465,7 @@
         },
         returns: {
           heading: 'Returns & Refunds',
-          body: 'You have 14 days from delivery to return your MONARK bottle for a full refund, provided the original plastic packaging is still intact — once opened, the bottle can no longer be returned for hygiene reasons, per EU consumer protection law. Full terms, including how to initiate a return, are set out in our <a href="cgv.html">Terms & Conditions of Sale</a>.'
+          body: 'You have 14 days from delivery to return your MONARK bottle for a full refund, provided the original plastic packaging is still intact, once opened, the bottle can no longer be returned for hygiene reasons, per EU consumer protection law. Full terms, including how to initiate a return, are set out in our <a href="cgv.html">Terms & Conditions of Sale</a>.'
         },
         ingredients: {
           heading: 'Ingredients & Allergens',
@@ -974,7 +974,7 @@
         },
         returns: {
           heading: 'Retours et Remboursements',
-          body: 'Vous disposez de 14 jours à compter de la livraison pour retourner votre flacon MONARK et obtenir un remboursement intégral, à condition que l\'emballage plastique d\'origine soit encore intact — une fois ouvert, le flacon ne peut plus être retourné pour des raisons d\'hygiène, conformément au droit européen de la consommation. Les conditions complètes, y compris la marche à suivre pour un retour, figurent dans nos <a href="cgv.html">Conditions Générales de Vente</a>.'
+          body: 'Vous disposez de 14 jours à compter de la livraison pour retourner votre flacon MONARK et obtenir un remboursement intégral, à condition que l\'emballage plastique d\'origine soit encore intact, une fois ouvert, le flacon ne peut plus être retourné pour des raisons d\'hygiène, conformément au droit européen de la consommation. Les conditions complètes, y compris la marche à suivre pour un retour, figurent dans nos <a href="cgv.html">Conditions Générales de Vente</a>.'
         },
         ingredients: {
           heading: 'Ingrédients et Allergènes',
