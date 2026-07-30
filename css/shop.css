@@ -691,12 +691,12 @@ body.shop-page { background: var(--bg-void); }
   gap: 1.4rem;
 }
 
-/* French/English get their own locale-correct quote glyphs (guillemets vs
-   curly quotes) rather than baking a fixed quote character into the
-   translatable string itself -- :lang() reads the <html lang="..."> that
-   js/i18n.js keeps in sync with the active language (see that file's
-   setLang()), so switching language also switches which quote marks show,
-   with no JS of this component's own needed. */
+/* Same curly quotes in both languages (was French guillemets « » vs English
+   " " -- per feedback, French switched to match English's style instead of
+   its own locale-correct glyph) -- set via the CSS quotes property rather
+   than baking a fixed quote character into the translatable string itself,
+   so both open-quote/close-quote below still resolve consistently
+   regardless of language. */
 /* white-space:pre-line renders the \n\n each quote in js/i18n.js's
    product.reviews.*.quote strings now has before its final sentence as an
    actual paragraph break -- the sentences read too tightly run-on
@@ -714,8 +714,7 @@ body.shop-page { background: var(--bg-void); }
   color: var(--text-on-dark);
   white-space: pre-line;
 }
-:lang(fr) .shop-review-quote { quotes: '« ' ' »'; }
-:lang(en) .shop-review-quote { quotes: '\201C' '\201D'; }
+.shop-review-quote { quotes: '\201C' '\201D'; }
 .shop-review-quote::before { content: open-quote; }
 .shop-review-quote::after { content: close-quote; }
 
