@@ -125,7 +125,7 @@
         body: 'MONARK Eau de Parfum. 100ml. Numbered, not mass-produced. Once a batch is gone, it does not return.',
         badge: 'Limited-Time −21% Off',
         button: 'Acquire MONARK — 100ml',
-        note: 'Ships in matte black, wax-sealed packaging.'
+        note: 'Ships in a matte black box, wrapped in protective plastic.'
       },
       footer: {
         copyright: '© 2026 Effluve Paris. All rights reserved.',
@@ -252,7 +252,7 @@
         numberedBatch: 'Numbered Batch',
         notMassProduced: 'Not Mass-Produced',
         shipsIn: 'Ships In',
-        matteBlackPackaging: 'Matte Black, Wax-Sealed Packaging',
+        matteBlackPackaging: 'Matte Black Box, Plastic-Wrapped',
         notesKicker: 'The Composition',
         topNotes: 'Top Notes',
         topNotesNames: '<span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-bergamot">Bergamot</span><span class="note-desc" id="note-desc-bergamot">Bright, citrus opening</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-lemon">Lemon</span><span class="note-desc" id="note-desc-lemon">Sharp, sunlit zest</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-pinkpepper">Pink Pepper</span><span class="note-desc" id="note-desc-pinkpepper">Dry, peppered heat</span></span>',
@@ -540,7 +540,7 @@
         s6Body1: 'In accordance with Articles L221-18 et seq. of the French Consumer Code, the customer has a period of fourteen (14) clear days from receipt of the product to exercise their right of withdrawal with Effluve Paris, without having to state any reason or pay any penalty, except, where applicable, for return shipping costs.',
         s6Body2: 'To exercise this right, the customer must notify their decision to withdraw by means of an unambiguous statement (postal mail, email, or withdrawal form) sent to <span class="placeholder">[EMAIL / CONTACT ADDRESS — TO BE COMPLETED]</span> before the 14-day period expires.',
         s6Body3: 'The customer then has a period of fourteen (14) days from the date they communicate their decision to withdraw to return the product. Effluve Paris will refund the full amount paid, including standard delivery costs, no later than fourteen (14) days after being informed of the decision to withdraw, unless Effluve Paris offers to collect the item itself or the customer does not provide proof of shipment, in which case the refund may be deferred until the item is received or proof of its shipment is provided, whichever occurs first.',
-        s6Body4: '<strong>Exception:</strong> in accordance with Article L221-28 of the French Consumer Code, the right of withdrawal cannot be exercised for products unsealed by the customer after delivery that cannot be returned for hygiene or health protection reasons. A perfume bottle whose security seal has been removed or whose contents have been opened therefore cannot be the subject of a right of withdrawal, except in the case of non-conformity or a product defect.',
+        s6Body4: '<strong>Exception:</strong> in accordance with Article L221-28 of the French Consumer Code, the right of withdrawal cannot be exercised for products unsealed by the customer after delivery that cannot be returned for hygiene or health protection reasons. A perfume bottle whose original plastic packaging has been removed or whose contents have been opened therefore cannot be the subject of a right of withdrawal, except in the case of non-conformity or a product defect.',
         s7Heading: '7. Returns and Refunds',
         s7Body: "Returns must be made in their original packaging, unsealed, accompanied by proof of purchase. Return shipping costs are the customer's responsibility, except in the case of a non-conforming or defective product. Refunds are issued using the same payment method used when placing the order.",
         s8Heading: '8. Warranties',
@@ -677,7 +677,7 @@
         body: "MONARK Eau de Parfum. 100ml. Numéroté, non produit en série. Une fois un lot épuisé, il ne revient pas.",
         badge: 'Offre Limitée −21%',
         button: 'Acquérir MONARK — 100ml',
-        note: 'Expédié dans un emballage noir mat, scellé à la cire.'
+        note: 'Expédié dans une boîte noire mate, enveloppée d\'un film plastique protecteur.'
       },
       footer: {
         copyright: '© 2026 Effluve Paris. Tous droits réservés.',
@@ -784,7 +784,7 @@
         numberedBatch: 'Lot Numéroté',
         notMassProduced: 'Non Produit en Série',
         shipsIn: 'Expédié Dans',
-        matteBlackPackaging: 'Emballage Noir Mat, Scellé à la Cire',
+        matteBlackPackaging: 'Boîte Noire Mate, Sous Film Plastique',
         notesKicker: 'La Composition',
         topNotes: 'Notes de Tête',
         topNotesNames: '<span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-bergamot">Bergamote</span><span class="note-desc" id="note-desc-bergamot">Ouverture agrume, lumineuse</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-lemon">Citron</span><span class="note-desc" id="note-desc-lemon">Zeste vif, ensoleillé</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-pinkpepper">Poivre Rose</span><span class="note-desc" id="note-desc-pinkpepper">Chaleur sèche, poivrée</span></span>',
@@ -1049,7 +1049,7 @@
         s6Body1: "Conformément aux articles L221-18 et suivants du Code de la consommation, le client dispose d'un délai de quatorze (14) jours francs à compter de la réception du produit pour exercer son droit de rétractation auprès d'Effluve Paris, sans avoir à justifier de motifs ni à payer de pénalités, à l'exception, le cas échéant, des frais de retour.",
         s6Body2: 'Pour exercer ce droit, le client doit notifier sa décision de rétractation au moyen d\'une déclaration dénuée d\'ambiguïté (courrier postal, e-mail, ou formulaire de rétractation) envoyée à <span class="placeholder">[E-MAIL / ADRESSE DE CONTACT — À COMPLÉTER]</span> avant l\'expiration du délai de 14 jours.',
         s6Body3: "Le client dispose ensuite d'un délai de quatorze (14) jours à compter de la communication de sa décision de rétractation pour retourner le produit. Effluve Paris remboursera l'intégralité des sommes versées, y compris les frais de livraison standard, au plus tard quatorze (14) jours après avoir été informé de la décision de rétractation, sauf si Effluve Paris propose de récupérer le bien lui-même ou si le client ne fournit pas de justificatif d'expédition, auquel cas le remboursement pourra être différé jusqu'à réception du bien ou jusqu'à ce que le client ait fourni une preuve de son expédition, la date retenue étant celle du premier de ces faits.",
-        s6Body4: '<strong>Exception :</strong> conformément à l\'article L221-28 du Code de la consommation, le droit de rétractation ne peut être exercé pour les produits descellés par le client après la livraison et qui ne peuvent être renvoyés pour des raisons d\'hygiène ou de protection de la santé. Un flacon de parfum dont le sceau de sécurité a été retiré ou dont le contenu a été ouvert ne peut donc faire l\'objet d\'un droit de rétractation, sauf en cas de non-conformité ou de défaut du produit.',
+        s6Body4: '<strong>Exception :</strong> conformément à l\'article L221-28 du Code de la consommation, le droit de rétractation ne peut être exercé pour les produits descellés par le client après la livraison et qui ne peuvent être renvoyés pour des raisons d\'hygiène ou de protection de la santé. Un flacon de parfum dont l\'emballage plastique d\'origine a été retiré ou dont le contenu a été ouvert ne peut donc faire l\'objet d\'un droit de rétractation, sauf en cas de non-conformité ou de défaut du produit.',
         s7Heading: '7. Retours et Remboursements',
         s7Body: "Les retours doivent être effectués dans leur emballage d'origine, non descellé, accompagnés d'un justificatif d'achat. Les frais de retour sont à la charge du client, sauf en cas de produit non conforme ou défectueux. Les remboursements sont effectués selon le même moyen de paiement que celui utilisé lors de la commande.",
         s8Heading: '8. Garanties',
