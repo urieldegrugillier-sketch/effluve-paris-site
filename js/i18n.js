@@ -804,7 +804,7 @@
         reviews: {
           heading: "Ce qu'ils en disent",
           review1: {
-            quote: "J'ai enfin trouvé un parfum qui me ressemble. Les fragrances sont vraiment fidèles à la description, et surtout, ça tient toute la journée sans devenir écœurant.\n\nJe reçois souvent des compliments quand je le porte !",
+            quote: "J'ai enfin trouvé un parfum qui me ressemble. Les fragrances sont vraiment fidèles à la description, et surtout, ça tient toute la journée sans devenir écœurant.\n\nJe reçois souvent des compliments quand je le porte !",
             name: 'Camille R.',
             label: 'Cliente vérifiée'
           },
