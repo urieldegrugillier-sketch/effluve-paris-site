@@ -471,23 +471,29 @@ body.shop-page { background: var(--bg-void); }
    originally) -- same NOTES_SECTION_EDGE_SPACING value as
    .shop-notes-kicker's own margin-bottom below, so "heading to notes list"
    and "last notes row to footer" read as the same, deliberately reduced
-   gap rather than two different leftover amounts. Top/side padding (9vh/
-   6vw) is untouched -- only the two edges called out in the task changed. */
+   gap rather than two different leftover amounts. Side padding (6vw) is
+   untouched.
+   BUG FIX: top padding trimmed from 9vh to 3vh -- combined with
+   .why-effluve's own bottom padding and .shop-notes-kicker's margin-top
+   right below, this section's own top padding was compounding into a much
+   larger gap than any single value alone suggests (over 200px of dead
+   space between "Why Effluve Paris" and "The Composition", confirmed via
+   direct measurement) -- brings the total closer to the ~2rem gap already
+   established as this page's own convention between other adjacent
+   sections (e.g. .shop-notes -> .shop-reviews). */
 .shop-notes {
   max-width: 860px;
   margin: 0 auto;
-  padding: 9vh 6vw 2rem;
+  padding: 3vh 6vw 2rem;
 }
 
-/* margin-top adds breathing room above "LA COMPOSITION" itself, on top of
-   .shop-notes's own padding-top -- originally needed because the old
-   .shop-details-strip section right before this one (since replaced by
-   .why-effluve) had its own border-bottom divider line sitting too close to
-   this heading otherwise; kept as-is since it still reads well with
-   .why-effluve's own bottom padding in that same spot. margin-bottom -- see
-   .shop-notes's own padding-bottom comment above on why this is the same
-   2rem value. */
-.shop-notes-kicker { display: block; text-align: center; margin-top: 1.5rem; margin-bottom: 2rem; }
+/* margin-top adds a small amount of breathing room above "LA COMPOSITION"
+   itself, on top of .shop-notes's own padding-top -- trimmed from 1.5rem
+   (see .shop-notes's own padding-top comment above for the full reasoning:
+   this margin was one of three stacked values compounding into an
+   oversized gap below .why-effluve). margin-bottom -- see .shop-notes's own
+   padding-bottom comment above on why this is the same 2rem value. */
+.shop-notes-kicker { display: block; text-align: center; margin-top: 0.5rem; margin-bottom: 2rem; }
 
 .shop-notes-row {
   display: flex;
@@ -891,7 +897,11 @@ body.shop-page { background: var(--bg-void); }
      not-yet-dismissed cookie banner sets it) is added on top since that
      banner sits in this exact same footprint too, and shifts the sticky
      bar itself up by its own height while showing. */
-  .shop-notes { padding: 6vh 8vw calc(2rem + 90px + var(--cookie-banner-h)); }
+  /* Top trimmed from 6vh to 2vh -- same oversized-gap-below-.why-effluve fix
+     as the desktop rule's own padding-top above (see that rule's comment);
+     bottom stays untouched, it's load-bearing for the sticky-bar tap-target
+     clearance explained just above. */
+  .shop-notes { padding: 2vh 8vw calc(2rem + 90px + var(--cookie-banner-h)); }
   .shop-notes-row { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
   .shop-notes-names { text-align: left; }
 

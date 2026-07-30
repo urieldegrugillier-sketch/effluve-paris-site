@@ -1243,7 +1243,16 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    unnecessarily. */
 .why-effluve {
   background: var(--bg-void);
-  padding: 11vh 6vw;
+  /* Bottom split out from the top/side 11vh -- on product.html (the only
+     page this appears on now, see this rule's own comment above) this
+     section sits directly on top of .shop-notes's own 9vh top padding plus
+     .shop-notes-kicker's 1.5rem margin-top (css/shop.css), which together
+     with this section's own bottom padding stacked into a much larger gap
+     than either side alone intended, confirmed via direct measurement (over
+     200px of dead space between the last item card and "The Composition").
+     Top padding (clearing the hero above) is untouched -- only the edge
+     that was compounding with .shop-notes's own top spacing changed. */
+  padding: 11vh 6vw 4vh;
 }
 
 .why-effluve-inner { max-width: 1080px; margin: 0 auto; }
@@ -1303,7 +1312,7 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    tablet/large-phone widths where 4 columns would squeeze each item too
    narrow, without yet needing the further drop to one column. */
 @media (max-width: 768px) {
-  .why-effluve { padding: 8vh 8vw; }
+  .why-effluve { padding: 8vh 8vw 3vh; }
   .why-effluve-heading { margin-bottom: 5vh; }
   .why-effluve-grid { grid-template-columns: repeat(2, 1fr); gap: 5vh 6vw; }
 }

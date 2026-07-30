@@ -123,7 +123,7 @@
         label: '006 / The Acquisition',
         heading: 'The Reign Is Bottled. Claim Yours.',
         body: 'A scent built for men who rule rooms without entering them.',
-        badge: 'Limited-Time Offer: −21% Off',
+        badge: 'Limited-Time Offer : −21% Off',
         button: 'Acquire MONARK | 100ml',
         note: 'Ships in a matte black box, wrapped in protective plastic.'
       },
