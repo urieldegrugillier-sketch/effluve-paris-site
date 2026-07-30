@@ -1443,13 +1443,18 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    (99.1875px, independent of --promo-banner-h -- that variable only shifts
    the header's top offset, not its own height); +var(--promo-banner-h)
    accounts for that shift the same way .shop-hero's own margin-top already
-   does, +a flat 2rem on top so it reads as deliberate breathing room rather
-   than a bare minimum clearance. Mobile never pins at all (isDesktop-gated
-   in js/app.js) and already had plenty of clearance from normal document
-   flow -- restored to the original 16vh there via this same rule's own
-   mobile override just below, so only the desktop pin case (the one that
-   was actually broken) changes. */
-.pyramid-kicker { margin-top: calc(100px + var(--promo-banner-h) + 2rem); margin-bottom: 1rem; }
+   does, +a flat 0.5rem on top so it reads as a deliberate gap rather than
+   the header and kicker touching outright.
+   BUG FIX (round 2): +2rem overcorrected -- confirmed via screenshot, that
+   read as an excessive gap above "003" rather than the tight, natural
+   clearance intended. Trimmed to +0.5rem (8px), which lands the kicker
+   ~9px clear of the header's real bottom edge (confirmed via direct
+   measurement) -- clearing it cleanly without the oversized gap 2rem left.
+   Mobile never pins at all (isDesktop-gated in js/app.js) and already had
+   plenty of clearance from normal document flow -- restored to the original
+   16vh there via this same rule's own mobile override just below, so only
+   the desktop pin case (the one that was actually broken) changes. */
+.pyramid-kicker { margin-top: calc(100px + var(--promo-banner-h) + 0.5rem); margin-bottom: 1rem; }
 
 .pyramid-heading {
   margin: 0;
@@ -1777,11 +1782,22 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      same tension noted in the previous round's own comment here) -- but it
      is a large improvement over the original plain 4vh's own ~150-190px
      deficit at every height tested, without the new excessive-gap problem
-     315px introduced. Mobile is
+     315px introduced.
+     BUG FIX (round 3): +30px still left the block's own bottom edge (the
+     "Ships In" / packaging note) too close to the bottom of the viewport at
+     real desktop window heights, where actual usable page height runs
+     shorter than a raw viewport-height number suggests once real browser
+     chrome (tab bar, address bar) is subtracted -- confirmed cut off via
+     screenshot. Trimmed to +10px: still clears the header by a comfortable
+     ~138px in the pinned state (confirmed via direct measurement, well
+     short of the header's own 144px bottom edge being anywhere close), and
+     pulls the note's own bottom edge up by the same 10px this shaves off
+     every other measurement in this comment, giving it more room before the
+     true bottom of the viewport. Mobile is
      untouched (this rule doesn't apply past the 768px breakpoint, see that
      media query's own .cta-text-col padding override) and was already clear
      there. */
-  padding: calc(100px + var(--promo-banner-h) + 30px) 6vw 0;
+  padding: calc(100px + var(--promo-banner-h) + 10px) 6vw 0;
 }
 
 .cta-text-col .section-inner {

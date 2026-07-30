@@ -631,7 +631,7 @@
       },
       s1: {
         label: '001 / La Signature',
-        heading: "Le Sang-Froid Est Ce Qu'un Homme Peut Porter de Plus Éclatant.",
+        heading: "Rien ne Parle Plus Fort que le Sang-Froid.",
         body: "MONARK ne se vaporise pas, il se déclare. Un souffle de bergamote et de poivre rose fend l'air, tranchant comme une décision sans retour. Pas de douceur ici, une retenue qui mord."
       },
       s2: {
@@ -660,7 +660,7 @@
       },
       s4: {
         label: '004 / La Provenance',
-        heading: "Sourcé Comme Se Forge Une Couronne — Rarement, et Sans Compromis.",
+        heading: "Rare Comme une Couronne, Sans Compromis.",
         body: "Le cèdre vient d'une seule forêt de l'Atlas. L'ambre gris vieillit longtemps avant l'assemblage. Chaque lot MONARK est mélangé à la main, en quantités trop restreintes pour être précipitées, trop précises pour être reproduites à l'identique. C'est précisément le but."
       },
       s5: {
