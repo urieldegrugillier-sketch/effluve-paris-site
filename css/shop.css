@@ -648,6 +648,91 @@ body.shop-page { background: var(--bg-void); }
   transform: translateX(-50%) translateY(6px);
 }
 
+/* ================= REVIEWS ================= */
+/* 3 real written testimonials (see product.html's own comment above this
+   section, and js/i18n.js's product.reviews.* strings) -- kicker styled
+   identically to .shop-notes-kicker just above (same .section-label base,
+   same centered treatment) rather than inventing a heavier heading style
+   this page doesn't otherwise use anywhere else.
+   Card treatment is this site's own dark palette, NOT the light-tinted
+   reference screenshot's colors -- --bg-ink (a subtle lift off --bg-void,
+   the same "raised panel" color .note-desc's tooltip already uses) plus a
+   hairline --line border, matching how every other subtle panel on this
+   site is built. */
+.shop-reviews {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 2rem 6vw 9vh;
+}
+
+.shop-reviews-kicker { display: block; text-align: center; margin-bottom: 3rem; }
+
+.shop-reviews-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2vw;
+}
+
+.shop-review-card {
+  margin: 0;
+  padding: 2rem;
+  background: var(--bg-ink);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
+/* French/English get their own locale-correct quote glyphs (guillemets vs
+   curly quotes) rather than baking a fixed quote character into the
+   translatable string itself -- :lang() reads the <html lang="..."> that
+   js/i18n.js keeps in sync with the active language (see that file's
+   setLang()), so switching language also switches which quote marks show,
+   with no JS of this component's own needed. */
+.shop-review-quote {
+  margin: 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: var(--text-on-dark);
+}
+:lang(fr) .shop-review-quote { quotes: '« ' ' »'; }
+:lang(en) .shop-review-quote { quotes: '\201C' '\201D'; }
+.shop-review-quote::before { content: open-quote; }
+.shop-review-quote::after { content: close-quote; }
+
+.shop-review-attribution {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: auto;
+}
+
+.shop-review-name {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-on-dark);
+}
+
+.shop-review-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-bronze-light);
+}
+
+/* Same 768px breakpoint the rest of this file already switches mobile/
+   tablet layout at (.shop-notes-row, .shop-details-strip, etc.). */
+@media (max-width: 768px) {
+  .shop-reviews { padding: 1.5rem 8vw 6vh; }
+  .shop-reviews-kicker { margin-bottom: 2.2rem; }
+  .shop-reviews-grid { grid-template-columns: 1fr; gap: 1.4rem; }
+}
+
 /* ================= HOW TO WEAR ================= */
 /* The <details> itself is a plain .shop-refund-note now (same element, same
    class, same "+"/"−" summary::before toggle) -- nothing shop-specific left
