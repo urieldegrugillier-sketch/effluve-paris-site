@@ -1396,6 +1396,17 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 
 .align-right .section-body { margin-left: auto; }
 
+/* S6's own body text reuses the exact hero.tagline copy (see index.html's
+   own S6 markup comment) -- italicizes it to match how that same line reads
+   everywhere else it appears (.hero-tagline above the fold, .shop-subtitle
+   on product.html; both already Manrope/300/italic, which .section-body
+   already matches on every property except italic). A modifier on top of
+   .section-body, not a swap to .hero-tagline itself -- that class's own
+   margin:auto/max-width:32ch centering is built for the standalone hero
+   column, not this section's right-aligned .cta-text-col layout, which
+   .section-body/.align-right .section-body above already handle correctly. */
+.section-body-tagline { font-style: italic; }
+
 /* ================= PYRAMID (S3, pinned) ================= */
 
 .section-pyramid {
@@ -1725,8 +1736,33 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      already lands close to true vertical center of the full 100vh column,
      but reads as sitting a touch high next to the now-larger, lower-reaching
      image beside it; this asymmetry shifts the balance point down to match
-     without needing to abandon centering for something more fragile. */
-  padding: 4vh 6vw 0;
+     without needing to abandon centering for something more fragile.
+     BUG FIX: bumped from 4vh, and switched from vh to a fixed px -- confirmed
+     via direct measurement (scrolling to the true end of the page, past
+     js/app.js's updateCtaPin() unpin transition) that the "006"
+     section-label at the top of this centered block ends up scrolled
+     entirely behind .site-header by the time the user reaches the actual
+     page bottom: the fixed-to-relative unpin swap keeps this same
+     vertically-centered position, but ordinary continued scrolling past
+     that point then carries it upward like any normal-flow content, same as
+     scrolling past any heading would. vh doesn't track the header's own
+     size (a near-fixed ~80px, see .shop-hero's own comment on that same
+     constant) the way a viewport-height fraction would need to for this to
+     scale correctly, so a fixed px is the more directly-correct unit here,
+     not just a larger version of the same vh value. 315px clears the header
+     with room to spare at common desktop window heights (~800-900px+,
+     confirmed via direct measurement at the true-end scroll position); on
+     unusually short browser windows (~720px tall) some overlap can still
+     remain -- the same fixed content, image, and header all need to fit
+     that much less vertical space to work with, and pushing this further
+     down to fully clear it there starts crowding this block's own bottom
+     (the Ships In note) off the far edge of that same short viewport
+     instead, the opposite problem. Still a large improvement over 4vh's own
+     ~150-190px deficit at every height tested, including that one. Mobile is
+     untouched (this rule doesn't apply past the 768px breakpoint, see that
+     media query's own .cta-text-col padding override) and was already clear
+     there. */
+  padding: 315px 6vw 0;
 }
 
 .cta-text-col .section-inner {

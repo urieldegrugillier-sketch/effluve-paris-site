@@ -117,12 +117,12 @@
         // under the label that actually names the country (Italy).
         stat3: 'Country of manufacture',
         stat3caption: 'Made in Italy',
-        stat4: 'Bottles per numbered edition'
+        stat4: 'Bottles per edition'
       },
       s6: {
         label: '006 / The Acquisition',
         heading: 'The Reign Is Bottled. Claim Yours.',
-        body: 'MONARK Eau de Parfum. 100ml. Numbered, not mass-produced. Once a batch is gone, it does not return.',
+        body: 'A scent built for men who rule rooms without entering them.',
         badge: 'Limited-Time −21% Off',
         button: 'Acquire MONARK — 100ml',
         note: 'Ships in a matte black box, wrapped in protective plastic.'
@@ -637,7 +637,7 @@
       s2: {
         label: '002 / La Genèse',
         heading: "La Coquille N'a Jamais Été l'Essentiel.",
-        body: "Le verre se fissure. Les éclats se dispersent dans l'obscurité, et ce qui reste n'est pas une ruine — un noyau noir unique, fondu et entier, la forme véritable qui se cachait toujours sous le flacon. MONARK repose sur la même loi : dépouillez un homme de l'armure qu'il affiche, et ce qui subsiste n'est pas plus faible. C'est lui, sans dilution."
+        body: "Le verre se brise, et sous les éclats surgit un noyau noir — fondu, entier, la forme véritable que le flacon dissimulait. MONARK suit la même loi : dépouillé de son armure, un homme ne s'affaiblit pas. Il se révèle, sans dilution."
       },
       s3: {
         label: '003 / La Composition',
@@ -645,17 +645,17 @@
         tier1: {
           label: 'Tête — La Première Frappe',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Bergamote</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Citron</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Poivre Rose</span>.</span>',
-          body: "L'introduction est une lame, pas une poignée de main. La bergamote italienne et le citron éclatant arrivent en premier, tranchés par la chaleur sèche du poivre rose — un salut qui met fin aux conversations avant qu'elles ne commencent."
+          body: "L'entrée en matière tranche, elle ne salue pas. Bergamote italienne, citron éclatant, rehaussés par la chaleur sèche du poivre rose — une présentation qui coupe court à toute conversation."
         },
         tier2: {
           label: 'Le Cœur — Ce Qui Demeure',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Lavande</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Géranium</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Encens</span>.</span>',
-          body: "Sous la frappe, quelque chose de plus ancien s'installe. La lavande et le géranium n'adoucissent que le strict nécessaire pour laisser l'encens s'élever — une fumée qui s'échappe d'un rituel privé auquel personne d'autre n'est convié."
+          body: "Sous la frappe s'installe quelque chose de plus ancien. Lavande et géranium adoucissent juste assez pour laisser monter l'encens — la fumée d'un rituel intime, fermé à tous les autres."
         },
         tier3: {
           label: 'Le Fond — Ce Qui Persiste',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Ambre Gris</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Bois de Cèdre</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Musc</span>.</span>',
-          body: "C'est la part qui demeure sur la peau bien après que la pièce s'est vidée. L'ambre gris et le bois de cèdre ancrent la composition dans quelque chose d'ancien ; le musc referme la porte derrière elle. Ce n'est pas un parfum que l'on porte. C'est un parfum que l'on laisse derrière soi."
+          body: "Voilà ce qui reste sur la peau, bien après que la pièce s'est vidée. Ambre gris et bois de cèdre ancrent la composition dans l'ancien ; le musc referme la porte. On ne porte pas ce parfum. On le laisse derrière soi."
         }
       },
       s4: {
@@ -669,12 +669,12 @@
         stat2: 'Concentration en Eau de Parfum',
         stat3: 'Pays de fabrication',
         stat3caption: 'Fabriqué en Italie',
-        stat4: 'Flacons par édition numérotée'
+        stat4: 'Flacons par édition'
       },
       s6: {
         label: "006 / L'Acquisition",
         heading: 'Le Règne Est Mis en Flacon. Réclamez le Vôtre.',
-        body: "MONARK Eau de Parfum. 100ml. Numéroté, non produit en série. Une fois un lot épuisé, il ne revient pas.",
+        body: "Un parfum conçu pour les hommes qui règnent sur une pièce sans jamais y entrer.",
         badge: 'Offre Limitée −21%',
         button: 'Acquérir MONARK — 100ml',
         note: 'Expédié dans une boîte noire mate, enveloppée d\'un film plastique protecteur.'
