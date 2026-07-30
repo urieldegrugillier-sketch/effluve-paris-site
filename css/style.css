@@ -2009,6 +2009,13 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 
 .notfound-actions .cta-button { margin-top: 0; }
 
+/* "Acquire MONARK" gets the filled-bronze treatment (same convention as
+   .cart-preview-buy/.email-popup-submit -- pure black text, not --bg-void,
+   for the same WCAG AA contrast reason those use) so it reads as the more
+   prominent of the two actions here; "Back to The Experience" stays the
+   plain outlined .cta-button. */
+.notfound-acquire-btn { background: var(--accent-bronze); border-color: var(--accent-bronze); color: #000; }
+
 /* ================= FOOTER (site-wide) ================= */
 
 .shop-footer {

@@ -162,7 +162,7 @@
         close: 'Close',
         kicker: 'A Small Concession',
         heading: 'Get 10% Off Your First Bottle',
-        copy: 'Join the list before the next numbered batch sells out.',
+        copy: "Join the list before we run out of bottles.",
         emailPlaceholder: 'you@email.com',
         emailAriaLabel: 'Email address',
         consent: 'By submitting, you agree to receive marketing emails from MONARK.',
@@ -213,7 +213,7 @@
         dotDetail: 'Show detail view',
         closeLightbox: 'Close lightbox',
         imageViewerAriaLabel: 'Image viewer',
-        kicker: 'Eau de Parfum — 100ml',
+        kicker: 'Eau de Parfum | 100ml',
         scentNotes: 'Bergamot · Incense · Amber',
         // Stock progress bar's own label (see product.html's inline script,
         // renderStock()) -- deliberately doesn't show the {total} ceiling
@@ -235,18 +235,18 @@
         paymentRequestFallback: 'Pay with Apple Pay, Google Pay, or Link',
         returnPolicy: {
           summary: '14-Day Return Policy',
-          body: 'You may return your sealed, unopened MONARK bottle within 14 days of delivery for a full refund, no questions asked. Once the security seal is broken, the bottle can no longer be returned for hygiene reasons, per EU consumer protection law. Read the full terms in our <a href="cgv.html">Terms &amp; Conditions of Sale</a>.'
+          body: 'You may return your unopened MONARK bottle within 14 days of delivery for a full refund, no questions asked. Once the original plastic packaging has been opened, the bottle can no longer be returned for hygiene reasons, per EU consumer protection law. Read the full terms in our <a href="cgv.html">Terms &amp; Conditions of Sale</a>.'
         },
         howToWear: {
           summary: 'How to Wear',
-          step1: "Apply to pulse points — wrists, neck — right after showering, while skin is still damp.",
+          step1: "Apply to pulse points (wrists & neck) right after showering, while skin is still damp.",
           step2: "Don't rub wrists together. It breaks the scent down before it has a chance to open.",
           step3: 'Two to three sprays for daytime. Layer sparingly for an evening presence.',
           step4: 'Reapply after 6–8 hours if the moment calls for it.'
         },
         ingredients: {
           summary: 'Full Ingredients List (INCI)',
-          allergensNote: 'May contain allergens regulated under EU cosmetic regulation — full list available upon request.'
+          allergensNote: 'May contain allergens regulated under EU cosmetic regulation (full list available on request).'
         },
         shippingFaqLink: 'Shipping, returns & more — FAQ',
         numberedBatch: 'Numbered Batch',
@@ -309,7 +309,6 @@
         // inline script), so a wallet-less browser never sees a stray "or"
         // with nothing above it.
         orDivider: 'or',
-        paymentNote: 'Test mode — use card number 4242 4242 4242 4242, any future expiry date, and any 3-digit CVC.',
         stripeInitError: 'Could not load the payment form. Please refresh the page and try again.',
         stripeNotReady: "The payment form isn't ready yet. Please wait a moment and try again.",
         stripeGenericError: 'Payment failed. Please try again.',
@@ -462,38 +461,30 @@
         intro: 'Everything you need to know before, during, and after you acquire MONARK.',
         shipping: {
           heading: 'Shipping & Delivery',
-          body: 'Orders currently ship within 5&ndash;7 business days, to France and Belgium, with shipping always included in the price. Every bottle travels in matte black, wax-sealed packaging, designed to arrive exactly as it left us.'
+          body: 'Orders currently ship within 5&ndash;7 business days, to France and Belgium, with shipping always included in the price. Every bottle travels in its original box, wrapped in protective plastic, designed to arrive exactly as it left us.'
         },
         returns: {
           heading: 'Returns & Refunds',
-          body: 'You have 14 days from delivery to return your MONARK bottle for a full refund, provided the security seal is still intact — once broken, the bottle can no longer be returned for hygiene reasons, per EU consumer protection law. Full terms, including how to initiate a return, are set out in our <a href="cgv.html">Terms & Conditions of Sale</a>.'
-        },
-        authenticity: {
-          heading: 'How do I know my bottle is genuine?',
-          body: 'Every MONARK bottle belongs to a numbered batch, capped at 500 bottles per edition. That number is your assurance: it means the bottle in your hands was never mass-produced, and that its fragrance load was mixed and inspected in a lot small enough to check by hand. MONARK is not sold through third-party marketplaces or resellers — the only way to acquire an authentic bottle is directly through this site.'
+          body: 'You have 14 days from delivery to return your MONARK bottle for a full refund, provided the original plastic packaging is still intact — once opened, the bottle can no longer be returned for hygiene reasons, per EU consumer protection law. Full terms, including how to initiate a return, are set out in our <a href="cgv.html">Terms & Conditions of Sale</a>.'
         },
         ingredients: {
           heading: 'Ingredients & Allergens',
-          body: 'The full olfactory composition — top, heart, and base notes — is listed on the <a href="product.html">product page</a>. As with any fine fragrance, MONARK contains natural and synthetic aromatic compounds that can trigger sensitivities in some people, including common fragrance allergens regulated under EU cosmetics law (e.g. linalool, limonene). If you have known fragrance sensitivities, we recommend testing a small amount on skin before full application.'
+          body: 'The full olfactory composition (top, heart, and base notes) is listed on the <a href="product.html">product page</a>. As with any fine fragrance, MONARK contains natural and synthetic aromatic compounds that can trigger sensitivities in some people, including common fragrance allergens regulated under EU cosmetics law (e.g. linalool, limonene). If you have known fragrance sensitivities, we recommend testing a small amount on skin before full application.'
         },
         storage: {
           heading: 'How should I store my MONARK bottle?',
-          body: 'Keep it upright, away from direct sunlight and heat, ideally somewhere with a stable, cool temperature — a drawer or cabinet works better than a bathroom shelf or windowsill. Light and heat are what actually degrade a fragrance over time, not age alone. Stored properly, MONARK holds its character for years.'
-        },
-        numberedBatch: {
-          heading: 'What does "numbered batch" actually mean?',
-          body: 'Each MONARK edition is limited to 500 bottles, and the counter on the product page counts down from there as bottles are acquired — it reflects how many remain in the current batch, not a marketing gimmick. Once a batch sells out, it does not return; the next numbered batch is a new mix, not a reprint.'
+          body: 'Keep it upright, away from direct sunlight and heat, ideally somewhere with a stable, cool temperature, a drawer or cabinet works better than a bathroom shelf or windowsill. Light and heat are what actually degrade a fragrance over time, not age alone. Stored properly, MONARK holds its character for years.'
         },
         promoCode: {
           heading: 'How do I use a promo code?',
-          body: 'Enter your code in the Promo Code field on the checkout page and select Apply — the discount is calculated automatically and reflected in your order total before you place your order. Only one code can be applied per order.'
+          body: 'Enter your code in the Promo Code field on the checkout page and select "Apply", the discount is calculated automatically and reflected in your order total before you place your order. Only one code can be applied per order.'
         }
       },
       contact: {
         pageTitle: 'Contact',
-        intro: 'Questions about an order, the composition, or a wholesale inquiry — we read every message personally.',
+        intro: 'Questions about an order, the composition, or a wholesale inquiry, we read every message personally.',
         reachUs: 'Reach us directly at <span class="placeholder">[CONTACT EMAIL — TO BE COMPLETED]</span>, or use the form below.',
-        whatsappBtn: 'Contact us on WhatsApp',
+        whatsappBtn: 'Contact us<br class="mobile-only-break"> on WhatsApp',
         whatsappHref: 'https://api.whatsapp.com/send?phone=33605893897&text=Hello%2C%20I%20have%20a%20question.',
         honeypotLabel: 'Leave this field blank',
         nameLabel: 'Name',
@@ -511,7 +502,7 @@
       },
       notFound: {
         heading: "This Room Doesn't Exist",
-        body: "Some doors in this house lead nowhere — deliberately. The page you were looking for isn't one we've built, or it's since moved on. Nothing here to reign over.",
+        body: "Some doors in this house lead nowhere, deliberately. The page you were looking for isn't one we've built, or it's since moved on. Nothing here to reign over.",
         backToExperience: 'Back to The Experience',
         acquireMonark: 'Acquire MONARK'
       },
@@ -544,7 +535,7 @@
         s4Body: 'Payment is made online, at the time of ordering, by credit card or any other payment method offered on the site, via a secure payment provider: Stripe.',
         s5Heading: '5. Delivery',
         s5Body1: 'Products are delivered to the address provided by the customer when placing the order.',
-        s5Body2: 'Delivery zones: France and Belgium.<br>Estimated delivery times: 5&ndash;7 business days.<br>Delivery fees: shipping is always free, included in the product price &mdash; not a threshold-based discount.',
+        s5Body2: 'Delivery zones: France and Belgium.<br>Estimated delivery times: 5&ndash;7 business days.<br>Delivery fees: shipping is always free, included in the product price, not a threshold-based discount.',
         s6Heading: '6. Right of Withdrawal',
         s6Body1: 'In accordance with Articles L221-18 et seq. of the French Consumer Code, the customer has a period of fourteen (14) clear days from receipt of the product to exercise their right of withdrawal with Effluve Paris, without having to state any reason or pay any penalty, except, where applicable, for return shipping costs.',
         s6Body2: 'To exercise this right, the customer must notify their decision to withdraw by means of an unambiguous statement (postal mail, email, or withdrawal form) sent to <span class="placeholder">[EMAIL / CONTACT ADDRESS — TO BE COMPLETED]</span> before the 14-day period expires.',
@@ -559,7 +550,7 @@
       },
       privacyPolicy: {
         pageTitle: 'Privacy Policy',
-        intro: 'This privacy policy describes how Effluve Paris collects, uses, and protects the personal data of users of this site, in accordance with the General Data Protection Regulation (GDPR — Regulation (EU) 2016/679) and the French Data Protection Act (Loi Informatique et Libertés).',
+        intro: 'This privacy policy describes how Effluve Paris collects, uses, and protects the personal data of users of this site, in accordance with the General Data Protection Regulation (GDPR | Regulation (EU) 2016/679) and the French Data Protection Act (Loi Informatique et Libertés).',
         s1Heading: '1. Data Collected',
         s1Intro: 'As part of your browsing and orders on the site, we may collect the following data:',
         s1Item1: 'Identity: first and last name',
@@ -723,7 +714,7 @@
         close: 'Fermer',
         kicker: 'Une Petite Concession',
         heading: '10% de Réduction sur Votre Premier Flacon',
-        copy: "Inscrivez-vous avant que le prochain lot numéroté ne s'épuise.",
+        copy: "Inscrivez-vous avant qu'il n'y ait plus de flacons disponibles.",
         emailPlaceholder: 'vous@email.com',
         emailAriaLabel: 'Adresse e-mail',
         consent: 'En soumettant ce formulaire, vous acceptez de recevoir des e-mails marketing de MONARK.',
@@ -768,7 +759,7 @@
         dotDetail: 'Afficher la vue détaillée',
         closeLightbox: 'Fermer la visionneuse',
         imageViewerAriaLabel: "Visionneuse d'image",
-        kicker: 'Eau de Parfum — 100ml',
+        kicker: 'Eau de Parfum | 100ml',
         scentNotes: 'Bergamote · Encens · Ambre',
         stockLabel: 'Plus que {count} en stock',
         addToCart: 'Ajouter au Panier — 100ML',
@@ -776,18 +767,18 @@
         paymentRequestFallback: 'Payer avec Apple Pay, Google Pay ou Link',
         returnPolicy: {
           summary: 'Retours sous 14 Jours',
-          body: "Vous pouvez retourner votre flacon MONARK scellé et non ouvert dans les 14 jours suivant la livraison pour un remboursement intégral, sans questions. Une fois le sceau de sécurité brisé, le flacon ne peut plus être retourné pour des raisons d'hygiène, conformément au droit européen de la consommation. Consultez les conditions complètes dans nos <a href=\"cgv.html\">Conditions Générales de Vente</a>."
+          body: "Vous pouvez retourner votre flacon MONARK non ouvert dans les 14 jours suivant la livraison pour un remboursement intégral, sans questions. Une fois l'emballage plastique d'origine ouvert, le flacon ne peut plus être retourné pour des raisons d'hygiène, conformément au droit européen de la consommation. Consultez les conditions complètes dans nos <a href=\"cgv.html\">Conditions Générales de Vente</a>."
         },
         howToWear: {
           summary: 'Comment le Porter',
-          step1: 'Appliquez sur les points de pulsation — poignets, cou — juste après la douche, pendant que la peau est encore humide.',
+          step1: 'Appliquez sur les points de pulsation (poignets & cou) juste après la douche, pendant que la peau est encore humide.',
           step2: "Ne frottez pas les poignets l'un contre l'autre. Cela dégrade le parfum avant même qu'il ait pu s'ouvrir.",
           step3: 'Deux à trois vaporisations pour la journée. Superposez avec parcimonie pour une présence en soirée.',
           step4: "Réappliquez après 6 à 8 heures si l'occasion le demande."
         },
         ingredients: {
           summary: 'Liste Complète des Ingrédients (INCI)',
-          allergensNote: 'Peut contenir des allergènes réglementés selon la réglementation cosmétique UE — liste complète disponible sur demande.'
+          allergensNote: 'Peut contenir des allergènes réglementés selon la réglementation cosmétique UE (liste complète disponible sur demande).'
         },
         shippingFaqLink: 'Livraison, retours et plus — FAQ',
         numberedBatch: 'Lot Numéroté',
@@ -840,7 +831,6 @@
         postalCode: 'Code Postal',
         payment: 'Facturation',
         orDivider: 'ou',
-        paymentNote: 'Mode test — utilisez le numéro de carte 4242 4242 4242 4242, une date d\'expiration future, et un CVC à 3 chiffres.',
         stripeInitError: 'Impossible de charger le formulaire de paiement. Veuillez actualiser la page et réessayer.',
         stripeNotReady: "Le formulaire de paiement n'est pas encore prêt. Veuillez patienter un instant et réessayer.",
         stripeGenericError: 'Le paiement a échoué. Veuillez réessayer.',
@@ -980,38 +970,30 @@
         intro: "Tout ce qu'il faut savoir avant, pendant et après l'acquisition de MONARK.",
         shipping: {
           heading: 'Expédition et Livraison',
-          body: 'Les commandes sont actuellement expédiées sous 5 à 7 jours ouvrés, vers la France et la Belgique, la livraison étant toujours incluse dans le prix. Chaque flacon voyage dans un emballage noir mat, scellé à la cire, conçu pour arriver exactement tel qu\'il nous a quittés.'
+          body: 'Les commandes sont actuellement expédiées sous 5 à 7 jours ouvrés, vers la France et la Belgique, la livraison étant toujours incluse dans le prix. Chaque flacon voyage dans son coffret d\'origine, enveloppé d\'un film plastique protecteur, conçu pour arriver exactement tel qu\'il nous a quitté.'
         },
         returns: {
           heading: 'Retours et Remboursements',
-          body: 'Vous disposez de 14 jours à compter de la livraison pour retourner votre flacon MONARK et obtenir un remboursement intégral, à condition que le sceau de sécurité soit encore intact — une fois brisé, le flacon ne peut plus être retourné pour des raisons d\'hygiène, conformément au droit européen de la consommation. Les conditions complètes, y compris la marche à suivre pour un retour, figurent dans nos <a href="cgv.html">Conditions Générales de Vente</a>.'
-        },
-        authenticity: {
-          heading: 'Comment savoir si mon flacon est authentique ?',
-          body: "Chaque flacon MONARK appartient à un lot numéroté, limité à 500 flacons par édition. Ce numéro est votre garantie : il signifie que le flacon entre vos mains n'a jamais été produit en série, et que sa formule a été mélangée et contrôlée dans un lot assez restreint pour être vérifié à la main. MONARK n'est vendu sur aucune place de marché ni par aucun revendeur tiers — la seule façon d'acquérir un flacon authentique est de passer directement par ce site."
+          body: 'Vous disposez de 14 jours à compter de la livraison pour retourner votre flacon MONARK et obtenir un remboursement intégral, à condition que l\'emballage plastique d\'origine soit encore intact — une fois ouvert, le flacon ne peut plus être retourné pour des raisons d\'hygiène, conformément au droit européen de la consommation. Les conditions complètes, y compris la marche à suivre pour un retour, figurent dans nos <a href="cgv.html">Conditions Générales de Vente</a>.'
         },
         ingredients: {
           heading: 'Ingrédients et Allergènes',
-          body: 'La composition olfactive complète — notes de tête, de cœur et de fond — est détaillée sur la <a href="product.html">page produit</a>. Comme tout parfum de qualité, MONARK contient des composés aromatiques naturels et synthétiques susceptibles de provoquer des sensibilités chez certaines personnes, dont des allergènes de parfum courants réglementés par la législation cosmétique européenne (par exemple le linalol, le limonène). Si vous avez des sensibilités connues aux parfums, nous recommandons un test sur une petite zone de peau avant application complète.'
+          body: 'La composition olfactive complète (notes de tête, de cœur et de fond) est détaillée sur la <a href="product.html">page produit</a>. Comme tout parfum de qualité, MONARK contient des composés aromatiques naturels et synthétiques susceptibles de provoquer des sensibilités chez certaines personnes, dont des allergènes de parfum courants réglementés par la législation cosmétique européenne (par exemple le linalol, le limonène). Si vous avez des sensibilités connues aux parfums, nous recommandons un test sur une petite zone de peau avant application complète.'
         },
         storage: {
           heading: 'Comment conserver mon flacon MONARK ?',
-          body: "Conservez-le debout, à l'abri de la lumière directe et de la chaleur, idéalement dans un endroit à température stable et fraîche — un tiroir ou un placard convient mieux qu'une étagère de salle de bain ou un rebord de fenêtre. Ce sont la lumière et la chaleur qui altèrent réellement un parfum avec le temps, pas l'âge seul. Bien conservé, MONARK garde son caractère pendant des années."
-        },
-        numberedBatch: {
-          heading: 'Que signifie réellement « lot numéroté » ?',
-          body: "Chaque édition MONARK est limitée à 500 flacons, et le compteur sur la page produit décompte à partir de ce chiffre au fur et à mesure des acquisitions — il reflète le nombre de flacons restants dans le lot actuel, pas un argument marketing. Une fois un lot épuisé, il ne revient pas ; le prochain lot numéroté est un nouveau mélange, pas une réédition."
+          body: "Conservez-le debout, à l'abri de la lumière directe et de la chaleur, idéalement dans un endroit à température stable, fraîche, un tiroir ou un placard convient mieux qu'une étagère de salle de bain ou un rebord de fenêtre. Ce sont la lumière et la chaleur qui altèrent réellement un parfum avec le temps, pas l'âge seul. Bien conservé, MONARK garde son caractère pendant des années."
         },
         promoCode: {
           heading: 'Comment utiliser un code promo ?',
-          body: 'Saisissez votre code dans le champ Code Promo de la page de commande, puis sélectionnez Appliquer — la réduction est calculée automatiquement et répercutée sur le total de votre commande avant que vous ne la validiez. Un seul code peut être appliqué par commande.'
+          body: 'Saisissez votre code dans le champ Code Promo de la page de commande, puis sélectionnez « Appliquer », la réduction est calculée automatiquement et répercutée sur le total de votre commande avant que vous ne la validiez. Un seul code peut être appliqué par commande.'
         }
       },
       contact: {
         pageTitle: 'Contact',
-        intro: 'Une question sur une commande, la composition, ou une demande de revente en gros — nous lisons chaque message personnellement.',
+        intro: 'Une question sur une commande, la composition, ou une demande de revente en gros, nous lisons chaque message personnellement.',
         reachUs: 'Contactez-nous directement à <span class="placeholder">[E-MAIL DE CONTACT — À COMPLÉTER]</span>, ou utilisez le formulaire ci-dessous.',
-        whatsappBtn: 'Contactez-nous sur WhatsApp',
+        whatsappBtn: 'Contactez-nous<br class="mobile-only-break"> sur WhatsApp',
         whatsappHref: "https://api.whatsapp.com/send?phone=33605893897&text=Bonjour%2C%20j%27ai%20une%20question.",
         honeypotLabel: 'Laissez ce champ vide',
         nameLabel: 'Nom',
@@ -1029,7 +1011,7 @@
       },
       notFound: {
         heading: "Cette Pièce N'existe Pas",
-        body: 'Certaines portes de cette maison ne mènent nulle part — volontairement. La page que vous cherchiez n\'a jamais été construite, ou elle a depuis disparu. Rien ici sur quoi régner.',
+        body: 'Certaines portes de cette maison ne mènent nulle part, volontairement. La page que vous cherchiez n\'a jamais été construite, ou elle a depuis disparu.<br>Rien ici sur quoi régner.',
         backToExperience: "Retour à L'Expérience",
         acquireMonark: 'Acquérir MONARK'
       },
@@ -1062,7 +1044,7 @@
         s4Body: 'Le paiement s\'effectue en ligne, au moment de la commande, par carte bancaire ou tout autre moyen de paiement proposé sur le site, via un prestataire de paiement sécurisé : Stripe.',
         s5Heading: '5. Livraison',
         s5Body1: 'Les produits sont livrés à l\'adresse indiquée par le client lors de la commande.',
-        s5Body2: 'Zones de livraison : France et Belgique.<br>Délais de livraison estimés : 5 à 7 jours ouvrés.<br>Frais de livraison : la livraison est toujours offerte, incluse dans le prix du produit — et non une remise à partir d\'un certain seuil d\'achat.',
+        s5Body2: 'Zones de livraison : France et Belgique.<br>Délais de livraison estimés : 5 à 7 jours ouvrés.<br>Frais de livraison : la livraison est toujours offerte, incluse dans le prix du produit, et non une remise à partir d\'un certain seuil d\'achat.',
         s6Heading: '6. Droit de Rétractation',
         s6Body1: "Conformément aux articles L221-18 et suivants du Code de la consommation, le client dispose d'un délai de quatorze (14) jours francs à compter de la réception du produit pour exercer son droit de rétractation auprès d'Effluve Paris, sans avoir à justifier de motifs ni à payer de pénalités, à l'exception, le cas échéant, des frais de retour.",
         s6Body2: 'Pour exercer ce droit, le client doit notifier sa décision de rétractation au moyen d\'une déclaration dénuée d\'ambiguïté (courrier postal, e-mail, ou formulaire de rétractation) envoyée à <span class="placeholder">[E-MAIL / ADRESSE DE CONTACT — À COMPLÉTER]</span> avant l\'expiration du délai de 14 jours.',
@@ -1077,7 +1059,7 @@
       },
       privacyPolicy: {
         pageTitle: 'Politique de Confidentialité',
-        intro: 'Cette politique de confidentialité décrit la manière dont Effluve Paris collecte, utilise et protège les données personnelles des utilisateurs de ce site, conformément au Règlement Général sur la Protection des Données (RGPD — Règlement (UE) 2016/679) et à la Loi Informatique et Libertés.',
+        intro: 'Cette politique de confidentialité décrit la manière dont Effluve Paris collecte, utilise et protège les données personnelles des utilisateurs de ce site, conformément au Règlement Général sur la Protection des Données (RGPD | Règlement (UE) 2016/679) et à la Loi Informatique et Libertés.',
         s1Heading: '1. Données Collectées',
         s1Intro: 'Dans le cadre de votre navigation et de vos commandes sur le site, nous sommes susceptibles de collecter les données suivantes :',
         s1Item1: 'Identité : nom et prénom',

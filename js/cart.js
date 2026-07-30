@@ -9,7 +9,7 @@
      just another entry, not a data-model rewrite. */
   const PRODUCT = {
     id: 'monark-edp-100ml',
-    name: 'MONARK Eau de Parfum — 100ml',
+    name: 'MONARK Eau de Parfum | 100ml',
     price: 149,
     /* FAKE/PLACEHOLDER pre-discount price -- same 189 already shown (as a
        purely cosmetic struck-through figure) on product.html's own price

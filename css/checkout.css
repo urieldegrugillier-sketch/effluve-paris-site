@@ -77,6 +77,14 @@
 
 .checkout-empty-note a { color: var(--accent-bronze-light); }
 
+/* Guest-mode order-history note's own "Create an Account" link-button --
+   centered to match .checkout-empty-note's centered text just above it.
+   .checkout-account-link-btn stays inline-block/left-aligned by default
+   (shared with plenty of left-aligned uses elsewhere, e.g. Delete Account),
+   so this is scoped to the guest note's own container instead of the class
+   itself. */
+#account-order-history-guest-note { text-align: center; }
+
 .checkout-confirmation-total {
   font-family: var(--font-mono);
   font-size: 0.78rem;

@@ -70,7 +70,7 @@
         <div class="email-popup-body" aria-live="polite">
           <span class="section-label email-popup-kicker" data-i18n="emailPopup.kicker">A Small Concession</span>
           <h2 class="email-popup-heading" data-i18n="emailPopup.heading">Get 10% Off Your First Bottle</h2>
-          <p class="email-popup-copy" data-i18n="emailPopup.copy">Join the list before the next numbered batch sells out.</p>
+          <p class="email-popup-copy" data-i18n="emailPopup.copy">Join the list before we run out of bottles.</p>
           <form class="email-popup-form" novalidate>
             <input type="email" class="email-popup-input" placeholder="you@email.com" required aria-label="Email address" data-i18n-attr="placeholder:emailPopup.emailPlaceholder;aria-label:emailPopup.emailAriaLabel">
             <p class="email-popup-consent" data-i18n="emailPopup.consent">By submitting, you agree to receive marketing emails from MONARK.</p>

@@ -941,6 +941,19 @@ body.shop-page { background: var(--bg-void); }
   .shop-notes-row { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
   .shop-notes-names { text-align: left; }
 
+  /* .shop-notes's own bottom padding just above balloons well past its
+     desktop value (2rem) at this breakpoint, for an unrelated reason (sticky
+     -bar/cookie-banner tap-target clearance under the note words -- see that
+     rule's own BUG FIX comment). Left alone, that inflated padding reads as
+     an oversized gap before "Ce qu'ils en disent"/"What They're Saying"
+     below, since .shop-reviews itself contributes no top padding at this
+     breakpoint either (see its own comment). Pulling .shop-reviews back up
+     by exactly the extra amount restores the same ~2rem gap desktop shows,
+     without touching .shop-notes's padding (still needed in full for the tap
+     -target fix) or overlapping any real content (the reclaimed space is
+     empty padding on both sides). */
+  .shop-reviews { margin-top: calc(-90px - var(--cookie-banner-h)); }
+
   /* BUG FIX: .note-desc's default left:50%/translateX(-50%) centers the
      tooltip under each word -- confirmed via direct measurement at 375px
      that this pushed the FIRST word in a row (near the row's own left edge,
