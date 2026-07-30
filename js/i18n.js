@@ -636,7 +636,7 @@
       },
       s2: {
         label: '002 / La Genèse',
-        heading: "La Coquille N'a Jamais Été l'Essentiel.",
+        heading: "Sous la Coquille, l'Essentiel.",
         body: "Le verre se brise, et sous les éclats surgit un noyau noir, fondu, entier, la forme véritable que le flacon dissimulait. MONARK suit la même loi : dépouillé de son armure, un homme ne s'affaiblit pas. Il se révèle, sans dilution."
       },
       s3: {
