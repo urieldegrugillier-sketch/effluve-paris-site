@@ -1431,7 +1431,25 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   text-align: center;
 }
 
-.pyramid-kicker { margin-top: 16vh; margin-bottom: 1rem; }
+/* BUG FIX: 16vh landed the kicker's top edge within a px or two of
+   .site-header's own actual rendered bottom edge while pinned (confirmed
+   via direct measurement -- .section-pyramid is pinned position:fixed with
+   its own top at the viewport top for the whole 34%-56% scroll dwell, see
+   js/app.js's ScrollTrigger.create({pin: pyramidSection...}), and this
+   kicker is the first thing in that box's flex-start-anchored flow, so its
+   margin-top IS its distance from the header, 1:1, no centering math to
+   account for like .cta-text-col/S6 has). 100px is .site-header's own real
+   rendered height, confirmed via direct getBoundingClientRect() measurement
+   (99.1875px, independent of --promo-banner-h -- that variable only shifts
+   the header's top offset, not its own height); +var(--promo-banner-h)
+   accounts for that shift the same way .shop-hero's own margin-top already
+   does, +a flat 2rem on top so it reads as deliberate breathing room rather
+   than a bare minimum clearance. Mobile never pins at all (isDesktop-gated
+   in js/app.js) and already had plenty of clearance from normal document
+   flow -- restored to the original 16vh there via this same rule's own
+   mobile override just below, so only the desktop pin case (the one that
+   was actually broken) changes. */
+.pyramid-kicker { margin-top: calc(100px + var(--promo-banner-h) + 2rem); margin-bottom: 1rem; }
 
 .pyramid-heading {
   margin: 0;
@@ -1737,32 +1755,33 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      but reads as sitting a touch high next to the now-larger, lower-reaching
      image beside it; this asymmetry shifts the balance point down to match
      without needing to abandon centering for something more fragile.
-     BUG FIX: bumped from 4vh, and switched from vh to a fixed px -- confirmed
-     via direct measurement (scrolling to the true end of the page, past
-     js/app.js's updateCtaPin() unpin transition) that the "006"
-     section-label at the top of this centered block ends up scrolled
-     entirely behind .site-header by the time the user reaches the actual
-     page bottom: the fixed-to-relative unpin swap keeps this same
-     vertically-centered position, but ordinary continued scrolling past
-     that point then carries it upward like any normal-flow content, same as
-     scrolling past any heading would. vh doesn't track the header's own
-     size (a near-fixed ~80px, see .shop-hero's own comment on that same
-     constant) the way a viewport-height fraction would need to for this to
-     scale correctly, so a fixed px is the more directly-correct unit here,
-     not just a larger version of the same vh value. 315px clears the header
-     with room to spare at common desktop window heights (~800-900px+,
-     confirmed via direct measurement at the true-end scroll position); on
-     unusually short browser windows (~720px tall) some overlap can still
-     remain -- the same fixed content, image, and header all need to fit
-     that much less vertical space to work with, and pushing this further
-     down to fully clear it there starts crowding this block's own bottom
-     (the Ships In note) off the far edge of that same short viewport
-     instead, the opposite problem. Still a large improvement over 4vh's own
-     ~150-190px deficit at every height tested, including that one. Mobile is
+     BUG FIX: bumped from 4vh -- confirmed via direct measurement (scrolling
+     to the true end of the page, past js/app.js's updateCtaPin() unpin
+     transition) that the "006" section-label at the top of this centered
+     block ends up scrolled entirely behind .site-header by the time the
+     user reaches the actual page bottom, same as scrolling past any
+     heading would once this section un-pins into normal flow.
+     BUG FIX (round 2): the previous fix (315px flat) overcorrected -- since
+     align-items:center here only passes HALF of any padding-top increase
+     through to the actual rendered position (centering splits the added
+     space above/below), 315px was tuned against the worst-case unpinned
+     scroll position and ended up reading as a much-too-large gap above
+     "006" during the (far more commonly seen) ordinary pinned state before
+     that. Same 100px real-header-height constant .pyramid-kicker (S3, see
+     that rule's own comment for how it was measured) already uses -- plus a
+     flat 30px, landing a much more modest, deliberate-looking gap in the
+     pinned state. This no longer
+     fully clears the header at the unpinned worst-case scroll position the
+     way 315px did (that edge case would need push-down well past what
+     reads as reasonable in the ordinary pinned view to fully solve, the
+     same tension noted in the previous round's own comment here) -- but it
+     is a large improvement over the original plain 4vh's own ~150-190px
+     deficit at every height tested, without the new excessive-gap problem
+     315px introduced. Mobile is
      untouched (this rule doesn't apply past the 768px breakpoint, see that
      media query's own .cta-text-col padding override) and was already clear
      there. */
-  padding: 315px 6vw 0;
+  padding: calc(100px + var(--promo-banner-h) + 30px) 6vw 0;
 }
 
 .cta-text-col .section-inner {
@@ -1908,6 +1927,14 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      this heading and the first tier's own label was exactly 0px, i.e. the two
      lines of text rendered flush against each other. */
   .pyramid-heading { margin-bottom: 2rem; }
+  /* Restores the pre-fix 16vh here specifically -- the desktop-only
+     calc(80px + header clearance) value above (see that rule's own BUG FIX
+     comment) is sized for the pinned position:fixed case, which never
+     happens on mobile (js/app.js's pyramid pin is isDesktop-gated); applying
+     that same fixed-px clearance here would just add unneeded empty space
+     above content that was already clear of the header via normal scroll
+     flow. */
+  .pyramid-kicker { margin-top: 16vh; }
   /* BUG FIX: .pyramid-tier's base rule (desktop) sets pointer-events:none,
      relying on js/app.js's updatePyramidTiers() to switch it to auto only
      for whichever tier is scroll-active -- but that function is gated

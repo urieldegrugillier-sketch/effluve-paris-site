@@ -632,28 +632,28 @@
       s1: {
         label: '001 / La Signature',
         heading: "Le Sang-Froid Est Ce Qu'un Homme Peut Porter de Plus Éclatant.",
-        body: "MONARK ne se vaporise pas — il se déclare. Un premier souffle de bergamote et de poivre rose fend l'air, tranchant comme une décision prise et jamais reconsidérée. Ce qui suit n'est pas de la douceur. C'est une retenue qui mord."
+        body: "MONARK ne se vaporise pas, il se déclare. Un souffle de bergamote et de poivre rose fend l'air, tranchant comme une décision sans retour. Pas de douceur ici, une retenue qui mord."
       },
       s2: {
         label: '002 / La Genèse',
         heading: "La Coquille N'a Jamais Été l'Essentiel.",
-        body: "Le verre se brise, et sous les éclats surgit un noyau noir — fondu, entier, la forme véritable que le flacon dissimulait. MONARK suit la même loi : dépouillé de son armure, un homme ne s'affaiblit pas. Il se révèle, sans dilution."
+        body: "Le verre se brise, et sous les éclats surgit un noyau noir, fondu, entier, la forme véritable que le flacon dissimulait. MONARK suit la même loi : dépouillé de son armure, un homme ne s'affaiblit pas. Il se révèle, sans dilution."
       },
       s3: {
         label: '003 / La Composition',
         heading: 'Ce Que la Brisure Révèle.',
         tier1: {
-          label: 'Tête — La Première Frappe',
+          label: 'Tête / La Première Frappe',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Bergamote</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Citron</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Poivre Rose</span>.</span>',
-          body: "L'entrée en matière tranche, elle ne salue pas. Bergamote italienne, citron éclatant, rehaussés par la chaleur sèche du poivre rose — une présentation qui coupe court à toute conversation."
+          body: "L'entrée en matière tranche, elle ne salue pas. Bergamote italienne, citron éclatant, rehaussés par la chaleur sèche du poivre rose, une présentation qui coupe court à toute conversation."
         },
         tier2: {
-          label: 'Le Cœur — Ce Qui Demeure',
+          label: 'Le Cœur / Ce Qui Demeure',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Lavande</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Géranium</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Encens</span>.</span>',
-          body: "Sous la frappe s'installe quelque chose de plus ancien. Lavande et géranium adoucissent juste assez pour laisser monter l'encens — la fumée d'un rituel intime, fermé à tous les autres."
+          body: "Sous la frappe s'installe quelque chose de plus ancien. Lavande et géranium adoucissent juste assez pour laisser monter l'encens, la fumée d'un rituel intime, fermé à tous les autres."
         },
         tier3: {
-          label: 'Le Fond — Ce Qui Persiste',
+          label: 'Le Fond / Ce Qui Persiste',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Ambre Gris</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Bois de Cèdre</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Musc</span>.</span>',
           body: "Voilà ce qui reste sur la peau, bien après que la pièce s'est vidée. Ambre gris et bois de cèdre ancrent la composition dans l'ancien ; le musc referme la porte. On ne porte pas ce parfum. On le laisse derrière soi."
         }
@@ -661,7 +661,7 @@
       s4: {
         label: '004 / La Provenance',
         heading: "Sourcé Comme Se Forge Une Couronne — Rarement, et Sans Compromis.",
-        body: "Le bois de cèdre est coupé dans des futaies uniques des montagnes de l'Atlas. L'ambre gris est vieilli bien avant de rejoindre l'assemblage. Chaque lot de MONARK est mélangé à la main, en quantités trop restreintes pour être précipitées et trop précises pour être reproduites à l'identique — ce qui est précisément le but."
+        body: "Le cèdre vient d'une seule forêt de l'Atlas. L'ambre gris vieillit longtemps avant l'assemblage. Chaque lot MONARK est mélangé à la main, en quantités trop restreintes pour être précipitées, trop précises pour être reproduites à l'identique. C'est précisément le but."
       },
       s5: {
         label: '005 / En Chiffres',
