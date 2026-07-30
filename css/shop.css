@@ -659,10 +659,17 @@ body.shop-page { background: var(--bg-void); }
    the same "raised panel" color .note-desc's tooltip already uses) plus a
    hairline --line border, matching how every other subtle panel on this
    site is built. */
+/* padding-top dropped to 0 (was 2rem) -- .shop-notes just above already
+   contributes its own 2rem bottom padding, so the combined gap between the
+   last notes row and this section's kicker read as 4rem total, too large a
+   pause between two sections meant to flow together. Relying on
+   .shop-notes's own edge spacing alone (like .shop-notes-kicker already
+   does with the section above IT, see that rule's own comment) keeps this
+   consistent with how the rest of the page paces section transitions. */
 .shop-reviews {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 2rem 6vw 9vh;
+  padding: 0 6vw 9vh;
 }
 
 .shop-reviews-kicker { display: block; text-align: center; margin-bottom: 3rem; }
@@ -690,6 +697,14 @@ body.shop-page { background: var(--bg-void); }
    js/i18n.js keeps in sync with the active language (see that file's
    setLang()), so switching language also switches which quote marks show,
    with no JS of this component's own needed. */
+/* white-space:pre-line renders the \n\n each quote in js/i18n.js's
+   product.reviews.*.quote strings now has before its final sentence as an
+   actual paragraph break -- the sentences read too tightly run-on
+   otherwise. Still a plain data-i18n text swap (not data-i18n-html), so
+   this is the only mechanism available for a visual break without
+   introducing raw HTML into what's meant to stay plain customer-quote text;
+   pre-line collapses any incidental run of spaces same as normal text
+   would, it only preserves the deliberate \n\n. */
 .shop-review-quote {
   margin: 0;
   font-family: var(--font-display);
@@ -697,6 +712,7 @@ body.shop-page { background: var(--bg-void); }
   font-size: 0.98rem;
   line-height: 1.65;
   color: var(--text-on-dark);
+  white-space: pre-line;
 }
 :lang(fr) .shop-review-quote { quotes: '« ' ' »'; }
 :lang(en) .shop-review-quote { quotes: '\201C' '\201D'; }
@@ -728,7 +744,7 @@ body.shop-page { background: var(--bg-void); }
 /* Same 768px breakpoint the rest of this file already switches mobile/
    tablet layout at (.shop-notes-row, .shop-details-strip, etc.). */
 @media (max-width: 768px) {
-  .shop-reviews { padding: 1.5rem 8vw 6vh; }
+  .shop-reviews { padding: 0 8vw 6vh; }
   .shop-reviews-kicker { margin-bottom: 2.2rem; }
   .shop-reviews-grid { grid-template-columns: 1fr; gap: 1.4rem; }
 }

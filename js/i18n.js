@@ -268,17 +268,17 @@
         reviews: {
           heading: "What They're Saying",
           review1: {
-            quote: "I've finally found a scent that feels like me. The notes are exactly as described, and it genuinely lasts all day without ever becoming overpowering. I get compliments almost every time I wear it!",
+            quote: "I've finally found a scent that feels like me. The notes are exactly as described, and it genuinely lasts all day without ever becoming overpowering.\n\nI get compliments almost every time I wear it!",
             name: 'Camille R.',
             label: 'Verified customer'
           },
           review2: {
-            quote: "What really surprised me was the longevity. My other perfumes usually fade within a few hours, but this one is still there by evening. The quality genuinely shows — you can tell it's not a cheap formula.",
+            quote: "What really surprised me was the longevity. My other perfumes usually fade within a few hours, but this one is still there by evening.\n\nThe quality genuinely shows, you can tell it's not a cheap formula.",
             name: 'Julien P.',
             label: 'Verified customer'
           },
           review3: {
-            quote: "A subtle scent that still leaves a real trail behind you. Not too strong, not too light — exactly the balance I was looking for. I haven't wanted to switch since I discovered it.",
+            quote: "A subtle scent that still leaves a real trail behind you. Not too strong, not too light, exactly the balance I was looking for.\n\nI haven't wanted to switch since I discovered it.",
             name: 'Sophie L.',
             label: 'Verified customer'
           }
@@ -804,17 +804,17 @@
         reviews: {
           heading: "Ce qu'ils en disent",
           review1: {
-            quote: "J'ai enfin trouvé un parfum qui me ressemble. Les fragrances sont vraiment fidèles à la description, et surtout, ça tient toute la journée sans devenir écœurant. Je reçois souvent des compliments quand je le porte !",
+            quote: "J'ai enfin trouvé un parfum qui me ressemble. Les fragrances sont vraiment fidèles à la description, et surtout, ça tient toute la journée sans devenir écœurant.\n\nJe reçois souvent des compliments quand je le porte !",
             name: 'Camille R.',
             label: 'Cliente vérifiée'
           },
           review2: {
-            quote: "Ce qui m'a vraiment choqué, c'est la tenue. D'habitude mes parfums s'estompent après quelques heures, lui est encore présent le soir même. La qualité est vraiment au rendez-vous, on sent que ce n'est pas du bas de gamme.",
+            quote: "Ce qui m'a vraiment choqué, c'est la tenue. D'habitude mes parfums s'estompent après quelques heures, lui est encore présent le soir même.\n\nLa qualité est vraiment au rendez-vous, on sent que ce n'est pas du bas de gamme.",
             name: 'Julien P.',
             label: 'Client vérifié'
           },
           review3: {
-            quote: "Un parfum discret mais qui laisse une vraie trace derrière soi. Ni trop fort, ni trop léger, exactement l'équilibre que je cherchais. Je ne veux plus changer depuis que je l'ai découvert.",
+            quote: "Un parfum discret mais qui laisse une vraie trace derrière soi. Ni trop fort, ni trop léger, exactement l'équilibre que je cherchais.\n\nJe ne veux plus changer depuis que je l'ai découvert.",
             name: 'Sophie L.',
             label: 'Cliente vérifiée'
           }
