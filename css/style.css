@@ -2551,7 +2551,13 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   color: var(--text-muted);
 }
 
-.email-popup-form { display: flex; flex-direction: column; gap: 0.9rem; }
+/* text-align:center explicit here (not just inherited from .email-popup's
+   own text-align:center) -- product.html's newsletter section (css/shop.css)
+   reuses this exact class inside its own two-column desktop layout, whose
+   .shop-newsletter-inner ancestor is text-align:left there, so .email-popup-
+   consent below was rendering left-aligned in that context instead of
+   centered under the input/button like everywhere else this form appears. */
+.email-popup-form { display: flex; flex-direction: column; gap: 0.9rem; text-align: center; }
 
 /* .promo-message's own margin-top (see css/style.css's shared form-feedback
    section above) would stack with this flex container's own gap, spacing the
