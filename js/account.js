@@ -556,11 +556,11 @@
                  used to show, as a single-string summary for assistive
                  tech that doesn't benefit from four separately-announced
                  live items. -->
-            <ul class="password-requirements" id="checkout-account-create-password-requirements" data-i18n-attr="aria-label:accountGate.passwordHint" aria-label="Minimum 8 characters, with at least one letter, one number, and one special character (! @ # $ % ^ &amp; * ( ) - _ + =).">
+            <ul class="password-requirements" id="checkout-account-create-password-requirements" data-i18n-attr="aria-label:accountGate.passwordHint" aria-label="Minimum 8 characters, with at least one letter, one number, and one special character (! @ # $ % &amp; *).">
               <li class="password-requirement" data-requirement="length"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqLength">8+ characters</span></li>
               <li class="password-requirement" data-requirement="letter"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqLetter">One letter</span></li>
               <li class="password-requirement" data-requirement="number"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqNumber">One number</span></li>
-              <li class="password-requirement" data-requirement="special"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqSpecial">One special character (! @ # $ % ^ &amp; * ( ) - _ + =)</span></li>
+              <li class="password-requirement" data-requirement="special"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqSpecial">One special character (! @ # $ % &amp; *)</span></li>
             </ul>
           </label>
           <label class="checkout-field">
@@ -757,7 +757,7 @@
     // field, which reuses the same rule/message but has no checklist of its
     // own, out of this feature's scope) can't drift out of sync with each
     // other or with the accountGate.passwordHint/passwordReqSpecial wording.
-    const PASSWORD_SPECIAL_CHARS_RE = /[!@#$%^&*()\-_+=]/;
+    const PASSWORD_SPECIAL_CHARS_RE = /[!@#$%&*]/;
     function isValidPassword(value) {
       return value.length >= 8 && /[A-Za-z]/.test(value) && /[0-9]/.test(value) && PASSWORD_SPECIAL_CHARS_RE.test(value);
     }
