@@ -661,7 +661,7 @@
         tier3: {
           label: 'Le Fond | Ce Qui Persiste',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Ambre Gris</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Bois de Cèdre</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Musc</span>.</span>',
-          body: "Voilà ce qui reste sur la peau, quand la pièce est déjà vide. Ambre gris et bois de cèdre ancrent la composition dans l'ancien ; le musc referme la porte. On ne porte pas ce parfum. On le laisse derrière soi."
+          body: "Ce qui reste sur la peau, une fois la pièce vide. Ambre gris et bois de cèdre ancrent la composition dans l'ancien ; le musc referme la porte. Ce parfum ne se porte pas, il se laisse derrière soi."
         }
       },
       s4: {
