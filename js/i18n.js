@@ -203,7 +203,9 @@
         backToShop: '← Back to Shop',
         account: 'Account',
         placesSuggestionsLabel: 'Suggestions',
-        errorNameFormat: 'Please use only letters, spaces, hyphens, and apostrophes (max 50 characters).'
+        errorNameFormat: 'Please use only letters, spaces, hyphens, and apostrophes (max 50 characters).',
+        errorCityFormat: 'Please use only letters, spaces, hyphens, apostrophes, and periods (max 100 characters).',
+        errorAddressFormat: 'Please use only letters, numbers, spaces, and basic punctuation (- \' . ,), max 150 characters.'
       },
       product: {
         carouselAriaLabel: 'MONARK bottle image carousel',
@@ -758,7 +760,9 @@
         backToShop: '← Retour à la Boutique',
         account: 'Compte',
         placesSuggestionsLabel: 'Adresses suggérées',
-        errorNameFormat: "Veuillez utiliser uniquement des lettres, espaces, tirets et apostrophes (50 caractères maximum)."
+        errorNameFormat: "Veuillez utiliser uniquement des lettres, espaces, tirets et apostrophes (50 caractères maximum).",
+        errorCityFormat: "Veuillez utiliser uniquement des lettres, espaces, tirets, apostrophes et points (100 caractères maximum).",
+        errorAddressFormat: "Veuillez utiliser uniquement des lettres, chiffres, espaces et une ponctuation simple (- ' . ,), 150 caractères maximum."
       },
       product: {
         carouselAriaLabel: "Carrousel d'images du flacon MONARK",

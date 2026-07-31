@@ -82,17 +82,38 @@
   }
   window.MonarkValidateEmail = isValidEmailFormat;
 
-  // window.MonarkValidateName -- same "one canonical check, hung off
-  // window, living wherever it's loaded on every page that needs it"
-  // pattern as MonarkValidateEmail just above. Covers every first/last name
-  // field on the site: checkout.html's Shipping form, account.html's Edit
-  // Profile form, and the shared account-gate's Create Account form
-  // (js/account.js, used by both pages) -- each previously only checked
-  // for non-empty (or, on account.html's Edit Profile, nothing at all), so
-  // "111" or "John@Doe" both passed everywhere. Deliberately NO minimum
-  // length -- real names as short as one character exist ("Li", "Jo") -- so
-  // this only rejects on: empty/whitespace-only, disallowed characters, or
-  // over length.
+  // window.MonarkValidateName / MonarkValidateCity / MonarkValidateCardName /
+  // MonarkValidateAddress -- same "one canonical check, hung off window,
+  // living wherever it's loaded on every page that needs it" pattern as
+  // MonarkValidateEmail just above. Between them these cover every short
+  // human-typed text field on the site that previously had no format
+  // validation at all (or, at best, a bare non-empty check): first/last
+  // name (checkout.html's Shipping form, account.html's Edit Profile form,
+  // the shared account-gate's Create Account form in js/account.js), City
+  // and Address (checkout.html's Shipping form, account.html's Saved
+  // Address form), and Name on Card (account.html's mock Saved Card form)
+  // -- so e.g. "111" or "John@Doe" no longer silently pass as a city or a
+  // cardholder name anywhere. Deliberately NO minimum length on any of
+  // these -- real names/cities as short as one or two characters exist
+  // ("Li", "Jo", "Or" (Israel), "Y") -- so each only rejects on:
+  // empty/whitespace-only, disallowed characters, or over length.
+  //
+  // isValidTextField() is the shared core every one of the specific
+  // checks below is built from: trim, reject empty, reject over
+  // maxLength, reject anything not matching the field's own allowed-
+  // character pattern, and (unless explicitly turned off) require at
+  // least one actual letter -- without that last part, a field containing
+  // only e.g. "-" or "123" would otherwise pass a pattern that merely
+  // permits digits/punctuation as PART of a value, which isn't a real
+  // name/city/address on its own.
+  const HAS_LETTER_RE = /\p{L}/u;
+  function isValidTextField(value, options) {
+    const trimmed = String(value || '').trim();
+    if (!trimmed || trimmed.length > options.maxLength) return false;
+    if (!options.pattern.test(trimmed)) return false;
+    return options.requireLetter === false || HAS_LETTER_RE.test(trimmed);
+  }
+
   const NAME_MAX_LENGTH = 50;
   // Unicode letters (\p{L}) + combining marks (\p{M}, for names typed with
   // decomposed accents, e.g. "e" + a combining acute rather than the single
@@ -101,17 +122,44 @@
   // O’Brien, the latter being what iOS/most autocorrect actually inserts).
   // No digits, no other punctuation/symbols.
   const NAME_FORMAT_RE = /^[\p{L}\p{M}' ’-]+$/u;
-  const NAME_HAS_LETTER_RE = /\p{L}/u;
 
   function isValidNameFormat(name) {
-    const trimmed = String(name || '').trim();
-    if (!trimmed || trimmed.length > NAME_MAX_LENGTH) return false;
-    // Requires at least one actual letter -- without this, a name field
-    // containing only e.g. "-" or "'" would otherwise pass (each is
-    // individually an allowed character), which isn't a real name.
-    return NAME_FORMAT_RE.test(trimmed) && NAME_HAS_LETTER_RE.test(trimmed);
+    return isValidTextField(name, { maxLength: NAME_MAX_LENGTH, pattern: NAME_FORMAT_RE });
   }
   window.MonarkValidateName = isValidNameFormat;
+
+  // Name on Card (account.html's mock Saved Card form) -- explicitly the
+  // same rule as first/last names above (it IS a person's name, just one
+  // printed on a card rather than filed separately), reusing the exact
+  // same length/pattern constants rather than redeclaring near-identical
+  // ones under a different name.
+  function isValidCardNameFormat(name) {
+    return isValidTextField(name, { maxLength: NAME_MAX_LENGTH, pattern: NAME_FORMAT_RE });
+  }
+  window.MonarkValidateCardName = isValidCardNameFormat;
+
+  const CITY_MAX_LENGTH = 100;
+  // Same letters/marks/space/hyphen/apostrophe set as names, plus a period
+  // -- unlike a person's name, a real city name commonly needs one
+  // ("St. Tropez", "St-Étienne" already covered by the hyphen).
+  const CITY_FORMAT_RE = /^[\p{L}\p{M}' ’.-]+$/u;
+
+  function isValidCityFormat(city) {
+    return isValidTextField(city, { maxLength: CITY_MAX_LENGTH, pattern: CITY_FORMAT_RE });
+  }
+  window.MonarkValidateCity = isValidCityFormat;
+
+  const ADDRESS_MAX_LENGTH = 150;
+  // Longer than a name/city since a real street address packs in more --
+  // house/building number, street name, sometimes an apartment/suite
+  // reference -- so digits and commas join the allowed set alongside
+  // letters/marks/space/hyphen/apostrophe/period.
+  const ADDRESS_FORMAT_RE = /^[\p{L}\p{M}0-9' ’.,-]+$/u;
+
+  function isValidAddressFormat(address) {
+    return isValidTextField(address, { maxLength: ADDRESS_MAX_LENGTH, pattern: ADDRESS_FORMAT_RE });
+  }
+  window.MonarkValidateAddress = isValidAddressFormat;
 
   function validateEmail(email) {
     if (!email) return { ok: false, errorKey: 'errorEmpty' };

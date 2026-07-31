@@ -46,8 +46,8 @@
      copy of this comment for why (avoids a fallback-font flash). -->
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=block" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260814">
-<link rel="stylesheet" href="css/checkout.css?v=20260814">
+<link rel="stylesheet" href="css/style.css?v=20260815">
+<link rel="stylesheet" href="css/checkout.css?v=20260815">
 </head>
 <body class="shop-page">
 
@@ -144,7 +144,8 @@
                unchanged and still clearly address-shaped -- confirmed the
                neighboring field's renames (address2 -> extraDetails) never
                touched this field itself. -->
-          <input type="text" name="address" autocomplete="street-address">
+          <input type="text" name="address" autocomplete="street-address" maxlength="150">
+          <p class="promo-message promo-message-error" id="account-address-address-error" aria-live="polite" hidden></p>
         </label>
         <label class="checkout-field">
           <span data-i18n="account.addressLine2Label">Building, floor, access code…</span>
@@ -173,7 +174,8 @@
         <div class="checkout-field-row">
           <label class="checkout-field">
             <span data-i18n="account.cityLabel">City</span>
-            <input type="text" name="city" autocomplete="address-level2">
+            <input type="text" name="city" autocomplete="address-level2" maxlength="100">
+            <p class="promo-message promo-message-error" id="account-address-city-error" aria-live="polite" hidden></p>
           </label>
           <label class="checkout-field">
             <span data-i18n="account.postalCodeLabel">Postal Code</span>
@@ -200,7 +202,8 @@
       <form id="account-payment-form" novalidate>
         <label class="checkout-field">
           <span data-i18n="account.cardNameLabel">Name on Card</span>
-          <input type="text" name="cardName" autocomplete="cc-name">
+          <input type="text" name="cardName" autocomplete="cc-name" maxlength="50">
+          <p class="promo-message promo-message-error" id="account-payment-cardName-error" aria-live="polite" hidden></p>
         </label>
         <label class="checkout-field">
           <span data-i18n="account.cardNumberLabel">Card Number</span>
@@ -278,16 +281,16 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-client.js?v=20260814"></script>
-<script src="js/i18n.js?v=20260814"></script>
-<script src="js/header-position-fix.js?v=20260814"></script>
-<script src="js/footer-active-page.js?v=20260814"></script>
-<script src="js/cart.js?v=20260814"></script>
-<script src="js/cart-widget.js?v=20260814"></script>
-<script src="js/nav-menu.js?v=20260814"></script>
-<script src="js/phone-input.js?v=20260814"></script>
-<script src="js/account.js?v=20260814"></script>
-<script src="js/places-autocomplete.js?v=20260814"></script>
+<script src="js/supabase-client.js?v=20260815"></script>
+<script src="js/i18n.js?v=20260815"></script>
+<script src="js/header-position-fix.js?v=20260815"></script>
+<script src="js/footer-active-page.js?v=20260815"></script>
+<script src="js/cart.js?v=20260815"></script>
+<script src="js/cart-widget.js?v=20260815"></script>
+<script src="js/nav-menu.js?v=20260815"></script>
+<script src="js/phone-input.js?v=20260815"></script>
+<script src="js/account.js?v=20260815"></script>
+<script src="js/places-autocomplete.js?v=20260815"></script>
 <script>
 (function () {
   const account = window.MonarkAccount;
@@ -326,10 +329,12 @@
   const addressSection = document.getElementById('account-address');
   const addressForm = document.getElementById('account-address-form');
   const addressInput = addressForm.querySelector('[name="address"]');
+  const addressFieldError = document.getElementById('account-address-address-error');
   // Renamed from address2Input/name="address2" -- see that field's own
   // markup comment (Chrome autofill heuristic fix).
   const extraDetailsInput = addressForm.querySelector('[name="extraDetails"]');
   const cityInput = addressForm.querySelector('[name="city"]');
+  const cityError = document.getElementById('account-address-city-error');
   const postalInput = addressForm.querySelector('[name="postal"]');
   const addressPhoneError = document.getElementById('account-address-phone-error');
   // Same "shared, not duplicated" component as checkout.html's own Shipping
@@ -345,6 +350,7 @@
   const paymentSection = document.getElementById('account-payment');
   const paymentForm = document.getElementById('account-payment-form');
   const cardNameInput = paymentForm.querySelector('[name="cardName"]');
+  const cardNameError = document.getElementById('account-payment-cardName-error');
   const cardNumberInput = paymentForm.querySelector('[name="cardNumber"]');
   const cardExpiryInput = paymentForm.querySelector('[name="cardExpiry"]');
   const paymentSuccess = document.getElementById('account-payment-success');
@@ -424,12 +430,15 @@
     cityInput.value = acc.city || '';
     postalInput.value = acc.postal || '';
     if (addressPhoneWidget) addressPhoneWidget.setValue({ number: acc.phone || '', country: acc.country || 'FR' });
+    addressFieldError.hidden = true;
+    cityError.hidden = true;
     addressPhoneError.hidden = true;
     addressSuccess.hidden = true;
 
     cardNameInput.value = acc.cardName || '';
     cardNumberInput.value = acc.cardNumber || '';
     cardExpiryInput.value = acc.cardExpiry || '';
+    cardNameError.hidden = true;
     paymentSuccess.hidden = true;
 
     // acc.marketingOptIn defaults true for every account created since this
@@ -561,6 +570,29 @@
     e.preventDefault();
     const session = account.getSession();
     if (!session || session.isGuest) return;
+
+    // Neither field is required here (unlike checkout.html's Shipping form)
+    // -- a profile with no saved address on file is valid, this only
+    // rejects a NON-empty value that fails the shared format/length check
+    // (window.MonarkValidateAddress/City, js/email-popup.js -- the same
+    // ones checkout.html's Shipping form uses, so a value is never accepted
+    // in one place and rejected in another).
+    const addressVal = addressInput.value.trim();
+    if (addressVal && window.MonarkValidateAddress && !window.MonarkValidateAddress(addressVal)) {
+      addressFieldError.textContent = t('common.errorAddressFormat');
+      addressFieldError.hidden = false;
+      return;
+    }
+    addressFieldError.hidden = true;
+
+    const cityVal = cityInput.value.trim();
+    if (cityVal && window.MonarkValidateCity && !window.MonarkValidateCity(cityVal)) {
+      cityError.textContent = t('common.errorCityFormat');
+      cityError.hidden = false;
+      return;
+    }
+    cityError.hidden = true;
+
     const phoneValue = addressPhoneWidget ? addressPhoneWidget.getValue() : null;
     if (addressPhoneWidget && !addressPhoneWidget.isValid()) {
       addressPhoneError.textContent = t(phoneValue.country === 'FR' ? 'phoneInput.errorInvalidFR' : 'phoneInput.errorInvalidGeneric');
@@ -569,9 +601,9 @@
     }
     addressPhoneError.hidden = true;
     await account.updateAccount(session.email, {
-      address: addressInput.value.trim(),
+      address: addressVal,
       extraDetails: extraDetailsInput.value.trim(),
-      city: cityInput.value.trim(),
+      city: cityVal,
       postal: postalInput.value.trim(),
       phone: phoneValue ? phoneValue.number : '',
       dialCode: phoneValue ? phoneValue.dialCode : '',
@@ -591,8 +623,21 @@
     e.preventDefault();
     const session = account.getSession();
     if (!session || session.isGuest) return;
+
+    // Not required (this whole feature is mocked/optional, see the note in
+    // the form's own markup) -- only rejects a NON-empty value that fails
+    // the same shared name-format check as first/last name (this field IS
+    // a person's name, just printed on a card).
+    const cardNameVal = cardNameInput.value.trim();
+    if (cardNameVal && window.MonarkValidateCardName && !window.MonarkValidateCardName(cardNameVal)) {
+      cardNameError.textContent = t('common.errorNameFormat');
+      cardNameError.hidden = false;
+      return;
+    }
+    cardNameError.hidden = true;
+
     await account.updateAccount(session.email, {
-      cardName: cardNameInput.value.trim(),
+      cardName: cardNameVal,
       cardNumber: cardNumberInput.value.trim(),
       cardExpiry: cardExpiryInput.value.trim()
     });
@@ -706,9 +751,9 @@
   syncLogoutBtn();
 })();
 </script>
-<script src="js/promo-countdown.js?v=20260814"></script>
-<script src="js/promo-banner.js?v=20260814"></script>
-<script src="js/cookie-consent.js?v=20260814"></script>
-<script src="js/email-popup.js?v=20260814"></script>
+<script src="js/promo-countdown.js?v=20260815"></script>
+<script src="js/promo-banner.js?v=20260815"></script>
+<script src="js/cookie-consent.js?v=20260815"></script>
+<script src="js/email-popup.js?v=20260815"></script>
 </body>
 </html>
