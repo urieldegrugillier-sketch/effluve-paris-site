@@ -329,9 +329,34 @@
   overflow-y: auto;
   background: var(--bg-ink);
   border: 1px solid var(--line);
+  /* Bronze accent on the edge touching the input -- purely cosmetic, but a
+     real (if small) help distinguishing this from Chrome's own plain
+     grey/white native autofill list: reinforces "this panel belongs to/
+     extends from this specific field" using the site's own accent color,
+     something Chrome's native popup obviously can't match. Flipped to the
+     opposite edge by .monark-places-suggestions--above below, so it's
+     always the edge actually touching the input either way. */
+  border-top: 2px solid var(--accent-bronze-light);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
 }
 .monark-places-suggestions[hidden] { display: none; }
+
+/* Desktop-only: renders above the input instead of below (see
+   updatePanelPlacement() in js/places-autocomplete.js for when the
+   --above class is actually applied, incl. its own fallback to the default
+   below-placement when there isn't room above). Wrapped in the same
+   min-width:769px desktop breakpoint used elsewhere in this file (see
+   .checkout-summary-col etc.) as a second, CSS-level guarantee that this
+   never applies on mobile even if the class were ever present there --
+   mobile keeps the plain below-placement above, unchanged. */
+@media (min-width: 769px) {
+  .monark-places-suggestions--above {
+    top: auto;
+    bottom: 100%;
+    border-top: 1px solid var(--line);
+    border-bottom: 2px solid var(--accent-bronze-light);
+  }
+}
 .monark-places-suggestions li[role="option"] {
   padding: 0.6rem 1rem;
   font-family: var(--font-body);
