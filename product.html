@@ -78,8 +78,8 @@
      copy of this comment for why (avoids a fallback-font flash). -->
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=block" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260801">
-<link rel="stylesheet" href="css/shop.css?v=20260801">
+<link rel="stylesheet" href="css/style.css?v=20260802">
+<link rel="stylesheet" href="css/shop.css?v=20260802">
 </head>
 <body class="shop-page">
 
@@ -340,6 +340,23 @@
   </div>
 </section>
 
+<!-- NEWSLETTER SIGNUP -- reuses the exact same submission logic (validation,
+     mocked localStorage capture, confirmation copy) as the site-wide email
+     popup, via window.MonarkEmailCapture (see js/email-popup.js, loaded
+     below), rather than a second, separately-implemented path. -->
+<section class="shop-newsletter">
+  <div class="shop-newsletter-inner" id="shop-newsletter-inner">
+    <span class="section-label shop-newsletter-kicker" data-i18n="product.newsletter.heading">Stay Informed</span>
+    <p class="shop-newsletter-body" data-i18n="product.newsletter.body">New editions, occasional offers, nothing more.</p>
+    <form class="email-popup-form shop-newsletter-form" id="shop-newsletter-form" novalidate>
+      <input type="email" class="email-popup-input" id="shop-newsletter-input" placeholder="you@email.com" required aria-label="Email address" data-i18n-attr="placeholder:emailPopup.emailPlaceholder;aria-label:emailPopup.emailAriaLabel">
+      <p class="email-popup-consent" data-i18n="emailPopup.consent">By submitting, you agree to receive marketing emails from Effluve Paris.</p>
+      <p class="promo-message promo-message-error" id="shop-newsletter-error" aria-live="polite" hidden></p>
+      <button type="submit" class="cta-button email-popup-submit" data-i18n="product.newsletter.submit">Subscribe</button>
+    </form>
+  </div>
+</section>
+
 <!-- FOOTER -->
 <footer class="shop-footer">
   <a href="index.html" class="shop-footer-wordmark">Effluve Paris</a>
@@ -368,16 +385,16 @@
 <div class="grain"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-client.js?v=20260801"></script>
-<script src="js/i18n.js?v=20260801"></script>
-<script src="js/header-position-fix.js?v=20260801"></script>
-<script src="js/footer-active-page.js?v=20260801"></script>
-<script src="js/cart.js?v=20260801"></script>
-<script src="js/cart-widget.js?v=20260801"></script>
-<script src="js/nav-menu.js?v=20260801"></script>
-<script src="js/account.js?v=20260801"></script>
+<script src="js/supabase-client.js?v=20260802"></script>
+<script src="js/i18n.js?v=20260802"></script>
+<script src="js/header-position-fix.js?v=20260802"></script>
+<script src="js/footer-active-page.js?v=20260802"></script>
+<script src="js/cart.js?v=20260802"></script>
+<script src="js/cart-widget.js?v=20260802"></script>
+<script src="js/nav-menu.js?v=20260802"></script>
+<script src="js/account.js?v=20260802"></script>
 <script src="https://js.stripe.com/v3/"></script>
-<script src="js/stripe-client.js?v=20260801"></script>
+<script src="js/stripe-client.js?v=20260802"></script>
 <script>
 (function () {
   const carousel = document.getElementById('shop-carousel');
@@ -1236,7 +1253,7 @@
   });
 })();
 </script>
-<script src="js/promo-countdown.js?v=20260801"></script>
+<script src="js/promo-countdown.js?v=20260802"></script>
 <script>
 (function () {
   // Same shared countdown js/promo-banner.js's own banner subscribes to
@@ -1261,10 +1278,58 @@
   });
 })();
 </script>
-<script src="js/promo-banner.js?v=20260801"></script>
-<script src="js/cookie-consent.js?v=20260801"></script>
-<script src="js/email-popup.js?v=20260801"></script>
-<script src="js/note-highlight.js?v=20260801"></script>
+<script src="js/promo-banner.js?v=20260802"></script>
+<script src="js/cookie-consent.js?v=20260802"></script>
+<script src="js/email-popup.js?v=20260802"></script>
+<script src="js/note-highlight.js?v=20260802"></script>
+<script>
+(function () {
+  // Wires this page's own newsletter form to the shared submission logic
+  // js/email-popup.js exposes as window.MonarkEmailCapture (validate/
+  // capture/confirmedTexts) -- same validation, same mocked capture, same
+  // confirmation copy as the site-wide popup, no separate implementation.
+  const form = document.getElementById('shop-newsletter-form');
+  const inner = document.getElementById('shop-newsletter-inner');
+  if (!form || !inner || !window.MonarkEmailCapture) return;
+
+  const input = document.getElementById('shop-newsletter-input');
+  const errorEl = document.getElementById('shop-newsletter-error');
+  let confirmedLangListener = null;
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = input.value.trim();
+    const result = window.MonarkEmailCapture.validateEmail(email);
+    if (!result.ok) {
+      errorEl.textContent = window.MonarkI18n ? window.MonarkI18n.t('emailPopup.' + result.errorKey) : 'Please enter a valid email address.';
+      errorEl.hidden = false;
+      return;
+    }
+    errorEl.hidden = true;
+    window.MonarkEmailCapture.captureEmail(email);
+
+    // Same renderConfirmed-on-language-change pattern as js/email-popup.js's
+    // own confirmation state, for the same reason: a language switch (nav
+    // menu FR/EN toggle) while this is showing needs to redraw it, and the
+    // promo code/email vars mean this can't just be plain data-i18n tags
+    // re-walked by MonarkI18n.apply() like the rest of the page.
+    function renderConfirmed() {
+      const { kicker, heading, copyHtml, newsletterNote } = window.MonarkEmailCapture.confirmedTexts();
+      inner.innerHTML = `
+        <span class="section-label shop-newsletter-kicker">${kicker}</span>
+        <h2 class="email-popup-heading">${heading}</h2>
+        <p class="email-popup-copy">${copyHtml}</p>
+        <p class="email-popup-consent">${newsletterNote}</p>
+      `;
+      inner.querySelector('.email-popup-confirmed-email').textContent = email;
+    }
+    renderConfirmed();
+    if (confirmedLangListener) document.removeEventListener('monark:langchange', confirmedLangListener);
+    confirmedLangListener = renderConfirmed;
+    document.addEventListener('monark:langchange', confirmedLangListener);
+  });
+})();
+</script>
 
 </body>
 </html>

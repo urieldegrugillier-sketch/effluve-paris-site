@@ -718,6 +718,35 @@ body.shop-page { background: var(--bg-void); }
   .shop-reviews-grid { grid-template-columns: 1fr; gap: 1.4rem; }
 }
 
+/* ================= NEWSLETTER SIGNUP ================= */
+/* Simple, compact form below Customer Reviews -- narrower max-width and
+   centered like a footer-style signup block, not a full-bleed section like
+   .shop-notes/.shop-reviews above it. Reuses .email-popup-form/-input/
+   -consent/-submit as-is (see css/style.css's EMAIL CAPTURE POPUP section)
+   for the form itself, so this and the popup can never visually drift apart
+   -- only this wrapper/kicker/body text below are unique to this section. */
+.shop-newsletter {
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 0 6vw 9vh;
+  text-align: center;
+}
+
+.shop-newsletter-kicker { display: block; margin-bottom: 1rem; }
+
+.shop-newsletter-body {
+  margin: 0 0 2rem;
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .shop-newsletter { padding: 0 8vw 6vh; }
+}
+
 /* ================= HOW TO WEAR ================= */
 /* The <details> itself is a plain .shop-refund-note now (same element, same
    class, same "+"/"−" summary::before toggle) -- nothing shop-specific left

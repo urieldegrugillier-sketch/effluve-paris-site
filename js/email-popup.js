@@ -27,6 +27,59 @@
   // only the discount VALUE and validation logic that had to move server-side.
   const PROMO_CODE = 'MONARK10';
 
+  // ---------------- Shared submission logic ----------------
+  // Extracted so any other on-page email-capture form (see product.html's
+  // newsletter section, which loads this file for exactly this object) goes
+  // through the same validation/capture/confirmation-copy path instead of a
+  // second, copy-pasted implementation -- there's only one real "backend"
+  // here (the mocked localStorage capture below, see CAPTURED_KEY's own
+  // comment), so there's exactly one place that should know how it works.
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  // Not a full RFC 5322 validator -- just enough to catch an empty
+  // submission or an obviously incomplete address (no "@", no domain).
+  function validateEmail(email) {
+    if (!email) return { ok: false, errorKey: 'errorEmpty' };
+    if (!EMAIL_RE.test(email)) return { ok: false, errorKey: 'errorInvalid' };
+    return { ok: true };
+  }
+
+  // Mocked capture only -- no email is actually sent, there's no ESP wired
+  // up yet (see CAPTURED_KEY's own comment above). Also sets DISMISS_KEY:
+  // whichever form on the page captured this address, the visitor has
+  // already given it and claimed their code, so the popup itself shouldn't
+  // still nag them for it later this session or on a future page load.
+  function captureEmail(email) {
+    let captured = [];
+    try { captured = JSON.parse(localStorage.getItem(CAPTURED_KEY)) || []; } catch (err) { captured = []; }
+    captured.push({ email, promoCode: PROMO_CODE, capturedAt: new Date().toISOString() });
+    localStorage.setItem(CAPTURED_KEY, JSON.stringify(captured));
+    localStorage.setItem(DISMISS_KEY, 'true');
+  }
+
+  // Returns the post-submit confirmation copy, kicker/heading/newsletter note
+  // as plain text and the body copy as HTML with the email address left as an
+  // EMPTY .email-popup-confirmed-email placeholder span -- callers insert the
+  // typed address themselves via .textContent (never interpolated into the
+  // HTML string) so a value like "<img onerror=...>" typed into the field
+  // can't execute; the {code} promo code is safe to interpolate directly,
+  // it's our own PROMO_CODE constant, never user input.
+  function confirmedTexts() {
+    const kicker = window.MonarkI18n ? window.MonarkI18n.t('emailPopup.confirmedKicker') : 'Confirmed';
+    const heading = window.MonarkI18n ? window.MonarkI18n.t('emailPopup.confirmedHeading', { code: PROMO_CODE }) : `Your Code: ${PROMO_CODE}`;
+    const EMAIL_TOKEN = '@@EMAIL@@';
+    const copyTemplate = window.MonarkI18n
+      ? window.MonarkI18n.t('emailPopup.confirmedCopy', { email: EMAIL_TOKEN })
+      : `10% off your first bottle, enter it at checkout. Sent to ${EMAIL_TOKEN} too, for safekeeping.`;
+    const copyHtml = copyTemplate.replace(EMAIL_TOKEN, '<span class="email-popup-confirmed-email"></span>');
+    const newsletterNote = window.MonarkI18n
+      ? window.MonarkI18n.t('emailPopup.newsletterDisclosure')
+      : "You've also been subscribed to our newsletter.";
+    return { kicker, heading, copyHtml, newsletterNote };
+  }
+
+  window.MonarkEmailCapture = { PROMO_CODE, validateEmail, captureEmail, confirmedTexts };
+
   if (localStorage.getItem(DISMISS_KEY)) return;
 
   // The cookie banner (js/cookie-consent.js) appears instantly, bottom-fixed,
@@ -138,56 +191,29 @@
       const input = overlay.querySelector('.email-popup-input');
       const errorEl = overlay.querySelector('.email-popup-error');
       const email = input.value.trim();
-      // Not a full RFC 5322 validator -- just enough to catch an empty
-      // submission or an obviously incomplete address (no "@", no domain)
-      // before it's "captured" below.
-      if (!email) {
-        errorEl.textContent = window.MonarkI18n ? window.MonarkI18n.t('emailPopup.errorEmpty') : 'Please enter your email.';
-        errorEl.hidden = false;
-        return;
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        errorEl.textContent = window.MonarkI18n ? window.MonarkI18n.t('emailPopup.errorInvalid') : 'Please enter a valid email address.';
+      const result = validateEmail(email);
+      if (!result.ok) {
+        errorEl.textContent = window.MonarkI18n ? window.MonarkI18n.t('emailPopup.' + result.errorKey) : 'Please enter a valid email address.';
         errorEl.hidden = false;
         return;
       }
       errorEl.hidden = true;
+      captureEmail(email);
 
-      let captured = [];
-      try { captured = JSON.parse(localStorage.getItem(CAPTURED_KEY)) || []; } catch (err) { captured = []; }
-      captured.push({ email, promoCode: PROMO_CODE, capturedAt: new Date().toISOString() });
-      localStorage.setItem(CAPTURED_KEY, JSON.stringify(captured));
-      localStorage.setItem(DISMISS_KEY, 'true');
-
-      // Mocked confirmation only -- no email is actually sent, there's no ESP
-      // wired up yet (see CAPTURED_KEY comment above). The typed address is
-      // inserted via textContent, not interpolated into the HTML string, so a
-      // value like "<img onerror=...>" typed into the field can't execute.
-      // The code itself is safe to put straight in the template -- it's our
-      // own PROMO_CODE constant, never user input.
       // renderConfirmed (not a one-off template) so a language switch while
       // this state is still showing (via the nav menu's FR/EN toggle) can
       // redraw it -- the promo code/email vars mean this can't just be plain
       // data-i18n tags re-walked by MonarkI18n.apply() like the rest of the
       // popup.
-      const EMAIL_TOKEN = '@@EMAIL@@';
       function renderConfirmed() {
-        const kicker = window.MonarkI18n ? window.MonarkI18n.t('emailPopup.confirmedKicker') : 'Confirmed';
-        const heading = window.MonarkI18n ? window.MonarkI18n.t('emailPopup.confirmedHeading', { code: PROMO_CODE }) : `Your Code: ${PROMO_CODE}`;
-        const copyTemplate = window.MonarkI18n
-          ? window.MonarkI18n.t('emailPopup.confirmedCopy', { email: EMAIL_TOKEN })
-          : `10% off your first bottle, enter it at checkout. Sent to ${EMAIL_TOKEN} too, for safekeeping.`;
-        const copyHtml = copyTemplate.replace(EMAIL_TOKEN, '<span class="email-popup-confirmed-email"></span>');
-        // Separate line, separate key from copyHtml above -- this is the
+        const { kicker, heading, copyHtml, newsletterNote } = confirmedTexts();
+        // Separate line, separate key from copyHtml -- this is the
         // newsletter subscription disclosure specifically, distinct from
         // js/account.js's own "confirmation email sent" note for account
         // creation (that one only ever shows on the account gate, never here).
         // Reuses .email-popup-consent's small-mono-muted fine-print treatment
         // (already used for the form state's "you agree to receive..." line)
         // rather than inventing a second disclosure-text style.
-        const newsletterNote = window.MonarkI18n
-          ? window.MonarkI18n.t('emailPopup.newsletterDisclosure')
-          : "You've also been subscribed to our newsletter.";
         overlay.querySelector('.email-popup-body').innerHTML = `
           <span class="section-label email-popup-kicker">${kicker}</span>
           <h2 class="email-popup-heading">${heading}</h2>

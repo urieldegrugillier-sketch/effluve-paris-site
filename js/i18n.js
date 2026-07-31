@@ -72,41 +72,41 @@
         }
       },
       s1: {
-        label: '001 / The Signature',
+        label: '001 | The Signature',
         heading: 'Composure Speaks Loudest.',
         body: "MONARK isn't sprayed, it's declared. A breath of bergamot and pink pepper cuts the air, sharp as a decision with no way back. Not softness, restraint with teeth."
       },
       s2: {
-        label: '002 / The Genesis',
+        label: '002 | The Genesis',
         heading: 'The Shell Was Never the Point.',
         body: "Glass breaks, and beneath the shards a black core emerges, molten, whole, the true shape the bottle concealed. MONARK follows the same law: stripped of his armor, a man doesn't weaken. He's revealed, undiluted."
       },
       s3: {
-        label: '003 / The Composition',
+        label: '003 | The Composition',
         heading: 'What the Breaking Reveals.',
         tier1: {
-          label: 'Opening / The First Strike',
+          label: 'Opening | The First Strike',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Bergamot</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Lemon</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Pink Pepper</span>.</span>',
           body: "The opening cuts, it doesn't greet. Italian bergamot, bright lemon, lifted by the dry heat of pink pepper, an introduction that ends conversation before it starts."
         },
         tier2: {
-          label: 'The Heart / What Remains',
+          label: 'The Heart | What Remains',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Lavender</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Geranium</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Incense</span>.</span>',
           body: 'Beneath the strike settles something older. Lavender and geranium soften just enough to let incense rise, smoke from a private ritual, closed to everyone else.'
         },
         tier3: {
-          label: 'The Base / What Lasts',
+          label: 'The Base | What Lasts',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Ambergris</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Cedarwood</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Musk</span>.</span>',
           body: "This is what stays on skin, long after the room empties. Ambergris and cedarwood root the blend in something old; musk shuts the door. You don't wear this scent. You leave it behind."
         }
       },
       s4: {
-        label: '004 / The Provenance',
+        label: '004 | The Provenance',
         heading: 'Rare as a Crown, Without Compromise.',
         body: "Cedar comes from a single forest in the Atlas Mountains. Ambergris ages long before the blend. Every MONARK batch is mixed by hand, in quantities too small to rush, too precise to repeat exactly. That's the point."
       },
       s5: {
-        label: '005 / In Numbers',
+        label: '005 | In Numbers',
         stat1: 'Sillage that lingers past midnight',
         stat2: 'Eau de Parfum concentration',
         // Reworded from "Countries of origin, for nine raw materials" --
@@ -120,7 +120,7 @@
         stat4: 'Bottles per edition'
       },
       s6: {
-        label: '006 / The Acquisition',
+        label: '006 | The Acquisition',
         heading: 'The Reign Is Bottled. Claim Yours.',
         body: 'A scent built for men who rule rooms without entering them.',
         badge: 'Limited-Time Offer : −21% Off',
@@ -278,6 +278,16 @@
             name: 'Sophie L.',
             label: 'Verified customer'
           }
+        },
+        // Newsletter signup section, below Customer Reviews -- shares its
+        // form/input/button/consent/error/confirmation copy with the
+        // site-wide email popup (see emailPopup.* and js/email-popup.js's
+        // window.MonarkEmailCapture) rather than duplicating any of it; only
+        // this section's own heading/body/submit label are unique to it.
+        newsletter: {
+          heading: 'Stay Informed',
+          body: 'New editions, occasional offers, nothing more.',
+          submit: 'Subscribe'
         }
       },
       checkout: {
@@ -626,41 +636,41 @@
         }
       },
       s1: {
-        label: '001 / La Signature',
+        label: '001 | La Signature',
         heading: "Rien ne Parle Plus Fort que le Sang-Froid.",
         body: "MONARK ne se vaporise pas, il se déclare. Un souffle de bergamote et de poivre rose fend l'air, tranchant comme une décision sans retour. Pas de douceur ici, une retenue qui mord."
       },
       s2: {
-        label: '002 / La Genèse',
+        label: "002 | L'Éveil",
         heading: "Sous la Coquille, l'Essentiel.",
         body: "Le verre se brise, et sous les éclats surgit un noyau noir, fondu, entier, la forme véritable que le flacon dissimulait. MONARK suit la même loi : dépouillé de son armure, un homme ne s'affaiblit pas. Il se révèle, sans dilution."
       },
       s3: {
-        label: '003 / La Composition',
+        label: '003 | La Composition',
         heading: 'Ce Que la Brisure Révèle.',
         tier1: {
-          label: 'Tête / La Première Frappe',
+          label: 'Tête | La Première Frappe',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Bergamote</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Citron</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Poivre Rose</span>.</span>',
           body: "L'entrée en matière tranche, elle ne salue pas. Bergamote italienne, citron éclatant, rehaussés par la chaleur sèche du poivre rose, une présentation qui coupe court à toute conversation."
         },
         tier2: {
-          label: 'Le Cœur / Ce Qui Demeure',
+          label: 'Le Cœur | Ce Qui Demeure',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Lavande</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Géranium</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Encens</span>.</span>',
           body: "Sous la frappe s'installe quelque chose de plus ancien. Lavande et géranium adoucissent juste assez pour laisser monter l'encens, la fumée d'un rituel intime, fermé à tous les autres."
         },
         tier3: {
-          label: 'Le Fond / Ce Qui Persiste',
+          label: 'Le Fond | Ce Qui Persiste',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Ambre Gris</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Bois de Cèdre</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Musc</span>.</span>',
           body: "Voilà ce qui reste sur la peau, bien après que la pièce s'est vidée. Ambre gris et bois de cèdre ancrent la composition dans l'ancien ; le musc referme la porte. On ne porte pas ce parfum. On le laisse derrière soi."
         }
       },
       s4: {
-        label: '004 / La Provenance',
+        label: '004 | La Provenance',
         heading: "Rare Comme une Couronne, Sans Compromis.",
         body: "Le cèdre vient d'une seule forêt de l'Atlas. L'ambre gris vieillit longtemps avant l'assemblage. Chaque lot MONARK est mélangé à la main, en quantités trop restreintes pour être précipitées, trop précises pour être reproduites à l'identique. C'est précisément le but."
       },
       s5: {
-        label: '005 / En Chiffres',
+        label: '005 | En Chiffres',
         stat1: 'Un sillage qui persiste après minuit',
         stat2: 'Concentration en Eau de Parfum',
         stat3: 'Pays de fabrication',
@@ -668,7 +678,7 @@
         stat4: 'Flacons par édition'
       },
       s6: {
-        label: "006 / L'Acquisition",
+        label: "006 | L'Acquisition",
         heading: 'Le Règne Est Mis en Flacon. Réclamez le Vôtre.',
         body: "Un parfum conçu pour les hommes qui règnent sur une pièce sans jamais y entrer.",
         badge: 'Offre Limitée : −21%',
@@ -801,6 +811,11 @@
             name: 'Sophie L.',
             label: 'Cliente vérifiée'
           }
+        },
+        newsletter: {
+          heading: 'Restez Informé',
+          body: 'Nouvelles éditions, offres occasionnelles, rien de plus.',
+          submit: "S'abonner"
         }
       },
       checkout: {
