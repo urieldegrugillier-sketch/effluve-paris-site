@@ -34,13 +34,57 @@
   // second, copy-pasted implementation -- there's only one real "backend"
   // here (the mocked localStorage capture below, see CAPTURED_KEY's own
   // comment), so there's exactly one place that should know how it works.
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  //
+  // window.MonarkValidateEmail (below) is ALSO the single canonical email
+  // format check for the rest of the site -- js/account.js's own
+  // isPlausibleEmail (used by the shared account-gate widget on both
+  // account.html and checkout.html), account.html's Edit Profile email
+  // field, and contact.html's form all call it instead of keeping their own
+  // separate regex, so a real address is never accepted in one place and
+  // rejected in another (previously each had a near-identical but
+  // independently-maintained copy of a much looser check -- see this
+  // function's own git history). This file is loaded on every page that has
+  // an email field (index.html, product.html, account.html, checkout.html,
+  // contact.html), so it's the natural home for it.
+  //
+  // Deliberately NOT a full RFC 5322 validator -- that grammar technically
+  // allows quoted local-parts, IP-literal domains, etc. that essentially no
+  // real signup form accepts in practice either. This is a solid, realistic
+  // FORMAT check only: proper local@domain shape, a real-looking multi-
+  // character alphabetic TLD, sane length limits, no leading/trailing/
+  // consecutive dots. It deliberately does NOT attempt deliverability
+  // verification (MX record lookup, disposable-domain blocklist, etc.) --
+  // this is a static site with no backend to run that kind of check from;
+  // doing it for real would need a server-side service.
+  const EMAIL_MAX_LENGTH = 254; // RFC 5321 total envelope length ceiling
+  const EMAIL_LOCAL_PART_MAX_LENGTH = 64; // RFC 5321 local-part length ceiling
+  // local-part: the common unquoted atext charset (letters/digits and
+  // !#$%&'*+/=?^_`{|}~- , dots included but validated separately below,
+  // since a charset alone can't forbid a dot from leading/trailing/
+  // repeating). Plus-addressing ("user+tag@domain.com") is a bare "+" in
+  // this charset, so it's already covered, no special-casing needed.
+  // domain: one or more "label." groups followed by a final all-letters TLD
+  // of 2+ characters -- each label starts and ends with a letter/digit (an
+  // internal hyphen is fine, a leading/trailing one isn't, matching real DNS
+  // label rules), which also structurally rules out "user@domain" (no dot
+  // at all -- the "+" requires at least one "label." before the TLD) and
+  // "u@u.u" (single-letter TLD, fails the {2,}).
+  const EMAIL_FORMAT_RE = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
 
-  // Not a full RFC 5322 validator -- just enough to catch an empty
-  // submission or an obviously incomplete address (no "@", no domain).
+  function isValidEmailFormat(email) {
+    if (!email || email.length > EMAIL_MAX_LENGTH) return false;
+    const atIndex = email.lastIndexOf('@');
+    if (atIndex === -1) return false;
+    const localPart = email.slice(0, atIndex);
+    if (!localPart || localPart.length > EMAIL_LOCAL_PART_MAX_LENGTH) return false;
+    if (localPart.startsWith('.') || localPart.endsWith('.') || localPart.includes('..')) return false;
+    return EMAIL_FORMAT_RE.test(email);
+  }
+  window.MonarkValidateEmail = isValidEmailFormat;
+
   function validateEmail(email) {
     if (!email) return { ok: false, errorKey: 'errorEmpty' };
-    if (!EMAIL_RE.test(email)) return { ok: false, errorKey: 'errorInvalid' };
+    if (!isValidEmailFormat(email)) return { ok: false, errorKey: 'errorInvalid' };
     return { ok: true };
   }
 

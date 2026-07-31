@@ -720,11 +720,14 @@
       el.hidden = false;
     }
 
-    // Not a full RFC 5322 validator -- just enough to catch an obviously
-    // incomplete address (no "@", no domain) before it reaches
-    // createAccount()/logIn().
+    // Delegates to the single canonical email-format check (js/email-popup.js,
+    // loaded on every page that mounts this gate -- see that file's own
+    // comment on window.MonarkValidateEmail for the full reasoning and what
+    // it does/doesn't check). Falls back to a bare "has @ and a dot" shape
+    // only in the unexpected case that script hasn't loaded, rather than
+    // hard-failing every email as invalid.
     function isPlausibleEmail(value) {
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+      return window.MonarkValidateEmail ? window.MonarkValidateEmail(value) : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
     }
 
     // 8+ characters, at least one letter and one number -- a floor, not a
