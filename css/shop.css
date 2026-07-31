@@ -480,20 +480,28 @@ body.shop-page { background: var(--bg-void); }
    space between "Why Effluve Paris" and "The Composition", confirmed via
    direct measurement) -- brings the total closer to the ~2rem gap already
    established as this page's own convention between other adjacent
-   sections (e.g. .shop-notes -> .shop-reviews). */
+   sections (e.g. .shop-notes -> .shop-reviews).
+   BUG FIX (round 2): bumped back up from 3vh to 5vh -- confirmed via
+   screenshot that "LA COMPOSITION" read as visually attached to the
+   .why-effluve grid above it rather than to its own notes rows below;
+   .shop-notes-kicker's own margin-top/margin-bottom just below were
+   rebalanced at the same time (see that rule's own comment) so the kicker
+   sits clearly looser from what precedes it and tighter to what follows. */
 .shop-notes {
   max-width: 860px;
   margin: 0 auto;
-  padding: 3vh 6vw 2rem;
+  padding: 5vh 6vw 2rem;
 }
 
-/* margin-top adds a small amount of breathing room above "LA COMPOSITION"
-   itself, on top of .shop-notes's own padding-top -- trimmed from 1.5rem
-   (see .shop-notes's own padding-top comment above for the full reasoning:
-   this margin was one of three stacked values compounding into an
-   oversized gap below .why-effluve). margin-bottom -- see .shop-notes's own
-   padding-bottom comment above on why this is the same 2rem value. */
-.shop-notes-kicker { display: block; text-align: center; margin-top: 0.5rem; margin-bottom: 2rem; }
+/* margin-top/margin-bottom rebalanced (was 0.5rem/2rem) so "LA COMPOSITION"
+   reads as belonging to the notes rows below it, not the .why-effluve grid
+   above -- see .shop-notes's own padding-top comment for the measured
+   before/after. margin-bottom no longer matches .shop-notes's own
+   padding-bottom (2rem) 1:1 like it used to; that symmetry existed to keep
+   "heading to notes list" and "last notes row to footer" reading the same,
+   but came at the cost of this kicker reading equidistant from both
+   neighbors instead of clearly closer to one. */
+.shop-notes-kicker { display: block; text-align: center; margin-top: 1rem; margin-bottom: 1.1rem; }
 
 .shop-notes-row {
   display: flex;
@@ -719,17 +727,42 @@ body.shop-page { background: var(--bg-void); }
 }
 
 /* ================= NEWSLETTER SIGNUP ================= */
-/* Simple, compact form below Customer Reviews -- narrower max-width and
-   centered like a footer-style signup block, not a full-bleed section like
-   .shop-notes/.shop-reviews above it. Reuses .email-popup-form/-input/
-   -consent/-submit as-is (see css/style.css's EMAIL CAPTURE POPUP section)
-   for the form itself, so this and the popup can never visually drift apart
-   -- only this wrapper/kicker/body text below are unique to this section. */
+/* Below Customer Reviews. Reuses .email-popup-form/-input/-consent/-submit
+   as-is (see css/style.css's EMAIL CAPTURE POPUP section) for the form
+   itself, so this and the popup can never visually drift apart -- only this
+   wrapper/kicker/body text are unique to this section.
+   BUG FIX: was a single narrow (440px) centered column at every width --
+   confirmed via screenshot this left most of a wide desktop viewport empty
+   and read as disproportionately small. Desktop now splits into two columns
+   (text left, form right) inside the same 1080px max-width .shop-reviews
+   itself uses just above, for consistency with how that section already
+   uses the available width; mobile is restored to the original narrow
+   centered block via this rule's own @media override below, unchanged from
+   before. */
 .shop-newsletter {
-  max-width: 440px;
+  max-width: 1080px;
   margin: 0 auto;
   padding: 0 6vw 9vh;
+}
+
+.shop-newsletter-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5vw;
+  align-items: center;
+  text-align: left;
+}
+
+/* The post-submit confirmation state (see product.html's own inline script)
+   swaps this container's content for flat kicker/heading/copy/consent
+   markup -- that doesn't split into two meaningful columns, so it opts back
+   into a single narrow centered block instead, the same shape the
+   pre-submission mobile layout already uses. */
+.shop-newsletter-inner.shop-newsletter-confirmed {
+  display: block;
   text-align: center;
+  max-width: 440px;
+  margin: 0 auto;
 }
 
 .shop-newsletter-kicker { display: block; margin-bottom: 1rem; }
@@ -738,13 +771,21 @@ body.shop-page { background: var(--bg-void); }
   margin: 0 0 2rem;
   font-family: var(--font-body);
   font-weight: 300;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   line-height: 1.6;
   color: var(--text-muted);
+  max-width: 34ch;
 }
 
 @media (max-width: 768px) {
   .shop-newsletter { padding: 0 8vw 6vh; }
+  .shop-newsletter-inner {
+    display: block;
+    text-align: center;
+    max-width: 440px;
+    margin: 0 auto;
+  }
+  .shop-newsletter-body { max-width: none; }
 }
 
 /* ================= HOW TO WEAR ================= */
@@ -926,11 +967,12 @@ body.shop-page { background: var(--bg-void); }
      not-yet-dismissed cookie banner sets it) is added on top since that
      banner sits in this exact same footprint too, and shifts the sticky
      bar itself up by its own height while showing. */
-  /* Top trimmed from 6vh to 2vh -- same oversized-gap-below-.why-effluve fix
-     as the desktop rule's own padding-top above (see that rule's comment);
+  /* Top trimmed from 6vh to 2vh, then back up to 3vh -- same
+     oversized-gap-then-wrong-side-of-the-balance fix as the desktop rule's
+     own padding-top above (see that rule's comment for the full history);
      bottom stays untouched, it's load-bearing for the sticky-bar tap-target
      clearance explained just above. */
-  .shop-notes { padding: 2vh 8vw calc(2rem + 90px + var(--cookie-banner-h)); }
+  .shop-notes { padding: 3vh 8vw calc(2rem + 90px + var(--cookie-banner-h)); }
   .shop-notes-row { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
   .shop-notes-names { text-align: left; }
 
