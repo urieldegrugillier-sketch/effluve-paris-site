@@ -122,10 +122,13 @@
     // in-page panel doesn't reach, e.g. before the Places library has
     // loaded). Chrome's native popup is rendered by the browser chrome
     // itself, entirely outside this page's DOM/paint layer -- no CSS
-    // z-index, position, or JS reaches it from here, so the only real lever
-    // left is making sure THIS panel visibly wins any overlap (dark/bronze
-    // branded surface + border + shadow + a defensively high z-index, see
-    // css/checkout.css's .monark-places-suggestions).
+    // z-index, position, or JS reaches it from here, so two levers are used
+    // together instead: making sure THIS panel visibly wins any overlap
+    // (dark/bronze branded surface + border + shadow + a defensively high
+    // z-index, see css/checkout.css's .monark-places-suggestions), and a
+    // best-effort blur()+focus() cycle right as this panel is about to open
+    // that often closes Chrome's native popup outright -- see
+    // dismissNativeAutofillPopup() below.
     input.setAttribute('autocomplete', 'off');
 
     let sessionToken = null;
@@ -141,6 +144,12 @@
     // right after selectSuggestion() had closed it (the actual cause behind
     // "the dropdown stays open after picking a suggestion").
     let suppressNextInputEvent = false;
+    // Set around the synthetic blur()+focus() cycle in
+    // dismissNativeAutofillPopup() below, so the input's own real blur
+    // handler (further down) -- which schedules closePanel() for when the
+    // user actually leaves the field -- doesn't also fire for this
+    // momentary, purely-internal blur.
+    let suppressBlurClose = false;
 
     // Country <select> this Address field's form actually has, if any --
     // checkout.html's Shipping section has one (name="country"); account.html's
@@ -166,6 +175,34 @@
       }).join('');
       panel.hidden = suggestions.length === 0;
       input.setAttribute('aria-expanded', String(suggestions.length > 0));
+    }
+
+    // Best-effort mitigation for Chrome's own native address-autofill
+    // suggestion popup visually overlapping this panel (see this file's
+    // autocomplete="off" comment above for why that attribute alone can't
+    // prevent it) -- blur()+focus() in the same synchronous tick is a known
+    // trick that often collapses Chrome's native popup, since it's tied to
+    // the field's current focus session, WITHOUT disabling native autofill
+    // outright (it can still reappear on the next fresh focus, which is the
+    // point -- anyone this in-page panel doesn't reach, e.g. before the
+    // Places library has loaded, keeps that fallback). Only called right
+    // before this panel is about to go from closed to open (see its one
+    // call site below), not on every keystroke while it's already open, so
+    // a fast typist doesn't get a blur/focus cycle on every letter.
+    // Selection is saved/restored around it since blur() natively clears
+    // it and it isn't reliably preserved through a refocus on its own.
+    function dismissNativeAutofillPopup() {
+      if (document.activeElement !== input) return;
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+      const direction = input.selectionDirection;
+      suppressBlurClose = true;
+      input.blur();
+      input.focus();
+      suppressBlurClose = false;
+      if (start !== null && end !== null) {
+        try { input.setSelectionRange(start, end, direction || 'none'); } catch (err) { /* non-text input types can throw -- N/A here, kept defensive */ }
+      }
     }
 
     function highlight() {
@@ -262,8 +299,17 @@
           return;
         }
         if (thisRequest !== requestId) return; // stale response from an earlier keystroke
-        suggestions = (response && response.suggestions) || [];
+        const nextSuggestions = (response && response.suggestions) || [];
+        // "About to show new results" means specifically going from closed
+        // to open -- checked BEFORE suggestions/panel state below are
+        // updated, so a keystroke that just refreshes an ALREADY-open
+        // panel's contents (the common case while typing) never re-triggers
+        // the blur/focus cycle above, only the first one that actually
+        // opens it.
+        const isFreshOpen = panel.hidden && nextSuggestions.length > 0;
+        suggestions = nextSuggestions;
         activeIndex = -1;
+        if (isFreshOpen) dismissNativeAutofillPopup();
         renderPanel();
       }, 200);
     });
@@ -297,8 +343,14 @@
 
     // Closes on blur (e.g. Tab to the next field) -- delayed just long
     // enough for the mousedown handler above to have already run for a
-    // click landing inside the panel.
-    input.addEventListener('blur', () => { setTimeout(closePanel, 150); });
+    // click landing inside the panel. Skipped for the synthetic blur inside
+    // dismissNativeAutofillPopup() above (suppressBlurClose) -- that one is
+    // immediately followed by a refocus in the same tick and was never the
+    // user actually leaving the field.
+    input.addEventListener('blur', () => {
+      if (suppressBlurClose) return;
+      setTimeout(closePanel, 150);
+    });
   }
 
   addressInputs.forEach(enhance);
