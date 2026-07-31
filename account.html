@@ -46,8 +46,8 @@
      copy of this comment for why (avoids a fallback-font flash). -->
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=block" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260813">
-<link rel="stylesheet" href="css/checkout.css?v=20260813">
+<link rel="stylesheet" href="css/style.css?v=20260814">
+<link rel="stylesheet" href="css/checkout.css?v=20260814">
 </head>
 <body class="shop-page">
 
@@ -99,11 +99,13 @@
         <div class="checkout-field-row">
           <label class="checkout-field">
             <span data-i18n="account.firstNameLabel">First Name</span>
-            <input type="text" name="firstName" autocomplete="given-name">
+            <input type="text" name="firstName" autocomplete="given-name" maxlength="50">
+            <p class="promo-message promo-message-error" id="account-profile-firstName-error" aria-live="polite" hidden></p>
           </label>
           <label class="checkout-field">
             <span data-i18n="account.lastNameLabel">Last Name</span>
-            <input type="text" name="lastName" autocomplete="family-name">
+            <input type="text" name="lastName" autocomplete="family-name" maxlength="50">
+            <p class="promo-message promo-message-error" id="account-profile-lastName-error" aria-live="polite" hidden></p>
           </label>
         </div>
         <label class="checkout-field">
@@ -276,16 +278,16 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-client.js?v=20260813"></script>
-<script src="js/i18n.js?v=20260813"></script>
-<script src="js/header-position-fix.js?v=20260813"></script>
-<script src="js/footer-active-page.js?v=20260813"></script>
-<script src="js/cart.js?v=20260813"></script>
-<script src="js/cart-widget.js?v=20260813"></script>
-<script src="js/nav-menu.js?v=20260813"></script>
-<script src="js/phone-input.js?v=20260813"></script>
-<script src="js/account.js?v=20260813"></script>
-<script src="js/places-autocomplete.js?v=20260813"></script>
+<script src="js/supabase-client.js?v=20260814"></script>
+<script src="js/i18n.js?v=20260814"></script>
+<script src="js/header-position-fix.js?v=20260814"></script>
+<script src="js/footer-active-page.js?v=20260814"></script>
+<script src="js/cart.js?v=20260814"></script>
+<script src="js/cart-widget.js?v=20260814"></script>
+<script src="js/nav-menu.js?v=20260814"></script>
+<script src="js/phone-input.js?v=20260814"></script>
+<script src="js/account.js?v=20260814"></script>
+<script src="js/places-autocomplete.js?v=20260814"></script>
 <script>
 (function () {
   const account = window.MonarkAccount;
@@ -317,6 +319,8 @@
   const profileDobInput = profileForm.querySelector('[name="dob"]');
   const profileEmailError = document.getElementById('account-profile-email-error');
   const profilePasswordError = document.getElementById('account-profile-password-error');
+  const profileFirstNameError = document.getElementById('account-profile-firstName-error');
+  const profileLastNameError = document.getElementById('account-profile-lastName-error');
   const profileSuccess = document.getElementById('account-profile-success');
 
   const addressSection = document.getElementById('account-address');
@@ -411,6 +415,8 @@
     profileDobInput.value = acc.dob || '';
     profileEmailError.hidden = true;
     profilePasswordError.hidden = true;
+    profileFirstNameError.hidden = true;
+    profileLastNameError.hidden = true;
     profileSuccess.hidden = true;
 
     addressInput.value = acc.address || '';
@@ -494,10 +500,33 @@
     }
     profilePasswordError.hidden = true;
 
+    // Neither field is required here (unlike checkout.html's Shipping form)
+    // -- a profile with no name on file is valid, this only rejects a
+    // NON-empty value that fails the shared format/length check
+    // (window.MonarkValidateName, js/email-popup.js -- same one used by
+    // checkout.html's Shipping form and the account-gate's Create Account
+    // form, so a name is never accepted in one place and rejected in
+    // another).
+    const firstName = profileFirstNameInput.value.trim();
+    if (firstName && window.MonarkValidateName && !window.MonarkValidateName(firstName)) {
+      profileFirstNameError.textContent = t('common.errorNameFormat');
+      profileFirstNameError.hidden = false;
+      return;
+    }
+    profileFirstNameError.hidden = true;
+
+    const lastName = profileLastNameInput.value.trim();
+    if (lastName && window.MonarkValidateName && !window.MonarkValidateName(lastName)) {
+      profileLastNameError.textContent = t('common.errorNameFormat');
+      profileLastNameError.hidden = false;
+      return;
+    }
+    profileLastNameError.hidden = true;
+
     const patch = {
       email,
-      firstName: profileFirstNameInput.value.trim(),
-      lastName: profileLastNameInput.value.trim(),
+      firstName,
+      lastName,
       dob: profileDobInput.value
     };
     // Empty string, not omitted -- updateAccount() itself treats an empty
@@ -677,9 +706,9 @@
   syncLogoutBtn();
 })();
 </script>
-<script src="js/promo-countdown.js?v=20260813"></script>
-<script src="js/promo-banner.js?v=20260813"></script>
-<script src="js/cookie-consent.js?v=20260813"></script>
-<script src="js/email-popup.js?v=20260813"></script>
+<script src="js/promo-countdown.js?v=20260814"></script>
+<script src="js/promo-banner.js?v=20260814"></script>
+<script src="js/cookie-consent.js?v=20260814"></script>
+<script src="js/email-popup.js?v=20260814"></script>
 </body>
 </html>

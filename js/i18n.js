@@ -202,7 +202,8 @@
       common: {
         backToShop: '← Back to Shop',
         account: 'Account',
-        placesSuggestionsLabel: 'Suggestions'
+        placesSuggestionsLabel: 'Suggestions',
+        errorNameFormat: 'Please use only letters, spaces, hyphens, and apostrophes (max 50 characters).'
       },
       product: {
         carouselAriaLabel: 'MONARK bottle image carousel',
@@ -394,6 +395,7 @@
         errorAccountExists: 'An account with this email already exists.',
         accountCreated: 'Your account has been created.',
         errorNameRequired: 'Please enter your first and last name.',
+        errorNameFormat: 'First and last name may only contain letters, spaces, hyphens, and apostrophes (max 50 characters each).',
         errorGeneric: 'Something went wrong. Please try again.',
         errorRateLimited: 'Too many attempts right now. Please wait a few minutes and try again.',
         forgotPassword: 'Forgot password?',
@@ -755,7 +757,8 @@
       common: {
         backToShop: '← Retour à la Boutique',
         account: 'Compte',
-        placesSuggestionsLabel: 'Adresses suggérées'
+        placesSuggestionsLabel: 'Adresses suggérées',
+        errorNameFormat: "Veuillez utiliser uniquement des lettres, espaces, tirets et apostrophes (50 caractères maximum)."
       },
       product: {
         carouselAriaLabel: "Carrousel d'images du flacon MONARK",
@@ -907,6 +910,7 @@
         errorAccountExists: 'Un compte avec cet e-mail existe déjà.',
         accountCreated: 'Votre compte a été créé.',
         errorNameRequired: 'Veuillez saisir votre prénom et votre nom.',
+        errorNameFormat: 'Le prénom et le nom ne peuvent contenir que des lettres, espaces, tirets et apostrophes (50 caractères maximum chacun).',
         errorGeneric: "Une erreur s'est produite. Veuillez réessayer.",
         errorRateLimited: 'Trop de tentatives pour le moment. Veuillez patienter quelques minutes puis réessayer.',
         forgotPassword: 'Mot de passe oublié ?',

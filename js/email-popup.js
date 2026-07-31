@@ -82,6 +82,37 @@
   }
   window.MonarkValidateEmail = isValidEmailFormat;
 
+  // window.MonarkValidateName -- same "one canonical check, hung off
+  // window, living wherever it's loaded on every page that needs it"
+  // pattern as MonarkValidateEmail just above. Covers every first/last name
+  // field on the site: checkout.html's Shipping form, account.html's Edit
+  // Profile form, and the shared account-gate's Create Account form
+  // (js/account.js, used by both pages) -- each previously only checked
+  // for non-empty (or, on account.html's Edit Profile, nothing at all), so
+  // "111" or "John@Doe" both passed everywhere. Deliberately NO minimum
+  // length -- real names as short as one character exist ("Li", "Jo") -- so
+  // this only rejects on: empty/whitespace-only, disallowed characters, or
+  // over length.
+  const NAME_MAX_LENGTH = 50;
+  // Unicode letters (\p{L}) + combining marks (\p{M}, for names typed with
+  // decomposed accents, e.g. "e" + a combining acute rather than the single
+  // precomposed "é" codepoint -- both need to keep working) + space +
+  // hyphen (Jean-Pierre) + straight and curly apostrophes (O'Brien /
+  // O’Brien, the latter being what iOS/most autocorrect actually inserts).
+  // No digits, no other punctuation/symbols.
+  const NAME_FORMAT_RE = /^[\p{L}\p{M}' ’-]+$/u;
+  const NAME_HAS_LETTER_RE = /\p{L}/u;
+
+  function isValidNameFormat(name) {
+    const trimmed = String(name || '').trim();
+    if (!trimmed || trimmed.length > NAME_MAX_LENGTH) return false;
+    // Requires at least one actual letter -- without this, a name field
+    // containing only e.g. "-" or "'" would otherwise pass (each is
+    // individually an allowed character), which isn't a real name.
+    return NAME_FORMAT_RE.test(trimmed) && NAME_HAS_LETTER_RE.test(trimmed);
+  }
+  window.MonarkValidateName = isValidNameFormat;
+
   function validateEmail(email) {
     if (!email) return { ok: false, errorKey: 'errorEmpty' };
     if (!isValidEmailFormat(email)) return { ok: false, errorKey: 'errorInvalid' };

@@ -535,11 +535,11 @@
           <div class="checkout-field-row">
             <label class="checkout-field">
               <span data-i18n="account.firstNameLabel">First Name</span>
-              <input type="text" id="checkout-account-create-firstname" autocomplete="given-name" required>
+              <input type="text" id="checkout-account-create-firstname" autocomplete="given-name" maxlength="50" required>
             </label>
             <label class="checkout-field">
               <span data-i18n="account.lastNameLabel">Last Name</span>
-              <input type="text" id="checkout-account-create-lastname" autocomplete="family-name" required>
+              <input type="text" id="checkout-account-create-lastname" autocomplete="family-name" maxlength="50" required>
             </label>
           </div>
           <label class="checkout-field">
@@ -996,8 +996,20 @@
       // silently mask another -- the user always sees whichever is wrong
       // first, and fixing it surfaces the next one rather than all failing
       // invisibly at once.
-      if (!createFirstNameInput.value.trim() || !createLastNameInput.value.trim()) {
+      const createFirstNameVal = createFirstNameInput.value.trim();
+      const createLastNameVal = createLastNameInput.value.trim();
+      if (!createFirstNameVal || !createLastNameVal) {
         showFieldError(createError, 'accountGate.errorNameRequired');
+        return;
+      }
+      // Shared format/length check (window.MonarkValidateName, js/email-
+      // popup.js) -- same one checkout.html's Shipping form and account.html's
+      // Edit Profile form both use, so a name is never accepted in one place
+      // and rejected in another. This form only has ONE shared error slot for
+      // both fields (not per-field, unlike Shipping's), so it stays that way
+      // here too rather than introducing a new error-display pattern.
+      if (window.MonarkValidateName && (!window.MonarkValidateName(createFirstNameVal) || !window.MonarkValidateName(createLastNameVal))) {
+        showFieldError(createError, 'accountGate.errorNameFormat');
         return;
       }
       if (!isValidPassword(createPasswordInput.value)) {
