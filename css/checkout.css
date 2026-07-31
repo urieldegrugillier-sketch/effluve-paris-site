@@ -366,6 +366,24 @@
 }
 .monark-places-suggestions li.is-highlighted { background: rgba(216, 178, 124, 0.12); }
 
+/* Non-selectable label row (role="presentation", see renderPanel() in
+   js/places-autocomplete.js) -- same small-caps/mono convention as every
+   other field label on this page (.checkout-field span above), so it reads
+   as "belonging to" the site's own form UI rather than a generic dropdown
+   header. Bottom hairline separates it from the real, clickable options
+   below it without needing extra vertical padding to do the same job. */
+.monark-places-suggestions-label {
+  padding: 0.4rem 1rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 0.2rem;
+  cursor: default;
+}
+
 /* Country-vs-autofill fix (checkout.html Shipping step only): Chrome's own
    autofill policy never overwrites a field the user already manually
    edited, which is exactly what leaves the Country <select> stuck on a

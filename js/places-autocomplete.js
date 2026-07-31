@@ -158,6 +158,16 @@
     // it below is already guarded for that.
     const countryInput = form.querySelector('[name="country"]');
 
+    // Same min-width:769px desktop breakpoint used elsewhere in this
+    // codebase for desktop-vs-mobile behavior (see js/app.js's own
+    // isDesktop) -- used below both to decide above-vs-below placement and
+    // to gate the "Suggestions" label (see renderPanel()). Both exist
+    // specifically to help tell this panel apart from Chrome's own native
+    // autofill popup, which only ever competes for the same space on
+    // desktop -- mobile already works well on its own (stays clear of the
+    // on-screen keyboard, confirmed), so neither applies there.
+    const isDesktopQuery = window.matchMedia('(min-width: 769px)');
+
     function closePanel() {
       panel.hidden = true;
       panel.innerHTML = '';
@@ -167,11 +177,22 @@
       input.removeAttribute('aria-activedescendant');
     }
 
+    // A non-selectable label row prepended above the actual suggestions --
+    // role="presentation" (not "option") keeps it out of the listbox's own
+    // selectable set, so every piece of index-based logic below
+    // (highlight(), the mousedown handler, keyboard nav) targets
+    // '[role="option"]' specifically rather than raw panel.children, which
+    // would otherwise be off-by-one the moment this label exists as the
+    // first child.
     function renderPanel() {
-      panel.innerHTML = suggestions.map((s, i) => {
+      const label = suggestions.length && isDesktopQuery.matches
+        ? `<li class="monark-places-suggestions-label" role="presentation">${window.MonarkI18n ? window.MonarkI18n.t('common.placesSuggestionsLabel') : 'Suggestions'}</li>`
+        : '';
+      const items = suggestions.map((s, i) => {
         const text = s.placePrediction && s.placePrediction.text ? s.placePrediction.text.text : '';
         return `<li role="option" id="monark-places-opt-${i}" data-index="${i}">${text}</li>`;
       }).join('');
+      panel.innerHTML = label + items;
       panel.hidden = suggestions.length === 0;
       input.setAttribute('aria-expanded', String(suggestions.length > 0));
     }
@@ -188,28 +209,54 @@
     //
     // Falls back to below on desktop too when there isn't actually room
     // above the field (e.g. Address scrolled near the top of the viewport,
-    // right under the fixed header) -- checked fresh each time, since the
-    // available space depends on the page's current scroll position, not
-    // just viewport size. 240 mirrors .monark-places-suggestions's own CSS
-    // max-height (the worst case, a full-height list) rather than this
-    // particular result set's actual height, so this never renders a
-    // shorter list above only for a later, longer one to clip against the
-    // header mid-session.
-    const isDesktopQuery = window.matchMedia('(min-width: 769px)');
+    // right under the fixed header) -- checked fresh each time via
+    // getBoundingClientRect(), never cached, since the available space
+    // depends on the page's current scroll position, not just viewport
+    // size. 240 mirrors .monark-places-suggestions's own CSS max-height
+    // (the worst case, a full-height list) rather than this particular
+    // result set's actual height, so this never renders a shorter list
+    // above only for a later, longer one to clip against the header
+    // mid-session.
+    //
+    // BUG FIX: this correctly-fresh measurement could still read as "not
+    // enough room" for a reason that has nothing to do with the page's
+    // actual layout -- re-opening a completed accordion step (e.g.
+    // Shipping, after visiting Payment and clicking back) never scrolls
+    // that step back into view on its own (no browser default for it, and
+    // this codebase's own accordion code doesn't add one), so the field can
+    // simply be sitting at whatever scroll position was last left over from
+    // being further down the page, however much room the SAME field
+    // genuinely has above it once actually brought into view. Confirmed via
+    // direct reproduction: with scroll position pinned, the exact same
+    // field measured the exact same (correct) available space both times --
+    // there was never a stale value or uncleared class involved, only a
+    // legitimate, scroll-position-dependent measurement of wherever the
+    // viewport happened to already be. Scrolling the field into a centered
+    // view before the real go/no-go check -- but ONLY when the current
+    // position both lacks room AND has room to scroll further up in the
+    // first place -- fixes the symptom without ever forcing a scroll on a
+    // field that's genuinely near the top of the page's actual content,
+    // where scrolling up further wouldn't help anyway (that case still
+    // correctly falls through to the below-fallback right after).
+    function hasRoomAbove() {
+      const inputTop = input.getBoundingClientRect().top;
+      const header = document.querySelector('.site-header');
+      const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
+      return (inputTop - headerBottom) >= 240;
+    }
     function updatePanelPlacement() {
       if (!isDesktopQuery.matches) {
         panel.classList.remove('monark-places-suggestions--above');
         return;
       }
-      const inputTop = input.getBoundingClientRect().top;
-      const header = document.querySelector('.site-header');
-      const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
-      const availableAbove = inputTop - headerBottom;
-      panel.classList.toggle('monark-places-suggestions--above', availableAbove >= 240);
+      if (!hasRoomAbove() && window.scrollY > 0) {
+        input.scrollIntoView({ block: 'center', behavior: 'auto' });
+      }
+      panel.classList.toggle('monark-places-suggestions--above', hasRoomAbove());
     }
 
     function highlight() {
-      Array.from(panel.children).forEach((li, i) => li.classList.toggle('is-highlighted', i === activeIndex));
+      Array.from(panel.querySelectorAll('[role="option"]')).forEach((li, i) => li.classList.toggle('is-highlighted', i === activeIndex));
       input.setAttribute('aria-activedescendant', activeIndex >= 0 ? `monark-places-opt-${activeIndex}` : '');
     }
 
@@ -336,8 +383,8 @@
     // so the selection still has a live suggestions list to read from --
     // e.preventDefault() here stops that blur from happening at all.
     panel.addEventListener('mousedown', (e) => {
-      const li = e.target.closest('li');
-      if (!li) return;
+      const li = e.target.closest('li[role="option"]');
+      if (!li) return; // includes a click landing on the non-selectable label row
       e.preventDefault();
       selectSuggestion(Number(li.dataset.index));
     });

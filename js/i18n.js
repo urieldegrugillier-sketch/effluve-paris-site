@@ -201,7 +201,8 @@
       },
       common: {
         backToShop: '← Back to Shop',
-        account: 'Account'
+        account: 'Account',
+        placesSuggestionsLabel: 'Suggestions'
       },
       product: {
         carouselAriaLabel: 'MONARK bottle image carousel',
@@ -753,7 +754,8 @@
       },
       common: {
         backToShop: '← Retour à la Boutique',
-        account: 'Compte'
+        account: 'Compte',
+        placesSuggestionsLabel: 'Adresses suggérées'
       },
       product: {
         carouselAriaLabel: "Carrousel d'images du flacon MONARK",
