@@ -300,6 +300,39 @@
 
 .checkout-field textarea { resize: vertical; }
 
+/* Google Places Autocomplete suggestions panel (js/places-autocomplete.js)
+   for the Address field -- same positioned-panel convention as
+   .phone-country-panel just below (dark surface, hairline border, drop
+   shadow), anchored to .checkout-field itself (needs position:relative,
+   which no .checkout-field otherwise sets) rather than to the <input>
+   directly so the panel's width/left/right track the field's own, not the
+   input's shrunk-to-fit-in-a-flex-row width. */
+.monark-places-anchor { position: relative; }
+.monark-places-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 0.4rem 0;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--bg-ink);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+.monark-places-suggestions[hidden] { display: none; }
+.monark-places-suggestions li[role="option"] {
+  padding: 0.6rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--text-on-dark);
+  cursor: pointer;
+}
+.monark-places-suggestions li.is-highlighted { background: rgba(216, 178, 124, 0.12); }
+
 /* Country-vs-autofill fix (checkout.html Shipping step only): Chrome's own
    autofill policy never overwrites a field the user already manually
    edited, which is exactly what leaves the Country <select> stuck on a
