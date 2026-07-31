@@ -651,7 +651,7 @@
         tier1: {
           label: 'Tête | La Première Frappe',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Bergamote</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Citron</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Poivre Rose</span>.</span>',
-          body: "L'entrée en matière tranche, elle ne salue pas. Bergamote italienne, citron éclatant, rehaussés par la chaleur sèche du poivre rose, une présentation qui coupe court à toute conversation."
+          body: "Aucune politesse ici, seulement une lame. Bergamote italienne, citron éclatant, rehaussés par la chaleur sèche du poivre rose, une entrée en matière qui coupe court à toute conversation."
         },
         tier2: {
           label: 'Le Cœur | Ce Qui Demeure',
@@ -661,7 +661,7 @@
         tier3: {
           label: 'Le Fond | Ce Qui Persiste',
           heading: '<span class="note-word-line"><span class="note-word" tabindex="0">Ambre Gris</span>.</span> <span class="note-word-line"><span class="note-word" tabindex="0">Bois de Cèdre</span>.</span><br><span class="note-word-line"><span class="note-word" tabindex="0">Musc</span>.</span>',
-          body: "Voilà ce qui reste sur la peau, bien après que la pièce s'est vidée. Ambre gris et bois de cèdre ancrent la composition dans l'ancien ; le musc referme la porte. On ne porte pas ce parfum. On le laisse derrière soi."
+          body: "Voilà ce qui reste sur la peau, quand la pièce est déjà vide. Ambre gris et bois de cèdre ancrent la composition dans l'ancien ; le musc referme la porte. On ne porte pas ce parfum. On le laisse derrière soi."
         }
       },
       s4: {

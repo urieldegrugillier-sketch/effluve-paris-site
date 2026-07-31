@@ -765,7 +765,11 @@ body.shop-page { background: var(--bg-void); }
   margin: 0 auto;
 }
 
-.shop-newsletter-kicker { display: block; margin-bottom: 1rem; }
+/* Bronze-light, not the muted default .section-label inherits -- same color
+   .shop-notes-label ("NOTES DE TÊTE" etc.) already uses for this kind of
+   small kicker-style label on this page, reused here for consistency
+   rather than leaving this one the odd, unaccented one out. */
+.shop-newsletter-kicker { display: block; margin-bottom: 1rem; color: var(--accent-bronze-light); }
 
 .shop-newsletter-body {
   margin: 0 0 2rem;
