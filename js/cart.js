@@ -42,14 +42,63 @@
     return readCart();
   }
 
+  /* ---------------- Live stock ceiling ----------------
+     Mirrors product.html's own stock-progress-bar query (same
+     public.products.stock_remaining column, same single-row read via
+     .limit(1).maybeSingle()) but fetched independently here rather than
+     reused from there, since quantity can change from the mini-cart widget
+     (js/cart-widget.js, loaded on every page) on ANY page, not just from
+     product.html itself -- this module can't assume that page's own fetch
+     has run, or ever will, on whatever page it's actually loaded on.
+     stockRemaining stays null until the read resolves; getStockCeiling()
+     treats null as "don't block" (Infinity) rather than refusing an
+     add/update over a race with a fast click on a freshly-loaded page --
+     that's a rare, brief window, and briefly under-enforcing it is a much
+     smaller problem than wrongly blocking a legitimate purchase. Not
+     decremented on purchase yet (same known gap as product.html's own
+     comment on this), so this reads the same evolving number that page's
+     progress bar shows. */
+  let stockRemaining = null;
+  if (global.MonarkSupabase) {
+    global.MonarkSupabase
+      .from('products')
+      .select('stock_remaining')
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error || !data || data.stock_remaining === null || data.stock_remaining === undefined) return;
+        stockRemaining = data.stock_remaining;
+      });
+  }
+
+  function getStockCeiling() {
+    return stockRemaining === null ? Infinity : Math.max(0, stockRemaining);
+  }
+
+  // Fires whenever a requested quantity had to be reduced to fit the live
+  // stock ceiling -- js/cart-widget.js listens for this to show a brief
+  // message near the quantity control, since neither addToCart() nor
+  // updateQuantity() return anything richer than the plain items array
+  // today (nothing currently reads their return value, but changing that
+  // contract is a separate concern from adding the ceiling itself).
+  function dispatchStockClamp(requested, applied, max) {
+    document.dispatchEvent(new CustomEvent('cart:quantity-clamped', { detail: { requested, applied, max } }));
+  }
+
   function addToCart(qty) {
     qty = Math.max(1, Math.floor(qty) || 1);
     const items = readCart();
     const existing = items.find((item) => item.productId === PRODUCT.id);
+    const currentQty = existing ? existing.quantity : 0;
+    const max = getStockCeiling();
+    const desiredQty = currentQty + qty;
+    const finalQty = Math.max(0, Math.min(desiredQty, max));
+    if (finalQty < desiredQty) dispatchStockClamp(desiredQty, finalQty, max);
+    if (finalQty <= 0) return items; // nothing left in stock to add -- cart left untouched
     if (existing) {
-      existing.quantity += qty;
+      existing.quantity = finalQty;
     } else {
-      items.push({ productId: PRODUCT.id, quantity: qty });
+      items.push({ productId: PRODUCT.id, quantity: finalQty });
     }
     return writeCart(items);
   }
@@ -60,7 +109,10 @@
     const items = readCart();
     const existing = items.find((item) => item.productId === PRODUCT.id);
     if (!existing) return items;
-    existing.quantity = qty;
+    const max = getStockCeiling();
+    const finalQty = Math.min(qty, max);
+    if (finalQty < qty) dispatchStockClamp(qty, finalQty, max);
+    existing.quantity = finalQty;
     return writeCart(items);
   }
 
@@ -183,6 +235,7 @@
     removePromoCode,
     getPromoDiscountRate,
     getDiscountAmount,
-    getFinalTotal
+    getFinalTotal,
+    getStockRemaining: getStockCeiling
   };
 })(window);

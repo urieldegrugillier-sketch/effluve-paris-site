@@ -545,6 +545,14 @@
           <label class="checkout-field">
             <span data-i18n="accountGate.passwordLabel">Password</span>
             <input type="password" id="checkout-account-create-password" autocomplete="new-password" required>
+            <!-- States the isValidPassword() rule (8+ chars, a letter, a
+                 number -- see this function's own createForm submit
+                 handler further below) upfront, so a user learns it before
+                 typing rather than only after a rejected submit. Same
+                 .checkout-account-email-echo muted-hint styling
+                 account.html's Edit Profile password field already uses
+                 for its own (differently-worded) hint. -->
+            <p class="checkout-account-email-echo" data-i18n="accountGate.passwordHint">Minimum 8 characters, with at least one letter and one number.</p>
           </label>
           <label class="checkout-field">
             <span data-i18n="accountGate.confirmPasswordLabel">Confirm Password</span>

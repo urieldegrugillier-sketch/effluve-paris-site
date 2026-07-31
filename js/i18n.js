@@ -197,7 +197,8 @@
         quantity: 'Quantity',
         removeItem: 'Remove item from cart',
         addAnother: 'Add Another',
-        buyNow: 'Buy Now'
+        buyNow: 'Buy Now',
+        quantityClamped: 'Only {max} in stock — quantity adjusted.'
       },
       common: {
         backToShop: '← Back to Shop',
@@ -383,6 +384,7 @@
         emailLabel: 'Email',
         continueBtn: 'Continue',
         passwordLabel: 'Password',
+        passwordHint: 'Minimum 8 characters, with at least one letter and one number.',
         logInBtn: 'Log In',
         continueAsGuest: 'Continue as Guest',
         createAccountInstead: 'Create an account instead',
@@ -754,7 +756,8 @@
         quantity: 'Quantité',
         removeItem: "Retirer l'article du panier",
         addAnother: 'Ajouter un Autre',
-        buyNow: 'Acheter'
+        buyNow: 'Acheter',
+        quantityClamped: "Seulement {max} en stock — quantité ajustée."
       },
       common: {
         backToShop: '← Retour à la Boutique',
@@ -900,6 +903,7 @@
         emailLabel: 'E-mail',
         continueBtn: 'Continuer',
         passwordLabel: 'Mot de Passe',
+        passwordHint: 'Minimum 8 caractères, avec au moins une lettre et un chiffre.',
         logInBtn: 'Se Connecter',
         continueAsGuest: 'Continuer en tant qu\'Invité',
         createAccountInstead: 'Créer un compte à la place',

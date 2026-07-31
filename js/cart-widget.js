@@ -372,6 +372,21 @@
     return window.MonarkI18n ? window.MonarkI18n.t(key, vars) : null;
   }
 
+  // Set by the 'cart:quantity-clamped' listener below (js/cart.js dispatches
+  // it whenever a requested quantity had to be reduced to fit the live
+  // stock ceiling) -- render() shows it as a brief message near the
+  // quantity control, then it self-clears after a few seconds. Persists
+  // across whatever OTHER 'cart:updated' renders happen to fire meanwhile
+  // (e.g. a plain decrement) for the rest of its own short lifetime, same
+  // as any other transient toast-style notice would.
+  let stockClampNotice = null;
+  let stockClampTimer = null;
+
+  function stockClampMessageHtml() {
+    if (!stockClampNotice) return '';
+    return `<p class="cart-preview-stock-message" aria-live="polite">${t('cartWidget.quantityClamped', { max: stockClampNotice.max }) || `Only ${stockClampNotice.max} in stock — quantity adjusted.`}</p>`;
+  }
+
   function render() {
     const items = cart.getCart();
     const count = cart.getCartCount();
@@ -383,12 +398,17 @@
       : (t('cartWidget.viewCart') || 'View cart'));
 
     if (!items.length) {
-      previewBody.innerHTML = `<p class="cart-preview-empty">${t('cartWidget.empty') || 'Your cart is empty.'}</p>`;
+      previewBody.innerHTML = `<p class="cart-preview-empty">${t('cartWidget.empty') || 'Your cart is empty.'}</p>${stockClampMessageHtml()}`;
       return;
     }
 
     const item = items[0]; // single product for now
     const subtotal = item.quantity * cart.PRODUCT.price;
+    // Infinity (stock not loaded yet, see js/cart.js's getStockCeiling())
+    // renders as no max attribute at all -- an empty string is how you omit
+    // a numeric attribute in this template, not "Infinity" as a literal.
+    const stockMax = cart.getStockRemaining ? cart.getStockRemaining() : Infinity;
+    const atStockMax = item.quantity >= stockMax;
 
     previewBody.innerHTML = `
       <div class="cart-preview-item">
@@ -397,10 +417,11 @@
           <p class="cart-preview-name">${cart.PRODUCT.name}</p>
           <div class="cart-preview-qty">
             <button type="button" class="cart-qty-btn" data-action="decrement" aria-label="${t('cartWidget.decreaseQty') || 'Decrease quantity'}">&minus;</button>
-            <input type="number" class="cart-qty-input" value="${item.quantity}" min="1" aria-label="${t('cartWidget.quantity') || 'Quantity'}">
-            <button type="button" class="cart-qty-btn" data-action="increment" aria-label="${t('cartWidget.increaseQty') || 'Increase quantity'}">+</button>
+            <input type="number" class="cart-qty-input" value="${item.quantity}" min="1"${Number.isFinite(stockMax) ? ` max="${stockMax}"` : ''} aria-label="${t('cartWidget.quantity') || 'Quantity'}">
+            <button type="button" class="cart-qty-btn" data-action="increment" aria-label="${t('cartWidget.increaseQty') || 'Increase quantity'}"${atStockMax ? ' disabled' : ''}>+</button>
           </div>
           <p class="cart-preview-subtotal">${money(subtotal)}</p>
+          ${stockClampMessageHtml()}
         </div>
         <button type="button" class="cart-preview-trash" data-action="clear-cart" aria-label="${t('cartWidget.removeItem') || 'Remove item from cart'}">
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
@@ -409,7 +430,7 @@
         </button>
       </div>
       <div class="cart-preview-actions">
-        <button type="button" class="cart-preview-add-another" data-action="add-another">${t('cartWidget.addAnother') || 'Add Another'}</button>
+        <button type="button" class="cart-preview-add-another" data-action="add-another"${atStockMax ? ' disabled' : ''}>${t('cartWidget.addAnother') || 'Add Another'}</button>
         <a href="checkout.html" class="cart-preview-buy">${t('cartWidget.buyNow') || 'Buy Now'}</a>
       </div>
     `;
@@ -445,6 +466,19 @@
   }
 
   document.addEventListener('cart:updated', render);
+  // js/cart.js dispatches this whenever addToCart()/updateQuantity() had to
+  // reduce a requested quantity to fit the live stock ceiling -- the SAME
+  // call also fires 'cart:updated' (above), so render() already runs right
+  // after this; re-rendering here too just means the very first paint of
+  // the notice doesn't have to wait on that separate listener's own turn.
+  // Auto-clears after 4s (re-rendering once more to drop it) rather than
+  // sitting there indefinitely.
+  document.addEventListener('cart:quantity-clamped', (e) => {
+    stockClampNotice = e.detail;
+    clearTimeout(stockClampTimer);
+    stockClampTimer = setTimeout(() => { stockClampNotice = null; render(); }, 4000);
+    render();
+  });
   // render()'s strings are baked into a template string, not plain
   // data-i18n-tagged markup MonarkI18n.apply() could re-walk on its own --
   // re-running the same render() a language switch already reruns on every

@@ -2840,6 +2840,26 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 @media (hover: hover) and (pointer: fine) {
   .cart-qty-btn:hover { border-color: var(--accent-bronze-light); color: var(--accent-bronze-light); }
 }
+.cart-qty-btn:disabled {
+  color: var(--text-muted);
+  border-color: var(--line);
+  cursor: not-allowed;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cart-qty-btn:disabled:hover { border-color: var(--line); color: var(--text-muted); }
+}
+
+/* Shown by js/cart-widget.js when a requested quantity had to be reduced to
+   fit the live stock count (js/cart.js's 'cart:quantity-clamped' event) --
+   same rust/error tone as .promo-message-error elsewhere on the site (this
+   isn't a hard failure, just a correction, but it's the closest existing
+   "needs your attention" tone already in the palette, not a fresh color). */
+.cart-preview-stock-message {
+  margin: 0.6rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  color: #b5675c;
+}
 
 .cart-qty-input {
   width: 34px;
@@ -2886,6 +2906,14 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 }
 @media (hover: hover) and (pointer: fine) {
   .cart-preview-add-another:hover { border-color: var(--accent-bronze-light); color: var(--text-on-dark); }
+}
+.cart-preview-add-another:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cart-preview-add-another:disabled:hover { border-color: var(--line); color: var(--text-muted); }
 }
 
 .cart-preview-buy {
