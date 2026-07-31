@@ -693,6 +693,51 @@
    js/account.js's authCancelBtn) and authModifyEmailBtn, same 1.2rem gap as
    every other action-button cluster in this flow. */
 .checkout-account-email-echo-actions { display: flex; align-items: center; gap: 1.2rem; }
+
+/* Live password-requirements checklist (js/account.js's create-account
+   form -- see updatePasswordRequirements()). Same small/mono footprint as
+   contact.html's own live char counter (.contact-char-counter, css/
+   contact.css) -- the one other live-updating-on-input text already on the
+   site -- for a consistent "this updates as you type" visual language,
+   rather than inventing a second one. */
+.password-requirements {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.password-requirement {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  /* Only the icon swaps color+glyph on state change (below); the label
+     text's own color transitions along with it, at the same speed, so nothing
+     pops instantly on each keystroke. */
+  transition: color 0.25s ease;
+}
+
+.password-requirement-icon {
+  flex: 0 0 auto;
+  width: 1em;
+  text-align: center;
+  transition: color 0.25s ease;
+}
+
+/* Bronze/muted-red-adjacent palette already established elsewhere
+   (.promo-message-success / .promo-message-error, css/style.css) -- met
+   reuses the same bronze "success" tone; unmet stays neutral muted (not the
+   rust "error" tone) since an unmet requirement mid-typing isn't a mistake
+   yet, just not-there-yet -- the rust tone is reserved for the real
+   submit-time error (createError) if the user submits before finishing. */
+.password-requirement-met { color: var(--text-on-dark); }
+.password-requirement-met .password-requirement-icon { color: var(--accent-bronze-light); }
 /* Same [hidden] specificity fix as elsewhere in this file (see
    .checkout-account-status[hidden] above) -- .checkout-account-link-btn's
    own unconditional display:inline-block otherwise wins over the UA

@@ -545,14 +545,23 @@
           <label class="checkout-field">
             <span data-i18n="accountGate.passwordLabel">Password</span>
             <input type="password" id="checkout-account-create-password" autocomplete="new-password" required>
-            <!-- States the isValidPassword() rule (8+ chars, a letter, a
-                 number -- see this function's own createForm submit
-                 handler further below) upfront, so a user learns it before
-                 typing rather than only after a rejected submit. Same
-                 .checkout-account-email-echo muted-hint styling
-                 account.html's Edit Profile password field already uses
-                 for its own (differently-worded) hint. -->
-            <p class="checkout-account-email-echo" data-i18n="accountGate.passwordHint">Minimum 8 characters, with at least one letter and one number.</p>
+            <!-- Live-updating replacement for a static hint (see the
+                 isValidPassword() rule -- this function's own createForm
+                 submit handler further below -- for what's actually
+                 enforced): each item below flips from muted/unmet to
+                 bronze/met in real time as the user types (see
+                 updatePasswordRequirements()), rather than only surfacing
+                 what's wrong after a rejected submit. aria-label carries
+                 the same accountGate.passwordHint copy the static version
+                 used to show, as a single-string summary for assistive
+                 tech that doesn't benefit from four separately-announced
+                 live items. -->
+            <ul class="password-requirements" id="checkout-account-create-password-requirements" data-i18n-attr="aria-label:accountGate.passwordHint" aria-label="Minimum 8 characters, with at least one letter, one number, and one special character (! @ # $ % ^ &amp; * ( ) - _ + =).">
+              <li class="password-requirement" data-requirement="length"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqLength">8+ characters</span></li>
+              <li class="password-requirement" data-requirement="letter"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqLetter">One letter</span></li>
+              <li class="password-requirement" data-requirement="number"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqNumber">One number</span></li>
+              <li class="password-requirement" data-requirement="special"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqSpecial">One special character (! @ # $ % ^ &amp; * ( ) - _ + =)</span></li>
+            </ul>
           </label>
           <label class="checkout-field">
             <span data-i18n="accountGate.confirmPasswordLabel">Confirm Password</span>
@@ -738,13 +747,47 @@
       return window.MonarkValidateEmail ? window.MonarkValidateEmail(value) : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
     }
 
-    // 8+ characters, at least one letter and one number -- a floor, not a
-    // real strength policy. Supabase's own server-side minimum (6 chars by
-    // default) is looser than this, so this client-side check is always the
-    // binding one in practice.
+    // 8+ characters, at least one letter, one number, and one special
+    // character -- a floor, not a real strength policy. Supabase's own
+    // server-side minimum (6 chars by default) is looser than this, so this
+    // client-side check is always the binding one in practice. Special-char
+    // set is the common/standard one (not exotic Unicode symbols) -- kept in
+    // one place here so the live checklist below, this check, and
+    // account.html's own identical copy (its Edit Profile password-change
+    // field, which reuses the same rule/message but has no checklist of its
+    // own, out of this feature's scope) can't drift out of sync with each
+    // other or with the accountGate.passwordHint/passwordReqSpecial wording.
+    const PASSWORD_SPECIAL_CHARS_RE = /[!@#$%^&*()\-_+=]/;
     function isValidPassword(value) {
-      return value.length >= 8 && /[A-Za-z]/.test(value) && /[0-9]/.test(value);
+      return value.length >= 8 && /[A-Za-z]/.test(value) && /[0-9]/.test(value) && PASSWORD_SPECIAL_CHARS_RE.test(value);
     }
+
+    // Live requirements checklist (create-account form only -- see this
+    // file's own comment above on scope) -- each item's met/unmet state is
+    // just isValidPassword()'s own four conditions checked individually
+    // instead of combined, so the user sees exactly which ones are still
+    // missing instead of one all-or-nothing pass/fail. ○/✓ glyphs (not
+    // color alone) so the state doesn't rely on color perception either.
+    const createPasswordRequirements = container.querySelector('#checkout-account-create-password-requirements');
+    const PASSWORD_REQUIREMENT_CHECKS = {
+      length: (value) => value.length >= 8,
+      letter: (value) => /[A-Za-z]/.test(value),
+      number: (value) => /[0-9]/.test(value),
+      special: (value) => PASSWORD_SPECIAL_CHARS_RE.test(value)
+    };
+    function updatePasswordRequirements() {
+      if (!createPasswordRequirements) return;
+      const value = createPasswordInput.value;
+      Object.keys(PASSWORD_REQUIREMENT_CHECKS).forEach((key) => {
+        const item = createPasswordRequirements.querySelector(`[data-requirement="${key}"]`);
+        if (!item) return;
+        const met = PASSWORD_REQUIREMENT_CHECKS[key](value);
+        item.classList.toggle('password-requirement-met', met);
+        const icon = item.querySelector('.password-requirement-icon');
+        if (icon) icon.textContent = met ? '✓' : '○';
+      });
+    }
+    createPasswordInput.addEventListener('input', updatePasswordRequirements);
 
     // Set by the email-form submit handler below, right after the
     // check-email-exists lookup resolves -- read here to decide which of the
@@ -902,6 +945,7 @@
       createLastNameInput.value = '';
       createPasswordInput.value = '';
       createConfirmInput.value = '';
+      updatePasswordRequirements();
       if (createPhoneWidget) createPhoneWidget.setValue({ number: '', country: 'FR' });
       // Checked by default every time this step is (re)shown, matching
       // account.html's own marketing toggle default (see that page's
