@@ -56,7 +56,11 @@
   // Same address-component parsing as before (street_number + route ->
   // Address, locality/postal_town -> City, postal_code -> Postal Code) --
   // just reading Places API (New)'s camelCase addressComponents/longText
-  // shape instead of the legacy address_components/long_name shape.
+  // shape instead of the legacy address_components/long_name shape. Also
+  // pulls the `country` component's shortText (its ISO 3166-1 alpha-2 code,
+  // e.g. "FR"/"BE" -- the same vocabulary the Country <select>'s own
+  // <option value="FR"/"BE"> already uses) so callers can cross-check/
+  // auto-sync the Country field against what was actually selected.
   function parseAddressComponents(components) {
     const get = (type) => {
       const comp = components.find((c) => c.types.includes(type));
@@ -66,7 +70,9 @@
     const route = get('route');
     const city = get('locality') || get('postal_town');
     const postal = get('postal_code');
-    return { address: `${streetNumber} ${route}`.trim(), city, postal };
+    const countryComp = components.find((c) => c.types.includes('country'));
+    const countryCode = countryComp ? countryComp.shortText.toUpperCase() : '';
+    return { address: `${streetNumber} ${route}`.trim(), city, postal, countryCode };
   }
 
   function fireInput(el) {
@@ -99,13 +105,50 @@
     input.setAttribute('role', 'combobox');
     input.setAttribute('aria-expanded', 'false');
     input.setAttribute('aria-autocomplete', 'list');
-    input.setAttribute('autocomplete', 'off'); // stop native/browser suggestions competing with this panel
+    // Chrome deliberately ignores autocomplete="off" on address-shaped
+    // fields (confirmed via extensive real-device testing elsewhere in this
+    // codebase -- see checkout.html's/account.html's own Address Line 2
+    // field comments) and will still render its own native saved-address
+    // autofill dropdown here regardless of this attribute, sometimes
+    // visibly overlapping this panel. Left in place anyway: Chrome's own
+    // heuristic is genuinely name/label-driven, not attribute-driven, but
+    // other browsers (Firefox, Safari) DO still respect "off", and this
+    // field's real name="address" is exactly the semantic hook every one of
+    // those heuristics keys off of -- renaming it away (the fix that worked
+    // for Address Line 2) isn't an option here, since unlike that field,
+    // Chrome's native autofill on THIS one is a wanted feature (see its own
+    // autocomplete="street-address" in the HTML, tuned over 5 rounds
+    // specifically to make that native autofill work for anyone this
+    // in-page panel doesn't reach, e.g. before the Places library has
+    // loaded). Chrome's native popup is rendered by the browser chrome
+    // itself, entirely outside this page's DOM/paint layer -- no CSS
+    // z-index, position, or JS reaches it from here, so the only real lever
+    // left is making sure THIS panel visibly wins any overlap (dark/bronze
+    // branded surface + border + shadow + a defensively high z-index, see
+    // css/checkout.css's .monark-places-suggestions).
+    input.setAttribute('autocomplete', 'off');
 
     let sessionToken = null;
     let suggestions = [];
     let activeIndex = -1;
     let debounceTimer = null;
     let requestId = 0;
+    // Set right before this file programmatically writes input.value +
+    // fires a synthetic 'input' event on it (see fireInput() call sites
+    // below) -- without this, that synthetic event re-enters the real-typed
+    // 'input' listener just below, which re-ran a fresh suggestions search
+    // for the address text that was JUST selected and reopened the panel
+    // right after selectSuggestion() had closed it (the actual cause behind
+    // "the dropdown stays open after picking a suggestion").
+    let suppressNextInputEvent = false;
+
+    // Country <select> this Address field's form actually has, if any --
+    // checkout.html's Shipping section has one (name="country"); account.html's
+    // Saved Address form doesn't (its country is only ever implied by the
+    // phone widget's own dial-code selection, see checkout.html's own
+    // comment on account.country), so this is null there and every use of
+    // it below is already guarded for that.
+    const countryInput = form.querySelector('[name="country"]');
 
     function closePanel() {
       panel.hidden = true;
@@ -146,17 +189,47 @@
         return;
       }
       sessionToken = null;
-      const { address, city, postal } = parseAddressComponents(place.addressComponents || []);
+      const { address, city, postal, countryCode } = parseAddressComponents(place.addressComponents || []);
+      suppressNextInputEvent = true;
       if (address) input.value = address;
       fireInput(input);
       const cityInput = form.querySelector('[name="city"]');
       if (cityInput && city) { cityInput.value = city; fireInput(cityInput); }
       const postalInput = form.querySelector('[name="postal"]');
       if (postalInput && postal) { postalInput.value = postal; fireInput(postalInput); }
+      // Cross-check target for checkout.html's own submit-time validation
+      // (validateShippingForm() there reads this same attribute) -- records
+      // whichever country this selection actually resolved to, even when
+      // it's neither France nor Belgium, so a selected-but-out-of-scope
+      // address can still be caught at submit rather than silently
+      // accepted. Cleared the moment the user edits the address by hand
+      // again (see the real-typing branch of the 'input' listener below),
+      // so a stale country claim never outlives the selection it came from.
+      if (countryCode) {
+        input.dataset.placesCountry = countryCode;
+      } else {
+        delete input.dataset.placesCountry;
+      }
+      // Auto-syncs the Country <select> to match the selected address's
+      // real country -- same spirit as the postal-code-driven autofill sync
+      // just below in checkout.html's own inline script, but triggered by
+      // an explicit Places selection instead of Chrome's autofill firing.
+      // Only ever moves it to a value the <select> actually offers (FR/BE);
+      // an out-of-scope country is left for the submit-time check above to
+      // catch instead of forced into a wrong-but-supported option here.
+      if (countryInput && (countryCode === 'FR' || countryCode === 'BE') && countryInput.value !== countryCode) {
+        countryInput.value = countryCode;
+        countryInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
       closePanel();
     }
 
     input.addEventListener('input', () => {
+      if (suppressNextInputEvent) { suppressNextInputEvent = false; return; }
+      // Real user edit -- whatever country a previous selection resolved to
+      // no longer describes the (now different) address text, so it can't
+      // be cross-checked against at submit time anymore either.
+      delete input.dataset.placesCountry;
       clearTimeout(debounceTimer);
       const query = input.value.trim();
       if (!query) { closePanel(); return; }
@@ -169,11 +242,21 @@
             input: query,
             sessionToken,
             // Restricted to a real street address (not businesses/POIs/pure
-            // regions) and to the two countries this site ships to (see
-            // checkout.html's <select name="country">) -- a relevance/scope
-            // filter only, doesn't change session billing either way.
+            // regions). Region restriction is read fresh on every request
+            // (not hardcoded) -- narrows to whichever single country is
+            // currently selected in the Country <select>, when this form
+            // has one and it's set, so suggestions stop including addresses
+            // in the OTHER supported country the moment the customer has
+            // already told us which one they mean; only falls back to both
+            // France + Belgium when there's no country selection yet to
+            // narrow by (e.g. account.html's Saved Address form, which has
+            // no Country field at all). Doesn't change session billing
+            // either way -- purely a relevance/scope filter on top of the
+            // one still-open session token.
             includedPrimaryTypes: ['street_address'],
-            includedRegionCodes: ['fr', 'be']
+            includedRegionCodes: countryInput && countryInput.value
+              ? [countryInput.value.toLowerCase()]
+              : ['fr', 'be']
           });
         } catch (err) {
           return;

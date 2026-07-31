@@ -313,7 +313,15 @@
   top: 100%;
   left: 0;
   right: 0;
-  z-index: 20;
+  /* Raised well above every other in-page stacking context (checkout's own
+     highest prior use was .phone-country-panel's z-index:20) so this never
+     loses an overlap against anything ELSE on the page -- but note this
+     can't and doesn't help against Chrome's own native address-autofill
+     dropdown, which isn't part of the page's paint layer at all and so
+     ignores page z-index entirely; see js/places-autocomplete.js's own
+     comment (next to its autocomplete="off") for why that overlap can't be
+     fixed from here. */
+  z-index: 60;
   margin: 0;
   padding: 0.4rem 0;
   list-style: none;

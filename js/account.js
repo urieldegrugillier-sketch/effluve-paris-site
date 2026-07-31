@@ -761,11 +761,21 @@
     // are shown immediately (see the createForm.hidden line below).
     // checkout.html's new-email case is otherwise untouched: Guest + the
     // Create Account toggle both still show, same as before.
+    //
+    // BUG FIX: guestBtn used to hide whenever emailAlreadyExists too, on the
+    // theory that Guest didn't make sense once a real account already
+    // existed for that email -- but a returning customer who doesn't want to
+    // log in right now (or has forgotten their password and doesn't want to
+    // deal with reset mid-checkout) still has every reason to check out as a
+    // guest, exactly like a brand-new email can. createToggle stays gated on
+    // emailAlreadyExists though ("Create an account instead" is genuinely
+    // wrong once that email is already registered -- Log In is the correct
+    // second action there, not Create), so this only ungates Guest, not both.
     function applyAuthOptionsVisibility() {
       emailExistsNote.hidden = !emailAlreadyExists;
       if (emailAlreadyExists) emailExistsNote.textContent = t('accountGate.emailExistsNote');
       loginForm.hidden = !emailAlreadyExists;
-      guestBtn.hidden = emailAlreadyExists || hideGuestOption;
+      guestBtn.hidden = hideGuestOption;
       createToggle.hidden = emailAlreadyExists || hideGuestOption;
       optionsWrap.hidden = guestBtn.hidden && createToggle.hidden;
       if (hideGuestOption && !emailAlreadyExists) createForm.hidden = false;

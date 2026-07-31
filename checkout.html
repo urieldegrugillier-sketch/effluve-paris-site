@@ -45,8 +45,8 @@
      copy of this comment for why (avoids a fallback-font flash). -->
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=block" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260809">
-<link rel="stylesheet" href="css/checkout.css?v=20260809">
+<link rel="stylesheet" href="css/style.css?v=20260810">
+<link rel="stylesheet" href="css/checkout.css?v=20260810">
 </head>
 <body class="shop-page">
 
@@ -532,24 +532,24 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-client.js?v=20260809"></script>
-<script src="js/i18n.js?v=20260809"></script>
+<script src="js/supabase-client.js?v=20260810"></script>
+<script src="js/i18n.js?v=20260810"></script>
 <!-- Loaded here, ahead of the big inline script below -- that script's own
      renderSummary() (which needs window.MonarkPromoCountdown to render the
      "Limited-Time Offer" line's countdown note) runs synchronously on page
      load, well before the bottom-of-body script tags near
      js/promo-banner.js would otherwise load this. -->
-<script src="js/promo-countdown.js?v=20260809"></script>
-<script src="js/header-position-fix.js?v=20260809"></script>
-<script src="js/footer-active-page.js?v=20260809"></script>
-<script src="js/cart.js?v=20260809"></script>
-<script src="js/cart-widget.js?v=20260809"></script>
-<script src="js/nav-menu.js?v=20260809"></script>
-<script src="js/phone-input.js?v=20260809"></script>
-<script src="js/account.js?v=20260809"></script>
-<script src="js/places-autocomplete.js?v=20260809"></script>
+<script src="js/promo-countdown.js?v=20260810"></script>
+<script src="js/header-position-fix.js?v=20260810"></script>
+<script src="js/footer-active-page.js?v=20260810"></script>
+<script src="js/cart.js?v=20260810"></script>
+<script src="js/cart-widget.js?v=20260810"></script>
+<script src="js/nav-menu.js?v=20260810"></script>
+<script src="js/phone-input.js?v=20260810"></script>
+<script src="js/account.js?v=20260810"></script>
+<script src="js/places-autocomplete.js?v=20260810"></script>
 <script src="https://js.stripe.com/v3/"></script>
-<script src="js/stripe-client.js?v=20260809"></script>
+<script src="js/stripe-client.js?v=20260810"></script>
 <script>
 (function () {
   const shippingForm = document.getElementById('checkout-form');
@@ -845,6 +845,7 @@
   const countryError = document.getElementById('checkout-error-country');
   const postalInput = form.querySelector('[name="postal"]');
   const postalError = document.getElementById('checkout-error-postal');
+  const addressInput = form.querySelector('[name="address"]');
   countryInput.addEventListener('change', () => {
     countryError.hidden = true;
     // Previously-entered postal code may no longer match the new country's
@@ -891,7 +892,23 @@
         error.hidden = true;
       }
     });
-    if (!ALLOWED_SHIPPING_COUNTRIES.includes(countryInput.value)) {
+    // js/places-autocomplete.js stamps data-places-country on the Address
+    // input with the ISO country code (FR/BE/...) of whichever suggestion
+    // was last actually selected there, clearing it again the instant the
+    // user edits the address by hand (see that file's own comment) -- so a
+    // non-empty value here means "this address, as it currently stands, was
+    // confirmed by Google to be in this country." Selecting a suggestion
+    // already auto-syncs Country to match when it's FR/BE (same file), so
+    // this mismatch case is really just the two it can't silently fix:
+    // Google having suggested somewhere outside France/Belgium despite the
+    // includedRegionCodes restriction, or the user manually changing
+    // Country again after a selection already synced it. A manually-typed
+    // address (never run through Places at all) has no stamp to check
+    // against and is left to whatever Country the user picked, same as
+    // before this existed.
+    const placesCountry = addressInput.dataset.placesCountry;
+    const placesCountryMismatch = placesCountry && placesCountry !== countryInput.value;
+    if (!ALLOWED_SHIPPING_COUNTRIES.includes(countryInput.value) || placesCountryMismatch) {
       countryError.hidden = false;
       if (!firstInvalid) firstInvalid = countryInput;
     } else {
@@ -1734,8 +1751,8 @@
   });
 })();
 </script>
-<script src="js/promo-banner.js?v=20260809"></script>
-<script src="js/cookie-consent.js?v=20260809"></script>
-<script src="js/email-popup.js?v=20260809"></script>
+<script src="js/promo-banner.js?v=20260810"></script>
+<script src="js/cookie-consent.js?v=20260810"></script>
+<script src="js/email-popup.js?v=20260810"></script>
 </body>
 </html>
