@@ -12,10 +12,6 @@
    having already seen this offer. */
 (function () {
   const DISMISS_KEY = 'monark_email_popup_dismissed';
-  // Placeholder for a real email-marketing integration (Klaviyo/Mailchimp/etc.)
-  // -- no backend or ESP is wired up yet, so "capturing" an email just means
-  // appending it to this localStorage array for now.
-  const CAPTURED_KEY = 'monark_captured_emails';
   const TRIGGER_DELAY_MS = 6000;
   const COOKIE_BANNER_POLL_MS = 300;
   // The code shown here must be an active row in the public.promo_codes
@@ -31,9 +27,9 @@
   // Extracted so any other on-page email-capture form (see product.html's
   // newsletter section, which loads this file for exactly this object) goes
   // through the same validation/capture/confirmation-copy path instead of a
-  // second, copy-pasted implementation -- there's only one real "backend"
-  // here (the mocked localStorage capture below, see CAPTURED_KEY's own
-  // comment), so there's exactly one place that should know how it works.
+  // second, copy-pasted implementation -- there's only one real backend here
+  // (public.newsletter_subscribers, see captureEmail() below), so there's
+  // exactly one place that should know how it works.
   //
   // window.MonarkValidateEmail (below) is ALSO the single canonical email
   // format check for the rest of the site -- js/account.js's own
@@ -167,17 +163,46 @@
     return { ok: true };
   }
 
-  // Mocked capture only -- no email is actually sent, there's no ESP wired
-  // up yet (see CAPTURED_KEY's own comment above). Also sets DISMISS_KEY:
-  // whichever form on the page captured this address, the visitor has
-  // already given it and claimed their code, so the popup itself shouldn't
-  // still nag them for it later this session or on a future page load.
-  function captureEmail(email) {
-    let captured = [];
-    try { captured = JSON.parse(localStorage.getItem(CAPTURED_KEY)) || []; } catch (err) { captured = []; }
-    captured.push({ email, promoCode: PROMO_CODE, capturedAt: new Date().toISOString() });
-    localStorage.setItem(CAPTURED_KEY, JSON.stringify(captured));
+  // Real capture -- inserts into public.newsletter_subscribers (see
+  // supabase/migrations/20260801000000_add_newsletter_subscribers_table.sql),
+  // an INSERT-only table from the client's own perspective (no SELECT/
+  // UPDATE/DELETE policy exists, so this can't read back, correct, or remove
+  // what it just wrote -- captured addresses are only ever retrievable via
+  // the Supabase Dashboard/SQL Editor). `source` distinguishes this popup
+  // ('popup', set by its own submit handler below) from product.html's
+  // newsletter section ('newsletter_section', set by that page's own
+  // handler) -- both call this exact same function.
+  //
+  // DISMISS_KEY is set synchronously, before the network call, same timing
+  // as the old localStorage-only version -- the "don't show this popup
+  // again" behavior doesn't need to wait on (or depend on the outcome of)
+  // the actual insert succeeding.
+  //
+  // Callers don't await this (matching how the old synchronous version was
+  // always called) -- the confirmation UI renders immediately either way,
+  // same as before real persistence existed; this resolves in the
+  // background rather than making the user wait on a network round trip for
+  // what's already a purely cosmetic "thanks!" message.
+  async function captureEmail(email, source) {
     localStorage.setItem(DISMISS_KEY, 'true');
+    if (!window.MonarkSupabase) return; // graceful no-op if the client script failed to load -- never blocks the UI over this
+    const language = window.MonarkI18n ? window.MonarkI18n.getLang() : 'fr';
+    const { error } = await window.MonarkSupabase.from('newsletter_subscribers').insert({ email, source, language });
+    if (error && error.code !== '23505') {
+      // 23505 = unique_violation (already subscribed with this email) --
+      // not a real failure from the user's own perspective, so it's not
+      // logged as one; no UPDATE policy exists to instead refresh
+      // subscribed_at for a resubscribe (this table is INSERT-only by
+      // design, see the migration's own comment), so silently treating it
+      // as a normal successful subscribe is the graceful option that
+      // migration explicitly leaves this to. Any OTHER error (network down,
+      // RLS/grant misconfigured, etc.) is logged for debugging only -- this
+      // is a best-effort marketing signup, not a transaction, and the UI
+      // never had a failure state for this before real persistence existed;
+      // inventing one now would be a worse experience than just not
+      // receiving the address this one time.
+      console.error('MonarkEmailCapture.captureEmail:', error.message);
+    }
   }
 
   // Returns the post-submit confirmation copy, kicker/heading/newsletter note
@@ -303,12 +328,15 @@
     overlay.addEventListener('click', (e) => { if (e.target === overlay) dismiss(); });
     document.addEventListener('keydown', onKeydown);
 
-    // SECURITY (placeholder, once a real ESP/backend exists): nothing guards
-    // this against bot submissions today because there's no real endpoint yet
-    // to spam. Before wiring one up, add a honeypot field (hidden input real
-    // users never fill in; silently drop the submission if it's non-empty)
-    // and rate-limit submissions per IP/session server-side. See README.md's
-    // "Forms" section.
+    // SECURITY (placeholder, once a real ESP integration exists): a real
+    // table now backs this (public.newsletter_subscribers), but nothing
+    // guards the insert itself against bot submissions -- add a honeypot
+    // field (hidden input real users never fill in; silently drop the
+    // submission if it's non-empty) and rate-limit submissions per IP/
+    // session server-side (e.g. via an Edge Function in front of the insert,
+    // same shape as supabase/functions/validate-promo-code) before this
+    // table's row count is something anyone relies on being clean. See
+    // README.md's "Forms" section.
     overlay.querySelector('.email-popup-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const input = overlay.querySelector('.email-popup-input');
@@ -321,7 +349,7 @@
         return;
       }
       errorEl.hidden = true;
-      captureEmail(email);
+      captureEmail(email, 'popup');
 
       // renderConfirmed (not a one-off template) so a language switch while
       // this state is still showing (via the nav menu's FR/EN toggle) can
