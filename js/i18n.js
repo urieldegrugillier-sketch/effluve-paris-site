@@ -531,7 +531,7 @@
         directorHeading: 'Publication Director',
         directorBody: '<span class="placeholder">[PUBLICATION DIRECTOR NAME — TO BE COMPLETED]</span>',
         contactHeading: 'Contact',
-        contactBody: 'For any questions regarding the site or this legal notice, you may contact us at the following address: <a href="mailto:effluvepariscontact@gmail.com">effluvepariscontact@gmail.com</a>',
+        contactBody: 'For any questions regarding the site or this legal notice, you may contact us at the following address: <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>',
         hostingHeading: 'Hosting',
         hostingBody: 'Cloudflare, Inc.',
         ipHeading: 'Intellectual Property',
@@ -555,7 +555,7 @@
         s5Body2: 'Delivery zones: France and Belgium.<br>Estimated delivery times: 5&ndash;7 business days.<br>Delivery fees: shipping is always free, included in the product price, not a threshold-based discount.',
         s6Heading: '6. Right of Withdrawal',
         s6Body1: 'In accordance with Articles L221-18 et seq. of the French Consumer Code, the customer has a period of fourteen (14) clear days from receipt of the product to exercise their right of withdrawal with Effluve Paris, without having to state any reason or pay any penalty, except, where applicable, for return shipping costs.',
-        s6Body2: 'To exercise this right, the customer must notify their decision to withdraw by means of an unambiguous statement (postal mail, email, or withdrawal form) sent to <a href="mailto:effluvepariscontact@gmail.com">effluvepariscontact@gmail.com</a> before the 14-day period expires.',
+        s6Body2: 'To exercise this right, the customer must notify their decision to withdraw by means of an unambiguous statement (postal mail, email, or withdrawal form) sent to <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a> before the 14-day period expires.',
         s6Body3: 'The customer then has a period of fourteen (14) days from the date they communicate their decision to withdraw to return the product. Effluve Paris will refund the full amount paid, including standard delivery costs, no later than fourteen (14) days after being informed of the decision to withdraw, unless Effluve Paris offers to collect the item itself or the customer does not provide proof of shipment, in which case the refund may be deferred until the item is received or proof of its shipment is provided, whichever occurs first.',
         s6Body4: '<strong>Exception:</strong> in accordance with Article L221-28 of the French Consumer Code, the right of withdrawal cannot be exercised for products unsealed by the customer after delivery that cannot be returned for hygiene or health protection reasons. A perfume bottle whose original plastic packaging has been removed or whose contents have been opened therefore cannot be the subject of a right of withdrawal, except in the case of non-conformity or a product defect.',
         s7Heading: '7. Returns and Refunds',
@@ -603,7 +603,7 @@
         s7Heading: '8. Cookies',
         s7Body: 'This site uses cookies to improve your browsing experience, measure site traffic, and, subject to your consent, for personalization purposes. You can accept or reject non-essential cookies via the consent banner shown on your first visit. You can also change your preferences at any time by clearing the browsing data stored by your browser for this site.',
         s8Heading: '9. Contact',
-        s8Body: 'For any questions regarding your personal data or to exercise your rights, you may contact our Data Protection Officer (DPO) at the following address: <a href="mailto:effluvepariscontact@gmail.com">effluvepariscontact@gmail.com</a>'
+        s8Body: 'For any questions regarding your personal data or to exercise your rights, you may contact our Data Protection Officer (DPO) at the following address: <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>'
       }
     },
     fr: {
@@ -1052,7 +1052,7 @@
         directorHeading: 'Directeur de la Publication',
         directorBody: '<span class="placeholder">[NOM DU DIRECTEUR DE LA PUBLICATION — À COMPLÉTER]</span>',
         contactHeading: 'Contact',
-        contactBody: 'Pour toute question relative au site ou aux présentes mentions légales, vous pouvez nous contacter à l\'adresse suivante : <a href="mailto:effluvepariscontact@gmail.com">effluvepariscontact@gmail.com</a>',
+        contactBody: 'Pour toute question relative au site ou aux présentes mentions légales, vous pouvez nous contacter à l\'adresse suivante : <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>',
         hostingHeading: 'Hébergement',
         hostingBody: 'Cloudflare, Inc.',
         ipHeading: 'Propriété Intellectuelle',
@@ -1076,7 +1076,7 @@
         s5Body2: 'Zones de livraison : France et Belgique.<br>Délais de livraison estimés : 5 à 7 jours ouvrés.<br>Frais de livraison : la livraison est toujours offerte, incluse dans le prix du produit, et non une remise à partir d\'un certain seuil d\'achat.',
         s6Heading: '6. Droit de Rétractation',
         s6Body1: "Conformément aux articles L221-18 et suivants du Code de la consommation, le client dispose d'un délai de quatorze (14) jours francs à compter de la réception du produit pour exercer son droit de rétractation auprès d'Effluve Paris, sans avoir à justifier de motifs ni à payer de pénalités, à l'exception, le cas échéant, des frais de retour.",
-        s6Body2: 'Pour exercer ce droit, le client doit notifier sa décision de rétractation au moyen d\'une déclaration dénuée d\'ambiguïté (courrier postal, e-mail, ou formulaire de rétractation) envoyée à <a href="mailto:effluvepariscontact@gmail.com">effluvepariscontact@gmail.com</a> avant l\'expiration du délai de 14 jours.',
+        s6Body2: 'Pour exercer ce droit, le client doit notifier sa décision de rétractation au moyen d\'une déclaration dénuée d\'ambiguïté (courrier postal, e-mail, ou formulaire de rétractation) envoyée à <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a> avant l\'expiration du délai de 14 jours.',
         s6Body3: "Le client dispose ensuite d'un délai de quatorze (14) jours à compter de la communication de sa décision de rétractation pour retourner le produit. Effluve Paris remboursera l'intégralité des sommes versées, y compris les frais de livraison standard, au plus tard quatorze (14) jours après avoir été informé de la décision de rétractation, sauf si Effluve Paris propose de récupérer le bien lui-même ou si le client ne fournit pas de justificatif d'expédition, auquel cas le remboursement pourra être différé jusqu'à réception du bien ou jusqu'à ce que le client ait fourni une preuve de son expédition, la date retenue étant celle du premier de ces faits.",
         s6Body4: '<strong>Exception :</strong> conformément à l\'article L221-28 du Code de la consommation, le droit de rétractation ne peut être exercé pour les produits descellés par le client après la livraison et qui ne peuvent être renvoyés pour des raisons d\'hygiène ou de protection de la santé. Un flacon de parfum dont l\'emballage plastique d\'origine a été retiré ou dont le contenu a été ouvert ne peut donc faire l\'objet d\'un droit de rétractation, sauf en cas de non-conformité ou de défaut du produit.',
         s7Heading: '7. Retours et Remboursements',
@@ -1124,7 +1124,7 @@
         s7Heading: '8. Cookies',
         s7Body: 'Ce site utilise des cookies pour améliorer votre expérience de navigation, mesurer l\'audience du site et, sous réserve de votre consentement, à des fins de personnalisation. Vous pouvez accepter ou refuser les cookies non essentiels via la bannière de consentement affichée lors de votre première visite. Vous pouvez également modifier vos préférences à tout moment en supprimant les données de navigation stockées par votre navigateur pour ce site.',
         s8Heading: '9. Contact',
-        s8Body: 'Pour toute question relative à vos données personnelles ou pour exercer vos droits, vous pouvez contacter notre Délégué à la Protection des Données (DPO) à l\'adresse suivante : <a href="mailto:effluvepariscontact@gmail.com">effluvepariscontact@gmail.com</a>'
+        s8Body: 'Pour toute question relative à vos données personnelles ou pour exercer vos droits, vous pouvez contacter notre Délégué à la Protection des Données (DPO) à l\'adresse suivante : <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>'
       }
     }
   };
