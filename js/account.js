@@ -135,6 +135,19 @@
     return null;
   }
 
+  // getSession() deliberately doesn't expose the raw auth uid (see its own
+  // comment history) -- this narrow addition is only for
+  // checkout.html's create-checkout-session call, which needs it (as
+  // userId, alongside a guest session's own email) so
+  // supabase/functions/stripe-webhook can still attribute an order to the
+  // right account from the PaymentIntent's own metadata even if this
+  // browser tab never gets to run recordOrder() at all (closed right after
+  // payment, network drop, etc.) -- see that function's own metadata
+  // comment. null for a guest session (or no session).
+  function getCurrentUserId() {
+    return currentAuthUser ? currentAuthUser.id : null;
+  }
+
   function isPasswordRecovery() { return passwordRecoveryActive; }
 
   // Only ever resolves for the CURRENTLY authenticated user's own email --
@@ -354,17 +367,48 @@
   // `session` is whatever getSession() currently returns (the call site
   // already has it in hand) -- recordOrder() needs to know isGuest to decide
   // between user_id and guest_email, which the old email-only signature
-  // couldn't express. This is the one deliberate public-API shape change in
-  // this migration: guest orders now get recorded too (public.orders has a
+  // couldn't express. Guest orders get recorded too (public.orders has a
   // guest_email column specifically for this), where the old mock never
   // could since a guest had no account record to attach an order to.
+  //
+  // DESIGN NOTE -- why this still runs client-side at all now that
+  // supabase/functions/stripe-webhook exists as the real authoritative
+  // writer: recommendation was to KEEP this preliminary insert rather than
+  // deleting it in favor of the webhook being the sole writer. Reasoning:
+  // the webhook fires asynchronously, server-to-server, on Stripe's own
+  // schedule (typically fast, but never guaranteed instant or even
+  // guaranteed to arrive at all within any bounded window from this tab's
+  // perspective) -- if this client-side insert were removed, a customer who
+  // opens account.html's Order History in the first few seconds after
+  // paying (very plausible right after a checkout) would see nothing there
+  // at all, which reads as "did my order actually go through?" even though
+  // the payment already succeeded. Recording a 'processing' row immediately
+  // means SOMETHING is always there right away; the webhook then reconciles
+  // it to 'paid' (+ a reference_number) once it actually lands, updating the
+  // exact same row via payment_intent_id rather than creating a second one
+  // -- see that function's own comment on how it races/reconciles against
+  // this exact insert.
+  //
+  // order.paymentIntentId is what makes that reconciliation possible --
+  // without it, the webhook would have no way to tell "is this the same
+  // order this browser already recorded, or a genuinely new one" and could
+  // only ever create its own separate row.
   async function recordOrder(session, order) {
     if (!session) return { ok: false };
     const row = {
       product_name: order.productName,
       quantity: order.quantity,
       total: order.total,
-      status: 'pending' // mocked checkout, no real payment processing yet -- see checkout.html's own "Mock success only" comment
+      payment_intent_id: order.paymentIntentId || null,
+      // Authoritative flip to 'paid' (+ reference_number) happens
+      // server-side, via supabase/functions/stripe-webhook, once
+      // payment_intent.succeeded is verified -- never set directly from the
+      // client, which has no way to actually prove Stripe confirmed the
+      // charge (RLS also has no UPDATE policy for this table from the
+      // client side at all, specifically so a row can never be
+      // self-promoted to 'paid' this way -- see that migration's own
+      // comment).
+      status: 'processing'
     };
     // NOTE: public.orders has no promo_code column yet, so order.promoCode
     // (if present) is intentionally not persisted here -- add a column and
@@ -376,7 +420,7 @@
       row.user_id = currentAuthUser.id;
     }
     const { error } = await client().from('orders').insert(row);
-    if (error) {
+    if (error && error.code !== '23505') {
       // Guest inserts need an RLS policy allowing an anonymous insert where
       // user_id IS NULL and guest_email IS NOT NULL -- if that isn't in
       // place yet, guest checkouts will fail here (permission denied) while
@@ -384,6 +428,11 @@
       console.error('MonarkAccount.recordOrder:', error.message);
       return { ok: false };
     }
+    // 23505 (unique_violation on payment_intent_id) means
+    // supabase/functions/stripe-webhook already won the race and inserted
+    // this exact order first (fast payment confirmation + a slightly
+    // delayed client) -- not a real failure, same duplicate-insert-as-
+    // success handling js/email-popup.js's newsletter capture already uses.
     return { ok: true };
   }
 
@@ -404,7 +453,18 @@
       date: row.created_at,
       productName: row.product_name,
       quantity: row.quantity,
-      total: row.total
+      total: row.total,
+      // status starts 'processing' (recordOrder()'s own client-side insert)
+      // and flips to 'paid' once supabase/functions/stripe-webhook
+      // reconciles it -- referenceNumber is only ever assigned at that same
+      // moment (see that function's own comment), so it stays null/undefined
+      // here until then. paymentIntentId is exposed so checkout.html's
+      // confirmation screen can match its own in-flight PaymentIntent
+      // against this list while polling for the reference number to appear
+      // (see completeOrder()'s own comment on that).
+      status: row.status,
+      referenceNumber: row.reference_number,
+      paymentIntentId: row.payment_intent_id
     }));
   }
 
@@ -1293,6 +1353,7 @@
     continueAsGuest,
     logOut,
     getSession,
+    getCurrentUserId,
     updateAccount,
     recordOrder,
     getOrders,

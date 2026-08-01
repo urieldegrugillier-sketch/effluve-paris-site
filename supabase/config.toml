@@ -31,3 +31,19 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/validate-promo-code/deno.json"
 entrypoint = "./functions/validate-promo-code/index.ts"
+
+# Stripe webhook -- server-side source of truth for order completion (see
+# that function's own header comment for the full picture, including the
+# one manual Stripe Dashboard step this repo/CLI can't do for you).
+# verify_jwt = false here for a DIFFERENT reason than the other three
+# functions above: this isn't called by the browser at all (no apikey/JWT,
+# no CORS) -- it's called directly by Stripe's own servers, authenticated
+# entirely via the Stripe-Signature header this function verifies itself
+# against STRIPE_WEBHOOK_SECRET. Supabase's platform-level JWT gateway check
+# would reject every incoming Stripe request before this code ever ran if
+# verify_jwt were true here, since Stripe never sends one.
+[functions.stripe-webhook]
+enabled = true
+verify_jwt = false
+import_map = "./functions/stripe-webhook/deno.json"
+entrypoint = "./functions/stripe-webhook/index.ts"

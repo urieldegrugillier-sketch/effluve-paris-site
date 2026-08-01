@@ -22,6 +22,18 @@ interface RequestBody {
   quantity?: unknown;
   promoCode?: unknown;
   paymentIntentId?: unknown;
+  // Who this checkout belongs to -- client-supplied, same trust level
+  // js/account.js's own recordOrder() already relies on for guest_email (a
+  // guest has no server-verified identity to begin with), extended here to
+  // userId too rather than trying to derive it from the caller's own auth
+  // context. Needed so supabase/functions/stripe-webhook -- which runs with
+  // NO knowledge of this browser session at all, hours or days later,
+  // triggered by Stripe rather than the client -- can still attribute the
+  // order to the right account/guest email from the PaymentIntent's own
+  // metadata alone, even if the client-side recordOrder() call never
+  // happens (tab closed right after payment, network drop, etc.).
+  userId?: unknown;
+  guestEmail?: unknown;
 }
 
 export default {
@@ -47,6 +59,8 @@ export default {
     const quantity = Math.min(50, Math.max(1, Math.floor(Number(body.quantity)) || 1));
     const rawPromoCode = typeof body.promoCode === "string" ? body.promoCode.trim().toUpperCase() : "";
     const paymentIntentId = typeof body.paymentIntentId === "string" && body.paymentIntentId ? body.paymentIntentId : null;
+    const userId = typeof body.userId === "string" && body.userId ? body.userId : "";
+    const guestEmail = typeof body.guestEmail === "string" && body.guestEmail ? body.guestEmail.trim() : "";
 
     // Server-side price lookup -- the amount charged is never taken from the
     // client. products is publicly readable (see its RLS policy), and
@@ -97,6 +111,21 @@ export default {
       httpClient: Stripe.createFetchHttpClient(),
     });
 
+    // Stripe metadata values are always strings, and omitted/empty ones just
+    // aren't included -- Stripe.paymentIntents.update() merges into existing
+    // metadata rather than replacing the whole object, so a re-invocation
+    // missing userId/guestEmail (this function's own callers always send
+    // whichever one applies, but this stays robust either way) doesn't erase
+    // identity metadata a previous call already set.
+    // product_name is a fixed constant, not read from anywhere client-
+    // supplied -- see js/cart.js's own single hardcoded PRODUCT.name, this
+    // project's one current MONARK edition -- so supabase/functions/
+    // stripe-webhook can build a real order row even when it has to create
+    // one from scratch (the client-side recordOrder() insert never landed).
+    const metadata: Record<string, string> = { quantity: String(quantity), promo_code: appliedPromoCode };
+    if (userId) metadata.user_id = userId;
+    if (guestEmail) metadata.guest_email = guestEmail;
+
     try {
       let paymentIntent: Stripe.PaymentIntent;
       if (paymentIntentId) {
@@ -107,7 +136,7 @@ export default {
         // and checkout.html only has to call elements.fetchUpdates().
         paymentIntent = await stripe.paymentIntents.update(paymentIntentId, {
           amount,
-          metadata: { quantity: String(quantity), promo_code: appliedPromoCode },
+          metadata,
         });
       } else {
         paymentIntent = await stripe.paymentIntents.create({
@@ -117,7 +146,7 @@ export default {
           // note; Payment Element can support more methods later without
           // this function changing.
           payment_method_types: ["card"],
-          metadata: { quantity: String(quantity), promo_code: appliedPromoCode },
+          metadata,
         });
       }
 

@@ -90,8 +90,26 @@
   font-size: 0.78rem;
   letter-spacing: 0.05em;
   color: var(--accent-bronze-light);
-  margin: 0 0 2rem;
+  margin: 0 0 0.6rem;
 }
+
+/* Only ever unhidden once supabase/functions/stripe-webhook has actually
+   assigned a reference_number (see completeOrder()'s own pollForOrderReference()
+   comment in checkout.html) -- same small-mono treatment as the total just
+   above it, but muted rather than bronze so the total (the one number that
+   matters immediately) still reads as the primary line. The button below
+   gets its OWN margin-top (not this element's margin-bottom) specifically
+   so the button's spacing stays consistent whether or not this line ever
+   shows up. */
+.checkout-confirmation-reference {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin: 0 0 0.6rem;
+}
+
+.checkout-confirmation .cta-button { margin-top: 1.4rem; }
 
 /* ---- checkout ---- */
 
@@ -1084,6 +1102,20 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+/* Only rendered once supabase/functions/stripe-webhook has assigned a
+   reference_number (see account.html's own renderOrders() comment) --
+   bronze rather than .account-order-date's own muted tone, same "this is a
+   real, confirmed identifier" distinction .account-order-meta's totals
+   already get. */
+.account-order-reference {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-bronze-light);
 }
 
 .account-order-product {

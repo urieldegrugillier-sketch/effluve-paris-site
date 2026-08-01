@@ -45,8 +45,8 @@
      copy of this comment for why (avoids a fallback-font flash). -->
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=block" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20260821">
-<link rel="stylesheet" href="css/checkout.css?v=20260821">
+<link rel="stylesheet" href="css/style.css?v=20260822">
+<link rel="stylesheet" href="css/checkout.css?v=20260822">
 </head>
 <body class="shop-page">
 
@@ -513,6 +513,16 @@
       <h2 class="checkout-confirmation-title" data-i18n="checkout.orderReceived">Order Received</h2>
       <p class="checkout-confirmation-text" data-i18n="checkout.confirmationText">This is a demo confirmation — no real order has been placed, no payment was processed, and no email was sent.</p>
       <p class="checkout-confirmation-total" id="checkout-confirmation-total"><!-- populated by inline script below --></p>
+      <!-- Only ever filled in once supabase/functions/stripe-webhook has
+           reconciled this order to 'paid' + assigned a reference_number --
+           see completeOrder()'s own pollForOrderReference() comment below.
+           Stays hidden (not "pending..." placeholder text) if that never
+           happens within the polling window, or for a guest session (no
+           safe client-side read path for a guest's own order today, same
+           comment) -- payment itself already succeeded regardless, so this
+           is purely a nice-to-have, never something worth blocking or
+           alarming the customer over if it doesn't show up. -->
+      <p class="checkout-confirmation-reference" id="checkout-confirmation-reference" aria-live="polite" hidden></p>
       <a href="index.html" class="cta-button" data-i18n="checkout.backToTheExperience">Back to The Experience</a>
     </div>
   </div>
@@ -532,24 +542,24 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-client.js?v=20260821"></script>
-<script src="js/i18n.js?v=20260821"></script>
+<script src="js/supabase-client.js?v=20260822"></script>
+<script src="js/i18n.js?v=20260822"></script>
 <!-- Loaded here, ahead of the big inline script below -- that script's own
      renderSummary() (which needs window.MonarkPromoCountdown to render the
      "Limited-Time Offer" line's countdown note) runs synchronously on page
      load, well before the bottom-of-body script tags near
      js/promo-banner.js would otherwise load this. -->
-<script src="js/promo-countdown.js?v=20260821"></script>
-<script src="js/header-position-fix.js?v=20260821"></script>
-<script src="js/footer-active-page.js?v=20260821"></script>
-<script src="js/cart.js?v=20260821"></script>
-<script src="js/cart-widget.js?v=20260821"></script>
-<script src="js/nav-menu.js?v=20260821"></script>
-<script src="js/phone-input.js?v=20260821"></script>
-<script src="js/account.js?v=20260821"></script>
-<script src="js/places-autocomplete.js?v=20260821"></script>
+<script src="js/promo-countdown.js?v=20260822"></script>
+<script src="js/header-position-fix.js?v=20260822"></script>
+<script src="js/footer-active-page.js?v=20260822"></script>
+<script src="js/cart.js?v=20260822"></script>
+<script src="js/cart-widget.js?v=20260822"></script>
+<script src="js/nav-menu.js?v=20260822"></script>
+<script src="js/phone-input.js?v=20260822"></script>
+<script src="js/account.js?v=20260822"></script>
+<script src="js/places-autocomplete.js?v=20260822"></script>
 <script src="https://js.stripe.com/v3/"></script>
-<script src="js/stripe-client.js?v=20260821"></script>
+<script src="js/stripe-client.js?v=20260822"></script>
 <script>
 (function () {
   const shippingForm = document.getElementById('checkout-form');
@@ -776,6 +786,7 @@
   const formState = document.getElementById('checkout-form-state');
   const confirmation = document.getElementById('checkout-confirmation');
   const confirmationTotal = document.getElementById('checkout-confirmation-total');
+  const confirmationReference = document.getElementById('checkout-confirmation-reference');
   const title = document.getElementById('checkout-title');
 
   const promoForm = document.getElementById('checkout-promo-form');
@@ -1127,11 +1138,21 @@
 
     stripeInitPromise = (async () => {
       const items = cart.getCart();
+      // Payment step is only ever reached once the Account step has already
+      // resolved (see the accordion's own STEP_ORDER), so a session always
+      // exists here -- userId (logged-in) / guestEmail (guest) let
+      // supabase/functions/stripe-webhook attribute the eventual order to
+      // the right account/email from the PaymentIntent's own metadata,
+      // independent of whether this tab's own recordOrder() call ever runs
+      // (see that function's own metadata comment).
+      const session = window.MonarkAccount.getSession();
       const { data, error } = await window.MonarkSupabase.functions.invoke('create-checkout-session', {
         body: {
           quantity: items[0].quantity,
           promoCode: cart.getAppliedPromoCode() || undefined,
-          paymentIntentId: stripePaymentIntentId || undefined
+          paymentIntentId: stripePaymentIntentId || undefined,
+          userId: (session && !session.isGuest) ? window.MonarkAccount.getCurrentUserId() || undefined : undefined,
+          guestEmail: (session && session.isGuest) ? session.email : undefined
         }
       });
       if (error || !data || !data.clientSecret) {
@@ -1636,12 +1657,16 @@
     // for a logged-in session, or to session.email as a guest_email row
     // otherwise (see js/account.js's recordOrder()). Single product line for
     // now, matching every other "single product for now" comment already in
-    // this file.
+    // this file. paymentIntentId is what lets supabase/functions/
+    // stripe-webhook reconcile onto this exact row instead of creating a
+    // second one once it independently confirms the same payment -- see
+    // that function's own comment.
     await window.MonarkAccount.recordOrder(session, {
       productName: cart.PRODUCT.name,
       quantity,
       total: finalTotal,
-      promoCode: appliedCode || null
+      promoCode: appliedCode || null,
+      paymentIntentId: stripePaymentIntentId
     });
 
     cart.clearCart();
@@ -1662,6 +1687,51 @@
     // title/confirmation would render wherever that scroll position happened to
     // land -- sometimes cutting the title off above the fold.
     window.scrollTo(0, 0);
+    pollForOrderReference(session, stripePaymentIntentId);
+  }
+
+  // recordOrder() only ever inserts a 'processing' row (see its own
+  // comment) -- the reference_number shown here doesn't exist yet at the
+  // exact moment this page renders the confirmation; it only gets assigned
+  // once supabase/functions/stripe-webhook independently confirms the same
+  // PaymentIntent server-side, which can take anywhere from under a second
+  // to several seconds after Stripe actually receives the webhook. Rather
+  // than leaving the confirmation screen permanently silent about it, this
+  // polls a few times over a bounded window and fills it in live if/when it
+  // shows up -- gives up quietly (no error, no "still waiting" message) if
+  // it doesn't land in time, since the payment itself already succeeded
+  // regardless and this is purely a nice-to-have.
+  //
+  // Logged-in sessions only: getOrders() is the same RLS-scoped read
+  // account.html's own Order History already uses (auth.uid() = user_id),
+  // which a guest session has no equivalent of -- there's no safe way for
+  // this tab to read back its OWN just-placed guest order without either a
+  // new client-readable RLS policy on public.orders (a real risk: guest
+  // orders have no auth to prove ownership by, so opening that up would let
+  // anyone who can guess/obtain a guest's order id read it) or a dedicated
+  // Edge Function built solely for this. Neither felt justified for a
+  // purely cosmetic confirmation-screen enhancement, so guests simply don't
+  // see a reference number here today -- they'd still see the definitive
+  // 'paid' order once/if this project ever adds a way for guests to look
+  // their own order up (e.g. by email + order id).
+  const ORDER_REFERENCE_POLL_INTERVAL_MS = 2500;
+  const ORDER_REFERENCE_POLL_MAX_ATTEMPTS = 6; // ~15s total
+  async function pollForOrderReference(session, paymentIntentId) {
+    if (session.isGuest || !paymentIntentId) return;
+    for (let attempt = 0; attempt < ORDER_REFERENCE_POLL_MAX_ATTEMPTS; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, ORDER_REFERENCE_POLL_INTERVAL_MS));
+      // Bail if the visitor has already navigated away from the
+      // confirmation view (e.g. clicked "Back to The Experience") --
+      // nothing left to update.
+      if (confirmation.hidden) return;
+      const orders = await window.MonarkAccount.getOrders(session.email);
+      const match = orders.find((o) => o.paymentIntentId === paymentIntentId);
+      if (match && match.referenceNumber) {
+        confirmationReference.textContent = t('checkout.confirmationReference', { reference: match.referenceNumber });
+        confirmationReference.hidden = false;
+        return;
+      }
+    }
   }
 
   form.addEventListener('submit', async (e) => {
@@ -1780,8 +1850,8 @@
   });
 })();
 </script>
-<script src="js/promo-banner.js?v=20260821"></script>
-<script src="js/cookie-consent.js?v=20260821"></script>
-<script src="js/email-popup.js?v=20260821"></script>
+<script src="js/promo-banner.js?v=20260822"></script>
+<script src="js/cookie-consent.js?v=20260822"></script>
+<script src="js/email-popup.js?v=20260822"></script>
 </body>
 </html>
