@@ -2341,6 +2341,32 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   animation: promo-timer-pulse 1s ease-in-out infinite;
 }
 
+/* Hours/minutes change far less often than seconds (once an hour / once a
+   minute), so a continuous loop like .promo-timer-seconds' own would read as
+   broken rather than "alive" -- these instead get a single fade/scale-in,
+   applied (as .promo-timer-flip, see js/promo-countdown.js's
+   formatCountdownHTML()) only on the one tick a digit's own value actually
+   changed. Relies on that same JS fully replacing this span's innerHTML
+   every tick (not just toggling a class on a persisted node) for the
+   animation to naturally replay each time it's changed -- a fresh element
+   with the class already present plays the keyframes once on insertion, no
+   manual class-removal/retrigger bookkeeping needed. Quick (0.4s, under the
+   1s ceiling asked for) and understated -- a small upward settle + fade,
+   same restrained spirit as the seconds' own pulse, not a literal flip-clock
+   card animation, which would read as more novelty than this sobre site
+   wants. */
+.promo-timer-hours,
+.promo-timer-minutes {
+  display: inline-block;
+}
+@keyframes promo-timer-flip-in {
+  0% { opacity: 0; transform: scale(0.85) translateY(-3px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.promo-timer-flip {
+  animation: promo-timer-flip-in 0.4s ease-out;
+}
+
 /* Shared by product.html's price-note area and checkout.html's discount
    line (see each page's own inline script) -- both show the exact same
    js/promo-countdown.js-driven value as the banner, styled to match each
@@ -2990,6 +3016,7 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   }
 
   .promo-timer-seconds { animation: none; }
+  .promo-timer-flip { animation: none; }
   .scroll-arrow { animation: none; }
 
   #loader { transition-duration: 0.25s !important; }

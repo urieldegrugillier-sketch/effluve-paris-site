@@ -43,17 +43,14 @@
      second apart from the others. */
   const timerEl = banner.querySelector('#promo-banner-timer');
 
-  // Last 2 digits (seconds) split into their own span so just that portion
-  // gets the gentle pulse animation (see .promo-timer-seconds in
-  // css/style.css) -- the hours/minutes prefix stays static text alongside
-  // it. Safe as innerHTML: both pieces come straight out of
-  // formatCountdown()'s own zero-padded digit-and-colon output, never from
-  // user input.
-  const unsubscribe = window.MonarkPromoCountdown.subscribe((secs) => {
-    const formatted = window.MonarkPromoCountdown.formatCountdown(secs);
-    const prefix = formatted.slice(0, -2);
-    const seconds = formatted.slice(-2);
-    timerEl.innerHTML = `${prefix}<span class="promo-timer-seconds">${seconds}</span>`;
+  // formatCountdownHTML() (js/promo-countdown.js) wraps each unit in its own
+  // span -- seconds gets the continuous pulse (.promo-timer-seconds), hours/
+  // minutes get a one-shot fade/scale-in (.promo-timer-flip) only on the
+  // tick their own value actually changes (the `changed` flags below, computed
+  // once per tick in that shared module so every display agrees on exactly
+  // when "the minute changed" happened).
+  const unsubscribe = window.MonarkPromoCountdown.subscribe((secs, changed) => {
+    timerEl.innerHTML = window.MonarkPromoCountdown.formatCountdownHTML(secs, changed);
   });
 
   // Inserted before every other body child (including .site-header), not

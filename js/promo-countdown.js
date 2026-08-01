@@ -38,10 +38,53 @@
     return `${pad(h)}:${pad(m)}:${pad(s)}`;
   }
 
+  function unitsFromSeconds(totalSeconds) {
+    return {
+      h: Math.floor(totalSeconds / 3600),
+      m: Math.floor((totalSeconds % 3600) / 60)
+    };
+  }
+
+  // Hours/minutes change far less often than seconds (once an hour / once a
+  // minute vs. every tick), so they get a one-shot "digit just changed"
+  // effect (see .promo-timer-flip, css/style.css) instead of seconds' own
+  // continuous pulse -- constantly animating something that's static 59
+  // ticks out of 60 would read as broken, not "alive". lastUnits is tracked
+  // HERE (not per-subscriber) since every subscriber on a given page ticks
+  // off the exact same shared secs value each interval -- "did the hour/
+  // minute change this tick" has one right answer per tick, not one per
+  // display. Seeded by whichever subscriber calls subscribe() first (below)
+  // rather than left null until the first interval fire, so a page that
+  // happens to load right at a minute boundary can't misread that as
+  // "changed" before there was ever a previous value to compare against.
+  let lastUnits = null;
+  function computeChanged(units) {
+    if (!lastUnits) return { hours: false, minutes: false };
+    return { hours: units.h !== lastUnits.h, minutes: units.m !== lastUnits.m };
+  }
+
+  // Single shared HTML builder for every display (banner, product.html,
+  // checkout.html) -- one place that knows the "hours/minutes/seconds each
+  // get their own span, minutes/hours additionally get .promo-timer-flip
+  // when they just changed" markup shape, rather than three independently
+  // maintained copies of it. Safe as innerHTML: every piece comes straight
+  // out of formatCountdown()'s own zero-padded digit-and-colon output,
+  // never from user input.
+  function formatCountdownHTML(totalSeconds, changed) {
+    const [hours, minutes, seconds] = formatCountdown(totalSeconds).split(':');
+    const flip = (base, didChange) => base + (didChange ? ' promo-timer-flip' : '');
+    return `<span class="${flip('promo-timer-hours', changed && changed.hours)}">${hours}</span>:` +
+      `<span class="${flip('promo-timer-minutes', changed && changed.minutes)}">${minutes}</span>:` +
+      `<span class="promo-timer-seconds">${seconds}</span>`;
+  }
+
   const listeners = [];
   let intervalId = setInterval(() => {
     const secs = getRemainingSeconds();
-    listeners.slice().forEach((fn) => fn(secs));
+    const units = unitsFromSeconds(secs);
+    const changed = computeChanged(units);
+    lastUnits = units;
+    listeners.slice().forEach((fn) => fn(secs, changed));
     if (secs <= 0) clearInterval(intervalId);
   }, 1000);
 
@@ -50,8 +93,13 @@
   // then again on every subsequent tick. Returns an unsubscribe function --
   // used by anything that can unmount/remove its own display before the
   // countdown reaches zero (the banner's own dismiss() does this today).
+  // Always reports {hours:false, minutes:false} on this first, immediate
+  // call -- a display's very first paint should never play the "just
+  // changed" effect, only a real change on a later tick should.
   function subscribe(fn) {
-    fn(getRemainingSeconds());
+    const secs = getRemainingSeconds();
+    if (!lastUnits) lastUnits = unitsFromSeconds(secs);
+    fn(secs, { hours: false, minutes: false });
     listeners.push(fn);
     return function unsubscribe() {
       const i = listeners.indexOf(fn);
@@ -59,5 +107,5 @@
     };
   }
 
-  global.MonarkPromoCountdown = { subscribe, formatCountdown, getRemainingSeconds };
+  global.MonarkPromoCountdown = { subscribe, formatCountdown, formatCountdownHTML, getRemainingSeconds };
 })(window);
