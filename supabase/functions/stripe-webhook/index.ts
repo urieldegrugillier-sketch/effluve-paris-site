@@ -90,6 +90,19 @@ const WEBSITE_URL = "https://effluve-paris.fr";
 // reachable URL -- email images are always linked, never inline data: URIs
 // (most clients' spam filters penalize inline-embedded images heavily).
 const LOGO_URL = `${WEBSITE_URL}/assets/icons/effluve-word-dark-bg.png`;
+// Same PNG-not-SVG reasoning as LOGO_URL above -- css/style.css's own
+// .nav-logo stacks these two images (EFFLUVE + PARIS) via flex-column, which
+// email HTML has no equivalent of; buildConfirmationEmail() reproduces the
+// same visual relationship (PARIS centered beneath EFFLUVE, smaller, bronze)
+// with a plain table instead. See that file's own .nav-logo-subword comment
+// for where the 0.349 height ratio and 0.16 gap ratio (both reused below)
+// come from.
+const PARIS_LOGO_URL = `${WEBSITE_URL}/assets/icons/paris-word-dark-bg.png`;
+// "See our fragrances" points at the shop page specifically, not the
+// homepage LOGO_URL above still points to -- a customer who already has a
+// confirmed order doesn't need another pitch for the brand in general, but
+// might well want to look at (or reorder) the product itself.
+const PRODUCT_URL = `${WEBSITE_URL}/product.html`;
 // Same figures as checkout.html's own SHIPPING_FEE/VAT_RATE consts --
 // display-only "waived fee" lines, duplicated here (not imported) since
 // Deno Edge Functions and this static site share no build step to import
@@ -529,7 +542,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
     vat: isFr ? "TVA" : "VAT",
     free: isFr ? "Offerte" : "Free",
     total: isFr ? "Total réglé" : "Total paid",
-    visitSite: isFr ? "Découvrir Effluve Paris" : "Visit Effluve Paris",
+    visitSite: isFr ? "Voir nos parfums" : "See our fragrances",
     shippingAddress: isFr ? "Adresse de livraison" : "Shipping address",
     name: isFr ? "Nom" : "Name",
     address: isFr ? "Adresse" : "Address",
@@ -612,7 +625,18 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#141210;border:1px solid #2a2620;">
             <tr>
               <td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #2a2620;">
-                <a href="${WEBSITE_URL}" style="text-decoration:none;"><img src="${LOGO_URL}" width="220" height="36" alt="Effluve Paris" style="display:block;margin:0 auto;border:0;outline:none;max-width:220px;height:36px;"></a>
+                <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                  <tr>
+                    <td align="center">
+                      <a href="${WEBSITE_URL}"><img src="${LOGO_URL}" width="220" height="36" alt="Effluve Paris" style="display:block;border:0;outline:none;width:220px;height:36px;"></a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center" style="padding-top:6px;">
+                      <a href="${WEBSITE_URL}"><img src="${PARIS_LOGO_URL}" width="83" height="13" alt="Paris" style="display:block;border:0;outline:none;width:83px;height:13px;"></a>
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
             <tr>
@@ -655,7 +679,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                 <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
                   <tr>
                     <td style="border:1px solid #d8b27c;" align="center">
-                      <a href="${WEBSITE_URL}" style="display:inline-block;padding:14px 32px;font-family:'IBM Plex Mono',Consolas,monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#ede7dd;text-decoration:none;">${labels.visitSite}</a>
+                      <a href="${PRODUCT_URL}" style="display:inline-block;padding:14px 32px;font-family:'IBM Plex Mono',Consolas,monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#ede7dd;text-decoration:none;">${labels.visitSite}</a>
                     </td>
                   </tr>
                 </table>
