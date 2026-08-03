@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_supabase_migrations_20260802000100_grant_orders_service_role_sql", "label": "20260802000100_grant_orders_service_role.sql", "file_type": "code", "source_file": "supabase/migrations/20260802000100_grant_orders_service_role.sql", "source_location": null}], "edges": []}

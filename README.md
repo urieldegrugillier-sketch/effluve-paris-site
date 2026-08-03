@@ -146,3 +146,71 @@ required.
 `cart.html` was removed as a standalone page — the header's mini-cart preview
 (see `js/cart-widget.js`) is now the site's only cart interface, so there's
 no separate cart page left to carry these same notes.
+
+## Graphify — codebase knowledge graph
+
+This project has a persistent knowledge graph built with [graphify](https://github.com/safishamsi/graphify):
+nodes for code symbols (functions, config), concepts, docs, and images; edges
+for relationships between them (`calls`, `references`, `shares_data_with`,
+`semantically_similar_to`, etc.), each tagged EXTRACTED/INFERRED/AMBIGUOUS
+depending on how confidently it was derived from the source. The point is for
+a future Claude Code session to query `graphify-out/graph.json` for "what
+calls X" / "how does Y connect to Z" instead of re-reading and re-reasoning
+over the whole codebase from scratch every time — worth it once a project is
+large or long-running enough that repeated full-context re-reads start
+costing real tokens.
+
+It was run once on this project: **390 nodes, 524 edges, 56 communities**.
+`graphify-out/` contains the queryable output (`graph.json`, plus `graph.html`
+for an interactive graph you can open directly in a browser) plus a
+human-readable `GRAPH_REPORT.md` audit (god nodes, surprising connections,
+per-community cohesion scores, suggested follow-up questions). Re-run
+`/graphify --update` after significant code changes to keep it current.
+
+### Graph Clarifications
+
+Answers to the questions graphify's own report flagged as worth checking,
+verified against the actual code:
+
+1. **`contact.html`'s custom "Reason" dropdown vs. `t()` in `js/i18n.js`.**
+   Not a direct call. The dropdown's `<li>` options carry `data-i18n`
+   attributes like every other translated string on the site, and get
+   translated by `MonarkI18n.apply()`/`resolveKey()` — the same
+   attribute-driven pass that runs over the whole page. `t()` is a *separate*
+   helper on the same `MonarkI18n` object, used only for strings assembled at
+   runtime with interpolated variables (e.g. `contact.html`'s own email-format
+   error message). The dropdown never calls `t()` itself; graphify's AMBIGUOUS
+   edge was a reasonable guess (same file, same i18n system) but the actual
+   mechanism is `data-i18n` + `apply()`, not `t()`.
+
+2. **Why `product.html` bridges "Site Pages & Legal/SEO" to "Cart & Promo
+   Pricing", "Cart Preview Widget", and "Promo Countdown Timer".** Confirmed —
+   `product.html` is the site's commercial hub: it hosts the Add to Cart
+   button (`#add-to-cart-btn` and the mobile sticky-bar twin), the Stripe
+   Payment Request Button express-buy path (Apple Pay/Google Pay/Link), the
+   same shared `MonarkPromoCountdown` instance used by the banner and
+   checkout, and a live Supabase-backed stock progress bar (`renderStock()`).
+   A genuinely multi-role page, not a graph artifact.
+
+3. **Why `addToCart()` bridges Cart to Site Pages and the Stripe flow.**
+   Confirmed — `addToCart()` is called from the standard Add to Cart button,
+   the sticky mobile bar's twin button, *and* from inside the Payment Request
+   Button's `paymentmethod` handler (only when the cart is still empty, so the
+   express-buy click itself represents "buy 1 unit"), which then goes on to
+   complete payment in that same handler. The cross-community edges reflect a
+   real shared code path, not accidental coupling.
+
+4. **Should "Scroll-Driven Hero Canvas" (cohesion 0.06) be split?** Yes, but
+   the reason is more specific than page content vs. commerce mixing — by the
+   time this graph was built, `index.html`'s S1–S6 narrative sections and the
+   Acquisition CTA had already landed in *other* communities. Community 0 is
+   made up entirely of `js/app.js` internals: ~36 sibling functions handling
+   canvas/frame rendering, scroll-position math, pyramid-tier reveal,
+   header/logo repositioning, loader UI, and CTA fade thresholds, all as
+   top-level functions in one script sharing module-scope state rather than
+   calling each other much. That's what drags cohesion down — a single large
+   scroll-engine file with many loosely-coupled visual-effect responsibilities,
+   not a mix of unrelated concerns. Splitting `app.js` itself into smaller
+   modules (e.g. frame/canvas rendering vs. scroll-position math vs.
+   element-positioning helpers) would be the more targeted fix if this is ever
+   revisited.
