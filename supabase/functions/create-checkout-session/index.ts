@@ -34,6 +34,13 @@ interface RequestBody {
   // happens (tab closed right after payment, network drop, etc.).
   userId?: unknown;
   guestEmail?: unknown;
+  // Order-confirmation email target/language (see supabase/functions/
+  // stripe-webhook, which reads these back off the PaymentIntent's own
+  // metadata the same way it already reads user_id/guest_email below).
+  // customerEmail is sent for BOTH guest and logged-in sessions (unlike
+  // guestEmail, which is guest-only) -- see checkout.html's own call site.
+  customerEmail?: unknown;
+  language?: unknown;
 }
 
 export default {
@@ -61,6 +68,8 @@ export default {
     const paymentIntentId = typeof body.paymentIntentId === "string" && body.paymentIntentId ? body.paymentIntentId : null;
     const userId = typeof body.userId === "string" && body.userId ? body.userId : "";
     const guestEmail = typeof body.guestEmail === "string" && body.guestEmail ? body.guestEmail.trim() : "";
+    const customerEmail = typeof body.customerEmail === "string" && body.customerEmail ? body.customerEmail.trim() : "";
+    const language = body.language === "fr" || body.language === "en" ? body.language : "";
 
     // Server-side price lookup -- the amount charged is never taken from the
     // client. products is publicly readable (see its RLS policy), and
@@ -125,6 +134,8 @@ export default {
     const metadata: Record<string, string> = { quantity: String(quantity), promo_code: appliedPromoCode };
     if (userId) metadata.user_id = userId;
     if (guestEmail) metadata.guest_email = guestEmail;
+    if (customerEmail) metadata.customer_email = customerEmail;
+    if (language) metadata.language = language;
 
     try {
       let paymentIntent: Stripe.PaymentIntent;

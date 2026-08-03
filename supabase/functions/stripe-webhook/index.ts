@@ -31,8 +31,16 @@
 //    every incoming webhook fails signature verification and this function
 //    responds 500 (see the config check below), which just means Stripe
 //    keeps retrying deliveries with backoff until it's actually set.
+// 6. (Order-confirmation email, separate from the five steps above) Set a
+//    Resend API key with sending access for the effluve-paris.fr domain:
+//      supabase secrets set RESEND_API_KEY=re_... --linked
+//    Unlike the five steps above, this one is NOT required for order
+//    reconciliation itself -- without it, orders still get marked 'paid'
+//    exactly the same, they just never get a confirmation email (see
+//    sendConfirmationEmail()'s own check + orders.email_sent, which stays
+//    false in that case).
 //
-// Until all five steps are done, Stripe has nowhere to send these events, so
+// Until all five (order-reconciliation) steps are done, Stripe has nowhere to send these events, so
 // this function is simply never invoked -- checkout keeps working exactly as
 // it does today (js/account.js's own recordOrder() still fires client-side,
 // see that function's own comment on why it stays in place regardless), it
@@ -54,6 +62,16 @@ const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+// Deliberately NOT in the required-config check below (unlike the four
+// above) -- a missing/invalid Resend key must never stop an order from
+// being marked 'paid' (Stripe already has the money, see reconcileOrder's
+// own comment), only skip the confirmation email. sendConfirmationEmail()
+// logs loudly and leaves orders.email_sent false when this is missing.
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+// commandes@ on effluve-paris.fr -- the domain verified in Resend (SPF/DKIM);
+// sending "from" any other domain would get the message rejected by Resend
+// outright, not just marked spam.
+const FROM_ADDRESS = "Effluve Paris <commandes@effluve-paris.fr>";
 
 // Matches js/cart.js's own single hardcoded PRODUCT.name -- this project's
 // one current MONARK edition. Only ever used as a fallback (see
@@ -143,21 +161,35 @@ async function reconcileOrder(
   supabaseAdmin: ReturnType<typeof createClient>,
   paymentIntent: Stripe.PaymentIntent,
 ) {
+  const metadata = paymentIntent.metadata || {};
+
   const { data: existing, error: lookupError } = await supabaseAdmin
     .from("orders")
-    .select("id, status, reference_number")
+    .select("id, status, reference_number, product_name, quantity, total, guest_email, user_id")
     .eq("payment_intent_id", paymentIntent.id)
     .maybeSingle();
   if (lookupError) throw lookupError;
 
   if (existing) {
-    if (existing.status === "paid") return; // already reconciled -- Stripe redelivering the same event, a safe no-op
+    if (existing.status === "paid") return; // already reconciled -- Stripe redelivering the same event, a safe no-op (also why the confirmation email never double-sends on retries)
     const referenceNumber = existing.reference_number || (await generateReferenceNumber(supabaseAdmin));
     const { error: updateError } = await supabaseAdmin
       .from("orders")
       .update({ status: "paid", reference_number: referenceNumber })
       .eq("id", existing.id);
     if (updateError) throw updateError;
+    // Order status is now durably 'paid' regardless of what happens below --
+    // sendConfirmationEmail() never throws, so a Resend outage/misconfig
+    // can't turn this into a 500 that makes Stripe retry an already-settled
+    // reconciliation.
+    await sendOrderConfirmation(supabaseAdmin, metadata, existing.id, {
+      referenceNumber,
+      productName: existing.product_name,
+      quantity: existing.quantity,
+      total: existing.total,
+      guestEmail: existing.guest_email,
+      userId: existing.user_id,
+    });
     return;
   }
 
@@ -168,14 +200,15 @@ async function reconcileOrder(
   // not whatever the client last displayed), metadata carries
   // quantity/identity (see create-checkout-session's own comment on why
   // it's set there).
-  const metadata = paymentIntent.metadata || {};
   const quantity = Math.max(1, Math.floor(Number(metadata.quantity)) || 1);
   const referenceNumber = await generateReferenceNumber(supabaseAdmin);
+  const productName = (metadata.product_name as string) || DEFAULT_PRODUCT_NAME;
+  const total = paymentIntent.amount_received / 100;
   const row: Record<string, unknown> = {
     payment_intent_id: paymentIntent.id,
-    product_name: metadata.product_name || DEFAULT_PRODUCT_NAME,
+    product_name: productName,
     quantity,
-    total: paymentIntent.amount_received / 100,
+    total,
     status: "paid",
     reference_number: referenceNumber,
   };
@@ -193,8 +226,18 @@ async function reconcileOrder(
     console.error("stripe-webhook: PaymentIntent has no user_id/guest_email metadata -- inserting unattributed order.", paymentIntent.id);
   }
 
-  const { error: insertError } = await supabaseAdmin.from("orders").insert(row);
-  if (!insertError) return;
+  const { data: inserted, error: insertError } = await supabaseAdmin.from("orders").insert(row).select("id").single();
+  if (!insertError) {
+    await sendOrderConfirmation(supabaseAdmin, metadata, inserted.id, {
+      referenceNumber,
+      productName,
+      quantity,
+      total,
+      guestEmail: (row.guest_email as string) || null,
+      userId: (row.user_id as string) || null,
+    });
+    return;
+  }
 
   if (insertError.code === "23505") {
     // Lost a race against another concurrent insert for this exact
@@ -203,7 +246,7 @@ async function reconcileOrder(
     // the job by updating IT to 'paid' instead of erroring out.
     const { data: raceWinner, error: refetchError } = await supabaseAdmin
       .from("orders")
-      .select("id, status, reference_number")
+      .select("id, status, reference_number, product_name, quantity, total, guest_email, user_id")
       .eq("payment_intent_id", paymentIntent.id)
       .maybeSingle();
     if (refetchError) throw refetchError;
@@ -214,10 +257,236 @@ async function reconcileOrder(
         .update({ status: "paid", reference_number: finalReference })
         .eq("id", raceWinner.id);
       if (updateError) throw updateError;
+      await sendOrderConfirmation(supabaseAdmin, metadata, raceWinner.id, {
+        referenceNumber: finalReference,
+        productName: raceWinner.product_name,
+        quantity: raceWinner.quantity,
+        total: raceWinner.total,
+        guestEmail: raceWinner.guest_email,
+        userId: raceWinner.user_id,
+      });
     }
     return;
   }
   throw insertError;
+}
+
+// ============================================================================
+// Order-confirmation email (Resend) -- fires once per order, right after the
+// 'paid' status update actually commits (every call site above only reaches
+// this line once its own update/insert succeeded). Resolving the recipient
+// and sending are both best-effort: any failure is logged and swallowed here
+// so it can never bubble up and turn an already-successful order write into
+// a 500 (which would make Stripe retry a delivery whose only remaining
+// effect would be a duplicate send attempt anyway, since existing.status ===
+// "paid" short-circuits reconcileOrder() before this is ever reached again).
+// ============================================================================
+
+interface OrderConfirmationInput {
+  referenceNumber: string;
+  productName: string;
+  quantity: number;
+  total: number;
+  guestEmail: string | null;
+  userId: string | null;
+}
+
+async function sendOrderConfirmation(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  metadata: Record<string, string>,
+  orderId: string,
+  order: OrderConfirmationInput,
+) {
+  const email = await resolveCustomerEmail(supabaseAdmin, metadata, order);
+  if (!email) {
+    console.error("stripe-webhook: no resolvable email for order", orderId, "-- confirmation email skipped.");
+    return;
+  }
+  const language = metadata.language === "en" ? "en" : "fr"; // matches js/i18n.js's own DEFAULT_LANG = 'fr'
+  await sendConfirmationEmail(supabaseAdmin, orderId, {
+    email,
+    language,
+    referenceNumber: order.referenceNumber,
+    productName: order.productName,
+    quantity: order.quantity,
+    total: order.total,
+  });
+}
+
+// customer_email (set by create-checkout-session for both guest and
+// logged-in sessions, see that function's own comment) covers the normal
+// path. The two fallbacks below only matter for orders whose PaymentIntent
+// predates this metadata field, or where it was somehow dropped:
+// guest_email is already on the order row itself, and a logged-in user's
+// email has to come from auth.users via the admin API (same reasoning as
+// check-email-exists -- public.profiles has no email column at all).
+async function resolveCustomerEmail(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  metadata: Record<string, string>,
+  order: { guestEmail: string | null; userId: string | null },
+): Promise<string | null> {
+  if (metadata.customer_email) return metadata.customer_email;
+  if (order.guestEmail) return order.guestEmail;
+  if (order.userId) {
+    const { data, error } = await supabaseAdmin.auth.admin.getUserById(order.userId);
+    if (error) {
+      console.error("stripe-webhook: auth.admin.getUserById failed while resolving confirmation email:", error.message);
+      return null;
+    }
+    return data?.user?.email || null;
+  }
+  return null;
+}
+
+interface ConfirmationEmailDetails {
+  email: string;
+  language: "fr" | "en";
+  referenceNumber: string;
+  productName: string;
+  quantity: number;
+  total: number;
+}
+
+async function sendConfirmationEmail(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  orderId: string,
+  details: ConfirmationEmailDetails,
+) {
+  if (!RESEND_API_KEY) {
+    console.error("stripe-webhook: RESEND_API_KEY is not configured -- skipping confirmation email for order", orderId);
+    return;
+  }
+
+  const { subject, html } = buildConfirmationEmail(details);
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: FROM_ADDRESS,
+        to: [details.email],
+        subject,
+        html,
+      }),
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      throw new Error(`Resend API responded ${res.status}: ${errBody}`);
+    }
+    // Only flipped to true on a confirmed Resend accept -- see the migration
+    // that added this column for how a stuck `false` on a 'paid' order is
+    // meant to be found/handled at this project's current order volume.
+    const { error: flagError } = await supabaseAdmin.from("orders").update({ email_sent: true }).eq("id", orderId);
+    if (flagError) {
+      console.error("stripe-webhook: confirmation email sent but failed to set email_sent for order", orderId, ":", flagError.message);
+    }
+  } catch (err) {
+    console.error("stripe-webhook: confirmation email failed for order", orderId, ":", err instanceof Error ? err.message : err);
+  }
+}
+
+function formatMoney(n: number): string {
+  // Matches checkout.html's own money() exactly (€ prefix, en-US grouping/
+  // decimal formatting) so the amount in the email reads identically to what
+  // the customer already saw on the confirmation screen.
+  return "€" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: string; html: string } {
+  const isFr = details.language === "fr";
+  const totalFormatted = formatMoney(details.total);
+  const productName = escapeHtml(details.productName);
+
+  const subject = isFr
+    ? `Votre commande Effluve Paris — ${details.referenceNumber}`
+    : `Your Effluve Paris order — ${details.referenceNumber}`;
+
+  const heading = isFr ? "Merci pour votre commande" : "Thank you for your order";
+  const introLine = isFr
+    ? `Votre commande <strong>${details.referenceNumber}</strong> a bien été confirmée.`
+    : `Your order <strong>${details.referenceNumber}</strong> has been confirmed.`;
+  const thankYou = isFr
+    ? "Nous vous remercions pour la confiance que vous accordez à Effluve Paris."
+    : "We thank you for placing your trust in Effluve Paris.";
+  const shipping = isFr
+    ? "Votre commande sera expédiée sous peu, à l'adresse indiquée lors de votre commande (livraison en France et en Belgique)."
+    : "Your order will be shipped shortly, to the address provided at checkout (shipping to France and Belgium).";
+  const signOff = isFr ? "À bientôt," : "See you soon,";
+  const footerNote = isFr
+    ? "Une question sur votre commande ? Répondez simplement à cet e-mail."
+    : "Any question about your order? Just reply to this email.";
+  const labels = {
+    reference: isFr ? "Référence" : "Reference",
+    product: isFr ? "Produit" : "Product",
+    quantity: isFr ? "Quantité" : "Quantity",
+    total: isFr ? "Total réglé" : "Total paid",
+  };
+
+  const html = `<!doctype html>
+<html lang="${details.language}">
+  <body style="margin:0;padding:0;background:#0a0908;font-family:'Manrope',Arial,sans-serif;color:#ede7dd;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0908;padding:40px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#141210;border:1px solid #2a2620;">
+            <tr>
+              <td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #2a2620;">
+                <div style="font-family:'IBM Plex Mono',Consolas,monospace;letter-spacing:0.2em;font-size:12px;color:#d8b27c;text-transform:uppercase;">Effluve Paris</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px;">
+                <h1 style="margin:0 0 16px;font-size:20px;font-weight:600;color:#ede7dd;">${heading}</h1>
+                <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#ede7dd;">${introLine}</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.reference}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${details.referenceNumber}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.product}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${productName}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.quantity}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${details.quantity}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;font-size:13px;color:#8f887c;">${labels.total}</td>
+                    <td style="padding:10px 0;font-size:13px;color:#d8b27c;text-align:right;font-weight:600;">${totalFormatted}</td>
+                  </tr>
+                </table>
+                <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#ede7dd;">${thankYou}</p>
+                <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#ede7dd;">${shipping}</p>
+                <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#ede7dd;">${signOff}<br>Effluve Paris</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px;border-top:1px solid #2a2620;text-align:center;">
+                <p style="margin:0;font-size:12px;color:#8f887c;">${footerNote}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  return { subject, html };
 }
 
 async function generateReferenceNumber(supabaseAdmin: ReturnType<typeof createClient>): Promise<string> {

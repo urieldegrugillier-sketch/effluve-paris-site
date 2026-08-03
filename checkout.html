@@ -1152,7 +1152,16 @@
           promoCode: cart.getAppliedPromoCode() || undefined,
           paymentIntentId: stripePaymentIntentId || undefined,
           userId: (session && !session.isGuest) ? window.MonarkAccount.getCurrentUserId() || undefined : undefined,
-          guestEmail: (session && session.isGuest) ? session.email : undefined
+          guestEmail: (session && session.isGuest) ? session.email : undefined,
+          // Both guest and logged-in sessions carry an email (see
+          // MonarkAccount.getSession()) -- sent unconditionally so
+          // supabase/functions/stripe-webhook can send the order-confirmation
+          // email without a separate auth.admin lookup for logged-in users.
+          // language is this tab's current i18n language at the moment
+          // Payment is reached, so the confirmation email matches whatever
+          // the customer was actually reading the site in.
+          customerEmail: session ? session.email : undefined,
+          language: stripeLocale()
         }
       });
       if (error || !data || !data.clientSecret) {
