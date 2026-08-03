@@ -41,6 +41,19 @@ interface RequestBody {
   // guestEmail, which is guest-only) -- see checkout.html's own call site.
   customerEmail?: unknown;
   language?: unknown;
+  // Shipping step's own fields, sent purely so the confirmation email can
+  // print a shipping-address recap (see checkout.html's own call site for
+  // why these are read straight off the form rather than off Stripe's
+  // payment_method.billing_details later). Same trust level as guestEmail/
+  // customerEmail above -- never used for anything except display in an
+  // email the customer themselves receives, so a tampered value only ever
+  // misleads the sender, not the recipient.
+  shippingName?: unknown;
+  shippingAddressLine1?: unknown;
+  shippingAddressLine2?: unknown;
+  shippingCity?: unknown;
+  shippingPostalCode?: unknown;
+  shippingCountry?: unknown;
 }
 
 export default {
@@ -70,6 +83,13 @@ export default {
     const guestEmail = typeof body.guestEmail === "string" && body.guestEmail ? body.guestEmail.trim() : "";
     const customerEmail = typeof body.customerEmail === "string" && body.customerEmail ? body.customerEmail.trim() : "";
     const language = body.language === "fr" || body.language === "en" ? body.language : "";
+    const asTrimmedString = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : "");
+    const shippingName = asTrimmedString(body.shippingName);
+    const shippingAddressLine1 = asTrimmedString(body.shippingAddressLine1);
+    const shippingAddressLine2 = asTrimmedString(body.shippingAddressLine2);
+    const shippingCity = asTrimmedString(body.shippingCity);
+    const shippingPostalCode = asTrimmedString(body.shippingPostalCode);
+    const shippingCountry = asTrimmedString(body.shippingCountry);
 
     // Server-side price lookup -- the amount charged is never taken from the
     // client. products is publicly readable (see its RLS policy), and
@@ -136,6 +156,12 @@ export default {
     if (guestEmail) metadata.guest_email = guestEmail;
     if (customerEmail) metadata.customer_email = customerEmail;
     if (language) metadata.language = language;
+    if (shippingName) metadata.shipping_name = shippingName;
+    if (shippingAddressLine1) metadata.shipping_address_line1 = shippingAddressLine1;
+    if (shippingAddressLine2) metadata.shipping_address_line2 = shippingAddressLine2;
+    if (shippingCity) metadata.shipping_city = shippingCity;
+    if (shippingPostalCode) metadata.shipping_postal_code = shippingPostalCode;
+    if (shippingCountry) metadata.shipping_country = shippingCountry;
 
     try {
       let paymentIntent: Stripe.PaymentIntent;

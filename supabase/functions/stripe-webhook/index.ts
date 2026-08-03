@@ -68,10 +68,20 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 // own comment), only skip the confirmation email. sendConfirmationEmail()
 // logs loudly and leaves orders.email_sent false when this is missing.
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-// commandes@ on effluve-paris.fr -- the domain verified in Resend (SPF/DKIM);
+// contact@ on effluve-paris.fr -- the domain verified in Resend (SPF/DKIM);
 // sending "from" any other domain would get the message rejected by Resend
-// outright, not just marked spam.
-const FROM_ADDRESS = "Effluve Paris <commandes@effluve-paris.fr>";
+// outright, not just marked spam. contact@ specifically (not commandes@,
+// used originally) because it's the address actually wired up in Cloudflare
+// Email Routing to forward replies to the real inbox -- commandes@ had no
+// such forwarding rule, so a customer reply to it would have gone nowhere.
+const FROM_ADDRESS = "Effluve Paris <contact@effluve-paris.fr>";
+const CONTACT_EMAIL = "contact@effluve-paris.fr";
+// Same api.whatsapp.com format (not wa.me) as checkout.html/contact.html's
+// own whatsappHref -- see those files' own comments on why: more reliable
+// than wa.me at carrying the ?text= prefill through the mobile OS's
+// wa.me -> WhatsApp app hand-off.
+const WHATSAPP_PHONE = "33605893897";
+const WEBSITE_URL = "https://effluve-paris.fr";
 
 // Matches js/cart.js's own single hardcoded PRODUCT.name -- this project's
 // one current MONARK edition. Only ever used as a fallback (see
@@ -310,6 +320,16 @@ async function sendOrderConfirmation(
     productName: order.productName,
     quantity: order.quantity,
     total: order.total,
+    // Only ever present when create-checkout-session's own metadata carried
+    // them (see that function's own comment) -- absent on any order whose
+    // PaymentIntent predates this field, in which case the email simply
+    // omits the shipping-address recap rather than showing a half-empty one.
+    shippingName: metadata.shipping_name || "",
+    shippingAddressLine1: metadata.shipping_address_line1 || "",
+    shippingAddressLine2: metadata.shipping_address_line2 || "",
+    shippingCity: metadata.shipping_city || "",
+    shippingPostalCode: metadata.shipping_postal_code || "",
+    shippingCountry: metadata.shipping_country || "",
   });
 }
 
@@ -345,6 +365,12 @@ interface ConfirmationEmailDetails {
   productName: string;
   quantity: number;
   total: number;
+  shippingName: string;
+  shippingAddressLine1: string;
+  shippingAddressLine2: string;
+  shippingCity: string;
+  shippingPostalCode: string;
+  shippingCountry: string;
 }
 
 async function sendConfirmationEmail(
@@ -405,6 +431,20 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
+// FR/BE are the only two ALLOWED_SHIPPING_COUNTRIES checkout.html's own
+// Shipping <select> offers (see that file's own country dropdown) -- an
+// unrecognized code (shouldn't happen, but a confirmation email is never
+// worth erroring over) just falls back to showing the raw code as-is rather
+// than hiding the country line entirely.
+function countryLabel(code: string, isFr: boolean): string {
+  const names: Record<string, { fr: string; en: string }> = {
+    FR: { fr: "France", en: "France" },
+    BE: { fr: "Belgique", en: "Belgium" },
+  };
+  const entry = names[code.toUpperCase()];
+  return entry ? (isFr ? entry.fr : entry.en) : code;
+}
+
 function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: string; html: string } {
   const isFr = details.language === "fr";
   const totalFormatted = formatMoney(details.total);
@@ -422,18 +462,70 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
     ? "Nous vous remercions pour la confiance que vous accordez à Effluve Paris."
     : "We thank you for placing your trust in Effluve Paris.";
   const shipping = isFr
-    ? "Votre commande sera expédiée sous peu, à l'adresse indiquée lors de votre commande (livraison en France et en Belgique)."
-    : "Your order will be shipped shortly, to the address provided at checkout (shipping to France and Belgium).";
+    ? "Votre commande sera expédiée sous peu (délai de livraison estimé : 5 à 7 jours ouvrés), à l'adresse indiquée lors de votre commande (livraison en France et en Belgique)."
+    : "Your order will be shipped shortly (estimated delivery: 5 to 7 business days), to the address provided at checkout (shipping to France and Belgium).";
   const signOff = isFr ? "À bientôt," : "See you soon,";
-  const footerNote = isFr
-    ? "Une question sur votre commande ? Répondez simplement à cet e-mail."
-    : "Any question about your order? Just reply to this email.";
   const labels = {
     reference: isFr ? "Référence" : "Reference",
     product: isFr ? "Produit" : "Product",
     quantity: isFr ? "Quantité" : "Quantity",
     total: isFr ? "Total réglé" : "Total paid",
+    shippingAddress: isFr ? "Adresse de livraison" : "Shipping address",
+    name: isFr ? "Nom" : "Name",
+    address: isFr ? "Adresse" : "Address",
+    city: isFr ? "Ville" : "City",
+    postalCode: isFr ? "Code postal" : "Postal code",
+    country: isFr ? "Pays" : "Country",
   };
+
+  // Only shown when create-checkout-session's own metadata actually carried
+  // it (see sendOrderConfirmation's own comment) -- line1 + city are treated
+  // as the minimum needed for this to be worth showing at all, rather than
+  // rendering a table with some rows blank.
+  const hasShippingAddress = Boolean(details.shippingAddressLine1 && details.shippingCity);
+  const addressLine = [details.shippingAddressLine1, details.shippingAddressLine2].filter(Boolean).map(escapeHtml).join(", ");
+  const shippingAddressSection = hasShippingAddress
+    ? `
+                <h2 style="margin:0 0 12px;font-size:14px;font-weight:600;color:#d8b27c;text-transform:uppercase;letter-spacing:0.05em;">${labels.shippingAddress}</h2>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border-collapse:collapse;">
+                  ${details.shippingName ? `<tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.name}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${escapeHtml(details.shippingName)}</td>
+                  </tr>` : ""}
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.address}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${addressLine}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.city}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${escapeHtml(details.shippingCity)}</td>
+                  </tr>
+                  ${details.shippingPostalCode ? `<tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.postalCode}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${escapeHtml(details.shippingPostalCode)}</td>
+                  </tr>` : ""}
+                  <tr>
+                    <td style="padding:10px 0;font-size:13px;color:#8f887c;">${labels.country}</td>
+                    <td style="padding:10px 0;font-size:13px;color:#ede7dd;text-align:right;">${escapeHtml(countryLabel(details.shippingCountry, isFr))}</td>
+                  </tr>
+                </table>`
+    : "";
+
+  // Reply-by-email and WhatsApp are offered side by side, not one replacing
+  // the other -- some customers will always prefer a quick chat message over
+  // composing an email. mailto: link (not just prose) is the whole point of
+  // this section -- see this function's own call site comment on FROM_ADDRESS
+  // for why contact@ (not the old commandes@) is the address used here too.
+  const replyNote = isFr
+    ? `Une question sur votre commande&nbsp;? Répondez simplement à <a href="mailto:${CONTACT_EMAIL}" style="color:#d8b27c;">cet e-mail</a>.`
+    : `Any question about your order? Just reply to <a href="mailto:${CONTACT_EMAIL}" style="color:#d8b27c;">this email</a>.`;
+  const whatsappText = isFr
+    ? `Bonjour, j'ai une question à propos de ma commande ${details.referenceNumber}.`
+    : `Hello, I have a question about my order ${details.referenceNumber}.`;
+  const whatsappHref = `https://api.whatsapp.com/send?phone=${WHATSAPP_PHONE}&text=${encodeURIComponent(whatsappText)}`;
+  const whatsappNote = isFr
+    ? `Vous pouvez aussi nous écrire sur <a href="${whatsappHref}" style="color:#d8b27c;">WhatsApp</a>.`
+    : `You can also reach us on <a href="${whatsappHref}" style="color:#d8b27c;">WhatsApp</a>.`;
 
   const html = `<!doctype html>
 <html lang="${details.language}">
@@ -444,7 +536,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#141210;border:1px solid #2a2620;">
             <tr>
               <td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #2a2620;">
-                <div style="font-family:'IBM Plex Mono',Consolas,monospace;letter-spacing:0.2em;font-size:12px;color:#d8b27c;text-transform:uppercase;">Effluve Paris</div>
+                <a href="${WEBSITE_URL}" style="font-family:'IBM Plex Mono',Consolas,monospace;letter-spacing:0.2em;font-size:12px;color:#d8b27c;text-transform:uppercase;text-decoration:none;">Effluve Paris</a>
               </td>
             </tr>
             <tr>
@@ -470,13 +562,14 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                   </tr>
                 </table>
                 <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#ede7dd;">${thankYou}</p>
-                <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#ede7dd;">${shipping}</p>
+                <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#ede7dd;">${shipping}</p>${shippingAddressSection}
                 <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#ede7dd;">${signOff}<br>Effluve Paris</p>
               </td>
             </tr>
             <tr>
               <td style="padding:20px 32px;border-top:1px solid #2a2620;text-align:center;">
-                <p style="margin:0;font-size:12px;color:#8f887c;">${footerNote}</p>
+                <p style="margin:0 0 8px;font-size:12px;color:#8f887c;">${replyNote}</p>
+                <p style="margin:0;font-size:12px;color:#8f887c;">${whatsappNote}</p>
               </td>
             </tr>
           </table>

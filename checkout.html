@@ -1161,7 +1161,25 @@
           // Payment is reached, so the confirmation email matches whatever
           // the customer was actually reading the site in.
           customerEmail: session ? session.email : undefined,
-          language: stripeLocale()
+          language: stripeLocale(),
+          // Shipping step's own fields (already required + validated before
+          // Payment is ever reachable, see STEP_ORDER/validateShippingForm())
+          // -- sent the same way customerEmail/language are, purely so
+          // supabase/functions/stripe-webhook can print a shipping-address
+          // recap in the confirmation email. Read directly off the form
+          // here rather than off Stripe's own payment_method.billing_details
+          // later, since the Payment Request Button path (Apple Pay/Google
+          // Pay) confirms with a wallet-supplied PaymentMethod whose
+          // billing_details come from the wallet, not from these exact
+          // fields -- reading the form directly is the one path that's
+          // identical regardless of which payment method the customer ends
+          // up using.
+          shippingName: `${form.querySelector('[name="firstName"]').value.trim()} ${form.querySelector('[name="lastName"]').value.trim()}`.trim() || undefined,
+          shippingAddressLine1: form.querySelector('[name="address"]').value.trim() || undefined,
+          shippingAddressLine2: form.querySelector('[name="extraDetails"]').value.trim() || undefined,
+          shippingCity: form.querySelector('[name="city"]').value.trim() || undefined,
+          shippingPostalCode: form.querySelector('[name="postal"]').value.trim() || undefined,
+          shippingCountry: form.querySelector('[name="country"]').value || undefined
         }
       });
       if (error || !data || !data.clientSecret) {
