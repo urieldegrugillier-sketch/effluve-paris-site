@@ -82,6 +82,20 @@ const CONTACT_EMAIL = "contact@effluve-paris.fr";
 // wa.me -> WhatsApp app hand-off.
 const WHATSAPP_PHONE = "33605893897";
 const WEBSITE_URL = "https://effluve-paris.fr";
+// PNG (not the site's own assets/icons/effluve-word-dark-bg.svg) -- Outlook
+// desktop's rendering engine (Word, not a real browser engine) has no SVG
+// support at all, so a raster export is the only format guaranteed to
+// display across mail clients; Gmail/Apple Mail/etc. would have been fine
+// with the SVG, but Outlook wouldn't. Must be an absolute, publicly
+// reachable URL -- email images are always linked, never inline data: URIs
+// (most clients' spam filters penalize inline-embedded images heavily).
+const LOGO_URL = `${WEBSITE_URL}/assets/icons/effluve-word-dark-bg.png`;
+// Same figures as checkout.html's own SHIPPING_FEE/VAT_RATE consts --
+// display-only "waived fee" lines, duplicated here (not imported) since
+// Deno Edge Functions and this static site share no build step to import
+// across. Keep in sync by hand if either ever changes on the checkout page.
+const SHIPPING_FEE = 5.9;
+const VAT_RATE = 0.2;
 
 // Matches js/cart.js's own single hardcoded PRODUCT.name -- this project's
 // one current MONARK edition. Only ever used as a fallback (see
@@ -313,6 +327,7 @@ async function sendOrderConfirmation(
     return;
   }
   const language = metadata.language === "en" ? "en" : "fr"; // matches js/i18n.js's own DEFAULT_LANG = 'fr'
+  const { subtotal, discount } = await computePriceBreakdown(supabaseAdmin, order.quantity, order.total, metadata.promo_code || "");
   await sendConfirmationEmail(supabaseAdmin, orderId, {
     email,
     language,
@@ -320,6 +335,13 @@ async function sendOrderConfirmation(
     productName: order.productName,
     quantity: order.quantity,
     total: order.total,
+    subtotal,
+    discount,
+    // Only shown when a positive discount was actually derivable (see
+    // computePriceBreakdown) -- a promo_code metadata value with no
+    // resolvable discount amount would otherwise print a code with no
+    // corresponding deduction, which reads as a bug rather than a feature.
+    promoCode: discount > 0 ? metadata.promo_code || "" : "",
     // Only ever present when create-checkout-session's own metadata carried
     // them (see that function's own comment) -- absent on any order whose
     // PaymentIntent predates this field, in which case the email simply
@@ -331,6 +353,36 @@ async function sendOrderConfirmation(
     shippingPostalCode: metadata.shipping_postal_code || "",
     shippingCountry: metadata.shipping_country || "",
   });
+}
+
+// Builds the Subtotal/Shipping/VAT/[Promo]/Total breakdown shown in the
+// confirmation email, matching checkout.html's own summaryLinesHtml() as
+// closely as the data available here allows. The webhook has no per-order
+// record of the unit price actually charged (public.orders stores only the
+// final `total`) -- subtotal is reconstructed from the CURRENT
+// public.products price, same server-side source of truth
+// create-checkout-session itself charges from. That's exact for the common
+// case (this project has only ever had one product/price), but would drift
+// if the price changes between an order and whenever this runs; a lookup
+// failure, or a promo_code with no positive resulting discount (price drift,
+// or metadata from a pre-this-feature order), falls back to subtotal ===
+// total with no discount line -- never a fabricated number.
+async function computePriceBreakdown(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  quantity: number,
+  total: number,
+  promoCode: string,
+): Promise<{ subtotal: number; discount: number }> {
+  const { data: product, error } = await supabaseAdmin.from("products").select("price").limit(1).maybeSingle();
+  if (error || !product) {
+    console.error("stripe-webhook: product price lookup failed while building confirmation email price breakdown:", error?.message);
+    return { subtotal: total, discount: 0 };
+  }
+  const rawSubtotal = Math.round(product.price * quantity * 100) / 100;
+  if (promoCode && rawSubtotal > total) {
+    return { subtotal: rawSubtotal, discount: Math.round((rawSubtotal - total) * 100) / 100 };
+  }
+  return { subtotal: total, discount: 0 };
 }
 
 // customer_email (set by create-checkout-session for both guest and
@@ -365,6 +417,9 @@ interface ConfirmationEmailDetails {
   productName: string;
   quantity: number;
   total: number;
+  subtotal: number;
+  discount: number;
+  promoCode: string;
   shippingName: string;
   shippingAddressLine1: string;
   shippingAddressLine2: string;
@@ -469,7 +524,12 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
     reference: isFr ? "Référence" : "Reference",
     product: isFr ? "Produit" : "Product",
     quantity: isFr ? "Quantité" : "Quantity",
+    subtotal: isFr ? "Sous-total" : "Subtotal",
+    shippingFee: isFr ? "Livraison" : "Shipping",
+    vat: isFr ? "TVA" : "VAT",
+    free: isFr ? "Offerte" : "Free",
     total: isFr ? "Total réglé" : "Total paid",
+    visitSite: isFr ? "Découvrir Effluve Paris" : "Visit Effluve Paris",
     shippingAddress: isFr ? "Adresse de livraison" : "Shipping address",
     name: isFr ? "Nom" : "Name",
     address: isFr ? "Adresse" : "Address",
@@ -527,6 +587,22 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
     ? `Vous pouvez aussi nous écrire sur <a href="${whatsappHref}" style="color:#d8b27c;">WhatsApp</a>.`
     : `You can also reach us on <a href="${whatsappHref}" style="color:#d8b27c;">WhatsApp</a>.`;
 
+  // Subtotal/Shipping(Free)/VAT(Free)/[Promo]/Total -- same line set and
+  // order as checkout.html's own summaryLinesHtml(), minus the countdown-
+  // driven "Limited-Time Offer" line: that one reflects a live, still-ticking
+  // site-wide promo at the moment of purchase, which doesn't make sense to
+  // reconstruct after the fact in a settled order's confirmation email (see
+  // computePriceBreakdown's own comment on why subtotal is reconstructed
+  // from current product price instead).
+  const vatAmount = details.subtotal * VAT_RATE;
+  const promoLine = details.promoCode
+    ? `
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">Promo (${escapeHtml(details.promoCode)})</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">&minus;${formatMoney(details.discount)}</td>
+                  </tr>`
+    : "";
+
   const html = `<!doctype html>
 <html lang="${details.language}">
   <body style="margin:0;padding:0;background:#0a0908;font-family:'Manrope',Arial,sans-serif;color:#ede7dd;">
@@ -536,7 +612,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#141210;border:1px solid #2a2620;">
             <tr>
               <td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #2a2620;">
-                <a href="${WEBSITE_URL}" style="font-family:'IBM Plex Mono',Consolas,monospace;letter-spacing:0.2em;font-size:12px;color:#d8b27c;text-transform:uppercase;text-decoration:none;">Effluve Paris</a>
+                <a href="${WEBSITE_URL}" style="text-decoration:none;"><img src="${LOGO_URL}" width="220" height="36" alt="Effluve Paris" style="display:block;margin:0 auto;border:0;outline:none;max-width:220px;height:36px;"></a>
               </td>
             </tr>
             <tr>
@@ -557,13 +633,32 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${details.quantity}</td>
                   </tr>
                   <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.subtotal}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${formatMoney(details.subtotal)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.shippingFee}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;"><span style="text-decoration:line-through;color:#8f887c;">${formatMoney(SHIPPING_FEE)}</span> ${labels.free}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.vat}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;"><span style="text-decoration:line-through;color:#8f887c;">${formatMoney(vatAmount)}</span> ${labels.free}</td>
+                  </tr>${promoLine}
+                  <tr>
                     <td style="padding:10px 0;font-size:13px;color:#8f887c;">${labels.total}</td>
                     <td style="padding:10px 0;font-size:13px;color:#d8b27c;text-align:right;font-weight:600;">${totalFormatted}</td>
                   </tr>
                 </table>
                 <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#ede7dd;">${thankYou}</p>
                 <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#ede7dd;">${shipping}</p>${shippingAddressSection}
-                <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#ede7dd;">${signOff}<br>Effluve Paris</p>
+                <p style="margin:24px 0 24px;font-size:14px;line-height:1.6;color:#ede7dd;">${signOff}<br>Effluve Paris</p>
+                <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                  <tr>
+                    <td style="border:1px solid #d8b27c;" align="center">
+                      <a href="${WEBSITE_URL}" style="display:inline-block;padding:14px 32px;font-family:'IBM Plex Mono',Consolas,monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#ede7dd;text-decoration:none;">${labels.visitSite}</a>
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
             <tr>
