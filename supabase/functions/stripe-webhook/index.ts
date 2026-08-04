@@ -567,6 +567,21 @@ function formatOrderDate(isoString: string, isFr: boolean): string {
   }).format(new Date(isoString));
 }
 
+// shippingName is built client-side as `${firstName} ${lastName}`.trim()
+// (see checkout.html's own call site) from two fields js/account.js's
+// centralized MonarkValidateName already validates before Payment is ever
+// reachable -- so in the normal case this is reliably exactly two tokens,
+// not free text. This only has to handle what's left over: the field
+// missing entirely (pre-this-feature orders, or metadata dropped), or a
+// first token too short/symbol-only to safely greet someone with. Returns
+// "" (never guesses) when nothing safe to use is found -- the caller falls
+// back to an un-personalized greeting in that case.
+function extractFirstName(fullName: string): string {
+  const firstToken = fullName.trim().split(/\s+/)[0] || "";
+  if (firstToken.length < 2 || !/[A-Za-zÀ-ÖØ-öø-ÿ]/.test(firstToken)) return "";
+  return firstToken;
+}
+
 function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: string; html: string; text: string } {
   const isFr = details.language === "fr";
   const totalFormatted = formatMoney(details.total);
@@ -593,6 +608,16 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   const preheader = isFr
     ? "Votre commande Effluve Paris est confirmée. Merci pour votre confiance."
     : "Your Effluve Paris order is confirmed. Thank you for your trust.";
+  // Personalized when a usable first name was extracted from the shipping
+  // metadata (see extractFirstName's own comment on why that's reliable in
+  // the normal case), otherwise a plain generic opener -- never a guess.
+  const firstName = extractFirstName(details.shippingName);
+  const greeting = isFr
+    ? (firstName ? `Bonjour ${escapeHtml(firstName)},` : "Bonjour,")
+    : (firstName ? `Hello ${escapeHtml(firstName)},` : "Hello,");
+  const greetingText = isFr
+    ? (firstName ? `Bonjour ${firstName},` : "Bonjour,")
+    : (firstName ? `Hello ${firstName},` : "Hello,");
   const heading = isFr ? "Merci pour votre commande" : "Thank you for your order";
   // UPDATE: the date used to be folded into this sentence as a parenthetical
   // ("commande EP-XXXX (commande du ...)") -- read as redundant ("commande
@@ -825,6 +850,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
             </tr>
             <tr>
               <td style="padding:32px;">
+                <p style="margin:0 0 4px;font-size:14px;line-height:1.6;color:#8f887c;">${greeting}</p>
                 <h1 style="margin:0 0 16px;font-size:20px;font-weight:600;color:#ede7dd;">${heading}</h1>
                 <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#ede7dd;">${introLineHtml}</p>
                 <!-- Photo left / at-a-glance right -- standard email
@@ -948,6 +974,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   const text = [
     "EFFLUVE PARIS",
     "",
+    greetingText,
     heading,
     "",
     introLineText,
