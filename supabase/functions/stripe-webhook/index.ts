@@ -589,6 +589,16 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   const vatAmount = details.subtotal * VAT_RATE;
   const vatAmountFormatted = formatMoney(vatAmount);
   const productName = escapeHtml(details.productName);
+  // js/cart.js's own PRODUCT.name convention ("MONARK Eau de Parfum |
+  // 100ml") uses "|" to separate name from size -- fine standing alone (see
+  // the Subject line's own comment on reusing that same convention there),
+  // but combined with a THIRD piece of information (the order reference) on
+  // one line, two bare pipes back to back read as a delimited field dump
+  // rather than a sentence. Naturalized only for this compact-block line:
+  // comma between name/size (reads like "Chanel No. 5, 100ml"), reference
+  // called out in its own parenthetical so it's unambiguous that trailing
+  // code is a reference, not more of the product name.
+  const productNameNatural = productName.replace(/\s\|\s/g, ", ");
   const orderDate = formatOrderDate(details.createdAt, isFr);
 
   // "|" not "—" -- matches the sitewide separator convention (e.g.
@@ -659,6 +669,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
     country: isFr ? "Pays" : "Country",
     terms: isFr ? "CGV" : "Terms of Sale",
     privacy: isFr ? "Confidentialité" : "Privacy Policy",
+    refWord: isFr ? "réf." : "ref.",
   };
   // French typographic convention (space before the colon) matches how this
   // same "Label : value" pattern already reads sitewide (e.g. js/i18n.js's
@@ -759,8 +770,8 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   // them. Deliberately no unsubscribe link either -- this is a receipt tied
   // to a specific purchase, not a marketing send, so there's nothing to
   // unsubscribe from.
-  const legalFooterHtml = `Effluve Paris — <a href="${WEBSITE_URL}/cgv.html" style="color:#8f887c;">${labels.terms}</a> · <a href="${WEBSITE_URL}/confidentialite.html" style="color:#8f887c;">${labels.privacy}</a>`;
-  const legalFooterText = `Effluve Paris — ${labels.terms}: ${WEBSITE_URL}/cgv.html — ${labels.privacy}: ${WEBSITE_URL}/confidentialite.html`;
+  const legalFooterHtml = `<a href="${WEBSITE_URL}" style="color:#8f887c;">Effluve Paris</a> — <a href="${WEBSITE_URL}/cgv.html" style="color:#8f887c;">${labels.terms}</a> · <a href="${WEBSITE_URL}/confidentialite.html" style="color:#8f887c;">${labels.privacy}</a>`;
+  const legalFooterText = `Effluve Paris (${WEBSITE_URL}) — ${labels.terms}: ${WEBSITE_URL}/cgv.html — ${labels.privacy}: ${WEBSITE_URL}/confidentialite.html`;
 
   // Date/Shipping(Free)/VAT(Free)/[Promo]/Total -- UPDATE: Subtotal removed
   // from this recap entirely (per request) -- with the compact block above
@@ -868,10 +879,10 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                      replaced with three plain lines (name+reference combined,
                      quantity, price) per request -- see the three <p>s below.
                      The name+reference line is now allowed to wrap normally
-                     (no more nowrap/ellipsis truncation from the previous
+                     (no more nowrap/ellipsis truncation from an earlier
                      round) since it's long enough on any realistic width
                      that a natural 2-line wrap reads better than truncating
-                     "MONARK Eau de Parfum | 100ml | ABCD1234" down to
+                     "MONARK Eau de Parfum, 100ml (réf. ABCD1234)" down to
                      "MONARK Eau de …" with the reference cut off entirely. -->
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 4px;border-collapse:collapse;table-layout:fixed;">
                   <tr>
@@ -879,9 +890,9 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                       <img src="${PRODUCT_THUMB_URL}" width="120" height="120" alt="${productName}" style="display:block;border:0;outline:none;width:120px;height:120px;border-radius:4px;">
                     </td>
                     <td valign="top">
-                      <p style="margin:0 0 4px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;">${productName} | ${details.referenceNumber}</p>
+                      <p style="margin:0 0 4px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;">${productNameNatural} (${labels.refWord} ${details.referenceNumber})</p>
                       <p style="margin:0 0 10px;font-size:12px;line-height:1.4;color:#8f887c;">${quantityLine}</p>
-                      <p style="margin:0;font-size:26px;font-weight:700;line-height:1.15;color:#d8b27c;">${totalFormatted}</p>
+                      <p style="margin:0;font-size:22px;font-weight:700;line-height:1.15;color:#ede7dd;">${totalFormatted}</p>
                     </td>
                   </tr>
                 </table>
