@@ -1,0 +1,284 @@
+/* Effluve Paris — internal admin tool (admin.html). Loaded alongside
+   css/style.css (reused for :root's color/font variables + the base
+   body/a/button reset) rather than duplicating those values here.
+
+   Structured for extension: the tab bar (.admin-tabs/.admin-tab) and panel
+   switching (.admin-panel/[data-tab-panel]) are generic -- a future admin
+   section (stock, promo timer, promo codes) adds its own
+   <button data-tab="x"> + <section data-tab-panel="x"> pair and gets the
+   same show/hide behavior for free, no changes needed here. Only one real
+   tab exists today (orders/shipping) -- no placeholder tabs for
+   not-yet-built sections, per this round's own scope. */
+
+#admin-auth-gate {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 2rem;
+}
+
+/* BUG FIX: an id selector's own `display: flex` above outranks the browser
+   default `[hidden] { display: none }` UA rule (an attribute selector),
+   so setting the `hidden` PROPERTY to true via JS left this still visually
+   rendered -- confirmed live: a screenshot taken right after admin.js set
+   authGate.hidden = true still showed "Vérification de l'accès…" on top of
+   the (fully working underneath) admin app. This rule's higher specificity
+   (id + attribute beats id alone) restores the actual hide. */
+#admin-auth-gate[hidden] { display: none; }
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-header h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.4rem;
+  margin: 0 auto 0 0;
+}
+
+.admin-whoami {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.admin-tab {
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.6rem 1.1rem;
+}
+
+.admin-tab.active {
+  color: var(--bg-void);
+  background: var(--accent-bronze-light);
+  border-color: var(--accent-bronze-light);
+}
+
+.admin-logout-btn {
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.6rem 1rem;
+}
+
+.admin-logout-btn:hover { color: var(--text-on-dark); border-color: var(--text-on-dark); }
+
+main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
+
+.admin-panel { display: none; }
+.admin-panel.active { display: block; }
+
+.admin-panel h2 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  margin: 0 0 1.2rem;
+}
+
+.admin-orders-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.2rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.admin-orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.admin-orders-table th,
+.admin-orders-table td {
+  text-align: left;
+  padding: 0.75rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.admin-orders-table th {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.admin-order-row-shipped { opacity: 0.55; }
+
+.admin-status-pill {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.admin-status-pending { color: var(--accent-bronze-light); border: 1px solid var(--accent-bronze-light); }
+.admin-status-shipped { color: var(--text-muted); border: 1px solid var(--line); }
+
+.admin-ship-btn {
+  background: none;
+  border: 1px solid var(--accent-bronze-light);
+  color: var(--accent-bronze-light);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.75rem;
+  white-space: nowrap;
+}
+
+.admin-ship-btn:hover { background: var(--accent-bronze-light); color: var(--bg-void); }
+
+.admin-tracking-value { font-family: var(--font-mono); font-size: 0.8rem; }
+
+.admin-empty-note,
+.admin-loading-note,
+.admin-error-note {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 2.5rem 0;
+  text-align: center;
+}
+
+.admin-error-note { color: #d88f7c; }
+
+/* ---------------- Mark-as-shipped modal ---------------- */
+
+.admin-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.admin-modal[hidden] { display: none; }
+
+.admin-modal-content {
+  background: var(--bg-ink);
+  border: 1px solid var(--line);
+  padding: 2rem;
+  max-width: 360px;
+  width: 100%;
+}
+
+.admin-modal-content h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  font-family: var(--font-display);
+}
+
+.admin-modal-content p {
+  margin: 0 0 1.3rem;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.admin-modal-content label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-modal-content input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-void);
+  border: 1px solid var(--line);
+  color: var(--text-on-dark);
+  padding: 0.7rem;
+  font-size: 0.95rem;
+  margin-bottom: 0.6rem;
+  font-family: inherit;
+}
+
+.admin-modal-content input:focus-visible { outline: 1px solid var(--accent-bronze-light); }
+
+.admin-modal-error {
+  color: #d88f7c;
+  font-size: 0.78rem;
+  margin: 0 0 0.8rem;
+  min-height: 1em;
+}
+
+.admin-modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 0.6rem; }
+
+.admin-modal-actions button {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--text-muted);
+}
+
+#admin-ship-confirm { border-color: var(--accent-bronze-light); color: var(--accent-bronze-light); }
+#admin-ship-confirm:hover { background: var(--accent-bronze-light); color: var(--bg-void); }
+#admin-ship-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------------- Narrow widths: card-style rows instead of a table ---------------- */
+@media (max-width: 700px) {
+  .admin-header { padding: 1.2rem; }
+  main.admin-main { padding: 1.2rem; }
+
+  .admin-orders-table thead { display: none; }
+  .admin-orders-table, .admin-orders-table tbody, .admin-orders-table tr, .admin-orders-table td {
+    display: block;
+    width: 100%;
+  }
+  .admin-orders-table tr { border-bottom: 1px solid var(--line); padding: 0.9rem 0; }
+  .admin-orders-table td { border: none; padding: 0.2rem 0; }
+  .admin-orders-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.15rem;
+  }
+}

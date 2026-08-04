@@ -1,0 +1,98 @@
+<!doctype html>
+<!-- Effluve Paris — internal admin tool. First section: mark orders as
+     shipped + record a tracking number. Not part of the public site (no
+     nav link anywhere), gated by a real Supabase session + profiles.is_admin
+     (see js/admin.js's own auth-gate comment — the client-side check here is
+     just UX; RLS on public.orders/public.profiles is the actual boundary,
+     see supabase/migrations/20260806000000_admin_shipping.sql).
+
+     Deliberately its own minimal page (not sharing checkout.html/
+     account.html's full header/nav/cart chrome) -- an internal tool has
+     different needs (a tab bar for future sections, a data table) than the
+     customer-facing site, and dragging in cart.js/cart-widget.js/nav-menu.js
+     here would run their init code against DOM that doesn't exist. -->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Administration — Effluve Paris</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Internal tool, never meant to appear in search results or be crawled. -->
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+<!-- Shown while the session/is_admin check is in flight, and as the final
+     state if that check ever fails outright without a redirect (defensive
+     fallback -- see admin.js's own comment on why it redirects instead of
+     leaving this up in the normal case). -->
+<div id="admin-auth-gate">Vérification de l'accès…</div>
+
+<div id="admin-app" hidden>
+  <header class="admin-header">
+    <h1>Administration</h1>
+    <nav class="admin-tabs" id="admin-tabs">
+      <button type="button" class="admin-tab active" data-tab="orders">Commandes</button>
+      <!-- Future sections (stock, minuteur promo, codes promo) add their own
+           <button data-tab="..."> here + a matching
+           <section data-tab-panel="..."> below -- js/admin.js's tab-switch
+           logic is generic, nothing else to wire up. -->
+    </nav>
+    <span class="admin-whoami" id="admin-whoami"></span>
+    <button type="button" class="admin-logout-btn" id="admin-logout">Déconnexion</button>
+  </header>
+
+  <main class="admin-main">
+    <section class="admin-panel active" data-tab-panel="orders">
+      <h2>Commandes</h2>
+      <div class="admin-orders-toolbar">
+        <label>
+          <input type="checkbox" id="admin-filter-pending">
+          Afficher uniquement les commandes en attente d'expédition
+        </label>
+      </div>
+
+      <div id="admin-orders-loading" class="admin-loading-note">Chargement des commandes…</div>
+      <div id="admin-orders-error" class="admin-error-note" hidden></div>
+      <div id="admin-orders-empty" class="admin-empty-note" hidden>Aucune commande à afficher.</div>
+
+      <table class="admin-orders-table" id="admin-orders-table" hidden>
+        <thead>
+          <tr>
+            <th>Référence</th>
+            <th>Client</th>
+            <th>Produit</th>
+            <th>Date</th>
+            <th>Statut</th>
+            <th>Suivi</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="admin-orders-tbody"></tbody>
+      </table>
+    </section>
+  </main>
+</div>
+
+<!-- Mark-as-shipped modal -->
+<div class="admin-modal" id="admin-ship-modal" role="dialog" aria-modal="true" aria-labelledby="admin-ship-modal-title" hidden>
+  <div class="admin-modal-content">
+    <h2 id="admin-ship-modal-title">Marquer comme expédié</h2>
+    <p id="admin-ship-modal-ref"></p>
+    <label for="admin-tracking-input">Numéro de suivi</label>
+    <input type="text" id="admin-tracking-input" autocomplete="off">
+    <p class="admin-modal-error" id="admin-ship-modal-error"></p>
+    <div class="admin-modal-actions">
+      <button type="button" id="admin-ship-cancel">Annuler</button>
+      <button type="button" id="admin-ship-confirm">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
