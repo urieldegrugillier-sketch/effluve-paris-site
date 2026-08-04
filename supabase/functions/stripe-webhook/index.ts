@@ -98,6 +98,14 @@ const LOGO_URL = `${WEBSITE_URL}/assets/icons/effluve-word-dark-bg.png`;
 // for where the 0.349 height ratio and 0.16 gap ratio (both reused below)
 // come from.
 const PARIS_LOGO_URL = `${WEBSITE_URL}/assets/icons/paris-word-dark-bg.png`;
+// Same PNG-not-source-format reasoning as LOGO_URL/PARIS_LOGO_URL above --
+// the source (assets/images/02_fully_edited.webp, already this project's
+// established small-thumbnail crop: js/cart.js's own PRODUCT.image, reused
+// by cart-widget.js/checkout.html's own thumbnails) is WebP, which has the
+// same inconsistent-across-clients support problem SVG does for email.
+// email-product-thumb.png is a plain raster export at a fixed 400x400,
+// generated the same headless-screenshot way as the two logo PNGs.
+const PRODUCT_THUMB_URL = `${WEBSITE_URL}/assets/images/email-product-thumb.png`;
 // "See our fragrances" points at the shop page specifically, not the
 // homepage LOGO_URL above still points to -- a customer who already has a
 // confirmed order doesn't need another pitch for the brand in general, but
@@ -202,19 +210,21 @@ async function reconcileOrder(
 
   const { data: existing, error: lookupError } = await supabaseAdmin
     .from("orders")
-    .select("id, status, reference_number, product_name, quantity, total, guest_email, user_id")
+    .select("id, status, reference_number, product_name, quantity, total, guest_email, user_id, created_at")
     .eq("payment_intent_id", paymentIntent.id)
     .maybeSingle();
   if (lookupError) throw lookupError;
 
   if (existing) {
     if (existing.status === "paid") return; // already reconciled -- Stripe redelivering the same event, a safe no-op (also why the confirmation email never double-sends on retries)
-    const referenceNumber = existing.reference_number || (await generateReferenceNumber(supabaseAdmin));
-    const { error: updateError } = await supabaseAdmin
-      .from("orders")
-      .update({ status: "paid", reference_number: referenceNumber })
-      .eq("id", existing.id);
-    if (updateError) throw updateError;
+    let referenceNumber: string;
+    if (existing.reference_number) {
+      referenceNumber = existing.reference_number;
+      const { error: updateError } = await supabaseAdmin.from("orders").update({ status: "paid" }).eq("id", existing.id);
+      if (updateError) throw updateError;
+    } else {
+      referenceNumber = await updateOrderWithFreshReference(supabaseAdmin, existing.id, { status: "paid" });
+    }
     // Order status is now durably 'paid' regardless of what happens below --
     // sendConfirmationEmail() never throws, so a Resend outage/misconfig
     // can't turn this into a 500 that makes Stripe retry an already-settled
@@ -226,6 +236,7 @@ async function reconcileOrder(
       total: existing.total,
       guestEmail: existing.guest_email,
       userId: existing.user_id,
+      createdAt: existing.created_at,
     });
     return;
   }
@@ -238,7 +249,6 @@ async function reconcileOrder(
   // quantity/identity (see create-checkout-session's own comment on why
   // it's set there).
   const quantity = Math.max(1, Math.floor(Number(metadata.quantity)) || 1);
-  const referenceNumber = await generateReferenceNumber(supabaseAdmin);
   const productName = (metadata.product_name as string) || DEFAULT_PRODUCT_NAME;
   const total = paymentIntent.amount_received / 100;
   const row: Record<string, unknown> = {
@@ -247,7 +257,6 @@ async function reconcileOrder(
     quantity,
     total,
     status: "paid",
-    reference_number: referenceNumber,
   };
   if (metadata.user_id) {
     row.user_id = metadata.user_id;
@@ -263,8 +272,33 @@ async function reconcileOrder(
     console.error("stripe-webhook: PaymentIntent has no user_id/guest_email metadata -- inserting unattributed order.", paymentIntent.id);
   }
 
-  const { data: inserted, error: insertError } = await supabaseAdmin.from("orders").insert(row).select("id").single();
-  if (!insertError) {
+  // Random reference generated + attempted here inline (not via
+  // updateOrderWithFreshReference, which only handles UPDATE) because an
+  // INSERT can collide on EITHER of two different UNIQUE constraints --
+  // reference_number (this order's own retry loop) or payment_intent_id (a
+  // genuine race against another concurrent insert for the same
+  // PaymentIntent, handled below exactly as before) -- and those two need
+  // different responses (retry vs. fall through to race-winner handling).
+  let referenceNumber = "";
+  let inserted: { id: string; created_at: string } | null = null;
+  let insertError: { code?: string; message?: string; details?: string } | null = null;
+  for (let attempt = 1; attempt <= MAX_REFERENCE_ATTEMPTS; attempt++) {
+    referenceNumber = generateReferenceCode();
+    const { data, error } = await supabaseAdmin
+      .from("orders")
+      .insert({ ...row, reference_number: referenceNumber })
+      .select("id, created_at")
+      .single();
+    if (!error) {
+      inserted = data;
+      insertError = null;
+      break;
+    }
+    insertError = error;
+    if (!isReferenceNumberConflict(error)) break; // a different error (e.g. payment_intent_id race) -- stop retrying, handled below
+  }
+
+  if (inserted) {
     await sendOrderConfirmation(supabaseAdmin, metadata, inserted.id, {
       referenceNumber,
       productName,
@@ -272,28 +306,31 @@ async function reconcileOrder(
       total,
       guestEmail: (row.guest_email as string) || null,
       userId: (row.user_id as string) || null,
+      createdAt: inserted.created_at,
     });
     return;
   }
 
-  if (insertError.code === "23505") {
+  if (insertError && insertError.code === "23505" && !isReferenceNumberConflict(insertError)) {
     // Lost a race against another concurrent insert for this exact
     // PaymentIntent (recordOrder()'s own client-side call, or a second
     // near-simultaneous webhook delivery) -- that row now exists, so finish
     // the job by updating IT to 'paid' instead of erroring out.
     const { data: raceWinner, error: refetchError } = await supabaseAdmin
       .from("orders")
-      .select("id, status, reference_number, product_name, quantity, total, guest_email, user_id")
+      .select("id, status, reference_number, product_name, quantity, total, guest_email, user_id, created_at")
       .eq("payment_intent_id", paymentIntent.id)
       .maybeSingle();
     if (refetchError) throw refetchError;
     if (raceWinner && raceWinner.status !== "paid") {
-      const finalReference = raceWinner.reference_number || referenceNumber;
-      const { error: updateError } = await supabaseAdmin
-        .from("orders")
-        .update({ status: "paid", reference_number: finalReference })
-        .eq("id", raceWinner.id);
-      if (updateError) throw updateError;
+      let finalReference: string;
+      if (raceWinner.reference_number) {
+        finalReference = raceWinner.reference_number;
+        const { error: updateError } = await supabaseAdmin.from("orders").update({ status: "paid" }).eq("id", raceWinner.id);
+        if (updateError) throw updateError;
+      } else {
+        finalReference = await updateOrderWithFreshReference(supabaseAdmin, raceWinner.id, { status: "paid" });
+      }
       await sendOrderConfirmation(supabaseAdmin, metadata, raceWinner.id, {
         referenceNumber: finalReference,
         productName: raceWinner.product_name,
@@ -301,11 +338,13 @@ async function reconcileOrder(
         total: raceWinner.total,
         guestEmail: raceWinner.guest_email,
         userId: raceWinner.user_id,
+        createdAt: raceWinner.created_at,
       });
     }
     return;
   }
-  throw insertError;
+  if (insertError) throw insertError;
+  throw new Error("stripe-webhook: exhausted reference number retries during order insert");
 }
 
 // ============================================================================
@@ -326,6 +365,7 @@ interface OrderConfirmationInput {
   total: number;
   guestEmail: string | null;
   userId: string | null;
+  createdAt: string;
 }
 
 async function sendOrderConfirmation(
@@ -348,6 +388,7 @@ async function sendOrderConfirmation(
     productName: order.productName,
     quantity: order.quantity,
     total: order.total,
+    createdAt: order.createdAt,
     subtotal,
     discount,
     // Only shown when a positive discount was actually derivable (see
@@ -430,6 +471,7 @@ interface ConfirmationEmailDetails {
   productName: string;
   quantity: number;
   total: number;
+  createdAt: string;
   subtotal: number;
   discount: number;
   promoCode: string;
@@ -451,7 +493,7 @@ async function sendConfirmationEmail(
     return;
   }
 
-  const { subject, html } = buildConfirmationEmail(details);
+  const { subject, html, text } = buildConfirmationEmail(details);
 
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -465,6 +507,7 @@ async function sendConfirmationEmail(
         to: [details.email],
         subject,
         html,
+        text,
       }),
     });
     if (!res.ok) {
@@ -513,28 +556,67 @@ function countryLabel(code: string, isFr: boolean): string {
   return entry ? (isFr ? entry.fr : entry.en) : code;
 }
 
-function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: string; html: string } {
+// "3 août 2026" (fr-FR) / "August 3, 2026" (en-US) -- Intl.DateTimeFormat is
+// available in Deno's edge runtime same as any modern JS engine, no extra
+// dependency needed the way a lot of date-formatting libraries would be.
+function formatOrderDate(isoString: string, isFr: boolean): string {
+  return new Intl.DateTimeFormat(isFr ? "fr-FR" : "en-US", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(isoString));
+}
+
+function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: string; html: string; text: string } {
   const isFr = details.language === "fr";
   const totalFormatted = formatMoney(details.total);
+  const subtotalFormatted = formatMoney(details.subtotal);
+  const shippingFeeFormatted = formatMoney(SHIPPING_FEE);
+  const vatAmount = details.subtotal * VAT_RATE;
+  const vatAmountFormatted = formatMoney(vatAmount);
   const productName = escapeHtml(details.productName);
+  const orderDate = formatOrderDate(details.createdAt, isFr);
 
   const subject = isFr
     ? `Votre commande Effluve Paris — ${details.referenceNumber}`
     : `Your Effluve Paris order — ${details.referenceNumber}`;
 
+  // Hidden preheader -- the snippet inbox previews (Gmail/Outlook/Apple
+  // Mail's list view) show next to the subject line. Without one, clients
+  // fall back to pulling in whatever text happens first in the visible
+  // body, which here would be raw whitespace/the logo's alt text -- an
+  // explicit, deliberately-written preheader controls what that preview
+  // actually says.
+  const preheader = isFr
+    ? "Votre commande Effluve Paris est confirmée. Merci pour votre confiance."
+    : "Your Effluve Paris order is confirmed. Thank you for your trust.";
   const heading = isFr ? "Merci pour votre commande" : "Thank you for your order";
-  const introLine = isFr
+  // UPDATE: the date used to be folded into this sentence as a parenthetical
+  // ("commande EP-XXXX (commande du ...)") -- read as redundant ("commande
+  // ... commande"), so it's dropped from here and moved to its own row in
+  // the details table below instead (see labels.date / the new row right
+  // after Reference).
+  const introLineHtml = isFr
     ? `Votre commande <strong>${details.referenceNumber}</strong> a bien été confirmée.`
     : `Your order <strong>${details.referenceNumber}</strong> has been confirmed.`;
+  const introLineText = isFr
+    ? `Votre commande ${details.referenceNumber} a bien été confirmée.`
+    : `Your order ${details.referenceNumber} has been confirmed.`;
   const thankYou = isFr
     ? "Nous vous remercions pour la confiance que vous accordez à Effluve Paris."
     : "We thank you for placing your trust in Effluve Paris.";
+  // UPDATE (simplified further): dropped the delivery-timeframe parenthetical
+  // and the "en France et en Belgique"/"to France and Belgium" shipping-zone
+  // callout too -- the customer already knows where they live; the general
+  // shipping zone is site policy, not something worth repeating in their own
+  // receipt. One direct sentence instead of a parenthetical-laden one.
   const shipping = isFr
-    ? "Votre commande sera expédiée sous peu (délai de livraison estimé : 5 à 7 jours ouvrés), à l'adresse indiquée lors de votre commande (livraison en France et en Belgique)."
-    : "Your order will be shipped shortly (estimated delivery: 5 to 7 business days), to the address provided at checkout (shipping to France and Belgium).";
+    ? "Votre commande sera expédiée sous 5 à 7 jours ouvrés."
+    : "Your order will ship within 5 to 7 business days.";
   const signOff = isFr ? "À bientôt," : "See you soon,";
   const labels = {
     reference: isFr ? "Référence" : "Reference",
+    date: isFr ? "Date" : "Date",
     product: isFr ? "Produit" : "Product",
     quantity: isFr ? "Quantité" : "Quantity",
     subtotal: isFr ? "Sous-total" : "Subtotal",
@@ -549,6 +631,8 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
     city: isFr ? "Ville" : "City",
     postalCode: isFr ? "Code postal" : "Postal code",
     country: isFr ? "Pays" : "Country",
+    terms: isFr ? "CGV" : "Terms of Sale",
+    privacy: isFr ? "Confidentialité" : "Privacy Policy",
   };
 
   // Only shown when create-checkout-session's own metadata actually carried
@@ -556,7 +640,9 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   // as the minimum needed for this to be worth showing at all, rather than
   // rendering a table with some rows blank.
   const hasShippingAddress = Boolean(details.shippingAddressLine1 && details.shippingCity);
-  const addressLine = [details.shippingAddressLine1, details.shippingAddressLine2].filter(Boolean).map(escapeHtml).join(", ");
+  const addressLineHtml = [details.shippingAddressLine1, details.shippingAddressLine2].filter(Boolean).map(escapeHtml).join(", ");
+  const addressLineText = [details.shippingAddressLine1, details.shippingAddressLine2].filter(Boolean).join(", ");
+  const countryDisplay = countryLabel(details.shippingCountry, isFr);
   const shippingAddressSection = hasShippingAddress
     ? `
                 <h2 style="margin:0 0 12px;font-size:14px;font-weight:600;color:#d8b27c;text-transform:uppercase;letter-spacing:0.05em;">${labels.shippingAddress}</h2>
@@ -567,7 +653,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                   </tr>` : ""}
                   <tr>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.address}</td>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${addressLine}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${addressLineHtml}</td>
                   </tr>
                   <tr>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.city}</td>
@@ -579,10 +665,38 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                   </tr>` : ""}
                   <tr>
                     <td style="padding:10px 0;font-size:13px;color:#8f887c;">${labels.country}</td>
-                    <td style="padding:10px 0;font-size:13px;color:#ede7dd;text-align:right;">${escapeHtml(countryLabel(details.shippingCountry, isFr))}</td>
+                    <td style="padding:10px 0;font-size:13px;color:#ede7dd;text-align:right;">${escapeHtml(countryDisplay)}</td>
                   </tr>
                 </table>`
     : "";
+  // Array of lines (not a pre-joined string) -- spread directly into the
+  // final `text` build below so an absent shipping address contributes
+  // nothing at all to the output, not even a stray blank line.
+  const shippingAddressLinesText: string[] = hasShippingAddress
+    ? [
+        "",
+        `${labels.shippingAddress}:`,
+        ...(details.shippingName ? [`${labels.name}: ${details.shippingName}`] : []),
+        `${labels.address}: ${addressLineText}`,
+        `${labels.city}: ${details.shippingCity}`,
+        ...(details.shippingPostalCode ? [`${labels.postalCode}: ${details.shippingPostalCode}`] : []),
+        `${labels.country}: ${countryDisplay}`,
+      ]
+    : [];
+
+  // Pre-filled subject+body via mailto: URL params (RFC 6068) -- lets a
+  // customer's reply already open addressed, subjected, and with the order
+  // reference on hand instead of a bare "compose to contact@" with nothing
+  // filled in. encodeURIComponent (not raw text) is required for both
+  // subject and body -- an unescaped "&", "?", or newline in either would
+  // otherwise be parsed as extra mailto query params / truncate the string.
+  const mailtoSubject = isFr
+    ? `Question à propos de ma commande ${details.referenceNumber}`
+    : `Question about my order ${details.referenceNumber}`;
+  const mailtoBody = isFr
+    ? `Bonjour,\n\nJ'ai une question à propos de ma commande ${details.referenceNumber} :\n\n`
+    : `Hello,\n\nI have a question about my order ${details.referenceNumber}:\n\n`;
+  const mailtoHref = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(mailtoSubject)}&body=${encodeURIComponent(mailtoBody)}`;
 
   // Reply-by-email and WhatsApp are offered side by side, not one replacing
   // the other -- some customers will always prefer a quick chat message over
@@ -590,8 +704,11 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   // this section -- see this function's own call site comment on FROM_ADDRESS
   // for why contact@ (not the old commandes@) is the address used here too.
   const replyNote = isFr
-    ? `Une question sur votre commande&nbsp;? Répondez simplement à <a href="mailto:${CONTACT_EMAIL}" style="color:#d8b27c;">cet e-mail</a>.`
-    : `Any question about your order? Just reply to <a href="mailto:${CONTACT_EMAIL}" style="color:#d8b27c;">this email</a>.`;
+    ? `Une question sur votre commande&nbsp;? Répondez simplement à <a href="${mailtoHref}" style="color:#d8b27c;">cet e-mail</a>.`
+    : `Any question about your order? Just reply to <a href="${mailtoHref}" style="color:#d8b27c;">this email</a>.`;
+  const replyNoteText = isFr
+    ? `Une question sur votre commande ? Écrivez-nous : ${CONTACT_EMAIL}`
+    : `Any question about your order? Email us: ${CONTACT_EMAIL}`;
   const whatsappText = isFr
     ? `Bonjour, j'ai une question à propos de ma commande ${details.referenceNumber}.`
     : `Hello, I have a question about my order ${details.referenceNumber}.`;
@@ -599,6 +716,20 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   const whatsappNote = isFr
     ? `Vous pouvez aussi nous écrire sur <a href="${whatsappHref}" style="color:#d8b27c;">WhatsApp</a>.`
     : `You can also reach us on <a href="${whatsappHref}" style="color:#d8b27c;">WhatsApp</a>.`;
+  const whatsappNoteText = isFr
+    ? `Vous pouvez aussi nous écrire sur WhatsApp : ${whatsappHref}`
+    : `You can also reach us on WhatsApp: ${whatsappHref}`;
+
+  // Minimal transactional-receipt footer -- company name + links to the two
+  // legal pages this site already has (cgv.html/confidentialite.html), NOT
+  // a full "mentions légales" block (SIRET/RCS/registered address): those
+  // don't exist yet for this micro-entreprise (see README's own "Before
+  // launch" notes) and fabricating them here would be worse than omitting
+  // them. Deliberately no unsubscribe link either -- this is a receipt tied
+  // to a specific purchase, not a marketing send, so there's nothing to
+  // unsubscribe from.
+  const legalFooterHtml = `Effluve Paris — <a href="${WEBSITE_URL}/cgv.html" style="color:#8f887c;">${labels.terms}</a> · <a href="${WEBSITE_URL}/confidentialite.html" style="color:#8f887c;">${labels.privacy}</a>`;
+  const legalFooterText = `Effluve Paris — ${labels.terms}: ${WEBSITE_URL}/cgv.html — ${labels.privacy}: ${WEBSITE_URL}/confidentialite.html`;
 
   // Subtotal/Shipping(Free)/VAT(Free)/[Promo]/Total -- same line set and
   // order as checkout.html's own summaryLinesHtml(), minus the countdown-
@@ -607,7 +738,16 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   // reconstruct after the fact in a settled order's confirmation email (see
   // computePriceBreakdown's own comment on why subtotal is reconstructed
   // from current product price instead).
-  const vatAmount = details.subtotal * VAT_RATE;
+  //
+  // Subtotal's VALUE is deliberately muted (#8f887c, same as its label and
+  // the struck-through Shipping/VAT figures) rather than the brighter
+  // #ede7dd every other row's value uses -- when shipping/VAT are both free
+  // and no promo applied, Subtotal and Total show the identical figure
+  // twice, which read as "was I charged twice?" without any visual cue that
+  // they're the same amount by design. De-emphasizing Subtotal (a supporting
+  // breakdown figure) against Total (bronze, bold, the one number that
+  // actually matters) establishes that hierarchy regardless of whether the
+  // two happen to match on a given order.
   const promoLine = details.promoCode
     ? `
                   <tr>
@@ -615,14 +755,46 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">&minus;${formatMoney(details.discount)}</td>
                   </tr>`
     : "";
+  const promoLinesText: string[] = details.promoCode ? [`Promo (${details.promoCode}): -${formatMoney(details.discount)}`] : [];
 
   const html = `<!doctype html>
 <html lang="${details.language}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Dark-mode lock: this design is INTENTIONALLY dark (matches the
+         site's own --bg-void/bronze palette), not a light email that needs
+         a dark variant -- these two tags tell Gmail/Apple Mail/Outlook
+         "both schemes are supported as authored," which stops the more
+         aggressive auto-inversion some clients apply to emails they assume
+         were only designed for light mode. Meta tags alone aren't fully
+         reliable across every client though (see the style block below). -->
+    <meta name="color-scheme" content="light dark">
+    <meta name="supported-color-schemes" content="light dark">
+    <style>
+      :root { color-scheme: light dark; supported-color-schemes: light dark; }
+      /* Outlook.com and Windows Mail apply their own dark-mode pass
+         independently of the meta tags above, tagging elements with
+         data-ogsc/data-ogsb rather than honoring prefers-color-scheme --
+         re-asserting our own colors !important on that hook is the
+         documented workaround (no equivalent needed for Apple
+         Mail/iOS/Gmail, which respect the meta tags themselves). */
+      [data-ogsc] body, [data-ogsc] .email-bg { background-color: #0a0908 !important; }
+      [data-ogsc] .email-card { background-color: #141210 !important; }
+      [data-ogsc] h1, [data-ogsc] p, [data-ogsc] td, [data-ogsc] span, [data-ogsc] a { color: #ede7dd !important; }
+    </style>
+  </head>
   <body style="margin:0;padding:0;background:#0a0908;font-family:'Manrope',Arial,sans-serif;color:#ede7dd;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0908;padding:40px 16px;">
+    <!-- Hidden preheader -- see this function's own preheader var comment.
+         mso-hide:all + the visual-hiding trio (display:none is not enough
+         alone in every client) keeps it out of the rendered body while
+         still being the first text node any client reads for the preview
+         snippet. -->
+    <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${preheader}</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0908" class="email-bg" style="background:#0a0908;padding:40px 16px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#141210;border:1px solid #2a2620;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#141210" class="email-card" style="max-width:520px;background:#141210;border:1px solid #2a2620;">
             <tr>
               <td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #2a2620;">
                 <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
@@ -642,11 +814,22 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
             <tr>
               <td style="padding:32px;">
                 <h1 style="margin:0 0 16px;font-size:20px;font-weight:600;color:#ede7dd;">${heading}</h1>
-                <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#ede7dd;">${introLine}</p>
+                <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#ede7dd;">${introLineHtml}</p>
+                <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+                  <tr>
+                    <td align="center">
+                      <img src="${PRODUCT_THUMB_URL}" width="88" height="88" alt="${productName}" style="display:block;border:0;outline:none;width:88px;height:88px;border-radius:4px;">
+                    </td>
+                  </tr>
+                </table>
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border-collapse:collapse;">
                   <tr>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.reference}</td>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${details.referenceNumber}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.date}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${orderDate}</td>
                   </tr>
                   <tr>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.product}</td>
@@ -658,15 +841,15 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                   </tr>
                   <tr>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.subtotal}</td>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${formatMoney(details.subtotal)}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;text-align:right;">${subtotalFormatted}</td>
                   </tr>
                   <tr>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.shippingFee}</td>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;"><span style="text-decoration:line-through;color:#8f887c;">${formatMoney(SHIPPING_FEE)}</span> ${labels.free}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;"><span style="text-decoration:line-through;color:#8f887c;">${shippingFeeFormatted}</span> ${labels.free}</td>
                   </tr>
                   <tr>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.vat}</td>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;"><span style="text-decoration:line-through;color:#8f887c;">${formatMoney(vatAmount)}</span> ${labels.free}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;"><span style="text-decoration:line-through;color:#8f887c;">${vatAmountFormatted}</span> ${labels.free}</td>
                   </tr>${promoLine}
                   <tr>
                     <td style="padding:10px 0;font-size:13px;color:#8f887c;">${labels.total}</td>
@@ -678,8 +861,16 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                 <p style="margin:24px 0 24px;font-size:14px;line-height:1.6;color:#ede7dd;">${signOff}<br>Effluve Paris</p>
                 <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
                   <tr>
-                    <td style="border:1px solid #d8b27c;" align="center">
-                      <a href="${PRODUCT_URL}" style="display:inline-block;padding:14px 32px;font-family:'IBM Plex Mono',Consolas,monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#ede7dd;text-decoration:none;">${labels.visitSite}</a>
+                    <!-- Solid bronze fill, pure #000 text -- matches
+                         css/style.css's own filled-bronze CTA convention
+                         (.cart-preview-buy/.email-popup-submit/
+                         .notfound-acquire-btn all use this exact
+                         background+border+color triple, #000 rather than
+                         --bg-void for the same WCAG AA contrast reason those
+                         carry in their own comments) rather than the
+                         previous transparent/outline treatment. -->
+                    <td style="background:#9c6b2e;border:1px solid #9c6b2e;" align="center">
+                      <a href="${PRODUCT_URL}" style="display:inline-block;padding:14px 32px;font-family:'IBM Plex Mono',Consolas,monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#000000;text-decoration:none;">${labels.visitSite}</a>
                     </td>
                   </tr>
                 </table>
@@ -691,6 +882,11 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                 <p style="margin:0;font-size:12px;color:#8f887c;">${whatsappNote}</p>
               </td>
             </tr>
+            <tr>
+              <td style="padding:16px 32px 24px;border-top:1px solid #2a2620;text-align:center;">
+                <p style="margin:0;font-size:11px;color:#6b655c;">${legalFooterHtml}</p>
+              </td>
+            </tr>
           </table>
         </td>
       </tr>
@@ -698,11 +894,104 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   </body>
 </html>`;
 
-  return { subject, html };
+  // Explicit text/plain part -- without this, Resend (like most transactional
+  // email APIs) auto-generates one by stripping HTML tags from `html` above,
+  // which collapses every table row's own whitespace-only separation into a
+  // single dense run-on line ("Livraison €5.90 Offerte TVA €29.80 Offerte
+  // Total réglé..."). Building it explicitly, with real \n line breaks
+  // between every field, is the only way to make the plain-text fallback
+  // (used by some clients/screen readers, or whenever "view plain text" is
+  // picked) actually readable.
+  const text = [
+    "EFFLUVE PARIS",
+    "",
+    heading,
+    "",
+    introLineText,
+    "",
+    `${labels.reference}: ${details.referenceNumber}`,
+    `${labels.date}: ${orderDate}`,
+    `${labels.product}: ${details.productName}`,
+    `${labels.quantity}: ${details.quantity}`,
+    `${labels.subtotal}: ${subtotalFormatted}`,
+    `${labels.shippingFee}: ${shippingFeeFormatted} (${labels.free})`,
+    `${labels.vat}: ${vatAmountFormatted} (${labels.free})`,
+    ...promoLinesText,
+    `${labels.total}: ${totalFormatted}`,
+    "",
+    thankYou,
+    "",
+    shipping,
+    ...shippingAddressLinesText,
+    "",
+    signOff,
+    "Effluve Paris",
+    "",
+    `${labels.visitSite}: ${PRODUCT_URL}`,
+    "",
+    "---",
+    replyNoteText,
+    whatsappNoteText,
+    "",
+    legalFooterText,
+  ].join("\n");
+
+  return { subject, html, text };
 }
 
-async function generateReferenceNumber(supabaseAdmin: ReturnType<typeof createClient>): Promise<string> {
-  const { data, error } = await supabaseAdmin.rpc("generate_order_reference");
-  if (error) throw error;
-  return data as string;
+// 8-char alphanumeric, uppercase letters + digits, excluding ambiguous
+// glyphs (O/0, I/1, L) -- readable over a phone call or in a support email.
+// No "EP-YYYY-" prefix (the old sequential format -- see the migration that
+// dropped generate_order_reference()/order_reference_seq -- let a customer
+// infer order volume from their own reference number, e.g. "EP-2026-0042"
+// reads as "the 42nd order this year"). 31 characters ^ 8 length is ample
+// headroom at this project's order volume for updateOrderWithFreshReference/
+// reconcileOrder's own insert loop to essentially never exhaust
+// MAX_REFERENCE_ATTEMPTS in practice.
+const REFERENCE_CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const REFERENCE_LENGTH = 8;
+const MAX_REFERENCE_ATTEMPTS = 8;
+
+function generateReferenceCode(): string {
+  let code = "";
+  for (let i = 0; i < REFERENCE_LENGTH; i++) {
+    code += REFERENCE_CHARSET[Math.floor(Math.random() * REFERENCE_CHARSET.length)];
+  }
+  return code;
+}
+
+// A random code (unlike the old sequence) has no atomic "next value" --
+// collision-safety comes entirely from the UPDATE/INSERT itself failing
+// against orders.reference_number's existing UNIQUE constraint and the
+// caller retrying with a fresh code. Postgres's own error message/details
+// both name the offending column, so a substring check is enough to tell a
+// reference_number collision apart from any other 23505 (e.g.
+// payment_intent_id's, handled separately) without parsing the constraint
+// name precisely.
+function isReferenceNumberConflict(error: { code?: string; message?: string; details?: string } | null | undefined): boolean {
+  if (!error || error.code !== "23505") return false;
+  return `${error.message || ""} ${error.details || ""}`.includes("reference_number");
+}
+
+// Shared by reconcileOrder()'s two UPDATE-based paths (existing row / race
+// winner) -- generates a fresh code, attempts the update, and retries with a
+// new code on a reference_number collision specifically. Any other error is
+// rethrown immediately for the caller's own handling.
+async function updateOrderWithFreshReference(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  orderId: string,
+  extraFields: Record<string, unknown>,
+): Promise<string> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= MAX_REFERENCE_ATTEMPTS; attempt++) {
+    const referenceNumber = generateReferenceCode();
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update({ ...extraFields, reference_number: referenceNumber })
+      .eq("id", orderId);
+    if (!error) return referenceNumber;
+    if (!isReferenceNumberConflict(error)) throw error;
+    lastError = error;
+  }
+  throw lastError instanceof Error ? lastError : new Error("stripe-webhook: exhausted reference number retries");
 }
