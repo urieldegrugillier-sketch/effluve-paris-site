@@ -779,8 +779,8 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   const promoLine = details.promoCode
     ? `
                   <tr>
-                    <td style="padding:10px 0;font-size:13px;color:#8f887c;">Promo (${escapeHtml(details.promoCode)})</td>
-                    <td style="padding:10px 0;font-size:13px;color:#ede7dd;text-align:right;">&minus;${formatMoney(details.discount)}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">Promo (${escapeHtml(details.promoCode)})</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">&minus;${formatMoney(details.discount)}</td>
                   </tr>`
     : "";
   const promoLinesText: string[] = details.promoCode ? [`Promo (${details.promoCode}): -${formatMoney(details.discount)}`] : [];
@@ -871,28 +871,42 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                      column to actually take "whatever's left" after the
                      88px image column, wrapping its content to fit instead
                      of growing the table to fit its content. -->
+                <!-- UPDATE: photo shrunk 88->72px and the label column given
+                     a fixed (not auto-split) width -- table-layout:fixed
+                     with no widths on either <td> splits the row 50/50 by
+                     default, which left too little room for "MONARK Eau de
+                     Parfum | 100ml" and wrapped it. Pinning the label column
+                     narrow (labels here are short: Référence/Produit/
+                     Quantité/Total réglé) hands the rest to the value
+                     column instead. white-space:nowrap on the product row's
+                     value is the hard guarantee on top of that -- holds at
+                     realistic email-client widths (~480px+); genuinely
+                     narrow phones (~375px and below) may still be tight,
+                     since fitting this string, a label column, AND a photo
+                     in ~280px total without shrinking type to illegible
+                     sizes is a real space constraint, not a styling bug. -->
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 4px;border-collapse:collapse;table-layout:fixed;">
                   <tr>
-                    <td width="88" valign="top" style="padding:0 16px 0 0;">
-                      <img src="${PRODUCT_THUMB_URL}" width="88" height="88" alt="${productName}" style="display:block;border:0;outline:none;width:88px;height:88px;border-radius:4px;">
+                    <td width="72" valign="top" style="padding:0 12px 0 0;">
+                      <img src="${PRODUCT_THUMB_URL}" width="72" height="72" alt="${productName}" style="display:block;border:0;outline:none;width:72px;height:72px;border-radius:4px;">
                     </td>
                     <td valign="top">
                       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;table-layout:fixed;">
                         <tr>
-                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.reference}</td>
-                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${details.referenceNumber}</td>
+                          <td width="76" style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:12px;color:#8f887c;">${labels.reference}</td>
+                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:12px;color:#ede7dd;text-align:right;">${details.referenceNumber}</td>
                         </tr>
                         <tr>
-                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.product}</td>
-                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${productName}</td>
+                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:12px;color:#8f887c;">${labels.product}</td>
+                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:12px;color:#ede7dd;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0;">${productName}</td>
                         </tr>
                         <tr>
-                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.quantity}</td>
-                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${details.quantity}</td>
+                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:12px;color:#8f887c;">${labels.quantity}</td>
+                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:12px;color:#ede7dd;text-align:right;">${details.quantity}</td>
                         </tr>
                         <tr>
-                          <td style="padding:6px 0;font-size:13px;color:#8f887c;">${labels.total}</td>
-                          <td style="padding:6px 0;font-size:13px;color:#d8b27c;text-align:right;font-weight:600;">${totalFormatted}</td>
+                          <td style="padding:6px 0;font-size:12px;color:#8f887c;">${labels.total}</td>
+                          <td style="padding:6px 0;font-size:12px;color:#d8b27c;text-align:right;font-weight:600;">${totalFormatted}</td>
                         </tr>
                       </table>
                     </td>
@@ -903,10 +917,17 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                      #2a2620 divider) as the block above it, just full-width
                      instead of sharing a column with the photo, so the two
                      read as one continuous table rather than two unrelated
-                     ones. Total is deliberately NOT repeated here -- it's
-                     already the headline figure above; showing it twice is
-                     exactly the "was I charged twice?" confusion an earlier
-                     round's own Subtotal de-emphasis was meant to avoid. -->
+                     ones. UPDATE: Total is now intentionally repeated as
+                     this table's own final row too (per explicit request --
+                     an earlier round had deliberately left it out here to
+                     avoid the "was I charged twice?" read of Subtotal/Total
+                     showing the same figure, but the two now sit far enough
+                     apart, with a differently-styled bronze/bold row of its
+                     own, that the repeat reads as reinforcement rather than
+                     confusion). Styled identically to the compact block's
+                     own Total row (bronze #d8b27c, font-weight 600) so it's
+                     unmistakably the final number, not one more muted
+                     breakdown line like Subtotal/Shipping/VAT above it. -->
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border-collapse:collapse;">
                   <tr>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.date}</td>
@@ -921,9 +942,13 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;"><span style="text-decoration:line-through;color:#8f887c;">${shippingFeeFormatted}</span> ${labels.free}</td>
                   </tr>
                   <tr>
-                    <td style="padding:10px 0;${details.promoCode ? "border-bottom:1px solid #2a2620;" : ""}font-size:13px;color:#8f887c;">${labels.vat}</td>
-                    <td style="padding:10px 0;${details.promoCode ? "border-bottom:1px solid #2a2620;" : ""}font-size:13px;color:#ede7dd;text-align:right;"><span style="text-decoration:line-through;color:#8f887c;">${vatAmountFormatted}</span> ${labels.free}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.vat}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;"><span style="text-decoration:line-through;color:#8f887c;">${vatAmountFormatted}</span> ${labels.free}</td>
                   </tr>${promoLine}
+                  <tr>
+                    <td style="padding:10px 0;font-size:13px;color:#8f887c;">${labels.total}</td>
+                    <td style="padding:10px 0;font-size:13px;color:#d8b27c;text-align:right;font-weight:600;">${totalFormatted}</td>
+                  </tr>
                 </table>
                 <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#ede7dd;">${thankYou}</p>
                 <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#ede7dd;">${shipping}</p>${shippingAddressSection}
