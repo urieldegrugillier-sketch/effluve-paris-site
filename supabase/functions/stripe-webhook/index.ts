@@ -585,7 +585,6 @@ function extractFirstName(fullName: string): string {
 function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: string; html: string; text: string } {
   const isFr = details.language === "fr";
   const totalFormatted = formatMoney(details.total);
-  const subtotalFormatted = formatMoney(details.subtotal);
   const shippingFeeFormatted = formatMoney(SHIPPING_FEE);
   const vatAmount = details.subtotal * VAT_RATE;
   const vatAmountFormatted = formatMoney(vatAmount);
@@ -647,7 +646,6 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
     date: isFr ? "Date" : "Date",
     product: isFr ? "Produit" : "Product",
     quantity: isFr ? "Quantité" : "Quantity",
-    subtotal: isFr ? "Sous-total" : "Subtotal",
     shippingFee: isFr ? "Livraison" : "Shipping",
     vat: isFr ? "TVA" : "VAT",
     free: isFr ? "Offerte" : "Free",
@@ -662,6 +660,11 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
     terms: isFr ? "CGV" : "Terms of Sale",
     privacy: isFr ? "Confidentialité" : "Privacy Policy",
   };
+  // French typographic convention (space before the colon) matches how this
+  // same "Label : value" pattern already reads sitewide (e.g. js/i18n.js's
+  // own confirmationReference string) -- English drops that space per its
+  // own convention instead.
+  const quantityLine = isFr ? `${labels.quantity} : ${details.quantity}` : `${labels.quantity}: ${details.quantity}`;
 
   // Only shown when create-checkout-session's own metadata actually carried
   // it (see sendOrderConfirmation's own comment) -- line1 + city are treated
@@ -759,23 +762,18 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   const legalFooterHtml = `Effluve Paris — <a href="${WEBSITE_URL}/cgv.html" style="color:#8f887c;">${labels.terms}</a> · <a href="${WEBSITE_URL}/confidentialite.html" style="color:#8f887c;">${labels.privacy}</a>`;
   const legalFooterText = `Effluve Paris — ${labels.terms}: ${WEBSITE_URL}/cgv.html — ${labels.privacy}: ${WEBSITE_URL}/confidentialite.html`;
 
-  // Subtotal/Shipping(Free)/VAT(Free)/[Promo]/Total -- same line set and
-  // order as checkout.html's own summaryLinesHtml(), minus the countdown-
-  // driven "Limited-Time Offer" line: that one reflects a live, still-ticking
-  // site-wide promo at the moment of purchase, which doesn't make sense to
-  // reconstruct after the fact in a settled order's confirmation email (see
-  // computePriceBreakdown's own comment on why subtotal is reconstructed
-  // from current product price instead).
-  //
-  // Subtotal's VALUE is deliberately muted (#8f887c, same as its label and
-  // the struck-through Shipping/VAT figures) rather than the brighter
-  // #ede7dd every other row's value uses -- when shipping/VAT are both free
-  // and no promo applied, Subtotal and Total show the identical figure
-  // twice, which read as "was I charged twice?" without any visual cue that
-  // they're the same amount by design. De-emphasizing Subtotal (a supporting
-  // breakdown figure) against Total (bronze, bold, the one number that
-  // actually matters) establishes that hierarchy regardless of whether the
-  // two happen to match on a given order.
+  // Date/Shipping(Free)/VAT(Free)/[Promo]/Total -- UPDATE: Subtotal removed
+  // from this recap entirely (per request) -- with the compact block above
+  // now showing the price prominently on its own, a Subtotal row down here
+  // was one more figure to reconcile rather than useful detail, especially
+  // since it was identical to Total on the (typical) no-promo/no-extra-fees
+  // order anyway. computePriceBreakdown() still computes subtotal
+  // internally (VAT is derived from it below), it's just never displayed.
+  // Order otherwise still matches checkout.html's own summaryLinesHtml(),
+  // minus its countdown-driven "Limited-Time Offer" line: that one reflects
+  // a live, still-ticking site-wide promo at the moment of purchase, which
+  // doesn't make sense to reconstruct after the fact in a settled order's
+  // confirmation email.
   const promoLine = details.promoCode
     ? `
                   <tr>
@@ -853,62 +851,37 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                 <p style="margin:0 0 4px;font-size:14px;line-height:1.6;color:#8f887c;">${greeting}</p>
                 <h1 style="margin:0 0 16px;font-size:20px;font-weight:600;color:#ede7dd;">${heading}</h1>
                 <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#ede7dd;">${introLineHtml}</p>
-                <!-- Photo left / at-a-glance right -- standard email
-                     two-column pattern (a <table> row with two <td>s, not
-                     flexbox/grid, which isn't reliably supported across
-                     mail clients). Fixed width="88" on the photo cell only
-                     -- the text cell is left unconstrained so it simply
-                     fills whatever's left, which is what keeps this from
-                     overflowing at mobile widths (~375-600px) the way a
-                     fixed two-column split with two hardcoded widths could. -->
-                <!-- table-layout:fixed is load-bearing here, not decorative
-                     -- with the default auto layout, a nested table's own
+                <!-- Photo left / content right -- standard email two-column
+                     pattern (a <table> row with two <td>s, not flexbox/grid,
+                     which isn't reliably supported across mail clients).
+                     table-layout:fixed is load-bearing, not decorative --
+                     with the default auto layout, a nested element's own
                      preferred (content-driven) width can propagate up and
                      force this whole row wider than its 100% parent once
-                     any cell holds a longish string (confirmed live:
-                     product_name overflowed the card at a 375px mobile
-                     width without this). Fixed layout forces the text
-                     column to actually take "whatever's left" after the
-                     88px image column, wrapping its content to fit instead
-                     of growing the table to fit its content. -->
-                <!-- UPDATE: photo shrunk 88->72px and the label column given
-                     a fixed (not auto-split) width -- table-layout:fixed
-                     with no widths on either <td> splits the row 50/50 by
-                     default, which left too little room for "MONARK Eau de
-                     Parfum | 100ml" and wrapped it. Pinning the label column
-                     narrow (labels here are short: Référence/Produit/
-                     Quantité/Total réglé) hands the rest to the value
-                     column instead. white-space:nowrap on the product row's
-                     value is the hard guarantee on top of that -- holds at
-                     realistic email-client widths (~480px+); genuinely
-                     narrow phones (~375px and below) may still be tight,
-                     since fitting this string, a label column, AND a photo
-                     in ~280px total without shrinking type to illegible
-                     sizes is a real space constraint, not a styling bug. -->
+                     any cell holds a longish string (confirmed live in an
+                     earlier round: product_name overflowed the card at a
+                     375px mobile width without this). Fixed layout forces
+                     the text column to actually take "whatever's left"
+                     after the image column, wrapping its content to fit
+                     instead of growing the table to fit its content.
+                     UPDATE: labeled Reference/Product/Quantity/Total rows
+                     replaced with three plain lines (name+reference combined,
+                     quantity, price) per request -- see the three <p>s below.
+                     The name+reference line is now allowed to wrap normally
+                     (no more nowrap/ellipsis truncation from the previous
+                     round) since it's long enough on any realistic width
+                     that a natural 2-line wrap reads better than truncating
+                     "MONARK Eau de Parfum | 100ml | ABCD1234" down to
+                     "MONARK Eau de …" with the reference cut off entirely. -->
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 4px;border-collapse:collapse;table-layout:fixed;">
                   <tr>
-                    <td width="72" valign="top" style="padding:0 12px 0 0;">
-                      <img src="${PRODUCT_THUMB_URL}" width="72" height="72" alt="${productName}" style="display:block;border:0;outline:none;width:72px;height:72px;border-radius:4px;">
+                    <td width="120" valign="top" style="padding:0 16px 0 0;">
+                      <img src="${PRODUCT_THUMB_URL}" width="120" height="120" alt="${productName}" style="display:block;border:0;outline:none;width:120px;height:120px;border-radius:4px;">
                     </td>
                     <td valign="top">
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;table-layout:fixed;">
-                        <tr>
-                          <td width="76" style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:12px;color:#8f887c;">${labels.reference}</td>
-                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:12px;color:#ede7dd;text-align:right;">${details.referenceNumber}</td>
-                        </tr>
-                        <tr>
-                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:12px;color:#8f887c;">${labels.product}</td>
-                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:12px;color:#ede7dd;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0;">${productName}</td>
-                        </tr>
-                        <tr>
-                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:12px;color:#8f887c;">${labels.quantity}</td>
-                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:12px;color:#ede7dd;text-align:right;">${details.quantity}</td>
-                        </tr>
-                        <tr>
-                          <td style="padding:6px 0;font-size:12px;color:#8f887c;">${labels.total}</td>
-                          <td style="padding:6px 0;font-size:12px;color:#d8b27c;text-align:right;font-weight:600;">${totalFormatted}</td>
-                        </tr>
-                      </table>
+                      <p style="margin:0 0 4px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;">${productName} | ${details.referenceNumber}</p>
+                      <p style="margin:0 0 10px;font-size:12px;line-height:1.4;color:#8f887c;">${quantityLine}</p>
+                      <p style="margin:0;font-size:26px;font-weight:700;line-height:1.15;color:#d8b27c;">${totalFormatted}</p>
                     </td>
                   </tr>
                 </table>
@@ -932,10 +905,6 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                   <tr>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.date}</td>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${orderDate}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.subtotal}</td>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;text-align:right;">${subtotalFormatted}</td>
                   </tr>
                   <tr>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.shippingFee}</td>
@@ -1008,7 +977,6 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
     `${labels.date}: ${orderDate}`,
     `${labels.product}: ${details.productName}`,
     `${labels.quantity}: ${details.quantity}`,
-    `${labels.subtotal}: ${subtotalFormatted}`,
     `${labels.shippingFee}: ${shippingFeeFormatted} (${labels.free})`,
     `${labels.vat}: ${vatAmountFormatted} (${labels.free})`,
     ...promoLinesText,
