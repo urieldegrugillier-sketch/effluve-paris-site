@@ -886,7 +886,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 4px;border-collapse:collapse;table-layout:fixed;">
                   <tr>
                     <td width="120" valign="top" style="padding:0 16px 0 0;">
-                      <img src="${PRODUCT_THUMB_URL}" width="120" height="120" alt="${productName}" style="display:block;border:0;outline:none;width:120px;height:120px;border-radius:4px;">
+                      <a href="${PRODUCT_URL}"><img src="${PRODUCT_THUMB_URL}" width="120" height="120" alt="${productName}" style="display:block;border:0;outline:none;width:120px;height:120px;border-radius:4px;"></a>
                     </td>
                     <td valign="top">
                       <p style="margin:0 0 4px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;">${productNameNatural} | ${details.referenceNumber}</p>
