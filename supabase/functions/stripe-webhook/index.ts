@@ -577,9 +577,12 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   const productName = escapeHtml(details.productName);
   const orderDate = formatOrderDate(details.createdAt, isFr);
 
+  // "|" not "—" -- matches the sitewide separator convention (e.g.
+  // js/cart.js's own PRODUCT.name, "MONARK Eau de Parfum | 100ml") rather
+  // than an em dash, which wasn't used anywhere else on the site.
   const subject = isFr
-    ? `Votre commande Effluve Paris — ${details.referenceNumber}`
-    : `Your Effluve Paris order — ${details.referenceNumber}`;
+    ? `Votre commande Effluve Paris | ${details.referenceNumber}`
+    : `Your Effluve Paris order | ${details.referenceNumber}`;
 
   // Hidden preheader -- the snippet inbox previews (Gmail/Outlook/Apple
   // Mail's list view) show next to the subject line. Without one, clients
@@ -751,8 +754,8 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   const promoLine = details.promoCode
     ? `
                   <tr>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">Promo (${escapeHtml(details.promoCode)})</td>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">&minus;${formatMoney(details.discount)}</td>
+                    <td style="padding:10px 0;font-size:13px;color:#8f887c;">Promo (${escapeHtml(details.promoCode)})</td>
+                    <td style="padding:10px 0;font-size:13px;color:#ede7dd;text-align:right;">&minus;${formatMoney(details.discount)}</td>
                   </tr>`
     : "";
   const promoLinesText: string[] = details.promoCode ? [`Promo (${details.promoCode}): -${formatMoney(details.discount)}`] : [];
@@ -791,9 +794,18 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
          still being the first text node any client reads for the preview
          snippet. -->
     <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${preheader}</div>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0908" class="email-bg" style="background:#0a0908;padding:40px 16px;">
+    <!-- BUG FIX (mobile width): padding used to live directly on this
+         <table style="...padding:40px 16px">, which -- in content-box sizing
+         -- adds on top of width:100%, pushing the table 32px wider than its
+         actual container and overflowing at narrow (~375px) widths.
+         Confirmed via a headless-browser screenshot at 375px: the whole card
+         was clipped at the right edge. Moving the padding onto the <td>
+         instead (the standard HTML-email pattern -- also more broadly
+         supported than table-level padding, which some Outlook builds drop
+         outright) fixes the overflow and is safer across clients regardless. -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0908" class="email-bg" style="background:#0a0908;">
       <tr>
-        <td align="center">
+        <td align="center" style="padding:40px 16px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#141210" class="email-card" style="max-width:520px;background:#141210;border:1px solid #2a2620;">
             <tr>
               <td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #2a2620;">
@@ -815,29 +827,64 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
               <td style="padding:32px;">
                 <h1 style="margin:0 0 16px;font-size:20px;font-weight:600;color:#ede7dd;">${heading}</h1>
                 <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#ede7dd;">${introLineHtml}</p>
-                <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+                <!-- Photo left / at-a-glance right -- standard email
+                     two-column pattern (a <table> row with two <td>s, not
+                     flexbox/grid, which isn't reliably supported across
+                     mail clients). Fixed width="88" on the photo cell only
+                     -- the text cell is left unconstrained so it simply
+                     fills whatever's left, which is what keeps this from
+                     overflowing at mobile widths (~375-600px) the way a
+                     fixed two-column split with two hardcoded widths could. -->
+                <!-- table-layout:fixed is load-bearing here, not decorative
+                     -- with the default auto layout, a nested table's own
+                     preferred (content-driven) width can propagate up and
+                     force this whole row wider than its 100% parent once
+                     any cell holds a longish string (confirmed live:
+                     product_name overflowed the card at a 375px mobile
+                     width without this). Fixed layout forces the text
+                     column to actually take "whatever's left" after the
+                     88px image column, wrapping its content to fit instead
+                     of growing the table to fit its content. -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 4px;border-collapse:collapse;table-layout:fixed;">
                   <tr>
-                    <td align="center">
+                    <td width="88" valign="top" style="padding:0 16px 0 0;">
                       <img src="${PRODUCT_THUMB_URL}" width="88" height="88" alt="${productName}" style="display:block;border:0;outline:none;width:88px;height:88px;border-radius:4px;">
+                    </td>
+                    <td valign="top">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;table-layout:fixed;">
+                        <tr>
+                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.reference}</td>
+                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${details.referenceNumber}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.product}</td>
+                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${productName}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.quantity}</td>
+                          <td style="padding:6px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${details.quantity}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:6px 0;font-size:13px;color:#8f887c;">${labels.total}</td>
+                          <td style="padding:6px 0;font-size:13px;color:#d8b27c;text-align:right;font-weight:600;">${totalFormatted}</td>
+                        </tr>
+                      </table>
                     </td>
                   </tr>
                 </table>
+                <!-- Recap of everything NOT already shown at a glance above
+                     -- same row anatomy (13px type, #8f887c/#ede7dd pair,
+                     #2a2620 divider) as the block above it, just full-width
+                     instead of sharing a column with the photo, so the two
+                     read as one continuous table rather than two unrelated
+                     ones. Total is deliberately NOT repeated here -- it's
+                     already the headline figure above; showing it twice is
+                     exactly the "was I charged twice?" confusion an earlier
+                     round's own Subtotal de-emphasis was meant to avoid. -->
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border-collapse:collapse;">
-                  <tr>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.reference}</td>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${details.referenceNumber}</td>
-                  </tr>
                   <tr>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.date}</td>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${orderDate}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.product}</td>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${productName}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.quantity}</td>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${details.quantity}</td>
                   </tr>
                   <tr>
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.subtotal}</td>
@@ -848,13 +895,9 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                     <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;"><span style="text-decoration:line-through;color:#8f887c;">${shippingFeeFormatted}</span> ${labels.free}</td>
                   </tr>
                   <tr>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${labels.vat}</td>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;"><span style="text-decoration:line-through;color:#8f887c;">${vatAmountFormatted}</span> ${labels.free}</td>
+                    <td style="padding:10px 0;${details.promoCode ? "border-bottom:1px solid #2a2620;" : ""}font-size:13px;color:#8f887c;">${labels.vat}</td>
+                    <td style="padding:10px 0;${details.promoCode ? "border-bottom:1px solid #2a2620;" : ""}font-size:13px;color:#ede7dd;text-align:right;"><span style="text-decoration:line-through;color:#8f887c;">${vatAmountFormatted}</span> ${labels.free}</td>
                   </tr>${promoLine}
-                  <tr>
-                    <td style="padding:10px 0;font-size:13px;color:#8f887c;">${labels.total}</td>
-                    <td style="padding:10px 0;font-size:13px;color:#d8b27c;text-align:right;font-weight:600;">${totalFormatted}</td>
-                  </tr>
                 </table>
                 <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#ede7dd;">${thankYou}</p>
                 <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#ede7dd;">${shipping}</p>${shippingAddressSection}
