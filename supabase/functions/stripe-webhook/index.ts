@@ -595,9 +595,9 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   // but combined with a THIRD piece of information (the order reference) on
   // one line, two bare pipes back to back read as a delimited field dump
   // rather than a sentence. Naturalized only for this compact-block line:
-  // comma between name/size (reads like "Chanel No. 5, 100ml"), reference
-  // called out in its own parenthetical so it's unambiguous that trailing
-  // code is a reference, not more of the product name.
+  // comma between name/size (reads like "Chanel No. 5, 100ml"), keeping a
+  // single "|" before the reference (matches the Subject line's own "Name |
+  // Detail" convention) rather than two pipes in a row.
   const productNameNatural = productName.replace(/\s\|\s/g, ", ");
   const orderDate = formatOrderDate(details.createdAt, isFr);
 
@@ -669,7 +669,6 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
     country: isFr ? "Pays" : "Country",
     terms: isFr ? "CGV" : "Terms of Sale",
     privacy: isFr ? "Confidentialité" : "Privacy Policy",
-    refWord: isFr ? "réf." : "ref.",
   };
   // French typographic convention (space before the colon) matches how this
   // same "Label : value" pattern already reads sitewide (e.g. js/i18n.js's
@@ -882,7 +881,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                      (no more nowrap/ellipsis truncation from an earlier
                      round) since it's long enough on any realistic width
                      that a natural 2-line wrap reads better than truncating
-                     "MONARK Eau de Parfum, 100ml (réf. ABCD1234)" down to
+                     "MONARK Eau de Parfum, 100ml | ABCD1234" down to
                      "MONARK Eau de …" with the reference cut off entirely. -->
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 4px;border-collapse:collapse;table-layout:fixed;">
                   <tr>
@@ -890,7 +889,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                       <img src="${PRODUCT_THUMB_URL}" width="120" height="120" alt="${productName}" style="display:block;border:0;outline:none;width:120px;height:120px;border-radius:4px;">
                     </td>
                     <td valign="top">
-                      <p style="margin:0 0 4px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;">${productNameNatural} (${labels.refWord} ${details.referenceNumber})</p>
+                      <p style="margin:0 0 4px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;">${productNameNatural} | ${details.referenceNumber}</p>
                       <p style="margin:0 0 10px;font-size:12px;line-height:1.4;color:#8f887c;">${quantityLine}</p>
                       <p style="margin:0;font-size:22px;font-weight:700;line-height:1.15;color:#ede7dd;">${totalFormatted}</p>
                     </td>
