@@ -842,12 +842,19 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      toggle, pinned to the same left edge) instead of the link beneath it.
      padding-top can only ever push content DOWN from this floor (centering
      never places a child ABOVE its own padding edge, only adds space below
-     it when there's room to spare), so raising it alone guarantees
-     "Homepage" never renders under the header again, regardless of
+     it when there's room to spare), so raising it alone guarantees the
+     first item never renders under the header again, regardless of
      viewport height or how many items are in this list. calc() (not a bare
      value) so the safe zone still shifts down correctly on top of
-     --promo-banner-h too, same pattern .site-header's own `top` uses. */
-  padding: calc(var(--promo-banner-h) + 7.5rem) 2.2rem 4rem;
+     --promo-banner-h too, same pattern .site-header's own `top` uses.
+     6.5rem specifically -- measured .site-header's own real height
+     (getBoundingClientRect()) at 99px (~6.2rem); this leaves a deliberately
+     thin ~5px margin above that rather than the earlier 7.5rem's much
+     wider gap, per request to tighten the space between the close button
+     and the menu's first item (now the language toggle, see
+     .nav-menu-item-lang) -- confirmed via the same measurement this still
+     clears the header with no overlap, at every viewport height tested. */
+  padding: calc(var(--promo-banner-h) + 6.5rem) 2.2rem 4rem;
   background: var(--bg-void);
   opacity: 0;
   visibility: hidden;
@@ -993,13 +1000,15 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 
 /* Language toggle (js/nav-menu.js) -- deliberately styled off
    .nav-menu-sublink's small/regular-weight treatment, not .nav-menu-link's
-   bold display size, so "FR / EN" reads as a small utility control tucked
-   under Account, not a seventh nav destination competing with the real
-   links. .nav-menu-item-lang keeps its own bottom border like every other
-   .nav-menu-item (see that rule) but drops the top padding an ordinary item
-   gets, so the toggle sits snug under Account rather than floating a full
-   row's worth of space below it. */
-.nav-menu-item-lang { padding-top: 0.6rem; }
+   bold display size, so "FR / EN" reads as a small utility control, not a
+   seventh nav destination competing with the real links. Now the first
+   item in the list (moved above Homepage, per request) -- .nav-menu-item-lang
+   keeps its own bottom border like every other .nav-menu-item (see that
+   rule); no padding-top override needed here anymore, since
+   .nav-menu-item:first-child's own padding-top:0 (more specific -- a class
+   plus a pseudo-class beats this single class) already zeroes it out,
+   sitting the toggle as close to .nav-menu's own top padding/close button
+   as any other item in first position would. */
 
 .nav-menu-lang-toggle {
   display: flex;

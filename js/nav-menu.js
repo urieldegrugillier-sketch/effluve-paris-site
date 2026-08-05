@@ -84,6 +84,13 @@
   menu.setAttribute('data-i18n-attr', 'aria-label:navMenu.siteMenu');
   menu.innerHTML = `
     <nav class="nav-menu-links" aria-label="Site menu" data-i18n-attr="aria-label:navMenu.siteMenu">
+      <div class="nav-menu-item nav-menu-item-lang">
+        <div class="nav-menu-lang-toggle" role="group" aria-label="Language">
+          <button type="button" class="nav-menu-lang-btn" data-lang="fr">FR</button>
+          <span class="nav-menu-lang-sep" aria-hidden="true">/</span>
+          <button type="button" class="nav-menu-lang-btn" data-lang="en">EN</button>
+        </div>
+      </div>
       <div class="nav-menu-item">
         <a href="index.html" class="nav-menu-link" data-i18n="navMenu.homepage">Homepage</a>
       </div>
@@ -113,13 +120,6 @@
       </div>
       <div class="nav-menu-item">
         <a href="account.html" class="nav-menu-link" data-i18n="navMenu.account">Account</a>
-      </div>
-      <div class="nav-menu-item nav-menu-item-lang">
-        <div class="nav-menu-lang-toggle" role="group" aria-label="Language">
-          <button type="button" class="nav-menu-lang-btn" data-lang="fr">FR</button>
-          <span class="nav-menu-lang-sep" aria-hidden="true">/</span>
-          <button type="button" class="nav-menu-lang-btn" data-lang="en">EN</button>
-        </div>
       </div>
     </nav>
   `;
