@@ -898,8 +898,12 @@
    inherited .checkout-account-btn-sm 1rem down to 0.3rem to sit closer under
    "Mon Compte"; paired with the .checkout-title override just below (that
    h1's own margin-bottom is shared by every other page, so it's narrowed
-   only for this specific button via :has(), not touched globally). */
-#account-admin-mode-btn { background: var(--bg-void); border-color: var(--accent-bronze-light); color: var(--accent-bronze-light); margin-top: 0.3rem; }
+   only for this specific button via :has(), not touched globally).
+   margin-bottom set to 1.4rem -- reusing .checkout-section-heading's own
+   margin-bottom value (this page's established amount of breathing room
+   around a section heading like "Compte" below) instead of a one-off
+   number, so the button no longer sits flush against it. */
+#account-admin-mode-btn { background: var(--bg-void); border-color: var(--accent-bronze-light); color: var(--accent-bronze-light); margin-top: 0.3rem; margin-bottom: 1.4rem; }
 
 /* Scoped to only the "Mon Compte" heading immediately followed by the admin
    button (account.html's only use of this adjacency) -- shrinks the gap
