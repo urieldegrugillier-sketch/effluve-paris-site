@@ -691,6 +691,16 @@
     // 'monark:langchange'. The fallbacks here cover any future caller that
     // doesn't pass one.
     const changeLabel = typeof options.changeLabel === 'function' ? options.changeLabel : () => options.changeLabel || t('accountGate.modify');
+    // Optional -- fired whenever the gate shows an editable email/auth step
+    // WHILE a previous session may still be intact (enterEmailEditMode()/
+    // authModifyEmailBtn below), as distinct from onUnresolved (a real "no
+    // session" state, i.e. actually logged out). checkout.html doesn't pass
+    // this (nothing there depends on it); account.html uses it to hide its
+    // own page-level "Mode Admin" button the instant the gate stops showing
+    // a fully resolved session, even though the underlying Supabase session
+    // -- and therefore resolveSession()'s own dedup -- hasn't changed at all
+    // (see enterEmailEditMode()'s own comment on why nothing is torn down).
+    const onEnterEditMode = typeof options.onEnterEditMode === 'function' ? options.onEnterEditMode : () => {};
     const statusLabel = options.statusLabel || function (session) {
       return session.isGuest
         ? t('accountGate.guestDefault', { email: session.email })
@@ -1271,6 +1281,7 @@
     function enterEmailEditMode() {
       previousSession = getSession();
       statusEl.hidden = true;
+      onEnterEditMode();
       showStep('email');
       // Pre-filled with the current email (not cleared) -- previousSession
       // just above already has it, so there's no reason to make the user
@@ -1379,6 +1390,7 @@
     // changeBtn/modifyEmailBtn rather than a genuinely fresh email step) is
     // left untouched, so Cancel is still available from here.
     authModifyEmailBtn.addEventListener('click', () => {
+      onEnterEditMode();
       showStep('email');
       // Not cleared -- emailInput.value already holds whatever was
       // submitted to reach this step (resetAuthStepFields() above never

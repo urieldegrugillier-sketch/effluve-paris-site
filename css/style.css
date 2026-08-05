@@ -801,7 +801,21 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   max-width: min(640px, 90vw);
   height: 100%;
   display: flex;
+  /* BUG FIX: plain `center` is "unsafe" per the flexbox spec -- once
+     .nav-menu-links' content (6 items on a short/zoomed viewport) is
+     TALLER than the space left after padding, unsafe centering overflows
+     symmetrically in BOTH directions, including past the START (top) edge
+     -- confirmed via direct measurement: with only the padding-top bump
+     below, "Homepage" still rendered ~35px above that padding floor at
+     1280x650, not clamped to it as expected. `safe center` falls back to
+     start-alignment (flush against padding-top) instead of overflowing
+     past it once content doesn't fit, which is exactly the guarantee
+     padding-top alone can't provide. Plain `center` kept as the fallback
+     value for browsers that don't parse the two-keyword form (an invalid
+     second declaration is just ignored, leaving the first standing) --
+     centering is still the desired look whenever content actually fits. */
   align-items: center;
+  align-items: safe center;
   /* Horizontal padding trimmed from 3.5rem -- measured directly (real
      getBoundingClientRect() widths, not estimated): at a typical desktop
      width, "Monark" + its thumbnail is the actual widest line at 268px,
@@ -813,8 +827,27 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      next to "Homepage" was just this padding plus the couple-px difference
      between it and Monark's own (thumbnail-driven) width. 2.2rem still
      reads as deliberate breathing room, not the panel floating loose
-     around its content. */
-  padding: 4rem 2.2rem;
+     around its content.
+
+     BUG FIX (top only): this panel is centered vertically (align-items:
+     center below) inside a height:100% box, but .site-header sits ABOVE it
+     in z-index (100 vs. this panel's 90, see that rule's own comment on why
+     the header stays clickable the whole time the menu is open) and is
+     ALSO fixed at the very top of the viewport. On a short/zoomed viewport,
+     centering has little or no extra room to push "Homepage" (the first,
+     topmost item) down below the header's own ~2rem+2rem padding + content
+     height -- confirmed the old 4rem top padding alone doesn't reliably
+     clear that, so "Homepage"'s clickable area could render underneath the
+     header, and clicks there hit the header (specifically the hamburger/X
+     toggle, pinned to the same left edge) instead of the link beneath it.
+     padding-top can only ever push content DOWN from this floor (centering
+     never places a child ABOVE its own padding edge, only adds space below
+     it when there's room to spare), so raising it alone guarantees
+     "Homepage" never renders under the header again, regardless of
+     viewport height or how many items are in this list. calc() (not a bare
+     value) so the safe zone still shifts down correctly on top of
+     --promo-banner-h too, same pattern .site-header's own `top` uses. */
+  padding: calc(var(--promo-banner-h) + 7.5rem) 2.2rem 4rem;
   background: var(--bg-void);
   opacity: 0;
   visibility: hidden;

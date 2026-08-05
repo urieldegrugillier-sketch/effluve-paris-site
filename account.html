@@ -803,7 +803,18 @@
     // guestCreateBtn's own shortcut above).
     hideGuestOption: true,
     onResolved: (session) => { showExtras(session); },
-    onUnresolved: () => { hideExtras(); }
+    onUnresolved: () => { hideExtras(); },
+    // Bug fix: the gate can show its email/password step again (Modify
+    // Email) WITHOUT the underlying Supabase session actually changing --
+    // enterEmailEditMode() deliberately preserves it (see that function's
+    // own comment), so resolveSession()'s dedup never re-fires onUnresolved
+    // in that case, and adminModeBtn was staying visible (stale from the
+    // previously-resolved state) while the login UI showed the email/
+    // password fields underneath it. This fires on exactly that transition,
+    // independent of the dedup, so the button disappears immediately;
+    // updateAdminModeButtonVisibility() (called from showExtras() above)
+    // is what brings it back once a session is genuinely resolved again.
+    onEnterEditMode: () => { adminModeBtn.hidden = true; }
   });
 
   // MOBILE BUG FIX: "Modify Email" was overflowing off-screen on narrow
