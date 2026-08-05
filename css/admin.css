@@ -193,7 +193,12 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
 .admin-status-pending { color: var(--accent-bronze-light); border: 1px solid var(--accent-bronze-light); }
 .admin-status-shipped { color: var(--text-muted); border: 1px solid var(--line); }
 
-.admin-status-active { color: var(--accent-bronze-light); border: 1px solid var(--accent-bronze-light); }
+/* Solid-filled, not outlined -- same background+text pair css/style.css's
+   own .cta-button uses for its filled state (index.html/product.html's
+   "Acquire"/"Add to Cart" buttons: var(--accent-bronze-light) fill,
+   var(--bg-void) text -- see that rule's own :hover/:active, the only place
+   .cta-button is ever actually filled; its resting state is outlined). */
+.admin-status-active { background: var(--accent-bronze-light); color: var(--bg-void); border: 1px solid var(--accent-bronze-light); }
 .admin-status-inactive { color: var(--text-muted); border: 1px solid var(--line); }
 
 .admin-ship-btn {
@@ -342,7 +347,53 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
 
 /* ---------------- Narrow widths: card-style rows instead of a table ---------------- */
 @media (max-width: 700px) {
-  .admin-header { padding: 1.2rem; }
+  /* Reorders the header via CSS Grid (no HTML changes -- same elements,
+     same classes, just placed into named areas) rather than flex `order`:
+     the title+logout pair needs to share ONE row while the whoami line and
+     tab bar each get their own full-width row below, which plain flex
+     `order` on a column-direction container can't express (every flex child
+     in a column gets its own row) but grid-template-areas can directly.
+     Equal specificity to the desktop `.admin-header { display: flex; ... }`
+     rule above -- this wins by plain source order (later in the file), same
+     as every other mobile override in this file; no !important needed. */
+  .admin-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "title  logout"
+      "whoami whoami"
+      "tabs   tabs";
+    align-items: center;
+    gap: 0.8rem;
+    padding: 1.2rem;
+  }
+  .admin-header h1 { grid-area: title; margin: 0; }
+  .admin-logout-btn { grid-area: logout; }
+  .admin-whoami { grid-area: whoami; }
+
+  /* Tab bar: horizontal scroll instead of wrapping/overflowing -- 4 tabs
+     (Commandes/Codes Promo/Minuteur/Stock) don't fit a phone's viewport
+     width at their desktop padding. flex-wrap:nowrap (overriding the
+     desktop rule's implicit wrap) + flex-shrink:0 on each tab keeps every
+     button at its natural width so they scroll past the edge instead of
+     being squeezed or wrapping to a second line; -webkit-overflow-scrolling
+     gives inertial/swipe scrolling on iOS Safari. No scroll-snap -- no
+     existing scroll-snap pattern elsewhere in this codebase to match. */
+  .admin-tabs {
+    grid-area: tabs;
+    /* A grid item's default min-width:auto sizes it to fit its content --
+       with flex-wrap:nowrap below, that content is all 4 tabs laid out in
+       one un-wrapped row, which would stretch the whole grid track (and
+       this header) to fit them instead of clipping/scrolling within its own
+       track width. min-width:0 lets it shrink below that intrinsic width so
+       overflow-x below actually scrolls instead of the header overflowing. */
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .admin-tab { flex-shrink: 0; }
+
   main.admin-main { padding: 1.2rem; }
 
   .admin-orders-table thead, .admin-promo-table thead { display: none; }

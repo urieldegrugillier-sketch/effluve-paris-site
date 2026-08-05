@@ -71,18 +71,43 @@
   }
 
   // ---------------- Tabs (generic -- see admin.html's own comment) ----------------
+  // Same "remember across a refresh, this browser only" localStorage
+  // convention as js/i18n.js's own language persistence / js/cart.js's own
+  // cart contents -- monark_ prefix kept (not effluve_) to match every
+  // other storage key in this codebase, none of which were renamed at the
+  // Effluve Paris rebrand either.
+  const ACTIVE_TAB_STORAGE_KEY = 'monark_admin_active_tab';
+
   function initTabs() {
     const tabs = document.querySelectorAll('.admin-tab');
     const panels = document.querySelectorAll('.admin-panel');
+
+    function activateTab(target) {
+      tabs.forEach((t) => t.classList.toggle('active', t.getAttribute('data-tab') === target));
+      panels.forEach((panel) => {
+        panel.classList.toggle('active', panel.getAttribute('data-tab-panel') === target);
+      });
+    }
+
     tabs.forEach((tab) => {
       tab.addEventListener('click', () => {
-        tabs.forEach((t) => t.classList.toggle('active', t === tab));
         const target = tab.getAttribute('data-tab');
-        panels.forEach((panel) => {
-          panel.classList.toggle('active', panel.getAttribute('data-tab-panel') === target);
-        });
+        activateTab(target);
+        localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, target);
       });
     });
+
+    // Restores whichever tab was open before a refresh -- admin.html's own
+    // hardcoded .admin-tab.active/.admin-panel.active (Commandes/orders) is
+    // just the very-first-visit default; a stored value overrides it here.
+    // Validated against the tabs that actually exist (Array.find, not a CSS
+    // attribute selector built from this value) before applying -- a stale
+    // value from a previous build/removed tab, or manual localStorage
+    // editing, just falls back to that HTML default instead of landing on
+    // no active tab/panel at all.
+    const storedTab = localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
+    const storedTabExists = Array.from(tabs).some((t) => t.getAttribute('data-tab') === storedTab);
+    if (storedTab && storedTabExists) activateTab(storedTab);
   }
 
   function initLogout() {
@@ -297,6 +322,18 @@
       return;
     }
     if (!orderBeingShipped) return;
+
+    // Only prompts for an actual CORRECTION -- an order already marked
+    // shipped, where the tracking number is genuinely changing (not just
+    // resubmitted unchanged, which mark-order-shipped's own trackingChanged
+    // check wouldn't email for anyway, see openShipModal()'s own comment).
+    // First-time "mark as shipped" (shipping_status !== 'shipped') never
+    // hits this -- that's the expected, no-confirmation-needed action.
+    const isCorrection = orderBeingShipped.shipping_status === 'shipped'
+      && trackingNumber !== (orderBeingShipped.tracking_number || '');
+    if (isCorrection && !window.confirm("Ce numéro de suivi va être modifié. Un e-mail de correction sera envoyé au client. Confirmer ?")) {
+      return;
+    }
 
     shipConfirmBtn.disabled = true;
     modalErrorEl.textContent = '';
