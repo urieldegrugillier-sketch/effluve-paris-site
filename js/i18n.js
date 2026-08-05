@@ -434,6 +434,7 @@
       },
       account: {
         pageTitle: 'My Account',
+        adminModeBtn: 'Admin Mode',
         statusGuest: 'Browsing as guest ({email})',
         logOut: 'Log Out',
         orderHistoryHeading: 'Order History',
@@ -960,6 +961,7 @@
       },
       account: {
         pageTitle: 'Mon Compte',
+        adminModeBtn: 'Mode Admin',
         statusGuest: "Navigation en tant qu'invité ({email})",
         logOut: 'Se Déconnecter',
         orderHistoryHeading: 'Historique des Commandes',

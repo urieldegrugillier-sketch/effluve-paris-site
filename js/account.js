@@ -1069,10 +1069,29 @@
       // email, Guest/Create Account both just choices to make) leave focus
       // alone -- the hidden email input naturally releases it to the
       // document, same as any other step change in this flow.
+      // Best-effort mobile-keyboard mitigation: this focus() already fires
+      // as early as this handler CAN know which field to target (only
+      // resolvable after the checkEmailExists() await above resolves) --
+      // there's no earlier point to move it to. On iOS Safari/some Android
+      // Chrome versions, a focus() call that isn't a direct synchronous
+      // continuation of the original tap's event handler often does NOT
+      // reopen the on-screen keyboard, even though the element still
+      // becomes document.activeElement (cursor/selection are fine, a
+      // physical keyboard types into it correctly) -- a platform-level
+      // restriction against unsolicited focus-stealing, not something a
+      // network round trip can get back once it's genuinely intervened.
+      // requestAnimationFrame here is a real (if partial) improvement for a
+      // SEPARATE reason: showStep('auth') just flipped this field from
+      // hidden to visible in this same tick, and calling focus() before the
+      // browser has actually laid out/painted a just-unhidden element can
+      // silently no-op on some engines. Deferring one frame guarantees the
+      // field is genuinely focusable when this runs -- imperceptible on
+      // desktop (same focus() call, ~16ms later), no new autofocus
+      // behavior introduced there, so no mobile-only guard is needed.
       if (!loginForm.hidden) {
-        loginPasswordInput.focus();
+        requestAnimationFrame(() => loginPasswordInput.focus());
       } else if (!createForm.hidden) {
-        createFirstNameInput.focus();
+        requestAnimationFrame(() => createFirstNameInput.focus());
       }
     });
 

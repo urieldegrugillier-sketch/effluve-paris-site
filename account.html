@@ -66,6 +66,15 @@
     <a href="product.html" class="checkout-back-link" data-i18n="common.backToShop">&larr; Back to Shop</a>
     <h1 class="checkout-title" data-i18n="account.pageTitle">My Account</h1>
 
+    <!-- Admin-only, shown once the resolved session's own profiles.is_admin
+         comes back true (see updateAdminModeButtonVisibility() in the inline
+         script below) -- hidden by default so it never flashes visible for a
+         guest/non-admin/logged-out visitor while that check is in flight.
+         Same secondary/outline button treatment already used for "Continue
+         as Guest" (.checkout-account-btn-secondary, css/checkout.css), not a
+         new visual pattern. -->
+    <a href="admin.html" class="cta-button checkout-account-btn-sm checkout-account-btn-secondary" id="account-admin-mode-btn" data-i18n="account.adminModeBtn" hidden>Admin Mode</a>
+
     <div id="account-step">
       <h2 class="checkout-section-heading" data-i18n="common.account">Account</h2>
       <!-- Filled by window.MonarkAccount.mountAccountGate() below -- same
@@ -369,6 +378,7 @@
   const preferencesSubmitBtn = document.getElementById('account-preferences-submit-btn');
   const preferencesSuccess = document.getElementById('account-preferences-success');
 
+  const adminModeBtn = document.getElementById('account-admin-mode-btn');
   const orderHistory = document.getElementById('account-order-history');
   const guestOrderNote = document.getElementById('account-order-history-guest-note');
   const guestCreateBtn = document.getElementById('account-guest-create-btn');
@@ -467,6 +477,29 @@
     preferencesSuccess.hidden = true;
   }
 
+  // Admin-only "Mode Admin" link (top of the page, see its own HTML comment)
+  // -- no existing shared "is this user an admin" flag anywhere in
+  // js/account.js/window.MonarkAccount, so this is its own fresh
+  // profiles.select('is_admin') lookup, same query maybeRedirectToAdmin()
+  // below already runs for the redirect-flow case, just run unconditionally
+  // whenever a real (non-guest) session resolves instead of only when
+  // ?redirect=admin.html is present. Hidden first, THEN shown only once
+  // confirmed true -- never speculatively visible while this is in flight,
+  // and a stale in-flight check from a previous session can't leave it
+  // wrongly shown for a new one (each call re-hides before re-checking).
+  async function updateAdminModeButtonVisibility() {
+    adminModeBtn.hidden = true;
+    const userId = account.getCurrentUserId();
+    if (!userId || !window.MonarkSupabase) return;
+    const { data: profile, error } = await window.MonarkSupabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error || !profile || profile.is_admin !== true) return;
+    adminModeBtn.hidden = false;
+  }
+
   function showExtras(session) {
     orderHistory.hidden = false;
 
@@ -478,6 +511,7 @@
       paymentSection.hidden = true;
       preferencesSection.hidden = true;
       dangerSection.hidden = true;
+      adminModeBtn.hidden = true;
       return;
     }
     guestOrderNote.hidden = true;
@@ -490,6 +524,7 @@
     paymentSection.hidden = false;
     preferencesSection.hidden = false;
     dangerSection.hidden = false;
+    updateAdminModeButtonVisibility();
   }
 
   function hideExtras() {
@@ -499,6 +534,7 @@
     paymentSection.hidden = true;
     preferencesSection.hidden = true;
     dangerSection.hidden = true;
+    adminModeBtn.hidden = true;
     resetDeleteConfirm();
   }
 
