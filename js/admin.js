@@ -66,6 +66,7 @@
     initLogout();
     initOrders();
     initPromoCodes();
+    initPromoRemainingConfig();
     initTimerConfig();
     initStock();
   }
@@ -566,11 +567,131 @@
     loadPromoCodes();
   });
 
+  // ---------------- Promo remaining-count config (site_config) ----------------
+  // Governs the "codes remaining" urgency line on js/email-popup.js. Moved
+  // here from the Timer tab (which only ever kept a flat manual number)
+  // because 'real' mode reads straight off MONARK10's own max_uses/
+  // times_used below -- that only makes sense configured next to the promo
+  // code table itself, not the countdown. Same non-modal .admin-modal-content
+  // reuse as the Timer/Stock tabs (see admin.html's own comment).
+  let promoRemainingConfigCache = null; // { id, promo_remaining_mode, promo_codes_remaining }
+
+  const promoRemainingLoadingEl = document.getElementById('admin-promo-remaining-loading');
+  const promoRemainingErrorEl = document.getElementById('admin-promo-remaining-error');
+  const promoRemainingFormEl = document.getElementById('admin-promo-remaining-form');
+  const promoRemainingModeFixedInput = document.getElementById('admin-promo-remaining-mode-fixed');
+  const promoRemainingModeRealInput = document.getElementById('admin-promo-remaining-mode-real');
+  const promoRemainingFixedFieldsEl = document.getElementById('admin-promo-remaining-fixed-fields');
+  const promoRemainingCountInput = document.getElementById('admin-promo-remaining-count-input');
+  const promoRemainingFormErrorEl = document.getElementById('admin-promo-remaining-form-error');
+  const promoRemainingFormSuccessEl = document.getElementById('admin-promo-remaining-form-success');
+  const promoRemainingSaveBtn = document.getElementById('admin-promo-remaining-save');
+
+  function initPromoRemainingConfig() {
+    promoRemainingModeFixedInput.addEventListener('change', updatePromoRemainingModeFields);
+    promoRemainingModeRealInput.addEventListener('change', updatePromoRemainingModeFields);
+    promoRemainingSaveBtn.addEventListener('click', savePromoRemainingConfig);
+    loadPromoRemainingConfig();
+  }
+
+  async function loadPromoRemainingConfig() {
+    promoRemainingLoadingEl.hidden = false;
+    promoRemainingErrorEl.hidden = true;
+    promoRemainingFormEl.hidden = true;
+
+    const { data, error } = await client()
+      .from('site_config')
+      .select('id, promo_remaining_mode, promo_codes_remaining')
+      .limit(1)
+      .maybeSingle();
+
+    promoRemainingLoadingEl.hidden = true;
+
+    if (error || !data) {
+      promoRemainingErrorEl.hidden = false;
+      promoRemainingErrorEl.textContent = error
+        ? `Erreur lors du chargement : ${error.message}`
+        : 'Configuration introuvable.';
+      if (error) console.error('admin.js loadPromoRemainingConfig:', error.message);
+      return;
+    }
+
+    promoRemainingConfigCache = data;
+    promoRemainingModeFixedInput.checked = data.promo_remaining_mode !== 'real';
+    promoRemainingModeRealInput.checked = data.promo_remaining_mode === 'real';
+    promoRemainingCountInput.value = data.promo_codes_remaining;
+    updatePromoRemainingModeFields();
+    promoRemainingFormErrorEl.textContent = '';
+    promoRemainingFormSuccessEl.hidden = true;
+    promoRemainingFormEl.hidden = false;
+  }
+
+  function updatePromoRemainingModeFields() {
+    promoRemainingFixedFieldsEl.hidden = promoRemainingModeRealInput.checked;
+  }
+
+  async function savePromoRemainingConfig() {
+    if (!promoRemainingConfigCache) return;
+    const mode = promoRemainingModeRealInput.checked ? 'real' : 'fixed';
+    promoRemainingFormErrorEl.textContent = '';
+    promoRemainingFormSuccessEl.hidden = true;
+
+    const patch = { promo_remaining_mode: mode };
+
+    if (mode === 'fixed') {
+      const count = Math.floor(Number(promoRemainingCountInput.value));
+      if (!Number.isFinite(count) || count < 0) {
+        promoRemainingFormErrorEl.textContent = 'Le nombre de codes promo restants doit être un entier positif ou nul.';
+        promoRemainingCountInput.focus();
+        return;
+      }
+      patch.promo_codes_remaining = count;
+    } else {
+      // Fresh lookup, not promoCache (this tab's own order-of-loading can't
+      // guarantee that's populated yet, and it could be stale right after an
+      // edit in the modal above) -- MONARK10's max_uses must already be set
+      // before 'real' mode can compute anything meaningful. Blocked here,
+      // never silently defaulted/auto-filled.
+      promoRemainingSaveBtn.disabled = true;
+      const { data: promo, error: promoError } = await client()
+        .from('promo_codes')
+        .select('max_uses')
+        .eq('code', 'MONARK10')
+        .maybeSingle();
+      promoRemainingSaveBtn.disabled = false;
+
+      if (promoError || !promo) {
+        promoRemainingFormErrorEl.textContent = 'Impossible de vérifier le code MONARK10 pour le moment.';
+        console.error('admin.js savePromoRemainingConfig (max_uses check):', promoError && promoError.message);
+        return;
+      }
+      if (promo.max_uses === null) {
+        promoRemainingFormErrorEl.textContent = "Merci de définir un nombre d'utilisations max pour MONARK10 (ci-dessus) avant de passer en mode réel.";
+        return;
+      }
+    }
+
+    promoRemainingSaveBtn.disabled = true;
+
+    const { error } = await client().from('site_config').update(patch).eq('id', promoRemainingConfigCache.id);
+
+    promoRemainingSaveBtn.disabled = false;
+
+    if (error) {
+      promoRemainingFormErrorEl.textContent = `Échec de l'enregistrement : ${error.message}`;
+      console.error('admin.js savePromoRemainingConfig:', error.message);
+      return;
+    }
+
+    promoRemainingConfigCache = { ...promoRemainingConfigCache, ...patch };
+    promoRemainingFormSuccessEl.hidden = false;
+  }
+
   // ---------------- Timer tab ----------------
   // Single-row settings, not a list -- no modal, just a persistent form
   // directly in the panel (see admin.html's own comment on why
   // .admin-modal-content is safe to reuse outside a .admin-modal overlay).
-  let timerConfigCache = null; // { id, timer_mode, relative_duration_hours, relative_duration_minutes, relative_duration_seconds, fixed_end_date, promo_codes_remaining }
+  let timerConfigCache = null; // { id, timer_mode, relative_duration_hours, relative_duration_minutes, relative_duration_seconds, fixed_end_date }
 
   const timerLoadingEl = document.getElementById('admin-timer-loading');
   const timerErrorEl = document.getElementById('admin-timer-error');
@@ -583,8 +704,6 @@
   const timerMinutesInput = document.getElementById('admin-timer-minutes-input');
   const timerSecondsInput = document.getElementById('admin-timer-seconds-input');
   const timerDateInput = document.getElementById('admin-timer-date-input');
-  // Independent of timer_mode -- see admin.html's own comment on this field.
-  const timerPromoCodesRemainingInput = document.getElementById('admin-timer-promo-codes-remaining-input');
   const timerFormErrorEl = document.getElementById('admin-timer-form-error');
   const timerFormSuccessEl = document.getElementById('admin-timer-form-success');
   const timerSaveBtn = document.getElementById('admin-timer-save');
@@ -603,7 +722,7 @@
 
     const { data, error } = await client()
       .from('site_config')
-      .select('id, timer_mode, relative_duration_hours, relative_duration_minutes, relative_duration_seconds, fixed_end_date, promo_codes_remaining')
+      .select('id, timer_mode, relative_duration_hours, relative_duration_minutes, relative_duration_seconds, fixed_end_date')
       .limit(1)
       .maybeSingle();
 
@@ -628,7 +747,6 @@
     // shared here rather than duplicated, same timestamptz <-> local
     // datetime-local conversion either field needs.
     timerDateInput.value = data.fixed_end_date ? toDatetimeLocalValue(data.fixed_end_date) : '';
-    timerPromoCodesRemainingInput.value = data.promo_codes_remaining;
     updateTimerModeFields();
     timerFormErrorEl.textContent = '';
     timerFormSuccessEl.hidden = true;
@@ -692,16 +810,6 @@
       // converts that to the UTC instant timestamptz actually stores.
       patch.fixed_end_date = new Date(timerDateInput.value).toISOString();
     }
-
-    // Independent of timer_mode above -- validated/saved regardless of
-    // which mode is selected (see admin.html's own comment on this field).
-    const promoCodesRemaining = Math.floor(Number(timerPromoCodesRemainingInput.value));
-    if (!Number.isFinite(promoCodesRemaining) || promoCodesRemaining < 0) {
-      timerFormErrorEl.textContent = 'Le nombre de codes promo restants doit être un entier positif ou nul.';
-      timerPromoCodesRemainingInput.focus();
-      return;
-    }
-    patch.promo_codes_remaining = promoCodesRemaining;
 
     timerSaveBtn.disabled = true;
 

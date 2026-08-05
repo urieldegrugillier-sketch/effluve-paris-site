@@ -100,6 +100,39 @@
         </thead>
         <tbody id="admin-promo-tbody"></tbody>
       </table>
+
+      <div id="admin-promo-remaining-loading" class="admin-loading-note">Chargement…</div>
+      <div id="admin-promo-remaining-error" class="admin-error-note" hidden></div>
+
+      <!-- site_config.promo_remaining_mode/promo_codes_remaining -- moved
+           here from the Timer tab (see that panel's own git history) since
+           'real' mode reads straight off THIS code's own max_uses/
+           times_used below, which only makes sense configured next to the
+           promo code table itself. Same non-modal .admin-modal-content reuse
+           as the Timer/Stock tabs (see those panels' own comment). -->
+      <div class="admin-modal-content" id="admin-promo-remaining-form" hidden>
+        <p>Compteur « codes promo restants » affiché sur le popup e-mail (code MONARK10).</p>
+
+        <label class="admin-modal-checkbox-row" for="admin-promo-remaining-mode-fixed">
+          <input type="radio" name="admin-promo-remaining-mode" value="fixed" id="admin-promo-remaining-mode-fixed">
+          <span>Fixe (nombre manuel)</span>
+        </label>
+        <label class="admin-modal-checkbox-row" for="admin-promo-remaining-mode-real">
+          <input type="radio" name="admin-promo-remaining-mode" value="real" id="admin-promo-remaining-mode-real">
+          <span>Réel (utilisations max − utilisations actuelles)</span>
+        </label>
+
+        <div id="admin-promo-remaining-fixed-fields">
+          <label for="admin-promo-remaining-count-input">Codes promo restants</label>
+          <input type="number" id="admin-promo-remaining-count-input" min="0" step="1" inputmode="numeric">
+        </div>
+
+        <p class="admin-modal-error" id="admin-promo-remaining-form-error"></p>
+        <p class="admin-form-success" id="admin-promo-remaining-form-success" hidden>Enregistré.</p>
+        <div class="admin-modal-actions">
+          <button type="button" id="admin-promo-remaining-save">Enregistrer</button>
+        </div>
+      </div>
     </section>
 
     <section class="admin-panel" data-tab-panel="timer">
@@ -138,15 +171,6 @@
           <label for="admin-timer-date-input">Date et heure de fin</label>
           <input type="datetime-local" id="admin-timer-date-input">
         </div>
-
-        <!-- Independent of timer_mode above -- shown regardless of relative/
-             fixed_date, same "static, admin-set urgency number" pattern as
-             the countdown itself, just for the email popup instead (see
-             js/email-popup.js). Not tied to timer_mode's own fields at all;
-             lives here because it's the same kind of manually-adjusted
-             marketing number, not because it's part of the countdown. -->
-        <label for="admin-timer-promo-codes-remaining-input">Codes promo restants (popup e-mail)</label>
-        <input type="number" id="admin-timer-promo-codes-remaining-input" min="0" step="1" inputmode="numeric">
 
         <p class="admin-modal-error" id="admin-timer-form-error"></p>
         <p class="admin-form-success" id="admin-timer-form-success" hidden>Enregistré.</p>

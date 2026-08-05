@@ -25,32 +25,56 @@
 
   // Urgency line's own count -- same "static, admin-set, never derived from
   // real data" pattern as js/promo-countdown.js's own relative-mode duration
-  // (see public.site_config's own promo_codes_remaining column comment):
-  // read once here, on load, from the same table admin.html's Timer tab
-  // writes to. Deliberately NOT wired to public.promo_codes.times_used or
-  // any checkout/order logic -- purely cosmetic marketing copy.
+  // (see public.site_config's own promo_codes_remaining column comment) in
+  // 'fixed' mode; in 'real' mode (site_config.promo_remaining_mode) it's
+  // instead computed live from THIS code's own max_uses/times_used below --
+  // still read client-side, still nothing written back, no wiring into
+  // checkout/order logic either way.
   //
   // No centralized site_config loader exists to reuse (js/promo-countdown.js's
   // own fetch is self-contained/non-exported, matching this project's
   // established "no _shared/ import between self-contained files" convention
   // -- see e.g. supabase/functions/create-checkout-session's own comment on
-  // that), so this is its own minimal, single-column fetch rather than a
-  // second copy of that file's own (different-column) one.
-  const PROMO_CODES_REMAINING_FALLBACK = 7; // matches site_config.promo_codes_remaining's own DB default -- used only if this lookup fails or hasn't resolved by the time the popup shows, same "never let a backend hiccup silently drop a site-wide feature" reasoning as js/promo-countdown.js's own FALLBACK_HOURS
+  // that), so this is its own minimal fetch rather than a second copy of
+  // that file's own (different-column) one.
+  const PROMO_CODES_REMAINING_FALLBACK = 7; // 'fixed' mode's own fallback -- matches site_config.promo_codes_remaining's own DB default, used only if the site_config lookup itself fails/hasn't resolved (mode unknown), same "never let a backend hiccup silently drop a site-wide feature" reasoning as js/promo-countdown.js's own FALLBACK_HOURS
   let promoCodesRemaining = null; // resolved by loadPromoCodesRemaining() below, well before TRIGGER_DELAY_MS elapses in the normal case
+  // 'real' mode only -- true when the mode is confirmed 'real' but a usable
+  // count still couldn't be computed (MONARK10 row missing, or its own
+  // max_uses null despite admin.html's own save-time guard -- shouldn't
+  // normally happen, but data can change between saves). Deliberately NOT
+  // treated like a lookup failure: showing PROMO_CODES_REMAINING_FALLBACK
+  // here would be a fabricated number with no relation to the real
+  // max_uses/times_used this mode promises, worse than showing nothing.
+  let promoCodesRemainingHidden = false;
 
   async function loadPromoCodesRemaining() {
     if (!window.MonarkSupabase) return;
     try {
-      const { data, error } = await window.MonarkSupabase
+      const { data: config, error: configError } = await window.MonarkSupabase
         .from('site_config')
-        .select('promo_codes_remaining')
+        .select('promo_remaining_mode, promo_codes_remaining')
         .limit(1)
         .maybeSingle();
-      if (error || !data) return;
-      if (Number.isFinite(data.promo_codes_remaining)) promoCodesRemaining = data.promo_codes_remaining;
+      if (configError || !config) return; // mode unknown -- falls through to 'fixed'-style fallback in urgencyText()
+
+      if (config.promo_remaining_mode === 'real') {
+        const { data: promo, error: promoError } = await window.MonarkSupabase
+          .from('promo_codes')
+          .select('max_uses, times_used')
+          .eq('code', PROMO_CODE)
+          .maybeSingle();
+        if (promoError || !promo || promo.max_uses === null) {
+          promoCodesRemainingHidden = true;
+          return;
+        }
+        promoCodesRemaining = Math.max(0, promo.max_uses - promo.times_used);
+        return;
+      }
+
+      if (Number.isFinite(config.promo_codes_remaining)) promoCodesRemaining = config.promo_codes_remaining;
     } catch (err) {
-      console.error('email-popup.js: site_config lookup failed:', err && err.message);
+      console.error('email-popup.js: site_config/promo_codes lookup failed:', err && err.message);
     }
   }
   loadPromoCodesRemaining();
@@ -237,12 +261,15 @@
     }
   }
 
-  // Falls back to PROMO_CODES_REMAINING_FALLBACK (see that const's own
-  // comment) rather than hiding the line if the site_config lookup hasn't
-  // resolved yet or failed -- this is shown-once-per-popup, not live-updating,
-  // so there's no "changed mid-view" case to handle beyond a language switch
-  // (see renderUrgency() at this function's own call site).
+  // Returns null when the line should be hidden entirely (confirmed 'real'
+  // mode, no computable count -- see promoCodesRemainingHidden's own
+  // comment); otherwise falls back to PROMO_CODES_REMAINING_FALLBACK if the
+  // site_config lookup itself hasn't resolved yet or failed outright (mode
+  // unknown). This is shown-once-per-popup, not live-updating, so there's no
+  // "changed mid-view" case to handle beyond a language switch (see
+  // renderUrgency() at this function's own call site).
   function urgencyText() {
+    if (promoCodesRemainingHidden) return null;
     const count = promoCodesRemaining !== null ? promoCodesRemaining : PROMO_CODES_REMAINING_FALLBACK;
     return window.MonarkI18n
       ? window.MonarkI18n.t('emailPopup.promoCodesRemaining', { count })
@@ -342,7 +369,15 @@
     // running but just writes into a detached, no-longer-visible node at
     // that point, cleaned up like any other listener in dismiss() below.
     const urgencyEl = overlay.querySelector('.email-popup-urgency');
-    function renderUrgency() { urgencyEl.textContent = urgencyText(); }
+    // null (see urgencyText()'s own comment) hides the line entirely --
+    // 'real' mode with no computable count -- rather than showing a
+    // fabricated value; .hidden works fine here, .email-popup-urgency has
+    // no conflicting `display` rule to fight (see css/style.css).
+    function renderUrgency() {
+      const text = urgencyText();
+      urgencyEl.hidden = text === null;
+      if (text !== null) urgencyEl.textContent = text;
+    }
     renderUrgency();
     document.addEventListener('monark:langchange', renderUrgency);
 
