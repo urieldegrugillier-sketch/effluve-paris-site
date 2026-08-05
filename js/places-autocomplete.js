@@ -207,52 +207,78 @@
     // always stays below, unchanged -- confirmed to already work well there,
     // clear of the on-screen keyboard.
     //
-    // Falls back to below on desktop too when there isn't actually room
-    // above the field (e.g. Address scrolled near the top of the viewport,
-    // right under the fixed header) -- checked fresh each time via
-    // getBoundingClientRect(), never cached, since the available space
-    // depends on the page's current scroll position, not just viewport
-    // size. 240 mirrors .monark-places-suggestions's own CSS max-height
-    // (the worst case, a full-height list) rather than this particular
-    // result set's actual height, so this never renders a shorter list
-    // above only for a later, longer one to clip against the header
-    // mid-session.
+    // PANEL_MAX_HEIGHT mirrors .monark-places-suggestions's own CSS
+    // max-height (css/checkout.css) -- the panel's own inline max-height
+    // (set below) is only ever a SHRINK from that CSS default for whichever
+    // side is actually chosen, never a grow past it.
     //
-    // BUG FIX: this correctly-fresh measurement could still read as "not
-    // enough room" for a reason that has nothing to do with the page's
-    // actual layout -- re-opening a completed accordion step (e.g.
-    // Shipping, after visiting Payment and clicking back) never scrolls
-    // that step back into view on its own (no browser default for it, and
-    // this codebase's own accordion code doesn't add one), so the field can
-    // simply be sitting at whatever scroll position was last left over from
-    // being further down the page, however much room the SAME field
-    // genuinely has above it once actually brought into view. Confirmed via
-    // direct reproduction: with scroll position pinned, the exact same
-    // field measured the exact same (correct) available space both times --
-    // there was never a stale value or uncleared class involved, only a
-    // legitimate, scroll-position-dependent measurement of wherever the
-    // viewport happened to already be. Scrolling the field into a centered
-    // view before the real go/no-go check -- but ONLY when the current
-    // position both lacks room AND has room to scroll further up in the
-    // first place -- fixes the symptom without ever forcing a scroll on a
-    // field that's genuinely near the top of the page's actual content,
-    // where scrolling up further wouldn't help anyway (that case still
-    // correctly falls through to the below-fallback right after).
-    function hasRoomAbove() {
-      const inputTop = input.getBoundingClientRect().top;
+    // BUG FIX round 1: originally required a flat 240px (this same
+    // PANEL_MAX_HEIGHT) of room above before placing "above" at all,
+    // otherwise falling all the way back to "below" -- which put the panel
+    // right back in Chrome's own native-popup space the moment there wasn't
+    // quite enough room for the worst-case full-height list, even with real,
+    // usable (just smaller) room still available above. Confirmed via direct
+    // measurement this is a real, reachable state (not just theoretical): a
+    // field sitting near the top of the viewport (e.g. right after its
+    // accordion section opens with the page not scrolled down at all yet)
+    // can easily have some real room above -- just less than the full
+    // 240px -- and no window.scrollY to gain more by scrolling further up.
+    // Fixed by placing "above" whenever it has at least PANEL_MIN_HEIGHT to
+    // work with, full stop -- deliberately NOT "whichever side has more
+    // room": Chrome's native popup only ever renders below the field, so
+    // "below" is the one placement actually worth avoiding, and comparing
+    // raw pixel counts would still pick "below" any time it slightly
+    // out-measures a perfectly usable "above" (e.g. above=250/below=400 --
+    // above alone is already enough, picking "below" there would silently
+    // reopen the exact overlap this whole mitigation exists to prevent).
+    // The panel's own max-height then shrinks to fit whatever the chosen
+    // side genuinely has, down to that same PANEL_MIN_HEIGHT floor (a
+    // couple of visible rows -- overflow-y:auto still lets a longer result
+    // list scroll internally past that, same as the old fixed-240 case
+    // already relied on for a result list taller than 240 itself).
+    //
+    // BUG FIX round 2: re-opening a completed accordion step (e.g. Shipping,
+    // after visiting Payment and clicking back) never scrolls that step back
+    // into view on its own (no browser default for it, and this codebase's
+    // own accordion code doesn't add one), so the field can simply be
+    // sitting at whatever scroll position was last left over from being
+    // further down the page. Scrolling the field into a centered view before
+    // the real placement decision -- but ONLY when the current position
+    // both has less than the full PANEL_MAX_HEIGHT above AND has room to
+    // scroll further up in the first place (window.scrollY > 0) -- gives
+    // round 1's above-viability check the most room it can actually get
+    // before deciding, without ever forcing a scroll on a field that's
+    // genuinely near the top of the page's own content (scrollY already 0),
+    // where scrolling up further wouldn't help anyway.
+    const PANEL_MAX_HEIGHT = 240;
+    const PANEL_MIN_HEIGHT = 96;
+    function availableRoom() {
+      const inputRect = input.getBoundingClientRect();
       const header = document.querySelector('.site-header');
       const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
-      return (inputTop - headerBottom) >= 240;
+      return { above: inputRect.top - headerBottom, below: window.innerHeight - inputRect.bottom };
     }
     function updatePanelPlacement() {
       if (!isDesktopQuery.matches) {
         panel.classList.remove('monark-places-suggestions--above');
+        panel.style.maxHeight = '';
         return;
       }
-      if (!hasRoomAbove() && window.scrollY > 0) {
+      let { above, below } = availableRoom();
+      if (above < PANEL_MAX_HEIGHT && window.scrollY > 0) {
         input.scrollIntoView({ block: 'center', behavior: 'auto' });
+        ({ above, below } = availableRoom());
       }
-      panel.classList.toggle('monark-places-suggestions--above', hasRoomAbove());
+      // Prefers "above" whenever it's viable at ALL (>= PANEL_MIN_HEIGHT),
+      // not whichever side happens to have more room -- Chrome's native
+      // popup only ever renders below the field, so "below" is the one
+      // placement actually worth avoiding; picking whichever side is
+      // numerically bigger would still choose "below" any time it slightly
+      // out-measures a perfectly usable "above", defeating the whole point.
+      const goAbove = above >= PANEL_MIN_HEIGHT;
+      panel.classList.toggle('monark-places-suggestions--above', goAbove);
+      const usable = goAbove ? above : below;
+      panel.style.maxHeight = usable < PANEL_MAX_HEIGHT ? `${Math.max(PANEL_MIN_HEIGHT, usable - 8)}px` : '';
     }
 
     function highlight() {
