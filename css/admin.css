@@ -158,8 +158,8 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
 .admin-promo-table th:nth-child(2), .admin-promo-table td:nth-child(2) { width: 14%; }  /* Réduction */
 .admin-promo-table th:nth-child(3), .admin-promo-table td:nth-child(3) { width: 14%; }  /* Statut */
 .admin-promo-table th:nth-child(4), .admin-promo-table td:nth-child(4) { width: 16%; }  /* Utilisations */
-.admin-promo-table th:nth-child(5), .admin-promo-table td:nth-child(5) { width: 22%; }  /* Expire le */
-.admin-promo-table th:nth-child(6), .admin-promo-table td:nth-child(6) { width: 18%; }  /* Action */
+.admin-promo-table th:nth-child(5), .admin-promo-table td:nth-child(5) { width: 16%; }  /* Expire le */
+.admin-promo-table th:nth-child(6), .admin-promo-table td:nth-child(6) { width: 24%; }  /* Action -- widened for the Modifier+Supprimer pair */
 
 .admin-order-row-shipped { opacity: 0.55; }
 
@@ -214,6 +214,25 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
 }
 
 .admin-ship-btn:hover { background: var(--accent-bronze-light); color: var(--bg-void); }
+
+/* Same shape as .admin-ship-btn (font/size/padding/whitespace) but the
+   site's existing error-red (#d88f7c, see .admin-error-note/.admin-modal-error
+   above) instead of bronze -- a destructive action shouldn't share the same
+   accent color as routine ones like "Modifier". */
+.admin-delete-btn {
+  background: none;
+  border: 1px solid #d88f7c;
+  color: #d88f7c;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.75rem;
+  white-space: nowrap;
+  margin-left: 0.5rem;
+}
+
+.admin-delete-btn:hover { background: #d88f7c; color: var(--bg-void); }
 
 .admin-tracking-value { font-family: var(--font-mono); font-size: 0.8rem; }
 

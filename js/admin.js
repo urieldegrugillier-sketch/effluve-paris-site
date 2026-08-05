@@ -426,7 +426,10 @@
           <td data-label="Statut"><span class="admin-status-pill ${promo.active ? 'admin-status-active' : 'admin-status-inactive'}">${promo.active ? 'Actif' : 'Inactif'}</span></td>
           <td data-label="Utilisations">${usageLabel(promo)}</td>
           <td data-label="Expire le">${promo.expires_at ? formatDate(promo.expires_at) : '—'}</td>
-          <td data-label=""><button type="button" class="admin-ship-btn" data-edit-promo-id="${promo.id}">Modifier</button></td>
+          <td data-label="">
+            <button type="button" class="admin-ship-btn" data-edit-promo-id="${promo.id}">Modifier</button>
+            <button type="button" class="admin-delete-btn" data-delete-promo-id="${promo.id}">Supprimer</button>
+          </td>
         </tr>
       `).join('');
 
@@ -436,6 +439,56 @@
         if (promo) openPromoModal(promo);
       });
     });
+
+    promoTbodyEl.querySelectorAll('[data-delete-promo-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const promo = promoCache.find((p) => p.id === btn.getAttribute('data-delete-promo-id'));
+        if (promo) deletePromoCode(promo);
+      });
+    });
+  }
+
+  // Irreversible and could affect a customer who already has this code
+  // applied -- confirm() first (same native-dialog pattern as the ship
+  // modal's own correction-email confirm), then a FRESH check (not cached)
+  // of site_config.promo_remaining_code_id: deleting the code the "codes
+  // promo restants" counter above is currently tracking is blocked rather
+  // than silently clearing that selection -- same block-and-guide
+  // philosophy that section's own max_uses guard already uses, not a
+  // silent fallback to Fixe mode (see this feature's own migration
+  // comment). The DB's own FK (no ON DELETE clause -- NO ACTION) would
+  // reject the delete anyway if this check somehow races against a
+  // just-saved selection; alert() below covers that case with the same
+  // friendly message instead of a raw constraint error.
+  async function deletePromoCode(promo) {
+    if (!window.confirm(`Supprimer définitivement le code ${promo.code} ? Cette action est irréversible et affectera tout client qui l'a déjà appliqué.`)) {
+      return;
+    }
+
+    const { data: config } = await client()
+      .from('site_config')
+      .select('promo_remaining_code_id')
+      .limit(1)
+      .maybeSingle();
+
+    if (config && config.promo_remaining_code_id === promo.id) {
+      window.alert(`Le code ${promo.code} est actuellement sélectionné dans le compteur « codes promo restants » ci-dessus. Choisissez-y un autre code, enregistrez, puis réessayez de supprimer ${promo.code}.`);
+      return;
+    }
+
+    const { error } = await client().from('promo_codes').delete().eq('id', promo.id);
+
+    if (error) {
+      if (error.code === '23503') {
+        window.alert(`Le code ${promo.code} est actuellement sélectionné dans le compteur « codes promo restants » ci-dessus. Choisissez-y un autre code, enregistrez, puis réessayez de supprimer ${promo.code}.`);
+      } else {
+        window.alert(`Échec de la suppression : ${error.message}`);
+        console.error('admin.js deletePromoCode:', error.message);
+      }
+      return;
+    }
+
+    loadPromoCodes();
   }
 
   // ---------------- Promo code create/edit modal ----------------
