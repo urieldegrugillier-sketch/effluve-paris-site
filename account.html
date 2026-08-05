@@ -480,13 +480,21 @@
   // Admin-only "Mode Admin" link (top of the page, see its own HTML comment)
   // -- no existing shared "is this user an admin" flag anywhere in
   // js/account.js/window.MonarkAccount, so this is its own fresh
-  // profiles.select('is_admin') lookup, same query maybeRedirectToAdmin()
-  // below already runs for the redirect-flow case, just run unconditionally
-  // whenever a real (non-guest) session resolves instead of only when
-  // ?redirect=admin.html is present. Hidden first, THEN shown only once
-  // confirmed true -- never speculatively visible while this is in flight,
-  // and a stale in-flight check from a previous session can't leave it
-  // wrongly shown for a new one (each call re-hides before re-checking).
+  // profiles.select('is_admin') lookup, run whenever a real (non-guest)
+  // session resolves. This is now the ONLY path from account.html to
+  // admin.html -- the old ?redirect=admin.html auto-redirect
+  // (maybeRedirectToAdmin(), which used to auto-continue back to admin.html
+  // after login) was removed as redundant once this button existed; this
+  // page now behaves identically regardless of query string. admin.html's
+  // own js/admin.js still sends unauthenticated visitors to
+  // account.html?redirect=admin.html (see that file's own redirectToLogin()
+  // -- untouched, still needed to get an unauthenticated visitor OFF
+  // admin.html somewhere), but that query param is simply ignored here now;
+  // an admin who lands here that way just clicks this button manually.
+  // Hidden first, THEN shown only once confirmed true -- never speculatively
+  // visible while this is in flight, and a stale in-flight check from a
+  // previous session can't leave it wrongly shown for a new one (each call
+  // re-hides before re-checking).
   async function updateAdminModeButtonVisibility() {
     adminModeBtn.hidden = true;
     const userId = account.getCurrentUserId();
@@ -835,39 +843,6 @@
   // above, doesn't go through this event, hence the explicit call below.
   document.addEventListener('account:updated', syncLogoutBtn);
   syncLogoutBtn();
-
-  // admin.html's own "return to original destination after login" --
-  // unauthenticated/unauthorized visitors get sent here with
-  // ?redirect=admin.html (see that page's own js/admin.js redirectToLogin())
-  // so a successful login can send them straight back instead of leaving
-  // them stranded on this page needing a manual re-navigation. Fires on
-  // every 'account:updated' (not just a fresh sign-in -- see that event's
-  // own dispatch comment in js/account.js), which also covers the case
-  // where this tab already HAD a valid admin session the instant this page
-  // loaded (e.g. Supabase's own INITIAL_SESSION event resolving a tick
-  // after admin.html's redirect already landed here).
-  //
-  // Deliberately narrow and re-verified server-side: the query param alone
-  // proves nothing (anyone can type ?redirect=admin.html into the address
-  // bar), so this always re-checks profiles.is_admin for whoever is
-  // actually logged in before ever honoring it -- a non-admin session (or
-  // no session at all) just leaves this page exactly as it already was, no
-  // redirect, no error shown.
-  async function maybeRedirectToAdmin() {
-    if (new URLSearchParams(window.location.search).get('redirect') !== 'admin.html') return;
-    const session = account.getSession();
-    const userId = account.getCurrentUserId();
-    if (!session || session.isGuest || !userId || !window.MonarkSupabase) return;
-    const { data: profile, error } = await window.MonarkSupabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', userId)
-      .maybeSingle();
-    if (error || !profile || profile.is_admin !== true) return;
-    window.location.href = 'admin.html';
-  }
-  document.addEventListener('account:updated', maybeRedirectToAdmin);
-  maybeRedirectToAdmin();
 })();
 </script>
 <script src="js/promo-countdown.js?v=20260822"></script>
