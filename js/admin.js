@@ -66,6 +66,7 @@
     initLogout();
     initOrders();
     initPromoCodes();
+    initTimerConfig();
   }
 
   // ---------------- Tabs (generic -- see admin.html's own comment) ----------------
@@ -526,6 +527,119 @@
     closePromoModal();
     loadPromoCodes();
   });
+
+  // ---------------- Timer tab ----------------
+  // Single-row settings, not a list -- no modal, just a persistent form
+  // directly in the panel (see admin.html's own comment on why
+  // .admin-modal-content is safe to reuse outside a .admin-modal overlay).
+  let timerConfigCache = null; // { id, timer_mode, relative_duration_hours, fixed_end_date }
+
+  const timerLoadingEl = document.getElementById('admin-timer-loading');
+  const timerErrorEl = document.getElementById('admin-timer-error');
+  const timerFormEl = document.getElementById('admin-timer-form');
+  const timerModeRelativeInput = document.getElementById('admin-timer-mode-relative');
+  const timerModeFixedInput = document.getElementById('admin-timer-mode-fixed');
+  const timerRelativeFieldsEl = document.getElementById('admin-timer-relative-fields');
+  const timerFixedFieldsEl = document.getElementById('admin-timer-fixed-fields');
+  const timerHoursInput = document.getElementById('admin-timer-hours-input');
+  const timerDateInput = document.getElementById('admin-timer-date-input');
+  const timerFormErrorEl = document.getElementById('admin-timer-form-error');
+  const timerFormSuccessEl = document.getElementById('admin-timer-form-success');
+  const timerSaveBtn = document.getElementById('admin-timer-save');
+
+  function initTimerConfig() {
+    timerModeRelativeInput.addEventListener('change', updateTimerModeFields);
+    timerModeFixedInput.addEventListener('change', updateTimerModeFields);
+    timerSaveBtn.addEventListener('click', saveTimerConfig);
+    loadTimerConfig();
+  }
+
+  async function loadTimerConfig() {
+    timerLoadingEl.hidden = false;
+    timerErrorEl.hidden = true;
+    timerFormEl.hidden = true;
+
+    const { data, error } = await client()
+      .from('site_config')
+      .select('id, timer_mode, relative_duration_hours, fixed_end_date')
+      .limit(1)
+      .maybeSingle();
+
+    timerLoadingEl.hidden = true;
+
+    if (error || !data) {
+      timerErrorEl.hidden = false;
+      timerErrorEl.textContent = error
+        ? `Erreur lors du chargement du minuteur : ${error.message}`
+        : 'Configuration du minuteur introuvable.';
+      if (error) console.error('admin.js loadTimerConfig:', error.message);
+      return;
+    }
+
+    timerConfigCache = data;
+    timerModeRelativeInput.checked = data.timer_mode === 'relative';
+    timerModeFixedInput.checked = data.timer_mode === 'fixed_date';
+    timerHoursInput.value = data.relative_duration_hours;
+    // toDatetimeLocalValue() (defined above, Promo Codes tab's own modal) --
+    // shared here rather than duplicated, same timestamptz <-> local
+    // datetime-local conversion either field needs.
+    timerDateInput.value = data.fixed_end_date ? toDatetimeLocalValue(data.fixed_end_date) : '';
+    updateTimerModeFields();
+    timerFormErrorEl.textContent = '';
+    timerFormSuccessEl.hidden = true;
+    timerFormEl.hidden = false;
+  }
+
+  function updateTimerModeFields() {
+    const isFixed = timerModeFixedInput.checked;
+    timerRelativeFieldsEl.hidden = isFixed;
+    timerFixedFieldsEl.hidden = !isFixed;
+  }
+
+  async function saveTimerConfig() {
+    if (!timerConfigCache) return;
+    const mode = timerModeFixedInput.checked ? 'fixed_date' : 'relative';
+    timerFormErrorEl.textContent = '';
+    timerFormSuccessEl.hidden = true;
+
+    const patch = { timer_mode: mode };
+
+    if (mode === 'relative') {
+      const hours = Math.floor(Number(timerHoursInput.value));
+      if (!Number.isFinite(hours) || hours < 1) {
+        timerFormErrorEl.textContent = "La durée doit être un nombre entier d'heures positif.";
+        timerHoursInput.focus();
+        return;
+      }
+      patch.relative_duration_hours = hours;
+    } else {
+      if (!timerDateInput.value) {
+        timerFormErrorEl.textContent = 'Merci de choisir une date de fin.';
+        timerDateInput.focus();
+        return;
+      }
+      // Same local-time interpretation as the Promo Codes modal's own
+      // expires_at handling -- datetime-local's value has no timezone,
+      // new Date() parses it as the browser's LOCAL time, toISOString()
+      // converts that to the UTC instant timestamptz actually stores.
+      patch.fixed_end_date = new Date(timerDateInput.value).toISOString();
+    }
+
+    timerSaveBtn.disabled = true;
+
+    const { error } = await client().from('site_config').update(patch).eq('id', timerConfigCache.id);
+
+    timerSaveBtn.disabled = false;
+
+    if (error) {
+      timerFormErrorEl.textContent = `Échec de l'enregistrement : ${error.message}`;
+      console.error('admin.js saveTimerConfig:', error.message);
+      return;
+    }
+
+    timerConfigCache = { ...timerConfigCache, ...patch };
+    timerFormSuccessEl.hidden = false;
+  }
 
   checkAccessAndInit();
 })();

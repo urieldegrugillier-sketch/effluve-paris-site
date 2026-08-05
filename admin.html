@@ -36,10 +36,10 @@
     <nav class="admin-tabs" id="admin-tabs">
       <button type="button" class="admin-tab active" data-tab="orders">Commandes</button>
       <button type="button" class="admin-tab" data-tab="promo">Codes Promo</button>
-      <!-- Future sections (stock, minuteur promo) add their own
-           <button data-tab="..."> here + a matching
-           <section data-tab-panel="..."> below -- js/admin.js's tab-switch
-           logic is generic, nothing else to wire up. -->
+      <button type="button" class="admin-tab" data-tab="timer">Minuteur</button>
+      <!-- Future sections (stock) add their own <button data-tab="..."> here
+           + a matching <section data-tab-panel="..."> below -- js/admin.js's
+           tab-switch logic is generic, nothing else to wire up. -->
     </nav>
     <span class="admin-whoami" id="admin-whoami"></span>
     <button type="button" class="admin-logout-btn" id="admin-logout">Déconnexion</button>
@@ -98,6 +98,45 @@
         </thead>
         <tbody id="admin-promo-tbody"></tbody>
       </table>
+    </section>
+
+    <section class="admin-panel" data-tab-panel="timer">
+      <h2>Minuteur Promo</h2>
+
+      <div id="admin-timer-loading" class="admin-loading-note">Chargement du minuteur…</div>
+      <div id="admin-timer-error" class="admin-error-note" hidden></div>
+
+      <!-- Reuses .admin-modal-content directly (not inside a .admin-modal
+           overlay) -- that class only ever carries background/border/
+           padding/max-width/input-and-label styling, nothing overlay/
+           positioning-specific (those live on .admin-modal itself), so it
+           renders identically as a plain always-visible panel here. -->
+      <div class="admin-modal-content" id="admin-timer-form" hidden>
+        <label class="admin-modal-checkbox-row" for="admin-timer-mode-relative">
+          <input type="radio" name="admin-timer-mode" value="relative" id="admin-timer-mode-relative">
+          <span>Compte à rebours relatif (redémarre à chaque visite)</span>
+        </label>
+        <label class="admin-modal-checkbox-row" for="admin-timer-mode-fixed">
+          <input type="radio" name="admin-timer-mode" value="fixed_date" id="admin-timer-mode-fixed">
+          <span>Date de fin fixe (identique pour tous les visiteurs)</span>
+        </label>
+
+        <div id="admin-timer-relative-fields">
+          <label for="admin-timer-hours-input">Durée (heures)</label>
+          <input type="number" id="admin-timer-hours-input" min="1" step="1" inputmode="numeric">
+        </div>
+
+        <div id="admin-timer-fixed-fields">
+          <label for="admin-timer-date-input">Date et heure de fin</label>
+          <input type="datetime-local" id="admin-timer-date-input">
+        </div>
+
+        <p class="admin-modal-error" id="admin-timer-form-error"></p>
+        <p class="admin-form-success" id="admin-timer-form-success" hidden>Enregistré.</p>
+        <div class="admin-modal-actions">
+          <button type="button" id="admin-timer-save">Enregistrer</button>
+        </div>
+      </div>
     </section>
   </main>
 </div>

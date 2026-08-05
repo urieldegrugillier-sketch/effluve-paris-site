@@ -4,11 +4,11 @@
 
    Structured for extension: the tab bar (.admin-tabs/.admin-tab) and panel
    switching (.admin-panel/[data-tab-panel]) are generic -- a future admin
-   section (stock, promo timer) adds its own <button data-tab="x"> +
+   section (stock) adds its own <button data-tab="x"> +
    <section data-tab-panel="x"> pair and gets the same show/hide behavior
-   for free, no changes needed here. Two real tabs exist today
-   (orders/shipping, promo codes) -- no placeholder tabs for not-yet-built
-   sections, per this round's own scope. */
+   for free, no changes needed here. Three real tabs exist today
+   (orders/shipping, promo codes, promo timer) -- no placeholder tabs for
+   not-yet-built sections, per this round's own scope. */
 
 #admin-auth-gate {
   min-height: 100vh;
@@ -301,9 +301,20 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
   cursor: pointer;
 }
 
-.admin-modal-content input[type="checkbox"] {
+.admin-modal-content input[type="checkbox"],
+.admin-modal-content input[type="radio"] {
   width: auto;
   margin: 0;
+}
+
+/* Timer tab's mode fields (hours / fixed date) toggle visibility via the
+   `hidden` attribute (js/admin.js) -- no new layout rule needed beyond that,
+   same as every other hidden/shown block in this file. */
+
+.admin-form-success {
+  color: var(--accent-bronze-light);
+  font-size: 0.78rem;
+  margin: 0 0 0.8rem;
 }
 
 .admin-modal-error {
@@ -326,9 +337,9 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
   color: var(--text-muted);
 }
 
-#admin-ship-confirm, #admin-promo-confirm { border-color: var(--accent-bronze-light); color: var(--accent-bronze-light); }
-#admin-ship-confirm:hover, #admin-promo-confirm:hover { background: var(--accent-bronze-light); color: var(--bg-void); }
-#admin-ship-confirm:disabled, #admin-promo-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+#admin-ship-confirm, #admin-promo-confirm, #admin-timer-save { border-color: var(--accent-bronze-light); color: var(--accent-bronze-light); }
+#admin-ship-confirm:hover, #admin-promo-confirm:hover, #admin-timer-save:hover { background: var(--accent-bronze-light); color: var(--bg-void); }
+#admin-ship-confirm:disabled, #admin-promo-confirm:disabled, #admin-timer-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ---------------- Narrow widths: card-style rows instead of a table ---------------- */
 @media (max-width: 700px) {

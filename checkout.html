@@ -780,6 +780,13 @@
   });
 
   const cart = window.MonarkCart;
+  // Flipped true by the js/promo-countdown.js subscribe() below, once
+  // resolved, if admin.html's Timer tab has a fixed_end_date that's already
+  // passed -- summaryLinesHtml() reads this to drop the countdown note
+  // entirely rather than showing a stuck value (see this file's own
+  // subscribe() call site for why a re-render is triggered right when this
+  // flips).
+  let checkoutCountdownHidden = false;
   const summaryEl = document.getElementById('checkout-summary');
   const form = document.getElementById('checkout-form');
   const submitBtn = document.getElementById('checkout-submit-btn');
@@ -1471,6 +1478,23 @@
     `;
   }
 
+  // Countdown note inside the "Limited-Time Offer" line below -- separate
+  // from that line's own discount amount (siteDiscount is a permanent,
+  // already-applied price reduction, not something that stops applying when
+  // the countdown does; only the ticking note itself is countdown-driven).
+  // getRemainingSeconds() returning null (js/promo-countdown.js) covers both
+  // "not resolved yet" (page just loaded) and "resolved hidden" (fixed_end_date
+  // already passed) -- checkoutCountdownHidden additionally guards the
+  // hidden case explicitly so a stale non-null value from before the
+  // subscribe() callback below flips it can't leak through on a later
+  // cart-change re-render.
+  function countdownNoteHtml() {
+    if (checkoutCountdownHidden || !window.MonarkPromoCountdown) return '';
+    const secs = window.MonarkPromoCountdown.getRemainingSeconds();
+    if (secs === null) return '';
+    return `<span class="checkout-promo-countdown-note">${t('promoBanner.endsIn')}<span class="promo-countdown-value checkout-promo-countdown-value">${window.MonarkPromoCountdown.formatCountdown(secs)}</span></span>`;
+  }
+
   // Subtotal/Shipping/discount/Total lines -- shared by the desktop column,
   // the mobile Paiement section, AND the Billing section's own recap (point
   // 4), so all three stay trivially in sync (same data, one function, all
@@ -1518,7 +1542,7 @@
       <div class="checkout-summary-line checkout-summary-discount checkout-summary-discount-with-countdown">
         <span>${t('checkout.limitedTimeOffer')}</span>
         <span>&minus;${money(siteDiscount)}</span>
-        <span class="checkout-promo-countdown-note">${t('promoBanner.endsIn')}<span class="promo-countdown-value checkout-promo-countdown-value">${window.MonarkPromoCountdown ? window.MonarkPromoCountdown.formatCountdown(window.MonarkPromoCountdown.getRemainingSeconds()) : ''}</span></span>
+        ${countdownNoteHtml()}
       </div>
       ${discountLine}
       <div class="checkout-summary-line checkout-summary-total">
@@ -1638,12 +1662,21 @@
   // fade/scale-in only on the tick their own value actually changed (see
   // that file's own comment on the shared `changed` computation).
   if (window.MonarkPromoCountdown) {
-    window.MonarkPromoCountdown.subscribe((secs, changed) => {
-      const html = window.MonarkPromoCountdown.formatCountdownHTML(secs, changed);
-      document.querySelectorAll('.checkout-promo-countdown-value').forEach((el) => {
-        el.innerHTML = html;
-      });
-    });
+    window.MonarkPromoCountdown.subscribe(
+      (secs, changed) => {
+        const html = window.MonarkPromoCountdown.formatCountdownHTML(secs, changed);
+        document.querySelectorAll('.checkout-promo-countdown-value').forEach((el) => {
+          el.innerHTML = html;
+        });
+      },
+      () => {
+        // admin.html's Timer tab has a fixed_end_date that's already passed
+        // -- re-render once so countdownNoteHtml() (this file's own, above)
+        // drops the note from every summary container it's currently in.
+        checkoutCountdownHidden = true;
+        renderSummary();
+      }
+    );
   }
 
   const termsCheckbox = document.getElementById('checkout-terms-checkbox');

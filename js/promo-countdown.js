@@ -12,23 +12,30 @@
 
    Loaded before every page's own js/promo-banner.js (and before product.html/
    checkout.html's own inline scripts that use it) -- see those files' own
-   <script> ordering. */
-(function (global) {
-  /* Fictitious countdown -- purely psychological urgency, not a real
-     deadline. Always restarts at 03:52:16 on a fresh load (no localStorage
-     persistence); just stops ticking at 00:00:00 rather than doing anything
-     else once it hits zero. Anchored to a real Date.now()-based target
-     (computed once, below) rather than a plain "seconds remaining" counter
-     decremented every tick -- setInterval's own 1000ms period is never
-     perfectly exact (it drifts a little under real browser scheduling), so
-     recomputing from a fixed target time keeps the displayed value accurate
-     to the wall clock instead of accumulating that drift tick after tick. */
-  const COUNTDOWN_START_SECONDS = 3 * 3600 + 52 * 60 + 16;
-  const targetTime = Date.now() + COUNTDOWN_START_SECONDS * 1000;
+   <script> ordering. Also loaded after js/supabase-client.js on every page
+   (same ordering requirement) -- this reads admin.html's own Timer tab
+   config (public.site_config) from Supabase on load instead of the old
+   hardcoded COUNTDOWN_START_SECONDS constant.
 
-  function getRemainingSeconds() {
-    return Math.max(0, Math.round((targetTime - Date.now()) / 1000));
-  }
+   Two modes (site_config.timer_mode):
+     'relative'   -- same behavior as before this feature: every visitor's
+                     own page load starts a fresh countdown,
+                     relative_duration_hours long, no persistence.
+     'fixed_date' -- counts down to site_config.fixed_end_date, identical
+                     for every visitor, does not reset on refresh. If that
+                     date has already passed, every subscriber is told to
+                     hide its own display entirely (see subscribe()'s
+                     onHide below) rather than showing a static "offer
+                     ended" state -- a deliberate product decision, not a
+                     gap.
+
+   A lookup failure (site_config unreachable, no row, Supabase not loaded)
+   falls back to a default relative countdown rather than hiding the
+   promo everywhere -- same "never let a backend hiccup silently remove a
+   site-wide feature" spirit as create-checkout-session's own promo-code
+   lookup-failure handling. */
+(function (global) {
+  const FALLBACK_HOURS = 4; // only used if site_config can't be read at all
 
   function formatCountdown(totalSeconds) {
     const pad = (n) => String(n).padStart(2, '0');
@@ -49,14 +56,7 @@
   // minute vs. every tick), so they get a one-shot "digit just changed"
   // effect (see .promo-timer-flip, css/style.css) instead of seconds' own
   // continuous pulse -- constantly animating something that's static 59
-  // ticks out of 60 would read as broken, not "alive". lastUnits is tracked
-  // HERE (not per-subscriber) since every subscriber on a given page ticks
-  // off the exact same shared secs value each interval -- "did the hour/
-  // minute change this tick" has one right answer per tick, not one per
-  // display. Seeded by whichever subscriber calls subscribe() first (below)
-  // rather than left null until the first interval fire, so a page that
-  // happens to load right at a minute boundary can't misread that as
-  // "changed" before there was ever a previous value to compare against.
+  // ticks out of 60 would read as broken, not "alive".
   let lastUnits = null;
   function computeChanged(units) {
     if (!lastUnits) return { hours: false, minutes: false };
@@ -78,34 +78,124 @@
       `<span class="promo-timer-seconds">${seconds}</span>`;
   }
 
+  // targetTime stays null until site_config resolves (async fetch -- see
+  // loadConfigAndStart below), and forever null if the resolved config is
+  // 'fixed_date' with a date already in the past ("hidden" below stays
+  // true in that case, tick() is never scheduled at all). getRemainingSeconds()
+  // returning null in both those cases (rather than 0) lets a caller that
+  // reads it directly (checkout.html's own initial synchronous render, see
+  // that file's own comment) tell "not yet known / never showing" apart
+  // from a real, ticking-down zero.
+  let targetTime = null;
+  let resolved = false;
+  let hidden = false;
+  let intervalId = null;
   const listeners = [];
-  let intervalId = setInterval(() => {
+  const pendingSubscribers = []; // { onTick, onHide } queued until config resolves
+
+  function getRemainingSeconds() {
+    if (targetTime === null) return null;
+    return Math.max(0, Math.round((targetTime - Date.now()) / 1000));
+  }
+
+  function tick() {
     const secs = getRemainingSeconds();
     const units = unitsFromSeconds(secs);
     const changed = computeChanged(units);
     lastUnits = units;
     listeners.slice().forEach((fn) => fn(secs, changed));
-    if (secs <= 0) clearInterval(intervalId);
-  }, 1000);
+    if (secs <= 0) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  }
 
-  // Calls `fn` immediately with the current value (so a subscriber's first
-  // paint doesn't sit blank for up to a second waiting for the next tick),
-  // then again on every subsequent tick. Returns an unsubscribe function --
-  // used by anything that can unmount/remove its own display before the
-  // countdown reaches zero (the banner's own dismiss() does this today).
-  // Always reports {hours:false, minutes:false} on this first, immediate
-  // call -- a display's very first paint should never play the "just
-  // changed" effect, only a real change on a later tick should.
-  function subscribe(fn) {
+  function startTicking() {
+    lastUnits = unitsFromSeconds(getRemainingSeconds());
+    intervalId = setInterval(tick, 1000);
+  }
+
+  // Calls onTick immediately with the current value (so a subscriber's
+  // first paint doesn't sit blank for up to a second waiting for the next
+  // tick), then again on every subsequent tick -- same guarantee the old,
+  // synchronous version of this module made. The only difference now:
+  // resolution is async (site_config hasn't necessarily loaded yet when a
+  // page's own script calls subscribe()), so a subscriber registered before
+  // that happens is queued in pendingSubscribers and gets its first call
+  // (onTick or onHide, whichever applies) once resolveConfig() below runs.
+  // Returns an unsubscribe function either way.
+  function subscribe(onTick, onHide) {
+    if (!resolved) {
+      pendingSubscribers.push({ onTick, onHide });
+      return function unsubscribe() {
+        const i = pendingSubscribers.findIndex((s) => s.onTick === onTick);
+        if (i !== -1) pendingSubscribers.splice(i, 1);
+        const j = listeners.indexOf(onTick);
+        if (j !== -1) listeners.splice(j, 1);
+      };
+    }
+    if (hidden) {
+      if (onHide) onHide();
+      return function unsubscribe() {};
+    }
     const secs = getRemainingSeconds();
-    if (!lastUnits) lastUnits = unitsFromSeconds(secs);
-    fn(secs, { hours: false, minutes: false });
-    listeners.push(fn);
+    onTick(secs, { hours: false, minutes: false });
+    listeners.push(onTick);
     return function unsubscribe() {
-      const i = listeners.indexOf(fn);
+      const i = listeners.indexOf(onTick);
       if (i !== -1) listeners.splice(i, 1);
     };
   }
+
+  function resolveConfig(config) {
+    resolved = true;
+    if (config.hidden) {
+      hidden = true;
+      pendingSubscribers.forEach(({ onHide }) => { if (onHide) onHide(); });
+      pendingSubscribers.length = 0;
+      return;
+    }
+    targetTime = config.targetTime;
+    startTicking();
+    pendingSubscribers.forEach(({ onTick }) => {
+      const secs = getRemainingSeconds();
+      onTick(secs, { hours: false, minutes: false });
+      listeners.push(onTick);
+    });
+    pendingSubscribers.length = 0;
+  }
+
+  async function loadConfigAndStart() {
+    try {
+      if (!global.MonarkSupabase) throw new Error('Supabase client not ready');
+      const { data, error } = await global.MonarkSupabase
+        .from('site_config')
+        .select('timer_mode, relative_duration_hours, fixed_end_date')
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error('No site_config row');
+
+      if (data.timer_mode === 'fixed_date') {
+        const endMs = data.fixed_end_date ? new Date(data.fixed_end_date).getTime() : NaN;
+        if (!Number.isFinite(endMs) || endMs <= Date.now()) {
+          resolveConfig({ hidden: true });
+          return;
+        }
+        resolveConfig({ hidden: false, targetTime: endMs });
+        return;
+      }
+
+      const hours = Number(data.relative_duration_hours);
+      const effectiveHours = Number.isFinite(hours) && hours > 0 ? hours : FALLBACK_HOURS;
+      resolveConfig({ hidden: false, targetTime: Date.now() + effectiveHours * 3600 * 1000 });
+    } catch (err) {
+      console.error('promo-countdown.js: site_config lookup failed, falling back to default relative countdown:', err && err.message);
+      resolveConfig({ hidden: false, targetTime: Date.now() + FALLBACK_HOURS * 3600 * 1000 });
+    }
+  }
+
+  loadConfigAndStart();
 
   global.MonarkPromoCountdown = { subscribe, formatCountdown, formatCountdownHTML, getRemainingSeconds };
 })(window);
