@@ -803,95 +803,53 @@
   margin-right: auto;
 }
 
-/* checkout.html only -- every primary action button centered EXCEPT the
-   small text-link-style actions (Modify Email, Forgot password?), which
-   keep their current right-aligned/inline treatment untouched. Continue as
-   Guest/Create Account (.checkout-account-options) and Create Account &
-   Continue (#checkout-account-create-submit-btn, right above) are already
-   centered unconditionally, on both pages -- only Continue and Log In still
-   needed their own centering, scoped here to checkout.html specifically
-   since account.html's own list never asked for this. */
-.account-gate-page-checkout .checkout-account-email-actions { justify-content: center; }
-.account-gate-page-checkout #checkout-account-login-submit-btn {
+/* Every primary action button centered EXCEPT the small text-link-style
+   actions (Modify Email, Forgot password?), which keep their own right-
+   aligned/inline treatment untouched. Continue as Guest/Create Account
+   (.checkout-account-options) and Create Account & Continue
+   (#checkout-account-create-submit-btn, right above) are already centered
+   unconditionally, on both pages -- Continue and Log In need their own
+   per-page-class centering since .checkout-account-email-actions/
+   .checkout-account-login-actions default to plain block flow otherwise. */
+.account-gate-page-checkout .checkout-account-email-actions,
+.account-gate-page-account .checkout-account-email-actions {
+  justify-content: center;
+}
+/* Both pages -- Log In centered independently of Forgot password below it
+   (see #checkout-account-forgot-password-btn's own comment). Previously
+   account.html centered the two as one flex group instead (Forgot password
+   inline beside Log In) -- reverted: that grouping is exactly what coupled
+   Forgot password's position to Log In's, the opposite of what this button
+   should do. This plain display:block + auto side margins is the same
+   already-proven approach checkout.html used for this button from the
+   start, just no longer scoped away from account.html. */
+.account-gate-page-checkout #checkout-account-login-submit-btn,
+.account-gate-page-account #checkout-account-login-submit-btn {
   display: block;
   margin-left: auto;
   margin-right: auto;
 }
-/* account.html: same Cancel+Continue pair, centered as a group here too --
-   checkout.html's own centering above is scoped to .account-gate-page-checkout,
-   so account.html needed this repeated under its own page class rather than
-   just moving the rule unscoped (checkout.html's list never asked for
-   anything to change here, only account.html's did). */
-.account-gate-page-account .checkout-account-email-actions { justify-content: center; }
 
 /* .checkout-account-login-actions wraps Log In + Forgot password? (see
-   accountGateMarkup() in js/account.js) -- checkout.html's default here is
-   block (no special layout, same as if unwrapped): Log In flows normally,
-   Forgot password right-aligns on its own line below via the block rule
-   right after this one. account.html overrides both further down to sit the
-   two side by side instead -- see .account-gate-page-account below. */
+   accountGateMarkup() in js/account.js) -- plain block flow on both pages
+   now (no per-page override): Log In centers itself via the rule above,
+   independent of Forgot password, which right-aligns on its own line below
+   via the block rule right after this one. */
 .checkout-account-login-actions { display: block; }
 
-/* checkout.html default -- right-aligned the same way "Modify Email" is
+/* Both pages -- right-aligned the same way "Modify Email" is
    (.checkout-account-email-echo above), on its own line below Log In.
    display:block + margin-left:auto pushes this content-sized element to the
    row's right edge instead of sitting inline right after Log In (both plain
    inline-block elements by default, unrelated to Log In visually despite
-   sharing a line with it). account.html wants this differently (2 lines,
-   side by side with Log In at the same height) -- see the
-   .account-gate-page-account override below, which wins on specificity
-   (ID + ancestor class beats plain ID). */
+   sharing a line with it) -- and, just as importantly, entirely out of Log
+   In's own centering above: Log In's margin:auto centers it against the
+   full row width regardless of what this element does or how wide it is. */
 #checkout-account-forgot-password-btn {
   display: block;
   width: fit-content;
   margin-left: auto;
   margin-top: 0.8rem;
-}
-
-/* account.html only -- "Forgot password?" sits beside Log In instead of
-   below it, its own text force-wrapped onto two lines (width narrow enough
-   that "Forgot"/"Mot de passe" and "password?"/"oublié ?" don't fit on one
-   line at this font-size) rather than the single line + right-align
-   checkout.html uses.
-
-   BUG FIX: previously tried to center Log In itself (an invisible spacer,
-   matched to Forgot password's own width, balancing it on the other side)
-   -- didn't read as actually centered in practice, and pinning Forgot
-   password to the row's far edge looked bad on mobile. Simplified to just
-   centering the PAIR as one group instead (no spacer, no per-breakpoint
-   special-casing -- same rule at every width): Log In and Forgot password
-   sit together, centered as a unit. align-items:center keeps them vertically
-   centered against each other despite Forgot password's own box now being
-   taller (two lines) than Log In's (one). */
-.account-gate-page-account .checkout-account-login-actions {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-/* BUG FIX: align-items:center centers each flex item's full MARGIN box, not
-   just its content -- #checkout-account-login-submit-btn still carried
-   .checkout-account-btn-sm's own margin-top:1rem (its normal spacing when
-   block-stacked, e.g. on checkout.html), while Forgot password's own rule
-   below already zeroes its margin-top out. That extra top margin on Log In
-   alone was enough to visibly skew the centering, pushing Log In's actual
-   content down relative to Forgot password's -- same fix already applied to
-   .checkout-account-email-actions (Continue/Cancel) for the same reason:
-   move the "space above this row" responsibility onto the row wrapper
-   itself (margin-top:1rem above) so every item inside starts even. */
-.account-gate-page-account .checkout-account-login-actions .checkout-account-btn-sm {
-  margin-top: 0;
-}
-.account-gate-page-account #checkout-account-forgot-password-btn {
-  display: block;
-  /* Wide enough that "Mot de passe"/"Forgot" and "oublié ?"/"password?"
-     split onto exactly 2 lines, not 3 -- unaffected by the centering method
-     above, this is purely about the box's own width. */
-  width: 9em;
-  white-space: normal;
-  margin-left: 0;
-  margin-top: 0;
 }
 
 /* BUG FIX: "Modify Email" was overflowing off-screen on mobile once "Log

@@ -710,11 +710,15 @@
     container.innerHTML = accountGateMarkup();
     if (global.MonarkI18n) global.MonarkI18n.apply(container);
     // Generic per-page styling hook (css/checkout.css) for the handful of
-    // spots where the two pages now deliberately diverge in LAYOUT even
-    // though they share this exact markup -- e.g. account.html's Forgot
-    // Password treatment vs. checkout.html's, or which buttons get centered
-    // -- rather than a growing pile of one-off boolean options each gating
-    // a single CSS rule the way hideGuestOption/centerCreateButton used to.
+    // spots where the two pages still deliberately diverge in LAYOUT even
+    // though they share this exact markup -- e.g. which buttons get
+    // centered (.checkout-account-email-actions) -- rather than a growing
+    // pile of one-off boolean options each gating a single CSS rule the way
+    // hideGuestOption/centerCreateButton used to. Log In/Forgot password
+    // used to be one such divergence (account.html centered them as one
+    // flex group; checkout.html centered Log In independently) -- no longer
+    // -- both pages now use checkout.html's original, simpler treatment, see
+    // css/checkout.css's own comment on #checkout-account-login-submit-btn.
     container.classList.add(hideGuestOption ? 'account-gate-page-account' : 'account-gate-page-checkout');
 
     const statusEl = container.querySelector('#checkout-account-status');
@@ -1214,7 +1218,17 @@
       previousSession = getSession();
       statusEl.hidden = true;
       showStep('email');
-      emailInput.value = '';
+      // Pre-filled with the current email (not cleared) -- previousSession
+      // just above already has it, so there's no reason to make the user
+      // retype an address they're likely only fixing a typo in. .select()
+      // right after focus() highlights the whole thing so a single
+      // keystroke still replaces it entirely for a full rewrite -- this
+      // only runs once, here, not on every future focus of this field, so a
+      // later click back into it positions the cursor normally instead of
+      // re-selecting everything.
+      emailInput.value = previousSession ? previousSession.email : '';
+      emailInput.focus();
+      emailInput.select();
       emailError.hidden = true;
       createdNote.hidden = true;
       emailAlreadyExists = false;
@@ -1312,12 +1326,19 @@
     // left untouched, so Cancel is still available from here.
     authModifyEmailBtn.addEventListener('click', () => {
       showStep('email');
-      emailInput.value = '';
+      // Not cleared -- emailInput.value already holds whatever was
+      // submitted to reach this step (resetAuthStepFields() above never
+      // touches it), so it's already the right value to edit; clearing it
+      // here would just be throwing away a correct pre-fill. .select()
+      // highlights it so a single keystroke replaces it entirely -- same
+      // one-shot (not on every focus) behavior as enterEmailEditMode()'s
+      // own comment on this.
       emailError.hidden = true;
       emailAlreadyExists = false;
       emailCancelBtn.hidden = !previousSession;
       authCancelBtn.hidden = true;
       emailInput.focus();
+      emailInput.select();
     });
 
     // changeBtn's label and (if a session is already showing) statusText's
