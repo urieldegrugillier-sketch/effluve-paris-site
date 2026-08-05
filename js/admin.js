@@ -570,11 +570,12 @@
   // ---------------- Promo remaining-count config (site_config) ----------------
   // Governs the "codes remaining" urgency line on js/email-popup.js. Moved
   // here from the Timer tab (which only ever kept a flat manual number)
-  // because 'real' mode reads straight off MONARK10's own max_uses/
-  // times_used below -- that only makes sense configured next to the promo
-  // code table itself, not the countdown. Same non-modal .admin-modal-content
-  // reuse as the Timer/Stock tabs (see admin.html's own comment).
-  let promoRemainingConfigCache = null; // { id, promo_remaining_mode, promo_codes_remaining }
+  // because 'real' mode reads straight off the SELECTED code's own
+  // max_uses/times_used below -- that only makes sense configured next to
+  // the promo code table itself, not the countdown. Same non-modal
+  // .admin-modal-content reuse as the Timer/Stock tabs (see admin.html's
+  // own comment).
+  let promoRemainingConfigCache = null; // { id, promo_remaining_mode, promo_codes_remaining, promo_remaining_code_id }
 
   const promoRemainingLoadingEl = document.getElementById('admin-promo-remaining-loading');
   const promoRemainingErrorEl = document.getElementById('admin-promo-remaining-error');
@@ -583,13 +584,22 @@
   const promoRemainingModeRealInput = document.getElementById('admin-promo-remaining-mode-real');
   const promoRemainingFixedFieldsEl = document.getElementById('admin-promo-remaining-fixed-fields');
   const promoRemainingCountInput = document.getElementById('admin-promo-remaining-count-input');
+  const promoRemainingCodeSelect = document.getElementById('admin-promo-remaining-code-select');
+  const promoRemainingPreviewEl = document.getElementById('admin-promo-remaining-preview');
   const promoRemainingFormErrorEl = document.getElementById('admin-promo-remaining-form-error');
   const promoRemainingFormSuccessEl = document.getElementById('admin-promo-remaining-form-success');
   const promoRemainingSaveBtn = document.getElementById('admin-promo-remaining-save');
 
   function initPromoRemainingConfig() {
-    promoRemainingModeFixedInput.addEventListener('change', updatePromoRemainingModeFields);
-    promoRemainingModeRealInput.addEventListener('change', updatePromoRemainingModeFields);
+    promoRemainingModeFixedInput.addEventListener('change', () => {
+      updatePromoRemainingModeFields();
+      updatePromoRemainingPreview();
+    });
+    promoRemainingModeRealInput.addEventListener('change', () => {
+      updatePromoRemainingModeFields();
+      updatePromoRemainingPreview();
+    });
+    promoRemainingCodeSelect.addEventListener('change', updatePromoRemainingPreview);
     promoRemainingSaveBtn.addEventListener('click', savePromoRemainingConfig);
     loadPromoRemainingConfig();
   }
@@ -599,20 +609,31 @@
     promoRemainingErrorEl.hidden = true;
     promoRemainingFormEl.hidden = true;
 
-    const { data, error } = await client()
-      .from('site_config')
-      .select('id, promo_remaining_mode, promo_codes_remaining')
-      .limit(1)
-      .maybeSingle();
+    // Two independent reads -- site_config (this feature's own settings) and
+    // the full promo_codes list (to populate the dropdown) -- not the Promo
+    // Codes tab's own promoCache, since this tab's load order can't
+    // guarantee that's populated yet (same reasoning savePromoRemainingConfig()
+    // below already applied to its own max_uses check).
+    const [{ data, error }, { data: codes, error: codesError }] = await Promise.all([
+      client().from('site_config').select('id, promo_remaining_mode, promo_codes_remaining, promo_remaining_code_id').limit(1).maybeSingle(),
+      client().from('promo_codes').select('id, code').order('created_at', { ascending: true }),
+    ]);
 
     promoRemainingLoadingEl.hidden = true;
 
-    if (error || !data) {
+    if (error || !data || codesError) {
       promoRemainingErrorEl.hidden = false;
-      promoRemainingErrorEl.textContent = error
-        ? `Erreur lors du chargement : ${error.message}`
+      promoRemainingErrorEl.textContent = (error || codesError)
+        ? `Erreur lors du chargement : ${(error || codesError).message}`
         : 'Configuration introuvable.';
       if (error) console.error('admin.js loadPromoRemainingConfig:', error.message);
+      if (codesError) console.error('admin.js loadPromoRemainingConfig (codes):', codesError.message);
+      return;
+    }
+
+    if (!codes.length) {
+      promoRemainingErrorEl.hidden = false;
+      promoRemainingErrorEl.textContent = 'Aucun code promo disponible -- créez-en un dans le tableau ci-dessus avant de configurer ce compteur.';
       return;
     }
 
@@ -620,7 +641,18 @@
     promoRemainingModeFixedInput.checked = data.promo_remaining_mode !== 'real';
     promoRemainingModeRealInput.checked = data.promo_remaining_mode === 'real';
     promoRemainingCountInput.value = data.promo_codes_remaining;
+
+    // Defaults to whichever code is already selected in site_config, or the
+    // oldest existing code (codes is ordered created_at ascending above) if
+    // none is set yet -- see this feature's own migration comment.
+    promoRemainingCodeSelect.innerHTML = codes.map((c) => `<option value="${c.id}">${escapeHtml(c.code)}</option>`).join('');
+    const preselected = data.promo_remaining_code_id && codes.some((c) => c.id === data.promo_remaining_code_id)
+      ? data.promo_remaining_code_id
+      : codes[0].id;
+    promoRemainingCodeSelect.value = preselected;
+
     updatePromoRemainingModeFields();
+    updatePromoRemainingPreview();
     promoRemainingFormErrorEl.textContent = '';
     promoRemainingFormSuccessEl.hidden = true;
     promoRemainingFormEl.hidden = false;
@@ -630,13 +662,43 @@
     promoRemainingFixedFieldsEl.hidden = promoRemainingModeRealInput.checked;
   }
 
+  // Read-only live preview of what Réel mode would show right now, for
+  // whichever code is currently selected in the dropdown -- never written
+  // anywhere, purely informational, updated on mode/selection change (see
+  // initPromoRemainingConfig()'s own listeners). Hidden in Fixe mode, or
+  // whenever the selected code has no max_uses set (nothing to compute).
+  async function updatePromoRemainingPreview() {
+    if (!promoRemainingModeRealInput.checked || !promoRemainingCodeSelect.value) {
+      promoRemainingPreviewEl.hidden = true;
+      return;
+    }
+    const { data: promo, error } = await client()
+      .from('promo_codes')
+      .select('max_uses, times_used')
+      .eq('id', promoRemainingCodeSelect.value)
+      .maybeSingle();
+
+    if (error || !promo || promo.max_uses === null) {
+      promoRemainingPreviewEl.hidden = true;
+      return;
+    }
+    promoRemainingPreviewEl.hidden = false;
+    promoRemainingPreviewEl.textContent = `Restant actuel : ${Math.max(0, promo.max_uses - promo.times_used)}`;
+  }
+
   async function savePromoRemainingConfig() {
     if (!promoRemainingConfigCache) return;
     const mode = promoRemainingModeRealInput.checked ? 'real' : 'fixed';
+    const codeId = promoRemainingCodeSelect.value;
     promoRemainingFormErrorEl.textContent = '';
     promoRemainingFormSuccessEl.hidden = true;
 
-    const patch = { promo_remaining_mode: mode };
+    if (!codeId) {
+      promoRemainingFormErrorEl.textContent = 'Merci de sélectionner un code promo.';
+      return;
+    }
+
+    const patch = { promo_remaining_mode: mode, promo_remaining_code_id: codeId };
 
     if (mode === 'fixed') {
       const count = Math.floor(Number(promoRemainingCountInput.value));
@@ -647,26 +709,27 @@
       }
       patch.promo_codes_remaining = count;
     } else {
-      // Fresh lookup, not promoCache (this tab's own order-of-loading can't
-      // guarantee that's populated yet, and it could be stale right after an
-      // edit in the modal above) -- MONARK10's max_uses must already be set
+      // Fresh lookup, not promoCache or the preview's own last-read value --
+      // this tab's own order-of-loading can't guarantee promoCache is
+      // populated, and either could be stale right after an edit in the
+      // modal above. The SELECTED code's max_uses must already be set
       // before 'real' mode can compute anything meaningful. Blocked here,
       // never silently defaulted/auto-filled.
       promoRemainingSaveBtn.disabled = true;
       const { data: promo, error: promoError } = await client()
         .from('promo_codes')
-        .select('max_uses')
-        .eq('code', 'MONARK10')
+        .select('code, max_uses')
+        .eq('id', codeId)
         .maybeSingle();
       promoRemainingSaveBtn.disabled = false;
 
       if (promoError || !promo) {
-        promoRemainingFormErrorEl.textContent = 'Impossible de vérifier le code MONARK10 pour le moment.';
+        promoRemainingFormErrorEl.textContent = 'Impossible de vérifier ce code pour le moment.';
         console.error('admin.js savePromoRemainingConfig (max_uses check):', promoError && promoError.message);
         return;
       }
       if (promo.max_uses === null) {
-        promoRemainingFormErrorEl.textContent = "Merci de définir un nombre d'utilisations max pour MONARK10 (ci-dessus) avant de passer en mode réel.";
+        promoRemainingFormErrorEl.textContent = `Merci de définir un nombre d'utilisations max pour ${promo.code} (onglet Codes Promo, ci-dessus) avant de passer en mode réel.`;
         return;
       }
     }

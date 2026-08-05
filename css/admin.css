@@ -273,7 +273,8 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
   letter-spacing: 0.05em;
 }
 
-.admin-modal-content input {
+.admin-modal-content input,
+.admin-modal-content select {
   width: 100%;
   box-sizing: border-box;
   background: var(--bg-void);
@@ -285,7 +286,8 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
   font-family: inherit;
 }
 
-.admin-modal-content input:focus-visible { outline: 1px solid var(--accent-bronze-light); }
+.admin-modal-content input:focus-visible,
+.admin-modal-content select:focus-visible { outline: 1px solid var(--accent-bronze-light); }
 
 /* Checkbox fields (e.g. promo "Actif") don't fit the plain text-input rules
    above (full-width, background fill, uppercase mono label stacked on top)

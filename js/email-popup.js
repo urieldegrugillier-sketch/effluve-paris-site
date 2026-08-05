@@ -27,9 +27,13 @@
   // real data" pattern as js/promo-countdown.js's own relative-mode duration
   // (see public.site_config's own promo_codes_remaining column comment) in
   // 'fixed' mode; in 'real' mode (site_config.promo_remaining_mode) it's
-  // instead computed live from THIS code's own max_uses/times_used below --
-  // still read client-side, still nothing written back, no wiring into
-  // checkout/order logic either way.
+  // instead computed live from whichever promo_codes row
+  // site_config.promo_remaining_code_id points at (selected in admin.html's
+  // Promo Codes tab, not hardcoded to PROMO_CODE/MONARK10 -- that constant
+  // above is only ever the code ADVERTISED in the confirmation copy, a
+  // separate, unrelated concern from which code this counter tracks; see
+  // this feature's own migration comment) -- still read client-side, still
+  // nothing written back, no wiring into checkout/order logic either way.
   //
   // No centralized site_config loader exists to reuse (js/promo-countdown.js's
   // own fetch is self-contained/non-exported, matching this project's
@@ -40,12 +44,13 @@
   const PROMO_CODES_REMAINING_FALLBACK = 7; // 'fixed' mode's own fallback -- matches site_config.promo_codes_remaining's own DB default, used only if the site_config lookup itself fails/hasn't resolved (mode unknown), same "never let a backend hiccup silently drop a site-wide feature" reasoning as js/promo-countdown.js's own FALLBACK_HOURS
   let promoCodesRemaining = null; // resolved by loadPromoCodesRemaining() below, well before TRIGGER_DELAY_MS elapses in the normal case
   // 'real' mode only -- true when the mode is confirmed 'real' but a usable
-  // count still couldn't be computed (MONARK10 row missing, or its own
-  // max_uses null despite admin.html's own save-time guard -- shouldn't
-  // normally happen, but data can change between saves). Deliberately NOT
-  // treated like a lookup failure: showing PROMO_CODES_REMAINING_FALLBACK
-  // here would be a fabricated number with no relation to the real
-  // max_uses/times_used this mode promises, worse than showing nothing.
+  // count still couldn't be computed (promo_remaining_code_id null/dangling,
+  // or the pointed-at row's own max_uses null despite admin.html's own
+  // save-time guard -- shouldn't normally happen, but data can change
+  // between saves). Deliberately NOT treated like a lookup failure: showing
+  // PROMO_CODES_REMAINING_FALLBACK here would be a fabricated number with no
+  // relation to the real max_uses/times_used this mode promises, worse than
+  // showing nothing.
   let promoCodesRemainingHidden = false;
 
   async function loadPromoCodesRemaining() {
@@ -53,16 +58,20 @@
     try {
       const { data: config, error: configError } = await window.MonarkSupabase
         .from('site_config')
-        .select('promo_remaining_mode, promo_codes_remaining')
+        .select('promo_remaining_mode, promo_codes_remaining, promo_remaining_code_id')
         .limit(1)
         .maybeSingle();
       if (configError || !config) return; // mode unknown -- falls through to 'fixed'-style fallback in urgencyText()
 
       if (config.promo_remaining_mode === 'real') {
+        if (!config.promo_remaining_code_id) {
+          promoCodesRemainingHidden = true;
+          return;
+        }
         const { data: promo, error: promoError } = await window.MonarkSupabase
           .from('promo_codes')
           .select('max_uses, times_used')
-          .eq('code', PROMO_CODE)
+          .eq('id', config.promo_remaining_code_id)
           .maybeSingle();
         if (promoError || !promo || promo.max_uses === null) {
           promoCodesRemainingHidden = true;

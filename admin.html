@@ -104,14 +104,15 @@
       <div id="admin-promo-remaining-loading" class="admin-loading-note">Chargement…</div>
       <div id="admin-promo-remaining-error" class="admin-error-note" hidden></div>
 
-      <!-- site_config.promo_remaining_mode/promo_codes_remaining -- moved
-           here from the Timer tab (see that panel's own git history) since
-           'real' mode reads straight off THIS code's own max_uses/
-           times_used below, which only makes sense configured next to the
-           promo code table itself. Same non-modal .admin-modal-content reuse
-           as the Timer/Stock tabs (see those panels' own comment). -->
+      <!-- site_config.promo_remaining_mode/promo_codes_remaining/
+           promo_remaining_code_id -- moved here from the Timer tab (see that
+           panel's own git history) since 'real' mode reads straight off the
+           selected code's own max_uses/times_used below, which only makes
+           sense configured next to the promo code table itself. Same
+           non-modal .admin-modal-content reuse as the Timer/Stock tabs (see
+           those panels' own comment). -->
       <div class="admin-modal-content" id="admin-promo-remaining-form" hidden>
-        <p>Compteur « codes promo restants » affiché sur le popup e-mail (code MONARK10).</p>
+        <p>Compteur « codes promo restants » affiché sur le popup e-mail.</p>
 
         <label class="admin-modal-checkbox-row" for="admin-promo-remaining-mode-fixed">
           <input type="radio" name="admin-promo-remaining-mode" value="fixed" id="admin-promo-remaining-mode-fixed">
@@ -126,6 +127,23 @@
           <label for="admin-promo-remaining-count-input">Codes promo restants</label>
           <input type="number" id="admin-promo-remaining-count-input" min="0" step="1" inputmode="numeric">
         </div>
+
+        <!-- Shown in both modes -- Fixe still needs to know which code's
+             row it's writing promo_remaining_code_id for (harmless in that
+             mode, just remembered for next time Réel is picked), Réel needs
+             it to actually compute anything. Options populated from
+             public.promo_codes by js/admin.js, not hardcoded here -- see
+             that file's own loadPromoRemainingConfig(). -->
+        <label for="admin-promo-remaining-code-select">Code suivi</label>
+        <select id="admin-promo-remaining-code-select"></select>
+
+        <!-- Réel mode only, read-only live preview -- populated by
+             js/admin.js's updatePromoRemainingPreview(), never edited
+             directly, hidden whenever Fixe is selected or no usable
+             max_uses/times_used could be read for the selected code. Plain
+             <p> inside .admin-modal-content -- already styled (muted,
+             small) by that class's own generic `p` rule, no new CSS. -->
+        <p id="admin-promo-remaining-preview" hidden></p>
 
         <p class="admin-modal-error" id="admin-promo-remaining-form-error"></p>
         <p class="admin-form-success" id="admin-promo-remaining-form-success" hidden>Enregistré.</p>
