@@ -533,7 +533,7 @@
   // Single-row settings, not a list -- no modal, just a persistent form
   // directly in the panel (see admin.html's own comment on why
   // .admin-modal-content is safe to reuse outside a .admin-modal overlay).
-  let timerConfigCache = null; // { id, timer_mode, relative_duration_hours, fixed_end_date }
+  let timerConfigCache = null; // { id, timer_mode, relative_duration_hours, relative_duration_minutes, relative_duration_seconds, fixed_end_date }
 
   const timerLoadingEl = document.getElementById('admin-timer-loading');
   const timerErrorEl = document.getElementById('admin-timer-error');
@@ -543,6 +543,8 @@
   const timerRelativeFieldsEl = document.getElementById('admin-timer-relative-fields');
   const timerFixedFieldsEl = document.getElementById('admin-timer-fixed-fields');
   const timerHoursInput = document.getElementById('admin-timer-hours-input');
+  const timerMinutesInput = document.getElementById('admin-timer-minutes-input');
+  const timerSecondsInput = document.getElementById('admin-timer-seconds-input');
   const timerDateInput = document.getElementById('admin-timer-date-input');
   const timerFormErrorEl = document.getElementById('admin-timer-form-error');
   const timerFormSuccessEl = document.getElementById('admin-timer-form-success');
@@ -562,7 +564,7 @@
 
     const { data, error } = await client()
       .from('site_config')
-      .select('id, timer_mode, relative_duration_hours, fixed_end_date')
+      .select('id, timer_mode, relative_duration_hours, relative_duration_minutes, relative_duration_seconds, fixed_end_date')
       .limit(1)
       .maybeSingle();
 
@@ -581,6 +583,8 @@
     timerModeRelativeInput.checked = data.timer_mode === 'relative';
     timerModeFixedInput.checked = data.timer_mode === 'fixed_date';
     timerHoursInput.value = data.relative_duration_hours;
+    timerMinutesInput.value = data.relative_duration_minutes;
+    timerSecondsInput.value = data.relative_duration_seconds;
     // toDatetimeLocalValue() (defined above, Promo Codes tab's own modal) --
     // shared here rather than duplicated, same timestamptz <-> local
     // datetime-local conversion either field needs.
@@ -607,12 +611,35 @@
 
     if (mode === 'relative') {
       const hours = Math.floor(Number(timerHoursInput.value));
-      if (!Number.isFinite(hours) || hours < 1) {
-        timerFormErrorEl.textContent = "La durée doit être un nombre entier d'heures positif.";
+      if (!Number.isFinite(hours) || hours < 0) {
+        timerFormErrorEl.textContent = 'Les heures doivent être un nombre entier positif ou nul.';
+        timerHoursInput.focus();
+        return;
+      }
+      const minutes = Math.floor(Number(timerMinutesInput.value));
+      if (!Number.isFinite(minutes) || minutes < 0 || minutes > 59) {
+        timerFormErrorEl.textContent = 'Les minutes doivent être un entier entre 0 et 59.';
+        timerMinutesInput.focus();
+        return;
+      }
+      const seconds = Math.floor(Number(timerSecondsInput.value));
+      if (!Number.isFinite(seconds) || seconds < 0 || seconds > 59) {
+        timerFormErrorEl.textContent = 'Les secondes doivent être un entier entre 0 et 59.';
+        timerSecondsInput.focus();
+        return;
+      }
+      // Same "duration must add up to something positive" guarantee
+      // relative_duration_hours' own `check (> 0)` gave alone before this
+      // feature -- now enforced across all three fields combined, since any
+      // one of them alone is allowed to be zero (e.g. "0h 5m 0s").
+      if (hours === 0 && minutes === 0 && seconds === 0) {
+        timerFormErrorEl.textContent = 'La durée doit être supérieure à zéro.';
         timerHoursInput.focus();
         return;
       }
       patch.relative_duration_hours = hours;
+      patch.relative_duration_minutes = minutes;
+      patch.relative_duration_seconds = seconds;
     } else {
       if (!timerDateInput.value) {
         timerFormErrorEl.textContent = 'Merci de choisir une date de fin.';

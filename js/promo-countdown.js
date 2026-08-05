@@ -20,7 +20,8 @@
    Two modes (site_config.timer_mode):
      'relative'   -- same behavior as before this feature: every visitor's
                      own page load starts a fresh countdown,
-                     relative_duration_hours long, no persistence.
+                     relative_duration_hours/minutes/seconds long combined,
+                     no persistence.
      'fixed_date' -- counts down to site_config.fixed_end_date, identical
                      for every visitor, does not reset on refresh. If that
                      date has already passed, every subscriber is told to
@@ -170,7 +171,7 @@
       if (!global.MonarkSupabase) throw new Error('Supabase client not ready');
       const { data, error } = await global.MonarkSupabase
         .from('site_config')
-        .select('timer_mode, relative_duration_hours, fixed_end_date')
+        .select('timer_mode, relative_duration_hours, relative_duration_minutes, relative_duration_seconds, fixed_end_date')
         .limit(1)
         .maybeSingle();
       if (error) throw error;
@@ -186,9 +187,19 @@
         return;
       }
 
-      const hours = Number(data.relative_duration_hours);
-      const effectiveHours = Number.isFinite(hours) && hours > 0 ? hours : FALLBACK_HOURS;
-      resolveConfig({ hidden: false, targetTime: Date.now() + effectiveHours * 3600 * 1000 });
+      // Sum of all three fields (admin.html's Timer tab now shows hours,
+      // minutes, and seconds separately -- see that file's own relative-mode
+      // fields) -- falls back to the old flat FALLBACK_HOURS default only if
+      // the combined duration comes out non-positive (all three zero,
+      // missing, or non-numeric), same "never let a bad/missing config
+      // value silently zero out the countdown" guarantee this fallback
+      // already gave for hours alone before this.
+      const hours = Number(data.relative_duration_hours) || 0;
+      const minutes = Number(data.relative_duration_minutes) || 0;
+      const seconds = Number(data.relative_duration_seconds) || 0;
+      const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+      const effectiveSeconds = totalSeconds > 0 ? totalSeconds : FALLBACK_HOURS * 3600;
+      resolveConfig({ hidden: false, targetTime: Date.now() + effectiveSeconds * 1000 });
     } catch (err) {
       console.error('promo-countdown.js: site_config lookup failed, falling back to default relative countdown:', err && err.message);
       resolveConfig({ hidden: false, targetTime: Date.now() + FALLBACK_HOURS * 3600 * 1000 });
