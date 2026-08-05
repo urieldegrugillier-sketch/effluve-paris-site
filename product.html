@@ -353,6 +353,7 @@
     </div>
     <form class="email-popup-form shop-newsletter-form" id="shop-newsletter-form" novalidate>
       <input type="email" class="email-popup-input" id="shop-newsletter-input" placeholder="you@email.com" required aria-label="Email address" data-i18n-attr="placeholder:emailPopup.emailPlaceholder;aria-label:emailPopup.emailAriaLabel">
+      <input type="text" class="email-popup-honeypot" id="shop-newsletter-honeypot" name="hp_email_confirm" tabindex="-1" autocomplete="off" aria-hidden="true">
       <p class="email-popup-consent" data-i18n="emailPopup.consent">By submitting, you agree to receive marketing emails from Effluve Paris.</p>
       <p class="promo-message promo-message-error" id="shop-newsletter-error" aria-live="polite" hidden></p>
       <button type="submit" class="cta-button email-popup-submit" data-i18n="product.newsletter.submit">Subscribe</button>
@@ -1305,6 +1306,7 @@
   if (!form || !inner || !window.MonarkEmailCapture) return;
 
   const input = document.getElementById('shop-newsletter-input');
+  const honeypot = document.getElementById('shop-newsletter-honeypot');
   const errorEl = document.getElementById('shop-newsletter-error');
   let confirmedLangListener = null;
 
@@ -1318,7 +1320,10 @@
       return;
     }
     errorEl.hidden = true;
-    window.MonarkEmailCapture.captureEmail(email, 'newsletter_section');
+    // honeypot non-empty -- see .email-popup-honeypot's own CSS comment
+    // (css/style.css) -- still shows the normal confirmation below, just
+    // skips the real insert (captureEmail's own honeypotValue check).
+    window.MonarkEmailCapture.captureEmail(email, 'newsletter_section', honeypot.value);
 
     // Same renderConfirmed-on-language-change pattern as js/email-popup.js's
     // own confirmation state, for the same reason: a language switch (nav

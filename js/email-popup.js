@@ -238,6 +238,15 @@
   // newsletter section ('newsletter_section', set by that page's own
   // handler) -- both call this exact same function.
   //
+  // `honeypotValue` is whatever .email-popup-honeypot held at submit time --
+  // always empty for a real visitor (it's positioned off-screen, out of the
+  // tab order, and hidden from assistive tech, so nobody legitimately reaches
+  // it), non-empty only when something filled in every field on the form
+  // without rendering CSS, i.e. a bot. Checked first, before even the
+  // Supabase-loaded check below, so a bot gets the exact same silent
+  // no-op/success path regardless of anything else about the page state --
+  // never tipped off that it was caught.
+  //
   // DISMISS_KEY is set synchronously, before the network call, same timing
   // as the old localStorage-only version -- the "don't show this popup
   // again" behavior doesn't need to wait on (or depend on the outcome of)
@@ -248,8 +257,9 @@
   // same as before real persistence existed; this resolves in the
   // background rather than making the user wait on a network round trip for
   // what's already a purely cosmetic "thanks!" message.
-  async function captureEmail(email, source) {
+  async function captureEmail(email, source, honeypotValue) {
     localStorage.setItem(DISMISS_KEY, 'true');
+    if (honeypotValue) return; // bot -- pretend success, never touch Supabase
     if (!window.MonarkSupabase) return; // graceful no-op if the client script failed to load -- never blocks the UI over this
     const language = window.MonarkI18n ? window.MonarkI18n.getLang() : 'fr';
     const { error } = await window.MonarkSupabase.from('newsletter_subscribers').insert({ email, source, language });
@@ -355,6 +365,7 @@
           <p class="email-popup-urgency"></p>
           <form class="email-popup-form" novalidate>
             <input type="email" class="email-popup-input" placeholder="you@email.com" required aria-label="Email address" data-i18n-attr="placeholder:emailPopup.emailPlaceholder;aria-label:emailPopup.emailAriaLabel">
+            <input type="text" class="email-popup-honeypot" name="hp_email_confirm" tabindex="-1" autocomplete="off" aria-hidden="true">
             <p class="email-popup-consent" data-i18n="emailPopup.consent">By submitting, you agree to receive marketing emails from Effluve Paris.</p>
             <p class="promo-message promo-message-error email-popup-error" aria-live="polite" hidden></p>
             <button type="submit" class="cta-button email-popup-submit" data-i18n="emailPopup.submit">Claim My 10%</button>
@@ -433,11 +444,11 @@
     overlay.addEventListener('click', (e) => { if (e.target === overlay) dismiss(); });
     document.addEventListener('keydown', onKeydown);
 
-    // SECURITY (placeholder, once a real ESP integration exists): a real
-    // table now backs this (public.newsletter_subscribers), but nothing
-    // guards the insert itself against bot submissions -- add a honeypot
-    // field (hidden input real users never fill in; silently drop the
-    // submission if it's non-empty) and rate-limit submissions per IP/
+    // SECURITY (placeholder, once a real ESP integration exists): the
+    // honeypot field just below catches simple bots that blindly fill in
+    // every field on a form, but a targeted bot that actually parses the
+    // markup (sees .email-popup-honeypot is off-screen and skips it) isn't
+    // stopped by this alone -- still worth rate-limiting submissions per IP/
     // session server-side (e.g. via an Edge Function in front of the insert,
     // same shape as supabase/functions/validate-promo-code) before this
     // table's row count is something anyone relies on being clean. See
@@ -445,6 +456,7 @@
     overlay.querySelector('.email-popup-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const input = overlay.querySelector('.email-popup-input');
+      const honeypot = overlay.querySelector('.email-popup-honeypot');
       const errorEl = overlay.querySelector('.email-popup-error');
       const email = input.value.trim();
       const result = validateEmail(email);
@@ -454,7 +466,7 @@
         return;
       }
       errorEl.hidden = true;
-      captureEmail(email, 'popup');
+      captureEmail(email, 'popup', honeypot.value);
 
       // renderConfirmed (not a one-off template) so a language switch while
       // this state is still showing (via the nav menu's FR/EN toggle) can

@@ -2671,6 +2671,24 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    centered under the input/button like everywhere else this form appears. */
 .email-popup-form { display: flex; flex-direction: column; gap: 0.9rem; text-align: center; }
 
+/* Honeypot: present in the DOM and visually blank like a real field to any
+   bot that doesn't render CSS, but off-screen (not display:none/
+   visibility:hidden -- some bots specifically skip fields hidden that way)
+   and out of the tab order/AX tree for real visitors. A real user can never
+   see or reach it, so it should always submit empty; js/email-popup.js and
+   product.html's own submit handler both treat any non-empty value here as
+   a bot and skip the actual Supabase insert while still showing the normal
+   success confirmation. Shared by .email-popup-form (the popup) and
+   product.html's newsletter form, same as every other .email-popup-*
+   class already reused across both. */
+.email-popup-honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 /* .promo-message's own margin-top (see css/style.css's shared form-feedback
    section above) would stack with this flex container's own gap, spacing the
    error further from the input than intended -- zeroed out here, same as
