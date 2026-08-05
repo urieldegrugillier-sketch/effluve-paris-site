@@ -89,6 +89,18 @@
     const { AutocompleteSessionToken, AutocompleteSuggestion } = placesLib;
     const form = input.closest('form') || document;
 
+    // Flags checkout.html's/account.html's own submit-time "did you actually
+    // pick a suggestion" nudge (see their own validateShippingForm()/
+    // addressForm submit handler) reads before deciding whether that gate
+    // even applies to this field at all -- Places genuinely never loaded for
+    // a visitor otherwise (revoked key, wrong API enabled, referrer
+    // mismatch, offline), and requiring a selection from a list that was
+    // never there to pick from would just be a bug, not a nudge. Set once,
+    // right here, the moment enhance() actually gets this far (i.e. the
+    // library resolved) -- never unset for the lifetime of the page, unlike
+    // placesSelected below which toggles per keystroke/selection.
+    input.dataset.placesEnhanced = 'true';
+
     // Suggestions render as a positioned panel below the input, same visual
     // convention as this page's other dropdown (.phone-country-panel, see
     // js/phone-input.js) -- anchored to .checkout-field so it isn't clipped
@@ -323,6 +335,14 @@
       } else {
         delete input.dataset.placesCountry;
       }
+      // Marks the CURRENT input value as one actually picked from this
+      // panel, not free-typed -- read by checkout.html's/account.html's own
+      // submit-time nudge (see placesEnhanced's own comment above) to decide
+      // whether to require a selection at all. Cleared the instant the user
+      // edits the address by hand again (see the 'input' listener below),
+      // same lifetime as placesCountry just above, since both describe
+      // properties of this exact selection that a hand-edit invalidates.
+      input.dataset.placesSelected = 'true';
       // Auto-syncs the Country <select> to match the selected address's
       // real country -- same spirit as the postal-code-driven autofill sync
       // just below in checkout.html's own inline script, but triggered by
@@ -341,8 +361,12 @@
       if (suppressNextInputEvent) { suppressNextInputEvent = false; return; }
       // Real user edit -- whatever country a previous selection resolved to
       // no longer describes the (now different) address text, so it can't
-      // be cross-checked against at submit time anymore either.
+      // be cross-checked against at submit time anymore either. Same for
+      // placesSelected -- this value is no longer the one that was picked
+      // from the list, so the submit-time nudge should treat it as
+      // free-typed again.
       delete input.dataset.placesCountry;
+      delete input.dataset.placesSelected;
       clearTimeout(debounceTimer);
       const query = input.value.trim();
       if (!query) { closePanel(); return; }

@@ -212,7 +212,14 @@
         placesSuggestionsLabel: 'Suggestions',
         errorNameFormat: 'Please use only letters, spaces, hyphens, and apostrophes (max 50 characters).',
         errorCityFormat: 'Please use only letters, spaces, hyphens, apostrophes, and periods (max 100 characters).',
-        errorAddressFormat: 'Please use only letters, numbers, spaces, and basic punctuation (- \' . ,), max 150 characters.'
+        errorAddressFormat: 'Please use only letters, numbers, spaces, and basic punctuation (- \' . ,), max 150 characters.',
+        // Shown when the Address field has a non-empty, format-valid value
+        // that was never actually picked from the Google Places suggestions
+        // list (see js/places-autocomplete.js's own placesSelected/
+        // placesEnhanced dataset flags) -- the embedded button activates
+        // manual entry for that field for the rest of this visit, same
+        // data-i18n-html embedded-markup pattern as checkout.emptyCartNote.
+        addressSelectNudge: 'Please select an address from the list, or <button type="button" class="checkout-address-manual-link">click here</button> if yours doesn\'t appear.'
       },
       product: {
         carouselAriaLabel: 'MONARK bottle image carousel',
@@ -779,7 +786,8 @@
         placesSuggestionsLabel: 'Adresses suggérées',
         errorNameFormat: "Veuillez utiliser uniquement des lettres, espaces, tirets et apostrophes (50 caractères maximum).",
         errorCityFormat: "Veuillez utiliser uniquement des lettres, espaces, tirets, apostrophes et points (100 caractères maximum).",
-        errorAddressFormat: "Veuillez utiliser uniquement des lettres, chiffres, espaces et une ponctuation simple (- ' . ,), 150 caractères maximum."
+        errorAddressFormat: "Veuillez utiliser uniquement des lettres, chiffres, espaces et une ponctuation simple (- ' . ,), 150 caractères maximum.",
+        addressSelectNudge: "Sélectionnez une adresse dans la liste, ou <button type=\"button\" class=\"checkout-address-manual-link\">cliquez ici</button> si votre adresse n'apparaît pas."
       },
       product: {
         carouselAriaLabel: "Carrousel d'images du flacon MONARK",

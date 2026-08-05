@@ -304,6 +304,19 @@
                          neighbor is what's different this time). -->
                     <input type="text" name="address" autocomplete="street-address" maxlength="150" required>
                     <p class="promo-message promo-message-error" id="checkout-error-address" data-i18n="checkout.errorAddress" aria-live="polite" hidden>Please enter your address.</p>
+                    <!-- Nudge toward picking an actual Google Places
+                         suggestion instead of free-typed text -- only ever
+                         shown by validateShippingForm() below when the field
+                         has a real, format-valid value that was never
+                         selected from the panel (js/places-autocomplete.js's
+                         own placesSelected/placesEnhanced dataset flags),
+                         and only while Places actually loaded for this
+                         visitor at all (never blocks the degraded/no-API-key
+                         path). The embedded button (data-i18n-html, same
+                         pattern as checkout.emptyCartNote) activates manual
+                         entry for this field for the rest of the visit --
+                         see checkoutAddressManualOverride below. -->
+                    <p class="promo-message promo-message-error" id="checkout-address-select-nudge" data-i18n-html="common.addressSelectNudge" aria-live="polite" hidden></p>
                   </label>
                   <label class="checkout-field">
                     <span data-i18n="checkout.addressLine2">Building, floor, access code… (optional)</span>
@@ -864,6 +877,27 @@
   const postalInput = form.querySelector('[name="postal"]');
   const postalError = document.getElementById('checkout-error-postal');
   const addressInput = form.querySelector('[name="address"]');
+  const addressError = document.getElementById('checkout-error-address');
+  const addressSelectNudge = document.getElementById('checkout-address-select-nudge');
+  // True once the "click here" link inside addressSelectNudge has been used
+  // -- the whole point of that escape hatch is a real address Google Places
+  // just doesn't have, so re-showing the same nudge on every later Next Step
+  // click for the rest of this visit would defeat it. Page-lifetime only
+  // (a plain variable, not localStorage) -- "same visit," per spec, not
+  // "remembered forever"; a fresh page load starts clean like every other
+  // in-memory form state on this page.
+  let addressManualOverride = false;
+  addressSelectNudge.addEventListener('click', (e) => {
+    if (!e.target.closest('.checkout-address-manual-link')) return;
+    addressManualOverride = true;
+    addressSelectNudge.hidden = true;
+  });
+  // Retyping the address invalidates any prior selection (see
+  // js/places-autocomplete.js's own 'input' listener clearing
+  // placesSelected) -- hide a stale nudge from a previous submit attempt
+  // rather than leaving it displayed against text that's since changed;
+  // validateShippingForm() below decides fresh whether to show it again.
+  addressInput.addEventListener('input', () => { addressSelectNudge.hidden = true; });
   countryInput.addEventListener('change', () => {
     countryError.hidden = true;
     // Previously-entered postal code may no longer match the new country's
@@ -937,6 +971,27 @@
         error.hidden = true;
       }
     });
+    // Nudges toward picking an actual Places suggestion instead of
+    // free-typed text -- only applies when: Places actually loaded for this
+    // visitor at all (placesEnhanced -- never blocks the degraded/no-API-key
+    // path, see that flag's own comment in js/places-autocomplete.js), the
+    // field currently holds a real, format-valid value (addressError.hidden
+    // true, set by the block just above -- an empty or malformed value
+    // already has its own message, stacking this one on top would just be
+    // confusing/redundant), the current value wasn't the one just selected
+    // (placesSelected), and the user hasn't already used the "click
+    // here"/manual-entry escape hatch this visit (addressManualOverride).
+    if (
+      addressInput.dataset.placesEnhanced === 'true' &&
+      addressError.hidden &&
+      addressInput.dataset.placesSelected !== 'true' &&
+      !addressManualOverride
+    ) {
+      addressSelectNudge.hidden = false;
+      if (!firstInvalid) firstInvalid = addressInput;
+    } else {
+      addressSelectNudge.hidden = true;
+    }
     // js/places-autocomplete.js stamps data-places-country on the Address
     // input with the ISO country code (FR/BE/...) of whichever suggestion
     // was last actually selected there, clearing it again the instant the

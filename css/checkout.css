@@ -595,6 +595,29 @@
   .checkout-support-link:hover { color: var(--text-on-dark); }
 }
 
+/* Embedded mid-sentence inside common.addressSelectNudge (js/i18n.js, via
+   data-i18n-html -- see checkout.html's/account.html's own markup), same
+   "only the actionable word itself styled as a link" spirit as
+   .checkout-support-link just above, but reset for a <button> (this
+   triggers JS -- activating manual address entry -- not real navigation)
+   rather than an <a>. Bronze/underlined so it visually stands out against
+   the rust .promo-message-error sentence it sits inside, same contrast
+   .checkout-support-link gets against its own muted .checkout-support-note. */
+.checkout-address-manual-link {
+  display: inline;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: var(--accent-bronze-light);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .checkout-address-manual-link:hover { color: var(--text-on-dark); }
+}
+
 .checkout-summary-discount { color: var(--accent-bronze-light); }
 
 /* Live countdown note tucked under the "Limited-Time Offer" line (see

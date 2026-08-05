@@ -157,6 +157,12 @@
                touched this field itself. -->
           <input type="text" name="address" autocomplete="street-address" maxlength="150">
           <p class="promo-message promo-message-error" id="account-address-address-error" aria-live="polite" hidden></p>
+          <!-- Same "require an actual Places selection, with a manual-entry
+               escape hatch" nudge as checkout.html's own copy of this field
+               -- see that page's own markup comment for the full reasoning,
+               and js/places-autocomplete.js's placesSelected/placesEnhanced
+               dataset flags this reads. -->
+          <p class="promo-message promo-message-error" id="account-address-select-nudge" data-i18n-html="common.addressSelectNudge" aria-live="polite" hidden></p>
         </label>
         <label class="checkout-field">
           <span data-i18n="account.addressLine2Label">Building, floor, access code…</span>
@@ -347,6 +353,21 @@
   const addressForm = document.getElementById('account-address-form');
   const addressInput = addressForm.querySelector('[name="address"]');
   const addressFieldError = document.getElementById('account-address-address-error');
+  const addressSelectNudge = document.getElementById('account-address-select-nudge');
+  // Same page-lifetime-only "click here" escape hatch as checkout.html's own
+  // copy of this field -- see that page's own comment on why this isn't
+  // localStorage (it's "same visit," per spec, not "remembered forever").
+  let addressManualOverride = false;
+  addressSelectNudge.addEventListener('click', (e) => {
+    if (!e.target.closest('.checkout-address-manual-link')) return;
+    addressManualOverride = true;
+    addressSelectNudge.hidden = true;
+  });
+  // Retyping invalidates any prior selection (js/places-autocomplete.js's
+  // own 'input' listener clears placesSelected) -- hide a stale nudge from a
+  // previous submit attempt rather than leaving it displayed against text
+  // that's since changed; the submit handler below decides fresh each time.
+  addressInput.addEventListener('input', () => { addressSelectNudge.hidden = true; });
   // Renamed from address2Input/name="address2" -- see that field's own
   // markup comment (Chrome autofill heuristic fix).
   const extraDetailsInput = addressForm.querySelector('[name="extraDetails"]');
@@ -656,6 +677,24 @@
       return;
     }
     addressFieldError.hidden = true;
+
+    // Same "require an actual Places selection, with a manual-entry escape
+    // hatch" nudge as checkout.html's own Shipping form -- see that page's
+    // own validateShippingForm() comment for the full reasoning. Only
+    // applies when there's a real value to check at all (addressVal, unlike
+    // checkout.html this field is optional) and Places actually loaded for
+    // this visitor (placesEnhanced).
+    if (
+      addressVal &&
+      addressInput.dataset.placesEnhanced === 'true' &&
+      addressInput.dataset.placesSelected !== 'true' &&
+      !addressManualOverride
+    ) {
+      addressSelectNudge.hidden = false;
+      addressInput.focus();
+      return;
+    }
+    addressSelectNudge.hidden = true;
 
     const cityVal = cityInput.value.trim();
     if (cityVal && window.MonarkValidateCity && !window.MonarkValidateCity(cityVal)) {
