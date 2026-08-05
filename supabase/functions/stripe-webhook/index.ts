@@ -241,7 +241,9 @@ async function reconcileOrder(
     // Order status is now durably 'paid' regardless of what happens below --
     // sendConfirmationEmail() never throws, so a Resend outage/misconfig
     // can't turn this into a 500 that makes Stripe retry an already-settled
-    // reconciliation.
+    // reconciliation. incrementPromoCodeUsage() carries the same never-throw
+    // guarantee for the same reason -- see that function's own comment.
+    await incrementPromoCodeUsage(supabaseAdmin, metadata.promo_code || "");
     await sendOrderConfirmation(supabaseAdmin, metadata, existing.id, {
       referenceNumber,
       productName: existing.product_name,
@@ -313,6 +315,7 @@ async function reconcileOrder(
   }
 
   if (inserted) {
+    await incrementPromoCodeUsage(supabaseAdmin, metadata.promo_code || "");
     await sendOrderConfirmation(supabaseAdmin, metadata, inserted.id, {
       referenceNumber,
       productName,
@@ -352,6 +355,7 @@ async function reconcileOrder(
           ...(raceLanguage ? { language: raceLanguage } : {}),
         });
       }
+      await incrementPromoCodeUsage(supabaseAdmin, metadata.promo_code || "");
       await sendOrderConfirmation(supabaseAdmin, metadata, raceWinner.id, {
         referenceNumber: finalReference,
         productName: raceWinner.product_name,
@@ -366,6 +370,38 @@ async function reconcileOrder(
   }
   if (insertError) throw insertError;
   throw new Error("stripe-webhook: exhausted reference number retries during order insert");
+}
+
+// BUG FIX: promo_codes.times_used was never incremented anywhere (see
+// 20260729120000_add_promo_codes_table.sql's own comment flagging this as a
+// known gap at the time -- this webhook is the order-completion hook that
+// comment said didn't exist yet). Called from the same three call sites as
+// sendOrderConfirmation() below, each of which only runs the FIRST time a
+// given order turns 'paid' (existing.status === "paid" short-circuits
+// earlier for a redelivered webhook event, see reconcileOrder()'s own
+// comment) -- so this increments exactly once per paid order, never on a
+// Stripe retry. promo_code is read straight off the PaymentIntent's own
+// metadata (create-checkout-session only ever sets it to a non-empty value
+// once ITS OWN server-side validation approved the code for the actual
+// charge, see that function's own comment) -- no need to re-validate
+// active/expires_at/max_uses again here, and no reason to: the charge this
+// order paid already reflects that code's discount, so counting it as "used"
+// is correct regardless of whether the code has since been deactivated or
+// expired. The increment itself is done by a SECURITY DEFINER SQL function
+// (public.increment_promo_code_usage, see its own migration) rather than a
+// read-then-write from here, so two orders redeeming the same code near-
+// simultaneously can't race each other into under-counting. Never throws --
+// same reasoning as sendConfirmationEmail() below: a promo-counter glitch
+// must never turn an already-settled 'paid' order into a Stripe-retried 500.
+async function incrementPromoCodeUsage(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  promoCode: string,
+) {
+  if (!promoCode) return; // no promo code applied to this order -- nothing to count
+  const { error } = await supabaseAdmin.rpc("increment_promo_code_usage", { p_code: promoCode });
+  if (error) {
+    console.error("stripe-webhook: failed to increment promo_codes.times_used for", promoCode, ":", error.message);
+  }
 }
 
 // ============================================================================

@@ -4,11 +4,11 @@
 
    Structured for extension: the tab bar (.admin-tabs/.admin-tab) and panel
    switching (.admin-panel/[data-tab-panel]) are generic -- a future admin
-   section (stock, promo timer, promo codes) adds its own
-   <button data-tab="x"> + <section data-tab-panel="x"> pair and gets the
-   same show/hide behavior for free, no changes needed here. Only one real
-   tab exists today (orders/shipping) -- no placeholder tabs for
-   not-yet-built sections, per this round's own scope. */
+   section (stock, promo timer) adds its own <button data-tab="x"> +
+   <section data-tab-panel="x"> pair and gets the same show/hide behavior
+   for free, no changes needed here. Two real tabs exist today
+   (orders/shipping, promo codes) -- no placeholder tabs for not-yet-built
+   sections, per this round's own scope. */
 
 #admin-auth-gate {
   min-height: 100vh;
@@ -112,7 +112,8 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
   color: var(--text-muted);
 }
 
-.admin-orders-table {
+.admin-orders-table,
+.admin-promo-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
@@ -127,7 +128,9 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
 }
 
 .admin-orders-table th,
-.admin-orders-table td {
+.admin-orders-table td,
+.admin-promo-table th,
+.admin-promo-table td {
   text-align: left;
   padding: 0.75rem 0.6rem;
   border-bottom: 1px solid var(--line);
@@ -135,7 +138,8 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
   overflow-wrap: break-word;
 }
 
-.admin-orders-table th {
+.admin-orders-table th,
+.admin-promo-table th {
   font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.06em;
@@ -150,6 +154,13 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
 .admin-orders-table th:nth-child(5), .admin-orders-table td:nth-child(5) { width: 10%; }  /* Statut */
 .admin-orders-table th:nth-child(6), .admin-orders-table td:nth-child(6) { width: 13%; }  /* Suivi */
 .admin-orders-table th:nth-child(7), .admin-orders-table td:nth-child(7) { width: 15%; }  /* Action */
+
+.admin-promo-table th:nth-child(1), .admin-promo-table td:nth-child(1) { width: 16%; }  /* Code */
+.admin-promo-table th:nth-child(2), .admin-promo-table td:nth-child(2) { width: 14%; }  /* Réduction */
+.admin-promo-table th:nth-child(3), .admin-promo-table td:nth-child(3) { width: 14%; }  /* Statut */
+.admin-promo-table th:nth-child(4), .admin-promo-table td:nth-child(4) { width: 16%; }  /* Utilisations */
+.admin-promo-table th:nth-child(5), .admin-promo-table td:nth-child(5) { width: 22%; }  /* Expire le */
+.admin-promo-table th:nth-child(6), .admin-promo-table td:nth-child(6) { width: 18%; }  /* Action */
 
 .admin-order-row-shipped { opacity: 0.55; }
 
@@ -182,6 +193,9 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
 
 .admin-status-pending { color: var(--accent-bronze-light); border: 1px solid var(--accent-bronze-light); }
 .admin-status-shipped { color: var(--text-muted); border: 1px solid var(--line); }
+
+.admin-status-active { color: var(--accent-bronze-light); border: 1px solid var(--accent-bronze-light); }
+.admin-status-inactive { color: var(--text-muted); border: 1px solid var(--line); }
 
 .admin-ship-btn {
   background: none;
@@ -269,6 +283,29 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
 
 .admin-modal-content input:focus-visible { outline: 1px solid var(--accent-bronze-light); }
 
+/* Checkbox fields (e.g. promo "Actif") don't fit the plain text-input rules
+   above (full-width, background fill, uppercase mono label stacked on top)
+   -- this pairs the checkbox and its label on one row instead, at higher
+   specificity than the generic `.admin-modal-content label`/`input` rules so
+   it actually overrides their block/uppercase/full-width defaults rather
+   than just adding to them. */
+.admin-modal-content label.admin-modal-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-transform: none;
+  letter-spacing: normal;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--text-on-dark);
+  cursor: pointer;
+}
+
+.admin-modal-content input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
 .admin-modal-error {
   color: #d88f7c;
   font-size: 0.78rem;
@@ -289,29 +326,31 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
   color: var(--text-muted);
 }
 
-#admin-ship-confirm { border-color: var(--accent-bronze-light); color: var(--accent-bronze-light); }
-#admin-ship-confirm:hover { background: var(--accent-bronze-light); color: var(--bg-void); }
-#admin-ship-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+#admin-ship-confirm, #admin-promo-confirm { border-color: var(--accent-bronze-light); color: var(--accent-bronze-light); }
+#admin-ship-confirm:hover, #admin-promo-confirm:hover { background: var(--accent-bronze-light); color: var(--bg-void); }
+#admin-ship-confirm:disabled, #admin-promo-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ---------------- Narrow widths: card-style rows instead of a table ---------------- */
 @media (max-width: 700px) {
   .admin-header { padding: 1.2rem; }
   main.admin-main { padding: 1.2rem; }
 
-  .admin-orders-table thead { display: none; }
+  .admin-orders-table thead, .admin-promo-table thead { display: none; }
   /* !important on width only -- the desktop `td:nth-child(n) { width: X% }`
      rules above are MORE specific (a pseudo-class beats plain `td`) despite
      coming first in the file, so without this they'd keep winning even
      inside this media query and each "card" would stay pinned to its
      desktop percentage width instead of stacking full-width on mobile.
      display:block doesn't need it (nothing else sets display on these). */
-  .admin-orders-table, .admin-orders-table tbody, .admin-orders-table tr, .admin-orders-table td {
+  .admin-orders-table, .admin-orders-table tbody, .admin-orders-table tr, .admin-orders-table td,
+  .admin-promo-table, .admin-promo-table tbody, .admin-promo-table tr, .admin-promo-table td {
     display: block;
     width: 100% !important;
   }
-  .admin-orders-table tr { border-bottom: 1px solid var(--line); padding: 0.9rem 0; }
-  .admin-orders-table td { border: none; padding: 0.2rem 0; }
-  .admin-orders-table td[data-label]::before {
+  .admin-orders-table tr, .admin-promo-table tr { border-bottom: 1px solid var(--line); padding: 0.9rem 0; }
+  .admin-orders-table td, .admin-promo-table td { border: none; padding: 0.2rem 0; }
+  .admin-orders-table td[data-label]::before,
+  .admin-promo-table td[data-label]::before {
     content: attr(data-label);
     display: block;
     font-family: var(--font-mono);

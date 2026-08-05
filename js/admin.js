@@ -65,6 +65,7 @@
     initTabs();
     initLogout();
     initOrders();
+    initPromoCodes();
   }
 
   // ---------------- Tabs (generic -- see admin.html's own comment) ----------------
@@ -320,6 +321,210 @@
 
     closeShipModal();
     loadOrders();
+  });
+
+  // ---------------- Promo Codes tab ----------------
+  let promoCache = []; // last successful fetch, re-rendered from after every save (no diffing -- this table is small)
+
+  const promoLoadingEl = document.getElementById('admin-promo-loading');
+  const promoErrorEl = document.getElementById('admin-promo-error');
+  const promoEmptyEl = document.getElementById('admin-promo-empty');
+  const promoTableEl = document.getElementById('admin-promo-table');
+  const promoTbodyEl = document.getElementById('admin-promo-tbody');
+  const promoAddBtn = document.getElementById('admin-promo-add-btn');
+
+  function initPromoCodes() {
+    promoAddBtn.addEventListener('click', () => openPromoModal(null));
+    loadPromoCodes();
+  }
+
+  async function loadPromoCodes() {
+    promoLoadingEl.hidden = false;
+    promoErrorEl.hidden = true;
+    promoEmptyEl.hidden = true;
+    promoTableEl.hidden = true;
+
+    const { data: promos, error } = await client()
+      .from('promo_codes')
+      .select('id, code, discount_percent, active, max_uses, times_used, expires_at')
+      .order('created_at', { ascending: false });
+
+    promoLoadingEl.hidden = true;
+
+    if (error) {
+      promoErrorEl.hidden = false;
+      promoErrorEl.textContent = `Erreur lors du chargement des codes promo : ${error.message}`;
+      console.error('admin.js loadPromoCodes:', error.message);
+      return;
+    }
+
+    promoCache = promos;
+    renderPromoCodes();
+  }
+
+  // null max_uses = unlimited (see public.promo_codes' own column comment) --
+  // shown as a bare count rather than "X / illimité", same "don't show a
+  // fabricated ceiling" spirit as the rest of this tool.
+  function usageLabel(promo) {
+    return promo.max_uses === null ? `${promo.times_used}` : `${promo.times_used} / ${promo.max_uses}`;
+  }
+
+  function renderPromoCodes() {
+    if (!promoCache.length) {
+      promoTableEl.hidden = true;
+      promoEmptyEl.hidden = false;
+      promoTbodyEl.innerHTML = '';
+      return;
+    }
+
+    promoEmptyEl.hidden = true;
+    promoTableEl.hidden = false;
+    promoTbodyEl.innerHTML = promoCache.map((promo) => `
+        <tr data-promo-id="${promo.id}">
+          <td data-label="Code">${escapeHtml(promo.code)}</td>
+          <td data-label="Réduction">${promo.discount_percent}%</td>
+          <td data-label="Statut"><span class="admin-status-pill ${promo.active ? 'admin-status-active' : 'admin-status-inactive'}">${promo.active ? 'Actif' : 'Inactif'}</span></td>
+          <td data-label="Utilisations">${usageLabel(promo)}</td>
+          <td data-label="Expire le">${promo.expires_at ? formatDate(promo.expires_at) : '—'}</td>
+          <td data-label=""><button type="button" class="admin-ship-btn" data-edit-promo-id="${promo.id}">Modifier</button></td>
+        </tr>
+      `).join('');
+
+    promoTbodyEl.querySelectorAll('[data-edit-promo-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const promo = promoCache.find((p) => p.id === btn.getAttribute('data-edit-promo-id'));
+        if (promo) openPromoModal(promo);
+      });
+    });
+  }
+
+  // ---------------- Promo code create/edit modal ----------------
+  const promoModal = document.getElementById('admin-promo-modal');
+  const promoModalTitleEl = document.getElementById('admin-promo-modal-title');
+  const promoModalErrorEl = document.getElementById('admin-promo-modal-error');
+  const promoCodeInput = document.getElementById('admin-promo-code-input');
+  const promoDiscountInput = document.getElementById('admin-promo-discount-input');
+  const promoActiveInput = document.getElementById('admin-promo-active-input');
+  const promoMaxUsesInput = document.getElementById('admin-promo-maxuses-input');
+  const promoExpiresInput = document.getElementById('admin-promo-expires-input');
+  const promoConfirmBtn = document.getElementById('admin-promo-confirm');
+  const promoCancelBtn = document.getElementById('admin-promo-cancel');
+
+  let promoBeingEdited = null; // null = create mode
+
+  // timestamptz -> the local, no-timezone, no-seconds value <input
+  // type="datetime-local"> expects. Date's own getters below read in the
+  // browser's LOCAL time, same as the input displays/edits in, so this and
+  // the reverse conversion in the confirm handler below never shift the
+  // moment an admin actually sees or picks.
+  function toDatetimeLocalValue(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function openPromoModal(promo) {
+    promoBeingEdited = promo;
+    const editing = !!promo;
+    promoModalTitleEl.textContent = editing ? `Modifier ${promo.code}` : 'Nouveau code promo';
+    promoCodeInput.value = editing ? promo.code : '';
+    // Code is only ever set at creation -- see this feature's own migration
+    // comment on why renaming a live code isn't offered here (would silently
+    // invalidate whatever a customer already has applied at checkout).
+    promoCodeInput.readOnly = editing;
+    promoDiscountInput.value = editing ? promo.discount_percent : '';
+    promoActiveInput.checked = editing ? promo.active : true;
+    promoMaxUsesInput.value = editing && promo.max_uses !== null ? promo.max_uses : '';
+    promoExpiresInput.value = editing ? toDatetimeLocalValue(promo.expires_at) : '';
+    promoModalErrorEl.textContent = '';
+    promoModal.hidden = false;
+    promoCodeInput.focus();
+  }
+
+  function closePromoModal() {
+    promoModal.hidden = true;
+    promoBeingEdited = null;
+  }
+
+  promoCancelBtn.addEventListener('click', closePromoModal);
+  promoModal.addEventListener('click', (e) => { if (e.target === promoModal) closePromoModal(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !promoModal.hidden) closePromoModal();
+  });
+
+  promoConfirmBtn.addEventListener('click', async () => {
+    const editing = !!promoBeingEdited;
+    const code = promoCodeInput.value.trim().toUpperCase();
+    if (!editing && !code) {
+      promoModalErrorEl.textContent = 'Merci de renseigner un code.';
+      promoCodeInput.focus();
+      return;
+    }
+
+    // Same bounds as public.promo_codes' own check constraint
+    // (discount_percent > 0 and <= 100) -- mirrored here so a bad value is
+    // caught before the round-trip, not just rejected server-side.
+    const discountPercent = Number(promoDiscountInput.value);
+    if (!Number.isFinite(discountPercent) || discountPercent <= 0 || discountPercent > 100) {
+      promoModalErrorEl.textContent = 'La réduction doit être comprise entre 0 et 100 %.';
+      promoDiscountInput.focus();
+      return;
+    }
+
+    const maxUsesRaw = promoMaxUsesInput.value.trim();
+    let maxUses = null;
+    if (maxUsesRaw) {
+      maxUses = Math.floor(Number(maxUsesRaw));
+      if (!Number.isFinite(maxUses) || maxUses < 1) {
+        promoModalErrorEl.textContent = "Le nombre d'utilisations max doit être un entier positif (ou vide pour illimité).";
+        promoMaxUsesInput.focus();
+        return;
+      }
+    }
+
+    // datetime-local's own value has no timezone -- new Date() on it parses
+    // as the browser's LOCAL time, and toISOString() converts that to the
+    // UTC instant public.promo_codes.expires_at (timestamptz) actually
+    // stores, the same interpretation toDatetimeLocalValue() above uses in
+    // reverse.
+    const expiresRaw = promoExpiresInput.value;
+    const expiresAt = expiresRaw ? new Date(expiresRaw).toISOString() : null;
+
+    promoConfirmBtn.disabled = true;
+    promoModalErrorEl.textContent = '';
+
+    const patch = {
+      discount_percent: discountPercent,
+      active: promoActiveInput.checked,
+      max_uses: maxUses,
+      expires_at: expiresAt,
+    };
+
+    // Direct client insert/update (not routed through an Edge Function like
+    // mark-order-shipped) -- unlike that action, this one has no secret to
+    // protect and no server-side decision to make beyond what RLS +
+    // column-scoped grants already enforce (see this feature's own
+    // migration), so the extra round-trip through a function would add
+    // nothing.
+    const { error } = editing
+      ? await client().from('promo_codes').update(patch).eq('id', promoBeingEdited.id)
+      : await client().from('promo_codes').insert({ ...patch, code });
+
+    promoConfirmBtn.disabled = false;
+
+    if (error) {
+      // Postgres' own unique_violation on promo_codes.code -- surfaced as a
+      // plain-language message rather than the raw 23505/constraint name.
+      promoModalErrorEl.textContent = error.code === '23505'
+        ? 'Ce code existe déjà.'
+        : `Échec de l'enregistrement : ${error.message}`;
+      console.error('admin.js promo save:', error.message);
+      return;
+    }
+
+    closePromoModal();
+    loadPromoCodes();
   });
 
   checkAccessAndInit();

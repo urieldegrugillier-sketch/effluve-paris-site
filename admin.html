@@ -35,7 +35,8 @@
     <h1>Administration</h1>
     <nav class="admin-tabs" id="admin-tabs">
       <button type="button" class="admin-tab active" data-tab="orders">Commandes</button>
-      <!-- Future sections (stock, minuteur promo, codes promo) add their own
+      <button type="button" class="admin-tab" data-tab="promo">Codes Promo</button>
+      <!-- Future sections (stock, minuteur promo) add their own
            <button data-tab="..."> here + a matching
            <section data-tab-panel="..."> below -- js/admin.js's tab-switch
            logic is generic, nothing else to wire up. -->
@@ -73,6 +74,31 @@
         <tbody id="admin-orders-tbody"></tbody>
       </table>
     </section>
+
+    <section class="admin-panel" data-tab-panel="promo">
+      <h2>Codes Promo</h2>
+      <div class="admin-orders-toolbar">
+        <button type="button" class="admin-ship-btn" id="admin-promo-add-btn">+ Nouveau code</button>
+      </div>
+
+      <div id="admin-promo-loading" class="admin-loading-note">Chargement des codes promo…</div>
+      <div id="admin-promo-error" class="admin-error-note" hidden></div>
+      <div id="admin-promo-empty" class="admin-empty-note" hidden>Aucun code promo pour le moment.</div>
+
+      <table class="admin-orders-table admin-promo-table" id="admin-promo-table" hidden>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Réduction</th>
+            <th>Statut</th>
+            <th>Utilisations</th>
+            <th>Expire le</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="admin-promo-tbody"></tbody>
+      </table>
+    </section>
   </main>
 </div>
 
@@ -87,6 +113,36 @@
     <div class="admin-modal-actions">
       <button type="button" id="admin-ship-cancel">Annuler</button>
       <button type="button" id="admin-ship-confirm">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Promo code create/edit modal -->
+<div class="admin-modal" id="admin-promo-modal" role="dialog" aria-modal="true" aria-labelledby="admin-promo-modal-title" hidden>
+  <div class="admin-modal-content">
+    <h2 id="admin-promo-modal-title">Nouveau code promo</h2>
+
+    <label for="admin-promo-code-input">Code</label>
+    <input type="text" id="admin-promo-code-input" autocomplete="off" maxlength="40">
+
+    <label for="admin-promo-discount-input">Réduction (%)</label>
+    <input type="number" id="admin-promo-discount-input" min="0.01" max="100" step="0.01" inputmode="decimal">
+
+    <label class="admin-modal-checkbox-row" for="admin-promo-active-input">
+      <input type="checkbox" id="admin-promo-active-input">
+      <span>Actif</span>
+    </label>
+
+    <label for="admin-promo-maxuses-input">Utilisations max (vide = illimité)</label>
+    <input type="number" id="admin-promo-maxuses-input" min="1" step="1" inputmode="numeric" placeholder="Illimité">
+
+    <label for="admin-promo-expires-input">Expire le (vide = jamais)</label>
+    <input type="datetime-local" id="admin-promo-expires-input">
+
+    <p class="admin-modal-error" id="admin-promo-modal-error"></p>
+    <div class="admin-modal-actions">
+      <button type="button" id="admin-promo-cancel">Annuler</button>
+      <button type="button" id="admin-promo-confirm">Enregistrer</button>
     </div>
   </div>
 </div>
