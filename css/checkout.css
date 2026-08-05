@@ -887,20 +887,25 @@
 }
 .checkout-account-btn-secondary:active { background: var(--text-muted); color: var(--bg-void); }
 
-/* Solid bronze fill, not the outline default -- same bronze-light/bg-void
-   pair already established for .cta-button's own :hover/:active state
-   (css/style.css) and admin.css's .admin-status-active pill, reused here
-   as this one button's permanent (not just hover) look so it reads as a
-   primary action rather than a quiet outlined badge. ID-scoped (not a new
-   shared class) since this is the only button on the page that needs it,
-   same per-button-ID convention already used elsewhere on this page (e.g.
+/* Dark fill, bronze text/border -- inverse of the bronze-light/bg-void pair
+   used for .cta-button's own :hover/:active state (css/style.css) and
+   admin.css's .admin-status-active pill, so this reads as its own distinct
+   (still bronze-toned, still solid) primary action rather than literally
+   restating that hover look. ID-scoped (not a new shared class) since this
+   is the only button on the page that needs it, same per-button-ID
+   convention already used elsewhere on this page (e.g.
    #checkout-account-create-submit-btn). margin-top trimmed from the
-   inherited .checkout-account-btn-sm 1rem down to 0.4rem (the same value
-   already used for .checkout-account-options' own margin-top elsewhere in
-   this file) to sit closer under "Mon Compte" -- .checkout-title's own
-   margin-bottom is left alone since that rule is shared by every other
-   page's h1, not just this button's. */
-#account-admin-mode-btn { background: var(--accent-bronze-light); border-color: var(--accent-bronze-light); color: var(--bg-void); margin-top: 0.4rem; }
+   inherited .checkout-account-btn-sm 1rem down to 0.3rem to sit closer under
+   "Mon Compte"; paired with the .checkout-title override just below (that
+   h1's own margin-bottom is shared by every other page, so it's narrowed
+   only for this specific button via :has(), not touched globally). */
+#account-admin-mode-btn { background: var(--bg-void); border-color: var(--accent-bronze-light); color: var(--accent-bronze-light); margin-top: 0.3rem; }
+
+/* Scoped to only the "Mon Compte" heading immediately followed by the admin
+   button (account.html's only use of this adjacency) -- shrinks the gap
+   above that button specifically without affecting .checkout-title's
+   default 1.8rem margin-bottom on every other page's h1. */
+.checkout-title:has(+ #account-admin-mode-btn) { margin-bottom: 0.8rem; }
 
 /* Same treatment as .checkout-back-link (small mono uppercase, underlined,
    muted -> bronze on hover) but reset for use on a <button> instead of an
