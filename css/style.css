@@ -2577,6 +2577,20 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   color: var(--text-muted);
 }
 
+/* Same small-caps mono + bronze-accent "urgency" treatment already used for
+   the countdown note in checkout.html's own discount line
+   (.checkout-promo-countdown-note, css/checkout.css) -- reused here rather
+   than inventing a second scarcity-emphasis style, for the same kind of
+   (admin-set, not real-time) urgency copy. */
+.email-popup-urgency {
+  margin: 0 0 1.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-bronze-light);
+}
+
 /* text-align:center explicit here (not just inherited from .email-popup's
    own text-align:center) -- product.html's newsletter section (css/shop.css)
    reuses this exact class inside its own two-column desktop layout, whose
@@ -2638,6 +2652,7 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   .email-popup { padding: 2rem 1.4rem 1.8rem; }
   .email-popup-heading { font-size: 1.4rem; margin-bottom: 0.7rem; }
   .email-popup-copy { font-size: 0.85rem; margin-bottom: 1.3rem; line-height: 1.5; }
+  .email-popup-urgency { margin-bottom: 1.1rem; }
   .email-popup-kicker { margin-bottom: 0.7rem; }
   .email-popup-form { gap: 0.7rem; }
 }

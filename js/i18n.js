@@ -163,6 +163,12 @@
         kicker: 'A Small Concession',
         heading: 'Get 10% Off Your First Bottle',
         copy: "Join the list before we run out of bottles.",
+        // {count} -- js/email-popup.js's own site_config.promo_codes_remaining
+        // read (admin-set, not derived from real promo_codes usage -- see
+        // that migration's own comment). Can't be a plain data-i18n tag
+        // (needs the dynamic count interpolated), so this is resolved via
+        // t(key, {count}) in JS instead, same as confirmedHeading below.
+        promoCodesRemaining: 'Only {count} promo codes left at this price.',
         emailPlaceholder: 'you@email.com',
         emailAriaLabel: 'Email address',
         consent: 'By submitting, you agree to receive marketing emails from Effluve Paris.',
@@ -734,6 +740,7 @@
         kicker: 'Une Petite Concession',
         heading: '10% de Réduction sur Votre Premier Flacon',
         copy: "Inscrivez-vous avant qu'il n'y ait plus de flacons disponibles.",
+        promoCodesRemaining: 'Plus que {count} codes promo à ce tarif.',
         emailPlaceholder: 'vous@email.com',
         emailAriaLabel: 'Adresse e-mail',
         consent: "En soumettant ce formulaire, vous acceptez de recevoir des e-mails marketing d'Effluve Paris.",

@@ -570,7 +570,7 @@
   // Single-row settings, not a list -- no modal, just a persistent form
   // directly in the panel (see admin.html's own comment on why
   // .admin-modal-content is safe to reuse outside a .admin-modal overlay).
-  let timerConfigCache = null; // { id, timer_mode, relative_duration_hours, relative_duration_minutes, relative_duration_seconds, fixed_end_date }
+  let timerConfigCache = null; // { id, timer_mode, relative_duration_hours, relative_duration_minutes, relative_duration_seconds, fixed_end_date, promo_codes_remaining }
 
   const timerLoadingEl = document.getElementById('admin-timer-loading');
   const timerErrorEl = document.getElementById('admin-timer-error');
@@ -583,6 +583,8 @@
   const timerMinutesInput = document.getElementById('admin-timer-minutes-input');
   const timerSecondsInput = document.getElementById('admin-timer-seconds-input');
   const timerDateInput = document.getElementById('admin-timer-date-input');
+  // Independent of timer_mode -- see admin.html's own comment on this field.
+  const timerPromoCodesRemainingInput = document.getElementById('admin-timer-promo-codes-remaining-input');
   const timerFormErrorEl = document.getElementById('admin-timer-form-error');
   const timerFormSuccessEl = document.getElementById('admin-timer-form-success');
   const timerSaveBtn = document.getElementById('admin-timer-save');
@@ -601,7 +603,7 @@
 
     const { data, error } = await client()
       .from('site_config')
-      .select('id, timer_mode, relative_duration_hours, relative_duration_minutes, relative_duration_seconds, fixed_end_date')
+      .select('id, timer_mode, relative_duration_hours, relative_duration_minutes, relative_duration_seconds, fixed_end_date, promo_codes_remaining')
       .limit(1)
       .maybeSingle();
 
@@ -626,6 +628,7 @@
     // shared here rather than duplicated, same timestamptz <-> local
     // datetime-local conversion either field needs.
     timerDateInput.value = data.fixed_end_date ? toDatetimeLocalValue(data.fixed_end_date) : '';
+    timerPromoCodesRemainingInput.value = data.promo_codes_remaining;
     updateTimerModeFields();
     timerFormErrorEl.textContent = '';
     timerFormSuccessEl.hidden = true;
@@ -689,6 +692,16 @@
       // converts that to the UTC instant timestamptz actually stores.
       patch.fixed_end_date = new Date(timerDateInput.value).toISOString();
     }
+
+    // Independent of timer_mode above -- validated/saved regardless of
+    // which mode is selected (see admin.html's own comment on this field).
+    const promoCodesRemaining = Math.floor(Number(timerPromoCodesRemainingInput.value));
+    if (!Number.isFinite(promoCodesRemaining) || promoCodesRemaining < 0) {
+      timerFormErrorEl.textContent = 'Le nombre de codes promo restants doit être un entier positif ou nul.';
+      timerPromoCodesRemainingInput.focus();
+      return;
+    }
+    patch.promo_codes_remaining = promoCodesRemaining;
 
     timerSaveBtn.disabled = true;
 
