@@ -763,6 +763,39 @@
   // above, doesn't go through this event, hence the explicit call below.
   document.addEventListener('account:updated', syncLogoutBtn);
   syncLogoutBtn();
+
+  // admin.html's own "return to original destination after login" --
+  // unauthenticated/unauthorized visitors get sent here with
+  // ?redirect=admin.html (see that page's own js/admin.js redirectToLogin())
+  // so a successful login can send them straight back instead of leaving
+  // them stranded on this page needing a manual re-navigation. Fires on
+  // every 'account:updated' (not just a fresh sign-in -- see that event's
+  // own dispatch comment in js/account.js), which also covers the case
+  // where this tab already HAD a valid admin session the instant this page
+  // loaded (e.g. Supabase's own INITIAL_SESSION event resolving a tick
+  // after admin.html's redirect already landed here).
+  //
+  // Deliberately narrow and re-verified server-side: the query param alone
+  // proves nothing (anyone can type ?redirect=admin.html into the address
+  // bar), so this always re-checks profiles.is_admin for whoever is
+  // actually logged in before ever honoring it -- a non-admin session (or
+  // no session at all) just leaves this page exactly as it already was, no
+  // redirect, no error shown.
+  async function maybeRedirectToAdmin() {
+    if (new URLSearchParams(window.location.search).get('redirect') !== 'admin.html') return;
+    const session = account.getSession();
+    const userId = account.getCurrentUserId();
+    if (!session || session.isGuest || !userId || !window.MonarkSupabase) return;
+    const { data: profile, error } = await window.MonarkSupabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error || !profile || profile.is_admin !== true) return;
+    window.location.href = 'admin.html';
+  }
+  document.addEventListener('account:updated', maybeRedirectToAdmin);
+  maybeRedirectToAdmin();
 })();
 </script>
 <script src="js/promo-countdown.js?v=20260822"></script>

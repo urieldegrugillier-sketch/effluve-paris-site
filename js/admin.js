@@ -6,12 +6,13 @@
 
    AUTH: the check below (real session + profiles.is_admin === true) is only
    ever a UX convenience -- it decides whether this tab SHOWS the admin UI,
-   nothing more. The actual security boundary is server-side RLS (see
-   supabase/migrations/20260806000000_admin_shipping.sql): a non-admin whose
-   browser somehow reached this page and called the same update() below
-   would still get a Postgres permission error, because the policy (not this
-   file) is what Postgres actually enforces. Never assume this file is the
-   only thing standing between a non-admin and the data. */
+   nothing more. Two real server-side boundaries back it up: RLS on
+   public.orders (see supabase/migrations/20260806000000_admin_shipping.sql)
+   for reads, and supabase/functions/mark-order-shipped's own is_admin check
+   for the one write this page performs (routed through that function, not a
+   direct .update(), specifically so the Resend API key it needs never has
+   to reach this file -- see that function's own top comment). Never assume
+   this file is the only thing standing between a non-admin and the data. */
 (function () {
   function client() { return window.MonarkSupabase; }
 
@@ -19,8 +20,13 @@
   const app = document.getElementById('admin-app');
   const whoamiEl = document.getElementById('admin-whoami');
 
+  // Item 7 (post-login redirect): admin.html passes its own URL along so
+  // account.html knows where to send an admin back after they log in --
+  // see account.html's own inline script for the other half of this (which
+  // re-verifies is_admin server-side before ever honoring it, so this query
+  // param can't be used to bounce a non-admin anywhere it shouldn't go).
   function redirectToLogin() {
-    window.location.href = 'account.html';
+    window.location.href = 'account.html?redirect=admin.html';
   }
 
   async function checkAccessAndInit() {
@@ -157,8 +163,14 @@
     return '—';
   }
 
+  // DD/MM/YYYY HH:MM, always -- toLocaleDateString's own output shape isn't
+  // guaranteed stable across browsers/locales even when passed the same
+  // options, and this is an internal tool where a single unambiguous format
+  // matters more than any locale-awareness.
   function formatDate(iso) {
-    return new Date(iso).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' });
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
   function formatMoney(n) {
@@ -172,6 +184,17 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  // Item 4: Product column truncated by default (CSS text-overflow:ellipsis
+  // on .admin-product-truncated, see css/admin.css), click toggles a class
+  // that removes the truncation and lets it wrap in place -- simplest
+  // interaction that works identically with mouse or touch, no separate
+  // tooltip/popover component needed for what's genuinely a one-off internal
+  // tool.
+  function productCellHtml(order) {
+    const full = escapeHtml(`${order.product_name} × ${order.quantity} (${formatMoney(order.total)})`);
+    return `<span class="admin-product-truncated" title="Cliquer pour afficher en entier">${full}</span>`;
   }
 
   function renderOrders() {
@@ -191,15 +214,20 @@
     tableEl.hidden = false;
     tbodyEl.innerHTML = rows.map((order) => {
       const shipped = order.shipping_status === 'shipped';
+      // Shipped orders get an edit action too (not just pending ones) --
+      // item 3 needs a way to actually CORRECT a tracking number after the
+      // fact, which the previous round's "no button once shipped" design
+      // had no path to at all.
+      const actionLabel = shipped ? 'Modifier le suivi' : 'Marquer comme expédié';
       return `
         <tr class="${shipped ? 'admin-order-row-shipped' : ''}" data-order-id="${order.id}">
           <td data-label="Référence">${escapeHtml(order.reference_number || '—')}</td>
           <td data-label="Client">${escapeHtml(customerLabel(order))}</td>
-          <td data-label="Produit">${escapeHtml(order.product_name)} × ${order.quantity} (${formatMoney(order.total)})</td>
+          <td data-label="Produit">${productCellHtml(order)}</td>
           <td data-label="Date">${formatDate(order.created_at)}</td>
           <td data-label="Statut"><span class="admin-status-pill ${shipped ? 'admin-status-shipped' : 'admin-status-pending'}">${shipped ? 'Expédiée' : 'En attente'}</span></td>
           <td data-label="Suivi">${order.tracking_number ? `<span class="admin-tracking-value">${escapeHtml(order.tracking_number)}</span>` : '—'}</td>
-          <td data-label="">${shipped ? '' : `<button type="button" class="admin-ship-btn" data-ship-order-id="${order.id}">Marquer comme expédié</button>`}</td>
+          <td data-label=""><button type="button" class="admin-ship-btn" data-ship-order-id="${order.id}">${actionLabel}</button></td>
         </tr>
       `;
     }).join('');
@@ -210,10 +238,15 @@
         if (order) openShipModal(order);
       });
     });
+
+    tbodyEl.querySelectorAll('.admin-product-truncated').forEach((el) => {
+      el.addEventListener('click', () => el.classList.toggle('admin-product-expanded'));
+    });
   }
 
-  // ---------------- Mark-as-shipped modal ----------------
+  // ---------------- Mark-as-shipped / edit-tracking modal ----------------
   const modal = document.getElementById('admin-ship-modal');
+  const modalTitleEl = document.getElementById('admin-ship-modal-title');
   const modalRefEl = document.getElementById('admin-ship-modal-ref');
   const modalErrorEl = document.getElementById('admin-ship-modal-error');
   const trackingInput = document.getElementById('admin-tracking-input');
@@ -224,11 +257,22 @@
 
   function openShipModal(order) {
     orderBeingShipped = order;
-    modalRefEl.textContent = `Commande ${order.reference_number || order.id}`;
-    trackingInput.value = '';
+    const alreadyShipped = order.shipping_status === 'shipped';
+    modalTitleEl.textContent = alreadyShipped ? 'Modifier le numéro de suivi' : 'Marquer comme expédié';
+    modalRefEl.textContent = alreadyShipped
+      ? `Commande ${order.reference_number || order.id} -- déjà expédiée. Un nouveau numéro enverra un e-mail de correction au client (pas un second e-mail d'expédition).`
+      : `Commande ${order.reference_number || order.id}`;
+    // Pre-filled with the existing number when editing -- an admin
+    // correcting a typo shouldn't have to retype the whole thing, and
+    // leaving it blank would make it too easy to accidentally resubmit the
+    // exact same value expecting nothing to happen (it wouldn't send an
+    // email either way, see mark-order-shipped's own trackingChanged check,
+    // but a visibly pre-filled field is the clearer UI regardless).
+    trackingInput.value = alreadyShipped ? (order.tracking_number || '') : '';
     modalErrorEl.textContent = '';
     modal.hidden = false;
     trackingInput.focus();
+    trackingInput.select();
   }
 
   function closeShipModal() {
@@ -254,21 +298,23 @@
     shipConfirmBtn.disabled = true;
     modalErrorEl.textContent = '';
 
-    // RLS-gated update via the admin's own session (see this file's own
-    // top-of-file comment) -- not a service-role/Edge Function call. The
-    // column-scoped GRANT (shipping_status, tracking_number only) plus the
-    // "Admins can update shipping fields" policy are what actually make
-    // this succeed only for an is_admin account.
-    const { error } = await client()
-      .from('orders')
-      .update({ shipping_status: 'shipped', tracking_number: trackingNumber })
-      .eq('id', orderBeingShipped.id);
+    // Routed through the mark-order-shipped Edge Function, NOT a direct
+    // .from('orders').update() -- that function is also what decides
+    // "first-time shipment" vs. "correction" (by re-checking the order's
+    // CURRENT shipping_status/tracking_number server-side, not trusting
+    // whatever this tab happened to have cached) and sends the matching
+    // email. supabase-js's functions.invoke() attaches this admin's own
+    // current session as the Authorization header automatically -- that's
+    // what the function's own is_admin check runs against.
+    const { data, error } = await client().functions.invoke('mark-order-shipped', {
+      body: { orderId: orderBeingShipped.id, trackingNumber },
+    });
 
     shipConfirmBtn.disabled = false;
 
-    if (error) {
-      modalErrorEl.textContent = `Échec de la mise à jour : ${error.message}`;
-      console.error('admin.js ship update:', error.message);
+    if (error || !data || data.error) {
+      modalErrorEl.textContent = `Échec de la mise à jour : ${(data && data.error) || error.message}`;
+      console.error('admin.js ship update:', (data && data.error) || error.message);
       return;
     }
 

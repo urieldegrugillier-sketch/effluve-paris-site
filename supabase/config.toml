@@ -47,3 +47,15 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/stripe-webhook/deno.json"
 entrypoint = "./functions/stripe-webhook/index.ts"
+
+# admin.html's mark-as-shipped/correct-tracking action (js/admin.js). Unlike
+# every function above, verify_jwt = true HERE -- this is the one function
+# in this project that needs to know WHICH real, signed-in user is calling,
+# so a valid Supabase JWT is required at the platform gateway before this
+# code even runs (on top of the function's own is_admin check once it does
+# -- see that file's own top comment on why both layers exist).
+[functions.mark-order-shipped]
+enabled = true
+verify_jwt = true
+import_map = "./functions/mark-order-shipped/deno.json"
+entrypoint = "./functions/mark-order-shipped/index.ts"

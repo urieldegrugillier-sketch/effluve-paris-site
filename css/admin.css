@@ -116,6 +116,14 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
+  /* Fixed layout + explicit column widths below -- table-layout:auto let
+     the Produit column's own content dictate the whole table's width,
+     which is exactly what item 4's truncation is meant to prevent (auto
+     layout tends to widen a column to fit an ellipsis-truncated span's
+     *un*-truncated intrinsic content anyway). Widths themselves are sized
+     off a real name/product combination, not a worst-case guess -- see
+     that item's own verification notes. */
+  table-layout: fixed;
 }
 
 .admin-orders-table th,
@@ -124,6 +132,7 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
   padding: 0.75rem 0.6rem;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
+  overflow-wrap: break-word;
 }
 
 .admin-orders-table th {
@@ -134,7 +143,32 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
   color: var(--text-muted);
 }
 
+.admin-orders-table th:nth-child(1), .admin-orders-table td:nth-child(1) { width: 11%; }  /* Référence */
+.admin-orders-table th:nth-child(2), .admin-orders-table td:nth-child(2) { width: 16%; }  /* Client */
+.admin-orders-table th:nth-child(3), .admin-orders-table td:nth-child(3) { width: 22%; }  /* Produit */
+.admin-orders-table th:nth-child(4), .admin-orders-table td:nth-child(4) { width: 13%; }  /* Date */
+.admin-orders-table th:nth-child(5), .admin-orders-table td:nth-child(5) { width: 10%; }  /* Statut */
+.admin-orders-table th:nth-child(6), .admin-orders-table td:nth-child(6) { width: 13%; }  /* Suivi */
+.admin-orders-table th:nth-child(7), .admin-orders-table td:nth-child(7) { width: 15%; }  /* Action */
+
 .admin-order-row-shipped { opacity: 0.55; }
+
+/* Item 4: truncated by default, click (js/admin.js) toggles this class to
+   let it wrap in place instead of a fixed-width overlay/popover -- the row
+   simply grows taller, which is fine in a plain table with no fixed
+   row-height elsewhere. */
+.admin-product-truncated {
+  display: block;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-product-truncated.admin-product-expanded {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
 
 .admin-status-pill {
   display: inline-block;
@@ -265,9 +299,15 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
   main.admin-main { padding: 1.2rem; }
 
   .admin-orders-table thead { display: none; }
+  /* !important on width only -- the desktop `td:nth-child(n) { width: X% }`
+     rules above are MORE specific (a pseudo-class beats plain `td`) despite
+     coming first in the file, so without this they'd keep winning even
+     inside this media query and each "card" would stay pinned to its
+     desktop percentage width instead of stacking full-width on mobile.
+     display:block doesn't need it (nothing else sets display on these). */
   .admin-orders-table, .admin-orders-table tbody, .admin-orders-table tr, .admin-orders-table td {
     display: block;
-    width: 100%;
+    width: 100% !important;
   }
   .admin-orders-table tr { border-bottom: 1px solid var(--line); padding: 0.9rem 0; }
   .admin-orders-table td { border: none; padding: 0.2rem 0; }

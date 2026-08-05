@@ -217,13 +217,26 @@ async function reconcileOrder(
 
   if (existing) {
     if (existing.status === "paid") return; // already reconciled -- Stripe redelivering the same event, a safe no-op (also why the confirmation email never double-sends on retries)
+    // Persisted here (not just read from metadata at send time) so the
+    // shipping-notification email -- sent much later, from an admin action
+    // with no PaymentIntent metadata available at all -- can still honor
+    // the customer's original language. See the migration that added this
+    // column for why (unlike e.g. the shipping address) this one has to
+    // survive past this function's own run.
+    const orderLanguage = metadata.language === "en" || metadata.language === "fr" ? metadata.language : undefined;
     let referenceNumber: string;
     if (existing.reference_number) {
       referenceNumber = existing.reference_number;
-      const { error: updateError } = await supabaseAdmin.from("orders").update({ status: "paid" }).eq("id", existing.id);
+      const { error: updateError } = await supabaseAdmin
+        .from("orders")
+        .update({ status: "paid", ...(orderLanguage ? { language: orderLanguage } : {}) })
+        .eq("id", existing.id);
       if (updateError) throw updateError;
     } else {
-      referenceNumber = await updateOrderWithFreshReference(supabaseAdmin, existing.id, { status: "paid" });
+      referenceNumber = await updateOrderWithFreshReference(supabaseAdmin, existing.id, {
+        status: "paid",
+        ...(orderLanguage ? { language: orderLanguage } : {}),
+      });
     }
     // Order status is now durably 'paid' regardless of what happens below --
     // sendConfirmationEmail() never throws, so a Resend outage/misconfig
@@ -258,6 +271,7 @@ async function reconcileOrder(
     total,
     status: "paid",
   };
+  if (metadata.language === "en" || metadata.language === "fr") row.language = metadata.language;
   if (metadata.user_id) {
     row.user_id = metadata.user_id;
   } else if (metadata.guest_email) {
@@ -323,13 +337,20 @@ async function reconcileOrder(
       .maybeSingle();
     if (refetchError) throw refetchError;
     if (raceWinner && raceWinner.status !== "paid") {
+      const raceLanguage = metadata.language === "en" || metadata.language === "fr" ? metadata.language : undefined;
       let finalReference: string;
       if (raceWinner.reference_number) {
         finalReference = raceWinner.reference_number;
-        const { error: updateError } = await supabaseAdmin.from("orders").update({ status: "paid" }).eq("id", raceWinner.id);
+        const { error: updateError } = await supabaseAdmin
+          .from("orders")
+          .update({ status: "paid", ...(raceLanguage ? { language: raceLanguage } : {}) })
+          .eq("id", raceWinner.id);
         if (updateError) throw updateError;
       } else {
-        finalReference = await updateOrderWithFreshReference(supabaseAdmin, raceWinner.id, { status: "paid" });
+        finalReference = await updateOrderWithFreshReference(supabaseAdmin, raceWinner.id, {
+          status: "paid",
+          ...(raceLanguage ? { language: raceLanguage } : {}),
+        });
       }
       await sendOrderConfirmation(supabaseAdmin, metadata, raceWinner.id, {
         referenceNumber: finalReference,

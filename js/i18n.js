@@ -415,7 +415,7 @@
         newPasswordLabel: 'New Password',
         setNewPasswordBtn: 'Set Password',
         phoneLabel: 'Phone Number (optional)',
-        marketingLabel: 'I\'d like to receive product updates, promotions, and the MONARK newsletter by email. You can change this anytime from your Account page &mdash; see our <a href="confidentialite.html" target="_blank" rel="noopener">Privacy Policy</a> for details.'
+        marketingLabel: 'I\'d like to receive product updates, promotions, and the MONARK newsletter by email. You can change this anytime from your Account page, see our <a href="confidentialite.html" target="_blank" rel="noopener">Privacy Policy</a> for details.'
       },
       phoneInput: {
         countrySelectorLabel: 'Country code',
@@ -940,7 +940,7 @@
         newPasswordLabel: 'Nouveau Mot de Passe',
         setNewPasswordBtn: 'Définir le Mot de Passe',
         phoneLabel: 'Numéro de Téléphone (facultatif)',
-        marketingLabel: 'Je souhaite recevoir par e-mail les actualités produits, les promotions et la newsletter MONARK. Vous pouvez modifier ce choix à tout moment depuis votre page Compte &mdash; consultez notre <a href="confidentialite.html" target="_blank" rel="noopener">Politique de Confidentialité</a> pour en savoir plus.'
+        marketingLabel: 'Je souhaite recevoir par e-mail les actualités produits, les promotions et la newsletter MONARK. Vous pouvez modifier ce choix à tout moment depuis votre page Compte, consultez notre <a href="confidentialite.html" target="_blank" rel="noopener">Politique de Confidentialité</a> pour en savoir plus.'
       },
       phoneInput: {
         countrySelectorLabel: 'Indicatif du pays',
