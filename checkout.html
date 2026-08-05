@@ -1610,20 +1610,35 @@
   // below and the HTML comment on why Billing's can't be a <form>).
   // Async now -- cart.applyPromoCode() validates against the server (see
   // supabase/functions/validate-promo-code) instead of a local hardcoded map.
-  async function attemptApplyPromo(inputEl, messageEl) {
-    const result = await cart.applyPromoCode(inputEl.value);
-    if (result.ok) {
-      inputEl.value = result.code;
-      showPromoMessage(messageEl, t('checkout.promoSuccess', { percent: Math.round(result.rate * 100) }), 'success');
-    } else {
-      showPromoMessage(messageEl, t('checkout.promoInvalid'), 'error');
+  //
+  // submitBtn is disabled alongside inputEl for the duration of the call --
+  // same disable-input-and-button pattern as js/account.js's own email step
+  // (single dominant field per form here too). Takes it as a parameter
+  // (rather than deriving it from inputEl's own form) since Billing's own
+  // control isn't a <form> at all (see wireBillingPromoTrigger below) --
+  // every call site already has its own button reference on hand regardless.
+  async function attemptApplyPromo(inputEl, messageEl, submitBtn) {
+    inputEl.disabled = true;
+    submitBtn.disabled = true;
+    try {
+      const result = await cart.applyPromoCode(inputEl.value);
+      if (result.ok) {
+        inputEl.value = result.code;
+        showPromoMessage(messageEl, t('checkout.promoSuccess', { percent: Math.round(result.rate * 100) }), 'success');
+      } else {
+        showPromoMessage(messageEl, t('checkout.promoInvalid'), 'error');
+      }
+    } finally {
+      inputEl.disabled = false;
+      submitBtn.disabled = false;
     }
   }
 
   function wirePromoForm(formEl, inputEl, messageEl) {
+    const submitBtn = formEl.querySelector('button[type="submit"]');
     formEl.addEventListener('submit', (e) => {
       e.preventDefault();
-      attemptApplyPromo(inputEl, messageEl);
+      attemptApplyPromo(inputEl, messageEl, submitBtn);
     });
   }
   wirePromoForm(promoForm, promoInput, promoMessage);
@@ -1632,12 +1647,14 @@
   // Billing's fallback promo control is a plain <div> (can't be a <form>,
   // see its own HTML comment), so there's no native submit event to hook --
   // wired directly off the Apply button's click, plus Enter-in-the-input for
-  // the same one-key-press UX a real form would give for free.
-  billingPromoApplyBtn.addEventListener('click', () => attemptApplyPromo(billingPromoInput, billingPromoMessage));
+  // the same one-key-press UX a real form would give for free. Both paths
+  // share the exact same billingPromoApplyBtn reference, so the loading
+  // state applies identically regardless of which one fired it.
+  billingPromoApplyBtn.addEventListener('click', () => attemptApplyPromo(billingPromoInput, billingPromoMessage, billingPromoApplyBtn));
   billingPromoInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      attemptApplyPromo(billingPromoInput, billingPromoMessage);
+      attemptApplyPromo(billingPromoInput, billingPromoMessage, billingPromoApplyBtn);
     }
   });
 

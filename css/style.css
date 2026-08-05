@@ -1842,6 +1842,14 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   transition: background 0.35s ease, color 0.35s ease;
 }
 
+/* Same dimming already used for checkout.html's own Place Order button
+   (.checkout-submit:disabled, css/checkout.css) -- moved onto the shared
+   base class so every .cta-button (Log In, Create Account, Set New
+   Password, Apply promo code, account.html's Save buttons) gets the same
+   "visibly working" feedback when JS disables it during an async call,
+   not just Place Order. */
+.cta-button:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* Root cause of the "button stays pressed after tap" report on Claim My 10%/
    Add to Cart/Buy Now (all three are .cta-button, directly or via a
    variant): touch browsers apply :hover on tap and only clear it on the

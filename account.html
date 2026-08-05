@@ -112,7 +112,7 @@
           <span data-i18n="account.dobLabel">Date of Birth</span>
           <input type="date" name="dob" autocomplete="bday">
         </label>
-        <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="account.saveProfileBtn">Save Changes</button>
+        <button type="submit" class="cta-button checkout-account-btn-sm" id="account-profile-submit-btn" data-i18n="account.saveProfileBtn">Save Changes</button>
         <p class="promo-message promo-message-success" id="account-profile-success" aria-live="polite" hidden></p>
       </form>
     </div>
@@ -192,7 +192,7 @@
           <div id="account-phone"></div>
           <p class="promo-message promo-message-error" id="account-address-phone-error" aria-live="polite" hidden></p>
         </label>
-        <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="account.saveAddressBtn">Save Address</button>
+        <button type="submit" class="cta-button checkout-account-btn-sm" id="account-address-submit-btn" data-i18n="account.saveAddressBtn">Save Address</button>
         <p class="promo-message promo-message-success" id="account-address-success" aria-live="polite" hidden></p>
       </form>
     </div>
@@ -217,7 +217,7 @@
              same real-world practice as an actual payment processor (see
              checkout.html's own comment on its own always-blank CVC field). -->
         <p class="checkout-payment-note" data-i18n="account.paymentMockNote">Mocked for demo purposes — no real card data is stored or processed.</p>
-        <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="account.savePaymentBtn">Save Card</button>
+        <button type="submit" class="cta-button checkout-account-btn-sm" id="account-payment-submit-btn" data-i18n="account.savePaymentBtn">Save Card</button>
         <p class="promo-message promo-message-success" id="account-payment-success" aria-live="polite" hidden></p>
       </form>
     </div>
@@ -229,7 +229,7 @@
           <input type="checkbox" id="account-marketing-toggle">
           <span data-i18n="account.marketingLabel">Receive marketing emails</span>
         </label>
-        <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="account.savePreferencesBtn">Save Changes</button>
+        <button type="submit" class="cta-button checkout-account-btn-sm" id="account-preferences-submit-btn" data-i18n="account.savePreferencesBtn">Save Changes</button>
         <p class="promo-message promo-message-success" id="account-preferences-success" aria-live="polite" hidden></p>
       </form>
     </div>
@@ -325,6 +325,7 @@
   const profileFirstNameInput = profileForm.querySelector('[name="firstName"]');
   const profileLastNameInput = profileForm.querySelector('[name="lastName"]');
   const profileDobInput = profileForm.querySelector('[name="dob"]');
+  const profileSubmitBtn = document.getElementById('account-profile-submit-btn');
   const profileEmailError = document.getElementById('account-profile-email-error');
   const profilePasswordError = document.getElementById('account-profile-password-error');
   const profileFirstNameError = document.getElementById('account-profile-firstName-error');
@@ -342,6 +343,7 @@
   const cityError = document.getElementById('account-address-city-error');
   const postalInput = addressForm.querySelector('[name="postal"]');
   const addressPhoneError = document.getElementById('account-address-phone-error');
+  const addressSubmitBtn = document.getElementById('account-address-submit-btn');
   // Same "shared, not duplicated" component as checkout.html's own Shipping
   // phone field and the account-gate's create-account phone field (see
   // js/phone-input.js) -- was still a plain <input type="tel"> here.
@@ -358,11 +360,13 @@
   const cardNameError = document.getElementById('account-payment-cardName-error');
   const cardNumberInput = paymentForm.querySelector('[name="cardNumber"]');
   const cardExpiryInput = paymentForm.querySelector('[name="cardExpiry"]');
+  const paymentSubmitBtn = document.getElementById('account-payment-submit-btn');
   const paymentSuccess = document.getElementById('account-payment-success');
 
   const preferencesSection = document.getElementById('account-preferences');
   const preferencesForm = document.getElementById('account-preferences-form');
   const marketingToggle = document.getElementById('account-marketing-toggle');
+  const preferencesSubmitBtn = document.getElementById('account-preferences-submit-btn');
   const preferencesSuccess = document.getElementById('account-preferences-success');
 
   const orderHistory = document.getElementById('account-order-history');
@@ -557,27 +561,35 @@
     // here to skip that check entirely when the field was left blank.
     if (password) patch.password = password;
 
-    const result = await account.updateAccount(session.email, patch);
-    if (!result.ok) {
-      // BUG FIX: this used to show "account already exists" for every
-      // failure reason, not just result.error === 'email-exists' -- so any
-      // other updateAccount() failure (js/account.js's own console.error has
-      // the real message) was misreported as an email collision. Same class
-      // of bug as js/account.js's create-account handler had.
-      profileEmailError.textContent = t(result.error === 'email-exists' ? 'accountGate.errorAccountExists' : 'accountGate.errorGeneric');
-      profileEmailError.hidden = false;
-      return;
+    // Many fields on this form -- matches Place Order's own structure
+    // (checkout.html's submitBtn) rather than disabling every field
+    // individually: just the submit button, right before the async call.
+    profileSubmitBtn.disabled = true;
+    try {
+      const result = await account.updateAccount(session.email, patch);
+      if (!result.ok) {
+        // BUG FIX: this used to show "account already exists" for every
+        // failure reason, not just result.error === 'email-exists' -- so any
+        // other updateAccount() failure (js/account.js's own console.error has
+        // the real message) was misreported as an email collision. Same class
+        // of bug as js/account.js's create-account handler had.
+        profileEmailError.textContent = t(result.error === 'email-exists' ? 'accountGate.errorAccountExists' : 'accountGate.errorGeneric');
+        profileEmailError.hidden = false;
+        return;
+      }
+      profilePasswordInput.value = '';
+      // A changed email needs to be confirmed via a link Supabase just sent to
+      // the NEW address before it actually takes effect -- the session (and
+      // this form's own email field, next time it's reloaded) still shows the
+      // old one until then, so this tells the user what to expect instead of
+      // implying the change already happened.
+      profileSuccess.textContent = result.emailChangePending
+        ? t('account.emailChangePending')
+        : t('account.profileUpdated');
+      profileSuccess.hidden = false;
+    } finally {
+      profileSubmitBtn.disabled = false;
     }
-    profilePasswordInput.value = '';
-    // A changed email needs to be confirmed via a link Supabase just sent to
-    // the NEW address before it actually takes effect -- the session (and
-    // this form's own email field, next time it's reloaded) still shows the
-    // old one until then, so this tells the user what to expect instead of
-    // implying the change already happened.
-    profileSuccess.textContent = result.emailChangePending
-      ? t('account.emailChangePending')
-      : t('account.profileUpdated');
-    profileSuccess.hidden = false;
   });
 
   addressForm.addEventListener('submit', async (e) => {
@@ -614,17 +626,24 @@
       return;
     }
     addressPhoneError.hidden = true;
-    await account.updateAccount(session.email, {
-      address: addressVal,
-      extraDetails: extraDetailsInput.value.trim(),
-      city: cityVal,
-      postal: postalInput.value.trim(),
-      phone: phoneValue ? phoneValue.number : '',
-      dialCode: phoneValue ? phoneValue.dialCode : '',
-      country: phoneValue ? phoneValue.country : ''
-    });
-    addressSuccess.textContent = t('account.addressUpdated');
-    addressSuccess.hidden = false;
+    // Many fields on this form -- same "button only, matches Place Order's
+    // own structure" choice as profileForm above.
+    addressSubmitBtn.disabled = true;
+    try {
+      await account.updateAccount(session.email, {
+        address: addressVal,
+        extraDetails: extraDetailsInput.value.trim(),
+        city: cityVal,
+        postal: postalInput.value.trim(),
+        phone: phoneValue ? phoneValue.number : '',
+        dialCode: phoneValue ? phoneValue.dialCode : '',
+        country: phoneValue ? phoneValue.country : ''
+      });
+      addressSuccess.textContent = t('account.addressUpdated');
+      addressSuccess.hidden = false;
+    } finally {
+      addressSubmitBtn.disabled = false;
+    }
   });
 
   // Purely mocked/cosmetic, same spirit as checkout.html's own disabled
@@ -650,13 +669,20 @@
     }
     cardNameError.hidden = true;
 
-    await account.updateAccount(session.email, {
-      cardName: cardNameVal,
-      cardNumber: cardNumberInput.value.trim(),
-      cardExpiry: cardExpiryInput.value.trim()
-    });
-    paymentSuccess.textContent = t('account.paymentUpdated');
-    paymentSuccess.hidden = false;
+    // Same button-only treatment as profileForm/addressForm above, for
+    // consistency across all four Save forms on this page.
+    paymentSubmitBtn.disabled = true;
+    try {
+      await account.updateAccount(session.email, {
+        cardName: cardNameVal,
+        cardNumber: cardNumberInput.value.trim(),
+        cardExpiry: cardExpiryInput.value.trim()
+      });
+      paymentSuccess.textContent = t('account.paymentUpdated');
+      paymentSuccess.hidden = false;
+    } finally {
+      paymentSubmitBtn.disabled = false;
+    }
   });
 
   // BUG FIX: used to save instantly on toggle, no separate submit button --
@@ -666,9 +692,19 @@
     e.preventDefault();
     const session = account.getSession();
     if (!session || session.isGuest) return;
-    await account.updateAccount(session.email, { marketingOptIn: marketingToggle.checked });
-    preferencesSuccess.textContent = t('account.preferencesUpdated');
-    preferencesSuccess.hidden = false;
+    // Single field (the toggle) -- same disable-input-and-button pattern as
+    // js/account.js's own email step, rather than the button-only treatment
+    // the other three (multi-field) Save forms on this page use.
+    preferencesSubmitBtn.disabled = true;
+    marketingToggle.disabled = true;
+    try {
+      await account.updateAccount(session.email, { marketingOptIn: marketingToggle.checked });
+      preferencesSuccess.textContent = t('account.preferencesUpdated');
+      preferencesSuccess.hidden = false;
+    } finally {
+      preferencesSubmitBtn.disabled = false;
+      marketingToggle.disabled = false;
+    }
   });
 
   deleteBtn.addEventListener('click', () => { deleteConfirmBlock.hidden = false; });

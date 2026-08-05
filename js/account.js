@@ -652,7 +652,7 @@
             <input type="password" id="checkout-account-recovery-password" autocomplete="new-password" required>
           </label>
           <p class="promo-message promo-message-error" id="checkout-account-recovery-error" aria-live="polite" hidden></p>
-          <button type="submit" class="cta-button checkout-account-btn-sm" data-i18n="accountGate.setNewPasswordBtn">Set Password</button>
+          <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-recovery-submit-btn" data-i18n="accountGate.setNewPasswordBtn">Set Password</button>
         </form>
       </div>
     `;
@@ -755,6 +755,7 @@
 
     const loginForm = container.querySelector('#checkout-account-login-form');
     const loginPasswordInput = container.querySelector('#checkout-account-login-password');
+    const loginSubmitBtn = container.querySelector('#checkout-account-login-submit-btn');
     const loginError = container.querySelector('#checkout-account-login-error');
     const forgotPasswordBtn = container.querySelector('#checkout-account-forgot-password-btn');
     const forgotPasswordStatus = container.querySelector('#checkout-account-forgot-password-status');
@@ -770,6 +771,7 @@
     const createConfirmInput = container.querySelector('#checkout-account-create-confirm');
     const createMarketingCheckbox = container.querySelector('#checkout-account-create-marketing');
     const createError = container.querySelector('#checkout-account-create-error');
+    const createSubmitBtn = container.querySelector('#checkout-account-create-submit-btn');
     const confirmPending = container.querySelector('#checkout-account-confirm-pending');
 
     // Optional at account creation (no `required`) -- asking for a phone
@@ -787,6 +789,7 @@
     const recoveryBlock = container.querySelector('#checkout-account-recovery');
     const recoveryForm = container.querySelector('#checkout-account-recovery-form');
     const recoveryPasswordInput = container.querySelector('#checkout-account-recovery-password');
+    const recoverySubmitBtn = container.querySelector('#checkout-account-recovery-submit-btn');
     const recoveryError = container.querySelector('#checkout-account-recovery-error');
 
     // Takes an i18n key (not raw text) -- each of these fields can show one
@@ -1076,11 +1079,24 @@
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       loginError.hidden = true;
-      const result = await logIn(authEmailEcho.textContent, loginPasswordInput.value);
-      if (result.ok) {
-        resolveSession();
-      } else {
-        showFieldError(loginError, 'accountGate.errorWrongPassword');
+      // Single dominant field -- same disable-input-and-button pattern as
+      // the email step above (emailSubmitBtn/emailInput), not just the
+      // button alone. .cta-button:disabled (css/style.css) dims the button,
+      // .checkout-field input:disabled (css/checkout.css) mutes the field --
+      // same visible "working" feedback checkout.html's own Place Order
+      // button already gave, just also covering this one input.
+      loginSubmitBtn.disabled = true;
+      loginPasswordInput.disabled = true;
+      try {
+        const result = await logIn(authEmailEcho.textContent, loginPasswordInput.value);
+        if (result.ok) {
+          resolveSession();
+        } else {
+          showFieldError(loginError, 'accountGate.errorWrongPassword');
+        }
+      } finally {
+        loginSubmitBtn.disabled = false;
+        loginPasswordInput.disabled = false;
       }
     });
 
@@ -1143,47 +1159,57 @@
       }
       createError.hidden = true;
       const newAccountEmail = authEmailEcho.textContent;
-      const result = await createAccount(newAccountEmail, createPasswordInput.value, {
-        firstName: createFirstNameInput.value.trim(),
-        lastName: createLastNameInput.value.trim(),
-        marketingOptIn: createMarketingCheckbox ? createMarketingCheckbox.checked : true,
-        phone: phoneValue ? phoneValue.number : '',
-        dialCode: phoneValue ? phoneValue.dialCode : '',
-        country: phoneValue ? phoneValue.country : ''
-      });
-      if (!result.ok) {
-        // BUG FIX: this used to show "account already exists" for every
-        // failure reason, not just result.error === 'exists' -- so any other
-        // signUp() failure (bad API key, disabled email provider, an
-        // RLS/trigger error on the profiles insert, rate limiting, CORS...)
-        // was misreported as a duplicate account. createAccount()'s own
-        // console.error already has the real message when it's 'unknown'.
-        const errorKey = result.error === 'exists' ? 'accountGate.errorAccountExists'
-          : result.error === 'rate-limited' ? 'accountGate.errorRateLimited'
-          : 'accountGate.errorGeneric';
-        showFieldError(createError, errorKey);
-        return;
+      // Many fields on this form -- disabling every one of them individually
+      // would be a lot of extra bookkeeping for marginal benefit, so this
+      // matches Place Order's own structure instead (checkout.html's
+      // submitBtn): just the submit button, right before the async call,
+      // try/finally around it so every return path below still re-enables it.
+      createSubmitBtn.disabled = true;
+      try {
+        const result = await createAccount(newAccountEmail, createPasswordInput.value, {
+          firstName: createFirstNameInput.value.trim(),
+          lastName: createLastNameInput.value.trim(),
+          marketingOptIn: createMarketingCheckbox ? createMarketingCheckbox.checked : true,
+          phone: phoneValue ? phoneValue.number : '',
+          dialCode: phoneValue ? phoneValue.dialCode : '',
+          country: phoneValue ? phoneValue.country : ''
+        });
+        if (!result.ok) {
+          // BUG FIX: this used to show "account already exists" for every
+          // failure reason, not just result.error === 'exists' -- so any other
+          // signUp() failure (bad API key, disabled email provider, an
+          // RLS/trigger error on the profiles insert, rate limiting, CORS...)
+          // was misreported as a duplicate account. createAccount()'s own
+          // console.error already has the real message when it's 'unknown'.
+          const errorKey = result.error === 'exists' ? 'accountGate.errorAccountExists'
+            : result.error === 'rate-limited' ? 'accountGate.errorRateLimited'
+            : 'accountGate.errorGeneric';
+          showFieldError(createError, errorKey);
+          return;
+        }
+        if (result.needsEmailConfirmation) {
+          // No session yet -- shown inline here (not via createdNote +
+          // resolveSession(), which only make sense once a session actually
+          // exists) so the message doesn't get wiped the instant
+          // resolveSession() re-checks and finds nothing yet.
+          createForm.hidden = true;
+          confirmPending.textContent = t('accountGate.confirmAccountPending', { email: newAccountEmail });
+          confirmPending.hidden = false;
+          return;
+        }
+        // BUG FIX: this used to say "a confirmation email has been sent to
+        // {email}" unconditionally -- leftover copy from the old localStorage
+        // mock, which never actually emailed anyone. Reaching this branch (not
+        // the needsEmailConfirmation one above) means Supabase already handed
+        // back a real session, i.e. no confirmation step exists for this
+        // signup (email confirmation is off, no SMTP configured) -- claiming
+        // an email was sent here was simply false.
+        createdNote.textContent = t('accountGate.accountCreated');
+        createdNote.hidden = false;
+        resolveSession();
+      } finally {
+        createSubmitBtn.disabled = false;
       }
-      if (result.needsEmailConfirmation) {
-        // No session yet -- shown inline here (not via createdNote +
-        // resolveSession(), which only make sense once a session actually
-        // exists) so the message doesn't get wiped the instant
-        // resolveSession() re-checks and finds nothing yet.
-        createForm.hidden = true;
-        confirmPending.textContent = t('accountGate.confirmAccountPending', { email: newAccountEmail });
-        confirmPending.hidden = false;
-        return;
-      }
-      // BUG FIX: this used to say "a confirmation email has been sent to
-      // {email}" unconditionally -- leftover copy from the old localStorage
-      // mock, which never actually emailed anyone. Reaching this branch (not
-      // the needsEmailConfirmation one above) means Supabase already handed
-      // back a real session, i.e. no confirmation step exists for this
-      // signup (email confirmation is off, no SMTP configured) -- claiming
-      // an email was sent here was simply false.
-      createdNote.textContent = t('accountGate.accountCreated');
-      createdNote.hidden = false;
-      resolveSession();
     });
 
     recoveryForm.addEventListener('submit', async (e) => {
@@ -1193,11 +1219,20 @@
         return;
       }
       recoveryError.hidden = true;
-      const result = await setNewPassword(recoveryPasswordInput.value);
-      if (result.ok) {
-        resolveSession();
-      } else {
-        showFieldError(recoveryError, 'accountGate.errorGeneric');
+      // Single dominant field -- same disable-input-and-button pattern as
+      // the email step's own emailSubmitBtn/emailInput.
+      recoverySubmitBtn.disabled = true;
+      recoveryPasswordInput.disabled = true;
+      try {
+        const result = await setNewPassword(recoveryPasswordInput.value);
+        if (result.ok) {
+          resolveSession();
+        } else {
+          showFieldError(recoveryError, 'accountGate.errorGeneric');
+        }
+      } finally {
+        recoverySubmitBtn.disabled = false;
+        recoveryPasswordInput.disabled = false;
       }
     });
 
