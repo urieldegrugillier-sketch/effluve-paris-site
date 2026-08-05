@@ -70,10 +70,12 @@
          comes back true (see updateAdminModeButtonVisibility() in the inline
          script below) -- hidden by default so it never flashes visible for a
          guest/non-admin/logged-out visitor while that check is in flight.
-         Same secondary/outline button treatment already used for "Continue
-         as Guest" (.checkout-account-btn-secondary, css/checkout.css), not a
-         new visual pattern. -->
-    <a href="admin.html" class="cta-button checkout-account-btn-sm checkout-account-btn-secondary" id="account-admin-mode-btn" data-i18n="account.adminModeBtn" hidden>Admin Mode</a>
+         Solid bronze fill (#account-admin-mode-btn, css/checkout.css) --
+         same bronze-light/bg-void pair already established for .cta-button's
+         own hover state and admin.css's .admin-status-active pill, not a
+         new visual pattern -- so it reads as a primary action, not a quiet
+         outlined badge. -->
+    <a href="admin.html" class="cta-button checkout-account-btn-sm" id="account-admin-mode-btn" data-i18n="account.adminModeBtn" hidden>Admin Mode</a>
 
     <div id="account-step">
       <h2 class="checkout-section-heading" data-i18n="common.account">Account</h2>
