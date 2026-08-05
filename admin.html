@@ -37,9 +37,11 @@
       <button type="button" class="admin-tab active" data-tab="orders">Commandes</button>
       <button type="button" class="admin-tab" data-tab="promo">Codes Promo</button>
       <button type="button" class="admin-tab" data-tab="timer">Minuteur</button>
-      <!-- Future sections (stock) add their own <button data-tab="..."> here
-           + a matching <section data-tab-panel="..."> below -- js/admin.js's
-           tab-switch logic is generic, nothing else to wire up. -->
+      <button type="button" class="admin-tab" data-tab="stock">Stock</button>
+      <!-- Every planned admin section now has its own <button data-tab="...">
+           here + a matching <section data-tab-panel="..."> below --
+           js/admin.js's tab-switch logic is generic, nothing else to wire up
+           for any future one either. -->
     </nav>
     <span class="admin-whoami" id="admin-whoami"></span>
     <button type="button" class="admin-logout-btn" id="admin-logout">Déconnexion</button>
@@ -135,6 +137,31 @@
         <p class="admin-form-success" id="admin-timer-form-success" hidden>Enregistré.</p>
         <div class="admin-modal-actions">
           <button type="button" id="admin-timer-save">Enregistrer</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-panel" data-tab-panel="stock">
+      <h2>Stock</h2>
+
+      <div id="admin-stock-loading" class="admin-loading-note">Chargement du stock…</div>
+      <div id="admin-stock-error" class="admin-error-note" hidden></div>
+
+      <!-- Same non-modal reuse of .admin-modal-content as the Minuteur
+           panel above -- see that section's own comment. -->
+      <div class="admin-modal-content" id="admin-stock-form" hidden>
+        <p id="admin-stock-product-name"></p>
+
+        <label for="admin-stock-remaining-input">Stock restant</label>
+        <input type="number" id="admin-stock-remaining-input" min="0" step="1" inputmode="numeric">
+
+        <label for="admin-stock-total-input">Stock total</label>
+        <input type="number" id="admin-stock-total-input" min="0" step="1" inputmode="numeric">
+
+        <p class="admin-modal-error" id="admin-stock-form-error"></p>
+        <p class="admin-form-success" id="admin-stock-form-success" hidden>Enregistré.</p>
+        <div class="admin-modal-actions">
+          <button type="button" id="admin-stock-save">Enregistrer</button>
         </div>
       </div>
     </section>

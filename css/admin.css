@@ -3,12 +3,11 @@
    body/a/button reset) rather than duplicating those values here.
 
    Structured for extension: the tab bar (.admin-tabs/.admin-tab) and panel
-   switching (.admin-panel/[data-tab-panel]) are generic -- a future admin
-   section (stock) adds its own <button data-tab="x"> +
-   <section data-tab-panel="x"> pair and gets the same show/hide behavior
-   for free, no changes needed here. Three real tabs exist today
-   (orders/shipping, promo codes, promo timer) -- no placeholder tabs for
-   not-yet-built sections, per this round's own scope. */
+   switching (.admin-panel/[data-tab-panel]) are generic -- any future admin
+   section adds its own <button data-tab="x"> + <section data-tab-panel="x">
+   pair and gets the same show/hide behavior for free, no changes needed
+   here. Four real tabs exist today (orders/shipping, promo codes, promo
+   timer, stock) -- no placeholder tabs for not-yet-built sections. */
 
 #admin-auth-gate {
   min-height: 100vh;
@@ -337,9 +336,9 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
   color: var(--text-muted);
 }
 
-#admin-ship-confirm, #admin-promo-confirm, #admin-timer-save { border-color: var(--accent-bronze-light); color: var(--accent-bronze-light); }
-#admin-ship-confirm:hover, #admin-promo-confirm:hover, #admin-timer-save:hover { background: var(--accent-bronze-light); color: var(--bg-void); }
-#admin-ship-confirm:disabled, #admin-promo-confirm:disabled, #admin-timer-save:disabled { opacity: 0.5; cursor: not-allowed; }
+#admin-ship-confirm, #admin-promo-confirm, #admin-timer-save, #admin-stock-save { border-color: var(--accent-bronze-light); color: var(--accent-bronze-light); }
+#admin-ship-confirm:hover, #admin-promo-confirm:hover, #admin-timer-save:hover, #admin-stock-save:hover { background: var(--accent-bronze-light); color: var(--bg-void); }
+#admin-ship-confirm:disabled, #admin-promo-confirm:disabled, #admin-timer-save:disabled, #admin-stock-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ---------------- Narrow widths: card-style rows instead of a table ---------------- */
 @media (max-width: 700px) {

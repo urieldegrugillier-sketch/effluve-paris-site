@@ -67,6 +67,7 @@
     initOrders();
     initPromoCodes();
     initTimerConfig();
+    initStock();
   }
 
   // ---------------- Tabs (generic -- see admin.html's own comment) ----------------
@@ -639,6 +640,101 @@
 
     timerConfigCache = { ...timerConfigCache, ...patch };
     timerFormSuccessEl.hidden = false;
+  }
+
+  // ---------------- Stock tab ----------------
+  // Single product row, same non-modal settings-form pattern as the Timer
+  // tab above (see admin.html's own comment on reusing .admin-modal-content
+  // outside a .admin-modal overlay) -- not a list, so no table/edit-modal
+  // like Orders/Promo Codes needed here.
+  let stockProductCache = null; // { id, name, stock_remaining, stock_total }
+
+  const stockLoadingEl = document.getElementById('admin-stock-loading');
+  const stockErrorEl = document.getElementById('admin-stock-error');
+  const stockFormEl = document.getElementById('admin-stock-form');
+  const stockProductNameEl = document.getElementById('admin-stock-product-name');
+  const stockRemainingInput = document.getElementById('admin-stock-remaining-input');
+  const stockTotalInput = document.getElementById('admin-stock-total-input');
+  const stockFormErrorEl = document.getElementById('admin-stock-form-error');
+  const stockFormSuccessEl = document.getElementById('admin-stock-form-success');
+  const stockSaveBtn = document.getElementById('admin-stock-save');
+
+  function initStock() {
+    stockSaveBtn.addEventListener('click', saveStock);
+    loadStock();
+  }
+
+  async function loadStock() {
+    stockLoadingEl.hidden = false;
+    stockErrorEl.hidden = true;
+    stockFormEl.hidden = true;
+
+    // .limit(1).maybeSingle() -- same "there's only ever one row" convention
+    // as every other public.products read in this project (create-checkout-
+    // session/stripe-webhook's own price lookups, product.html's own stock
+    // read).
+    const { data, error } = await client()
+      .from('products')
+      .select('id, name, stock_remaining, stock_total')
+      .limit(1)
+      .maybeSingle();
+
+    stockLoadingEl.hidden = true;
+
+    if (error || !data) {
+      stockErrorEl.hidden = false;
+      stockErrorEl.textContent = error
+        ? `Erreur lors du chargement du stock : ${error.message}`
+        : 'Produit introuvable.';
+      if (error) console.error('admin.js loadStock:', error.message);
+      return;
+    }
+
+    stockProductCache = data;
+    stockProductNameEl.textContent = data.name;
+    stockRemainingInput.value = data.stock_remaining;
+    stockTotalInput.value = data.stock_total;
+    stockFormErrorEl.textContent = '';
+    stockFormSuccessEl.hidden = true;
+    stockFormEl.hidden = false;
+  }
+
+  async function saveStock() {
+    if (!stockProductCache) return;
+    stockFormErrorEl.textContent = '';
+    stockFormSuccessEl.hidden = true;
+
+    const remaining = Math.floor(Number(stockRemainingInput.value));
+    if (!Number.isFinite(remaining) || remaining < 0) {
+      stockFormErrorEl.textContent = 'Le stock restant doit être un nombre entier positif ou nul.';
+      stockRemainingInput.focus();
+      return;
+    }
+
+    const total = Math.floor(Number(stockTotalInput.value));
+    if (!Number.isFinite(total) || total < 0) {
+      stockFormErrorEl.textContent = 'Le stock total doit être un nombre entier positif ou nul.';
+      stockTotalInput.focus();
+      return;
+    }
+
+    stockSaveBtn.disabled = true;
+
+    const { error } = await client()
+      .from('products')
+      .update({ stock_remaining: remaining, stock_total: total })
+      .eq('id', stockProductCache.id);
+
+    stockSaveBtn.disabled = false;
+
+    if (error) {
+      stockFormErrorEl.textContent = `Échec de l'enregistrement : ${error.message}`;
+      console.error('admin.js saveStock:', error.message);
+      return;
+    }
+
+    stockProductCache = { ...stockProductCache, stock_remaining: remaining, stock_total: total };
+    stockFormSuccessEl.hidden = false;
   }
 
   checkAccessAndInit();
