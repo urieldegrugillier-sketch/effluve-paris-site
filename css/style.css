@@ -1884,6 +1884,28 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   transition: background 0.35s ease, color 0.35s ease;
 }
 
+/* BUG FIX: same root cause as #admin-auth-gate[hidden] (css/admin.css) --
+   this class's own `display: inline-block` above is an equal-specificity
+   author rule that loads after (and therefore wins over) the browser's
+   default `[hidden] { display: none }` UA rule, so setting the `hidden`
+   PROPERTY/attribute on any .cta-button-classed element did nothing
+   visually; it stayed rendered. Confirmed live: account.html's "Mode
+   Admin" button (#account-admin-mode-btn) showed on a fresh, logged-out
+   page load despite carrying the `hidden` attribute in its own markup,
+   and js/account.js's updateAdminModeButtonVisibility() correctly setting
+   `.hidden = true` by default -- the JS logic was never the bug, this
+   rule's specificity was. Very likely also silently affected
+   guestBtn/createToggle (js/account.js) -- both are .cta-button-classed
+   and individually `.hidden`-toggled the same way -- but that never
+   surfaced as a separate visible bug report, because on every page that
+   uses them their shared ancestor (#checkout-account-options, plain
+   div, no competing `display` rule) already hides them correctly by
+   itself when both are meant to be hidden. This rule (id/attribute beats
+   a single class, same specificity trick as the admin-auth-gate fix)
+   makes `hidden` work correctly on every .cta-button on its own, not just
+   when a parent happens to cover for it. */
+.cta-button[hidden] { display: none; }
+
 /* Same dimming already used for checkout.html's own Place Order button
    (.checkout-submit:disabled, css/checkout.css) -- moved onto the shared
    base class so every .cta-button (Log In, Create Account, Set New
