@@ -91,18 +91,50 @@ export default {
     const shippingPostalCode = asTrimmedString(body.shippingPostalCode);
     const shippingCountry = asTrimmedString(body.shippingCountry);
 
-    // Server-side price lookup -- the amount charged is never taken from the
-    // client. products is publicly readable (see its RLS policy), and
-    // there's only ever the one current MONARK edition's row to read.
+    // Server-side price + stock lookup -- the amount charged is never taken
+    // from the client, and now neither is stock availability. products is
+    // publicly readable (see its RLS policy), and there's only ever the one
+    // current MONARK edition's row to read.
     const { data: product, error: productError } = await ctx.supabase
       .from("products")
-      .select("price")
+      .select("price, stock_remaining")
       .limit(1)
       .maybeSingle();
 
     if (productError || !product) {
       console.error("create-checkout-session: product lookup failed:", productError?.message);
       return Response.json({ error: "Could not determine order amount." }, { status: 500 });
+    }
+
+    // Server-side stock check -- js/cart.js's own getStockCeiling() already
+    // clamps quantity client-side, but that's a soft UX nicety only (an
+    // outdated cached page, a modified/replayed request, or simply two tabs
+    // racing each other could still submit more than what's actually left)
+    // -- this is the real, authoritative check, run right before a
+    // PaymentIntent (an actual charge attempt) is ever created OR updated,
+    // covering both this function's call sites (see checkout.html's own
+    // initStripePayment(), called both when Payment first opens and again
+    // on every later quantity/promo change while it's still open). Doesn't
+    // touch decrement_product_stock()/stripe-webhook's own decrement-on-paid
+    // logic at all -- that's still the only thing that ever actually moves
+    // stock_remaining down; this is purely an additional pre-charge gate on
+    // top of it, checking the same column, never writing to it.
+    //
+    // null stock_remaining means "not tracked yet" -- same convention
+    // js/cart.js's own getStockCeiling() already established client-side
+    // (null treated as "don't block", i.e. effectively unlimited) -- only an
+    // actual NUMBER that's too low for the requested quantity blocks the
+    // charge; a product row that simply hasn't had its stock fields set yet
+    // is never mistaken for "zero stock" here.
+    if (product.stock_remaining !== null && quantity > product.stock_remaining) {
+      return Response.json(
+        {
+          error: product.stock_remaining > 0
+            ? `Only ${product.stock_remaining} left in stock.`
+            : "This item is currently out of stock.",
+        },
+        { status: 409 },
+      );
     }
 
     // Server-side promo lookup -- the discount actually charged is never

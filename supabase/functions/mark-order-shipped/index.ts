@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
 
   const { data: order, error: orderError } = await supabaseAdmin
     .from("orders")
-    .select("id, reference_number, product_name, quantity, total, user_id, guest_email, shipping_status, tracking_number, carrier, language")
+    .select("id, reference_number, product_name, quantity, total, user_id, guest_email, shipping_status, tracking_number, carrier, language, shipping_postal_code")
     .eq("id", orderId)
     .maybeSingle();
   if (orderError || !order) {
@@ -187,6 +187,13 @@ interface OrderRow {
   user_id: string | null;
   guest_email: string | null;
   language: string | null;
+  // Needed for Mondial Relay's own tracking link specifically -- see
+  // carrierTrackingUrl()'s own comment on why that carrier's tracking page
+  // requires the RECIPIENT's postal code alongside the tracking number,
+  // unlike Colissimo/Chronopost. Already persisted on this row by
+  // stripe-webhook at order-paid time (20260821000000_order_shipping_
+  // address_and_carrier.sql) -- read here, not re-typed by the admin.
+  shipping_postal_code: string | null;
 }
 
 async function resolveCustomerEmailAndName(
@@ -239,6 +246,7 @@ async function sendShippingEmail(
     productName: order.product_name,
     trackingNumber,
     carrier,
+    postalCode: order.shipping_postal_code || "",
     isCorrection,
   });
 
@@ -280,21 +288,33 @@ interface ShippingEmailDetails {
   productName: string;
   trackingNumber: string;
   carrier: string;
+  // Only actually used for Mondial Relay (see carrierTrackingUrl()'s own
+  // comment) -- harmless to always pass, ignored by every other carrier's
+  // branch.
+  postalCode: string;
   isCorrection: boolean;
 }
 
 // Builds the carrier's own tracking-page URL for this exact number --
-// Colissimo/Chronopost URLs given directly (already confirmed correct);
-// Mondial Relay's confirmed via two independent sources (an e-commerce
-// integration help page and a carrier-tracking aggregator both agree on
-// this exact query-string shape, including the seemingly-fixed
-// `codeMarque=CC` param) since mondialrelay.fr itself blocks direct
-// fetching -- worth one real test send to double-check before fully
-// trusting it. "autre" (or anything unrecognized) returns null on purpose:
-// there's no real carrier site to link to, so the email falls back to
-// showing the bare tracking number as plain text instead of a broken or
-// guessed link.
-function carrierTrackingUrl(carrier: string, trackingNumber: string): string | null {
+// Colissimo/Chronopost URLs given directly (already confirmed correct).
+//
+// BUG FIX: Mondial Relay previously used
+// `?codeMarque=CC&numeroExpedition=...`, sourced from two secondary web
+// results (an e-commerce integration help page and a tracking aggregator)
+// since mondialrelay.fr itself blocks simple fetches -- that param shape
+// turned out to be wrong/outdated. Confirmed instead via a real headless
+// browser loading the actual live page (https://www.mondialrelay.fr/
+// suivi-de-colis/) and reading its own tracking <form>: it's a GET form,
+// action=the same URL, with exactly two inputs -- `parcelNumber` (the
+// tracking number) AND `zipCode` (the RECIPIENT's own postal code -- not
+// optional, Mondial Relay has no lookup-by-tracking-number-alone at all).
+// postalCode here is that order's own shipping_postal_code (see
+// OrderRow's own comment on where that's read from) -- if it's ever empty
+// (an order predating shipping-address persistence), there's no way to
+// build a working link, so this falls back to null exactly like the
+// "autre"/unrecognized-carrier case, rather than emitting a link that's
+// guaranteed to fail Mondial Relay's own required-field check.
+function carrierTrackingUrl(carrier: string, trackingNumber: string, postalCode: string): string | null {
   const encoded = encodeURIComponent(trackingNumber);
   switch (carrier) {
     case "colissimo":
@@ -302,7 +322,8 @@ function carrierTrackingUrl(carrier: string, trackingNumber: string): string | n
     case "chronopost":
       return `https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=${encoded}`;
     case "mondial_relay":
-      return `https://www.mondialrelay.fr/suivi-de-colis?codeMarque=CC&numeroExpedition=${encoded}`;
+      if (!postalCode) return null;
+      return `https://www.mondialrelay.fr/suivi-de-colis/?parcelNumber=${encoded}&zipCode=${encodeURIComponent(postalCode)}`;
     default:
       return null;
   }
@@ -366,7 +387,7 @@ function buildShippingEmail(details: ShippingEmailDetails): { subject: string; h
   const trackingLabel = details.isCorrection
     ? isFr ? "Nouveau numéro de suivi" : "New tracking number"
     : isFr ? "Numéro de suivi" : "Tracking number";
-  const trackingUrl = carrierTrackingUrl(details.carrier, details.trackingNumber);
+  const trackingUrl = carrierTrackingUrl(details.carrier, details.trackingNumber, details.postalCode);
   const trackingNumberHtml = trackingUrl
     ? `<a href="${trackingUrl}" style="color:#ede7dd;text-decoration:underline;">${escapeHtml(details.trackingNumber)}</a>`
     : escapeHtml(details.trackingNumber);
