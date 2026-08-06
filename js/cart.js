@@ -100,6 +100,16 @@
     } else {
       items.push({ productId: PRODUCT.id, quantity: finalQty });
     }
+    const addedQty = finalQty - currentQty;
+    // Single hook point for GA4's add_to_cart, rather than wiring it into
+    // every UI call site (product.html's main/sticky Add to Cart buttons,
+    // the Payment Request Button's own empty-cart auto-add) individually --
+    // this function is the one place all of them already funnel through.
+    // addedQty can be 0 here (stock ceiling already fully clamped desiredQty
+    // back down to currentQty) -- window.MonarkAnalytics.trackAddToCart()
+    // itself no-ops on a falsy quantity, so this stays a plain no-op rather
+    // than reporting a zero-quantity add.
+    if (window.MonarkAnalytics) window.MonarkAnalytics.trackAddToCart(PRODUCT, addedQty);
     return writeCart(items);
   }
 

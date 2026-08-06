@@ -1,6 +1,15 @@
 (function () {
   function t(key, vars) { return window.MonarkI18n ? window.MonarkI18n.t(key, vars) : key; }
 
+  // GA4 view_item -- fires once, right when this page's own bootstrap runs
+  // (there's only ever one product on this page, no separate "which item"
+  // question the way a multi-product catalog page would have). No-ops
+  // silently under js/analytics.js's own gaLoaded guard if the visitor
+  // hasn't consented yet.
+  if (window.MonarkAnalytics && window.MonarkCart) {
+    window.MonarkAnalytics.trackViewItem(window.MonarkCart.PRODUCT);
+  }
+
   const progressEl = document.getElementById('stock-progress');
   const labelEl = document.getElementById('stock-label');
   const fillEl = document.getElementById('stock-fill');
@@ -433,6 +442,16 @@
     if (!cart.getCart().length) cart.addToCart(1);
     syncTotal();
 
+    // GA4 begin_checkout -- this event's own native-sheet authentication
+    // (Face ID/Touch ID/etc.) is the earliest point Stripe's
+    // PaymentRequestButton Element exposes to this page's own JS at all
+    // (there's no separate "sheet is opening" hook to fire this from
+    // earlier) -- still clearly before payment is confirmed below, so it
+    // reads as "beginning" this express checkout, not completing it.
+    if (window.MonarkAnalytics) {
+      window.MonarkAnalytics.trackBeginCheckout(cart.PRODUCT, cart.getCart()[0].quantity, cart.getFinalTotal());
+    }
+
     // MISSING INFO -> fall back to the full checkout flow instead of
     // completing the payment blind. The one thing this button's own flow
     // needs that checkout.html's normal flow doesn't strictly require up
@@ -520,7 +539,15 @@
       });
       cart.clearCart();
       cart.removePromoCode();
-      window.location.href = 'checkout.html?expressSuccess=1&total=' + encodeURIComponent(finalTotal.toFixed(2));
+      // pi/qty appended purely for checkout.html's own ?expressSuccess=1
+      // branch to report GA4's purchase event from (this handler already
+      // confirmed finalIntent.status === 'succeeded' with Stripe itself, at
+      // the status check above, before ever reaching this line) -- see that
+      // branch's own comment on why it, not this handler, is where that
+      // report happens.
+      window.location.href = 'checkout.html?expressSuccess=1&total=' + encodeURIComponent(finalTotal.toFixed(2))
+        + '&pi=' + encodeURIComponent(data.paymentIntentId || '')
+        + '&qty=' + encodeURIComponent(quantity);
     } catch (err) {
       console.error('Payment Request Button confirm failed:', err);
       ev.complete('fail');

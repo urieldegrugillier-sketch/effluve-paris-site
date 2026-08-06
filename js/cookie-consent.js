@@ -2,7 +2,17 @@
    include via <script src="js/cookie-consent.js"></script>. */
 (function () {
   const STORAGE_KEY = 'monark_cookie_consent';
-  if (localStorage.getItem(STORAGE_KEY)) return;
+  const existingChoice = localStorage.getItem(STORAGE_KEY);
+  if (existingChoice) {
+    // Reported here too (not just from dismiss() below) so anything gated on
+    // consent (js/analytics.js's GA4 loader included, though that file
+    // primarily relies on its own direct localStorage check for exactly
+    // this already-decided case -- see its own comment on why both exist)
+    // can listen for one single event regardless of whether the choice was
+    // made just now or in a previous session.
+    document.dispatchEvent(new CustomEvent('monark:cookieconsent', { detail: { choice: existingChoice } }));
+    return;
+  }
 
   const banner = document.createElement('div');
   banner.className = 'cookie-banner';
@@ -21,6 +31,7 @@
 
   function dismiss(choice) {
     localStorage.setItem(STORAGE_KEY, choice);
+    document.dispatchEvent(new CustomEvent('monark:cookieconsent', { detail: { choice } }));
     banner.remove();
     // Relaxes any page's own bottom padding (see --cookie-banner-h in
     // css/style.css's :root) straight back to normal once the banner's

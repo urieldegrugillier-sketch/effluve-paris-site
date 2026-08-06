@@ -22,8 +22,38 @@
     document.getElementById('checkout-confirmation-total').textContent = t('checkout.confirmationTotal', {
       total: money(isNaN(expressTotal) ? 0 : expressTotal)
     });
+    // GA4 purchase for the Payment Request Button (Apple Pay/Google Pay/
+    // Link) path -- that flow never touches this file's own completeOrder()
+    // (see product-page.js's 'paymentmethod' handler, which already
+    // confirmed paymentIntent.status === 'succeeded' with Stripe itself
+    // before ever redirecting here), so this URL landing IS the one place
+    // it can report from. pi/qty are appended to that redirect purely for
+    // this -- see that handler's own comment. trackPurchase()'s own
+    // payment_intent_id dedup guard (js/analytics.js) is what keeps a
+    // bookmark/refresh of this exact URL from reporting the same sale
+    // twice.
+    const expressPaymentIntentId = expressParams.get('pi');
+    const expressQty = Math.max(1, Math.floor(Number(expressParams.get('qty'))) || 1);
+    if (window.MonarkAnalytics && window.MonarkCart && expressPaymentIntentId && !isNaN(expressTotal)) {
+      window.MonarkAnalytics.trackPurchase(expressPaymentIntentId, window.MonarkCart.PRODUCT, expressQty, expressTotal);
+    }
     window.scrollTo(0, 0);
     return;
+  }
+
+  // GA4 begin_checkout -- fires once, right here, for the normal (non-
+  // express) flow: reaching this page WITH items already in the cart IS
+  // "beginning checkout" in GA4's own sense. The Payment Request Button's
+  // own equivalent moment (opening the native Apple Pay/Google Pay/Link
+  // sheet) is tracked separately, from product-page.js itself, since that
+  // path never lands here until AFTER payment already succeeded (see the
+  // branch just above).
+  if (window.MonarkAnalytics && window.MonarkCart && window.MonarkCart.getCart().length) {
+    window.MonarkAnalytics.trackBeginCheckout(
+      window.MonarkCart.PRODUCT,
+      window.MonarkCart.getCart()[0].quantity,
+      window.MonarkCart.getFinalTotal()
+    );
   }
 
   /* ---------------- Accordion state machine ----------------
@@ -1244,6 +1274,20 @@
       promoCode: appliedCode || null,
       paymentIntentId: stripePaymentIntentId
     });
+
+    // GA4 purchase -- this function only ever runs after its own caller
+    // already confirmed paymentIntent.status === 'succeeded' with Stripe
+    // itself (see this file's own submit handler and product-page.js's
+    // Payment Request Button handler, the only two call sites), so this is
+    // never reached on an incomplete/failed payment. trackPurchase()'s own
+    // payment_intent_id dedup guard (js/analytics.js) covers the remaining
+    // "could this function somehow run twice for the same PaymentIntent"
+    // case, the same way it covers the Payment Request Button's own
+    // ?expressSuccess=1 redirect (see checkout-page.js's own top-of-file
+    // comment on that).
+    if (window.MonarkAnalytics) {
+      window.MonarkAnalytics.trackPurchase(stripePaymentIntentId, cart.PRODUCT, quantity, finalTotal);
+    }
 
     cart.clearCart();
     cart.removePromoCode();
