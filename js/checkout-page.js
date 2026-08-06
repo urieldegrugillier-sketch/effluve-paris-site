@@ -22,6 +22,19 @@
     document.getElementById('checkout-confirmation-total').textContent = t('checkout.confirmationTotal', {
       total: money(isNaN(expressTotal) ? 0 : expressTotal)
     });
+    // Address the order-confirmation email was actually sent to -- see
+    // js/checkout-page.js's own showConfirmationEmail()/completeOrder() for
+    // the normal-flow equivalent; this express path never reaches that
+    // function at all (short-circuits via the `return` below), so it needs
+    // its own copy of the same "read the email, show it if present" logic,
+    // sourced from the same &email= param pi/qty above are appended
+    // alongside (see product-page.js's own 'paymentmethod' handler).
+    const expressConfirmationEmailEl = document.getElementById('checkout-confirmation-email');
+    const expressEmail = expressParams.get('email');
+    if (expressEmail) {
+      expressConfirmationEmailEl.textContent = t('checkout.confirmationEmailSentTo', { email: expressEmail });
+      expressConfirmationEmailEl.hidden = false;
+    }
     // GA4 purchase for the Payment Request Button (Apple Pay/Google Pay/
     // Link) path -- that flow never touches this file's own completeOrder()
     // (see product-page.js's 'paymentmethod' handler, which already
@@ -280,8 +293,26 @@
   const formState = document.getElementById('checkout-form-state');
   const confirmation = document.getElementById('checkout-confirmation');
   const confirmationTotal = document.getElementById('checkout-confirmation-total');
+  const confirmationEmail = document.getElementById('checkout-confirmation-email');
   const confirmationReference = document.getElementById('checkout-confirmation-reference');
   const title = document.getElementById('checkout-title');
+
+  // Shared by completeOrder() (normal Stripe Elements flow) and the
+  // ?expressSuccess=1 branch above (Payment Request Button flow) -- both
+  // land on this same confirmation view and both already know the address
+  // the order-confirmation email was actually sent to (session.email /
+  // create-checkout-session's own customerEmail metadata field -- see
+  // stripe-webhook's resolveCustomerEmail(), which reads that same value
+  // first). Hidden rather than shown blank on the rare path where no email
+  // is resolvable at all (shouldn't normally happen -- Payment is only ever
+  // reachable once the Account step has already resolved to a real email,
+  // see initStripePayment()'s own comment -- but never worth showing an
+  // empty "Confirmation sent to " line over).
+  function showConfirmationEmail(email) {
+    if (!email) { confirmationEmail.hidden = true; return; }
+    confirmationEmail.textContent = t('checkout.confirmationEmailSentTo', { email });
+    confirmationEmail.hidden = false;
+  }
 
   const promoForm = document.getElementById('checkout-promo-form');
   const promoInput = document.getElementById('checkout-promo-input');
@@ -1302,6 +1333,12 @@
     confirmationTotal.textContent = appliedCode
       ? t('checkout.confirmationTotalWithCode', { total: money(finalTotal), code: appliedCode })
       : t('checkout.confirmationTotal', { total: money(finalTotal) });
+    // session.email is exactly what's sent as customerEmail metadata to
+    // create-checkout-session, which stripe-webhook's own resolveCustomerEmail()
+    // reads FIRST (see that function's own comment) -- the same address the
+    // confirmation email actually went to, for both a guest and a logged-in
+    // session.
+    showConfirmationEmail(session.email);
     // Swapping to the confirmation state doesn't itself move the viewport, so if
     // the user had scrolled down to fill in the lower parts of the form, the
     // title/confirmation would render wherever that scroll position happened to

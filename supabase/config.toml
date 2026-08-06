@@ -73,3 +73,18 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/send-abandoned-cart-reminders/deno.json"
 entrypoint = "./functions/send-abandoned-cart-reminders/index.ts"
+
+# Supabase Auth's "Send Email" Hook -- replaces Supabase's own bare default
+# templates (password reset, signup confirmation, email change) with this
+# project's real dark/bronze branding + FR/EN support (see that function's
+# own header comment, including the manual Dashboard steps needed to
+# actually turn this on). verify_jwt = false for the same reason as
+# stripe-webhook: called directly by Supabase's own Auth service, no
+# apikey/JWT a browser call would carry -- trust comes entirely from the
+# Standard Webhooks signature this function verifies itself against
+# SEND_EMAIL_HOOK_SECRET.
+[functions.send-auth-email]
+enabled = true
+verify_jwt = false
+import_map = "./functions/send-auth-email/deno.json"
+entrypoint = "./functions/send-auth-email/index.ts"

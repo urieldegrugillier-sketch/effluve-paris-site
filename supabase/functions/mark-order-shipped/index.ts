@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
     return json(403, { error: "Not authorized." });
   }
 
-  let body: { orderId?: unknown; trackingNumber?: unknown };
+  let body: { orderId?: unknown; trackingNumber?: unknown; carrier?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -114,13 +114,20 @@ Deno.serve(async (req) => {
   }
   const orderId = typeof body.orderId === "string" ? body.orderId : "";
   const trackingNumber = typeof body.trackingNumber === "string" ? body.trackingNumber.trim() : "";
-  if (!orderId || !trackingNumber) {
-    return json(400, { error: "orderId and trackingNumber are required." });
+  // Same allow-list as public.orders' own carrier CHECK constraint (see
+  // 20260821000000_order_shipping_address_and_carrier.sql) -- re-validated
+  // here rather than trusted from the client, same "never trust the browser
+  // for anything written to the DB" reasoning as trackingNumber's own
+  // required check just below it.
+  const ALLOWED_CARRIERS = ["colissimo", "chronopost", "mondial_relay", "autre"];
+  const carrier = typeof body.carrier === "string" ? body.carrier.trim() : "";
+  if (!orderId || !trackingNumber || !ALLOWED_CARRIERS.includes(carrier)) {
+    return json(400, { error: "orderId, trackingNumber, and a valid carrier are required." });
   }
 
   const { data: order, error: orderError } = await supabaseAdmin
     .from("orders")
-    .select("id, reference_number, product_name, quantity, total, user_id, guest_email, shipping_status, tracking_number, language")
+    .select("id, reference_number, product_name, quantity, total, user_id, guest_email, shipping_status, tracking_number, carrier, language")
     .eq("id", orderId)
     .maybeSingle();
   if (orderError || !order) {
@@ -128,7 +135,11 @@ Deno.serve(async (req) => {
   }
 
   const wasAlreadyShipped = order.shipping_status === "shipped";
-  const trackingChanged = order.tracking_number !== trackingNumber;
+  // Either the number OR the carrier changing counts as a real correction --
+  // the same number under a different carrier still points the customer's
+  // tracking link at the wrong courier's site, so it needs the same
+  // apologetic re-send as the number itself changing.
+  const trackingChanged = order.tracking_number !== trackingNumber || order.carrier !== carrier;
   // First time -> normal shipping notification. Already shipped but the
   // number actually changed -> the apologetic correction email instead. Any
   // other case (already shipped, same number re-submitted -- e.g. an
@@ -142,6 +153,7 @@ Deno.serve(async (req) => {
     .update({
       shipping_status: "shipped",
       tracking_number: trackingNumber,
+      carrier,
       // Reset on every real change (not just the first) -- a correction is
       // its own send attempt with its own success/failure to track, same
       // "false until a confirmed Resend accept" reasoning as email_sent
@@ -160,7 +172,7 @@ Deno.serve(async (req) => {
     // that's the fact that actually matters; a failed notification email is
     // logged + left as shipping_email_sent: false for later follow-up, same
     // as the confirmation email's own graceful-degradation design.
-    await sendShippingEmail(supabaseAdmin, order, trackingNumber, isCorrection);
+    await sendShippingEmail(supabaseAdmin, order, trackingNumber, carrier, isCorrection);
   }
 
   return json(200, { ok: true, isCorrection, emailSent: shouldSendEmail });
@@ -206,6 +218,7 @@ async function sendShippingEmail(
   supabaseAdmin: ReturnType<typeof createClient>,
   order: OrderRow,
   trackingNumber: string,
+  carrier: string,
   isCorrection: boolean,
 ) {
   const { email, firstName } = await resolveCustomerEmailAndName(supabaseAdmin, order);
@@ -225,6 +238,7 @@ async function sendShippingEmail(
     referenceNumber: order.reference_number || "",
     productName: order.product_name,
     trackingNumber,
+    carrier,
     isCorrection,
   });
 
@@ -265,7 +279,33 @@ interface ShippingEmailDetails {
   referenceNumber: string;
   productName: string;
   trackingNumber: string;
+  carrier: string;
   isCorrection: boolean;
+}
+
+// Builds the carrier's own tracking-page URL for this exact number --
+// Colissimo/Chronopost URLs given directly (already confirmed correct);
+// Mondial Relay's confirmed via two independent sources (an e-commerce
+// integration help page and a carrier-tracking aggregator both agree on
+// this exact query-string shape, including the seemingly-fixed
+// `codeMarque=CC` param) since mondialrelay.fr itself blocks direct
+// fetching -- worth one real test send to double-check before fully
+// trusting it. "autre" (or anything unrecognized) returns null on purpose:
+// there's no real carrier site to link to, so the email falls back to
+// showing the bare tracking number as plain text instead of a broken or
+// guessed link.
+function carrierTrackingUrl(carrier: string, trackingNumber: string): string | null {
+  const encoded = encodeURIComponent(trackingNumber);
+  switch (carrier) {
+    case "colissimo":
+      return `https://www.laposte.fr/outils/suivre-vos-envois?code=${encoded}`;
+    case "chronopost":
+      return `https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=${encoded}`;
+    case "mondial_relay":
+      return `https://www.mondialrelay.fr/suivi-de-colis?codeMarque=CC&numeroExpedition=${encoded}`;
+    default:
+      return null;
+  }
 }
 
 // Reuses supabase/functions/stripe-webhook's own visual template wholesale
@@ -326,6 +366,10 @@ function buildShippingEmail(details: ShippingEmailDetails): { subject: string; h
   const trackingLabel = details.isCorrection
     ? isFr ? "Nouveau numéro de suivi" : "New tracking number"
     : isFr ? "Numéro de suivi" : "Tracking number";
+  const trackingUrl = carrierTrackingUrl(details.carrier, details.trackingNumber);
+  const trackingNumberHtml = trackingUrl
+    ? `<a href="${trackingUrl}" style="color:#ede7dd;text-decoration:underline;">${escapeHtml(details.trackingNumber)}</a>`
+    : escapeHtml(details.trackingNumber);
 
   const signOff = isFr ? "À bientôt," : "See you soon,";
   const visitSiteLabel = isFr ? "Voir nos parfums" : "See our fragrances";
@@ -398,7 +442,7 @@ function buildShippingEmail(details: ShippingEmailDetails): { subject: string; h
                     <td valign="top">
                       <p style="margin:0 0 10px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;">${productNameNatural} | ${ref}</p>
                       <p style="margin:0 0 4px;font-size:12px;line-height:1.4;color:#8f887c;">${trackingLabel}</p>
-                      <p style="margin:0;font-size:22px;font-weight:700;line-height:1.15;color:#ede7dd;">${escapeHtml(details.trackingNumber)}</p>
+                      <p style="margin:0;font-size:22px;font-weight:700;line-height:1.15;color:#ede7dd;">${trackingNumberHtml}</p>
                     </td>
                   </tr>
                 </table>
@@ -439,7 +483,7 @@ function buildShippingEmail(details: ShippingEmailDetails): { subject: string; h
     introText,
     "",
     `${details.productName} | ${ref}`,
-    `${trackingLabel}: ${details.trackingNumber}`,
+    `${trackingLabel}: ${details.trackingNumber}${trackingUrl ? ` (${trackingUrl})` : ""}`,
     "",
     signOff,
     "Effluve Paris",

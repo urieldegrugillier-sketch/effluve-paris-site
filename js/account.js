@@ -29,11 +29,24 @@
   const GUEST_KEY = 'monark_guest_email';
   const MOCK_CARD_KEY_PREFIX = 'monark_mock_card_';
 
-  // PLACEHOLDER -- replace once the real production domain is live, same
-  // convention as README.md's "https://effluve-paris.fr" note (canonical
-  // links, robots.txt, sitemap.xml). Supabase redirects the user here after
-  // they click the password-reset link in their email.
-  const PASSWORD_RESET_REDIRECT_URL = 'https://effluve-paris.fr/account.html';
+  // The real production domain (matches README.md's own
+  // "https://effluve-paris.fr" note -- canonical links, robots.txt,
+  // sitemap.xml) -- Supabase redirects the user here after they click
+  // either the password-reset OR the signup-confirmation link in their
+  // email (see createAccount()'s own emailRedirectTo below, added
+  // alongside this one for the same reason).
+  //
+  // NOTE: passing this explicitly here is necessary but NOT sufficient on
+  // its own -- Supabase Auth also enforces its own server-side allow-list
+  // (Dashboard -> Authentication -> URL Configuration -> "Redirect URLs").
+  // If this exact URL isn't on that list, Supabase silently ignores it and
+  // falls back to the project's configured Site URL instead -- which is
+  // almost certainly the actual cause if these links are still landing on
+  // localhost despite this constant already being correct: that's a
+  // dashboard configuration gap, not something fixable from this file. See
+  // this project's own session notes on the localhost-redirect
+  // investigation for the exact dashboard fields to check.
+  const AUTH_EMAIL_REDIRECT_URL = 'https://effluve-paris.fr/account.html';
 
   let currentAuthUser = null; // { id, email } | null -- kept in sync below
   let currentProfile = null; // last-fetched public.profiles row for currentAuthUser, cleared on any auth change
@@ -71,6 +84,26 @@
   } else {
     console.error('MonarkAccount: Supabase client unavailable -- account features will fail until js/supabase-client.js has real SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY values.');
   }
+
+  // Keeps a real (non-guest) account's own auth.users.user_metadata.language
+  // in sync with whatever language they're actually browsing in right now --
+  // see createAccount()'s own emailRedirectTo/language comment: this is what
+  // supabase/functions/send-auth-email (the Send Email Auth Hook) reads to
+  // pick FR/EN for password-reset/signup-confirmation/email-change emails.
+  // Without this, an account's auth email language would stay frozen at
+  // whatever it happened to be when they first signed up, even after they
+  // later switch the site's language -- module-level (not inside
+  // mountAccountGate()) since a language switch can happen on ANY page, not
+  // just checkout.html/account.html. Best-effort, silent: never surfaced to
+  // the UI, and a failure here has no visible consequence beyond the next
+  // auth email using a stale language, not worth alarming anyone over.
+  document.addEventListener('monark:langchange', () => {
+    if (!currentAuthUser || !client()) return;
+    const lang = window.MonarkI18n ? window.MonarkI18n.getLang() : 'fr';
+    client().auth.updateUser({ data: { language: lang } }).then(({ error }) => {
+      if (error) console.error('MonarkAccount: failed to sync language to user_metadata:', error.message);
+    });
+  });
 
   function mockCardKey(userId) { return MOCK_CARD_KEY_PREFIX + userId; }
 
@@ -176,6 +209,14 @@
       email: String(email || '').trim(),
       password: String(password || ''),
       options: {
+        // BUG FIX: this call never set emailRedirectTo at all, unlike
+        // requestPasswordReset()'s own resetPasswordForEmail() call below --
+        // meaning the signup-confirmation link had no explicit destination
+        // and depended entirely on Supabase's own default Site URL, which is
+        // exactly the setting reported stuck on localhost (see this file's
+        // own AUTH_EMAIL_REDIRECT_URL comment). Explicit here now, matching
+        // the password-reset call, for the same reason.
+        emailRedirectTo: AUTH_EMAIL_REDIRECT_URL,
         // Expected to be read by the public.profiles insert trigger already
         // set up in the Supabase SQL editor (handle_new_user(), see its own
         // updated definition in the migration this feature shipped with) --
@@ -184,13 +225,23 @@
         // themselves. marketing_opt_in is coalesced to true server-side if
         // this key is ever missing (e.g. an older cached script), matching
         // profileToAccountShape()'s own "not false = true" default below.
+        //
+        // language is NOT read by handle_new_user() / public.profiles at
+        // all -- it stays in auth.users.user_metadata only, which is exactly
+        // what supabase/functions/send-auth-email (the Send Email Auth
+        // Hook) reads straight off the hook payload's own `user` object to
+        // pick FR/EN for this account's password-reset/signup-confirmation/
+        // email-change emails going forward (see this file's own
+        // monark:langchange listener above, which keeps it current after
+        // signup too, not just at this one moment).
         data: {
           first_name: extra.firstName || '',
           last_name: extra.lastName || '',
           marketing_opt_in: extra.marketingOptIn !== false,
           phone: extra.phone || '',
           dial_code: extra.dialCode || '',
-          country: extra.country || ''
+          country: extra.country || '',
+          language: window.MonarkI18n ? window.MonarkI18n.getLang() : 'fr'
         }
       }
     });
@@ -484,7 +535,7 @@
 
   async function requestPasswordReset(email) {
     const { error } = await client().auth.resetPasswordForEmail(String(email || '').trim(), {
-      redirectTo: PASSWORD_RESET_REDIRECT_URL
+      redirectTo: AUTH_EMAIL_REDIRECT_URL
     });
     if (error) {
       console.error('MonarkAccount.requestPasswordReset:', error.message);
@@ -1280,6 +1331,23 @@
     // signIn/signUp replace the current session on their own).
     function enterEmailEditMode() {
       previousSession = getSession();
+      // BUG FIX: resolveSession()'s own dedup guard (see its "if (resolvedKey
+      // === lastResolvedKey) return" comment) compares only email+isGuest --
+      // it exists to swallow a SPURIOUS re-fire that lands on the exact same
+      // session (e.g. Supabase's async INITIAL_SESSION hydration), not a
+      // genuine, user-completed edit. But lastResolvedKey is set once by the
+      // FIRST resolve and never touched again outside of cancelEmailEdit()
+      // -- so re-submitting THE SAME email through this edit flow (Modify
+      // Email -> retype the identical address -> Continue as Guest/Log In)
+      // produced a resolvedKey identical to that stale value, and
+      // resolveSession() silently returned before ever calling onResolved()
+      // -- the accordion just sat there looking broken, even though nothing
+      // was actually wrong with the email. A genuinely different email never
+      // hit this, which is exactly why it looked like only the SAME email
+      // was the broken case. Clearing it here (same as cancelEmailEdit()
+      // already does for the same reason) guarantees the NEXT resolution --
+      // whatever email it ends up being -- is always treated as fresh.
+      lastResolvedKey = undefined;
       statusEl.hidden = true;
       onEnterEditMode();
       showStep('email');

@@ -146,7 +146,7 @@
     // ship yet regardless of what shipping_status defaults to.
     const { data: orders, error: ordersError } = await client()
       .from('orders')
-      .select('id, reference_number, user_id, guest_email, product_name, quantity, total, created_at, shipping_status, tracking_number')
+      .select('id, reference_number, user_id, guest_email, product_name, quantity, total, created_at, shipping_status, tracking_number, carrier, shipping_name, shipping_address_line1, shipping_address_line2, shipping_city, shipping_postal_code, shipping_country')
       .eq('status', 'paid')
       .order('created_at', { ascending: false });
 
@@ -278,11 +278,55 @@
   const modalTitleEl = document.getElementById('admin-ship-modal-title');
   const modalRefEl = document.getElementById('admin-ship-modal-ref');
   const modalErrorEl = document.getElementById('admin-ship-modal-error');
+  const revealBtn = document.getElementById('admin-ship-reveal-btn');
+  const addressBlockEl = document.getElementById('admin-ship-address-block');
+  const addressTextEl = document.getElementById('admin-ship-address-text');
+  const trackingFieldsEl = document.getElementById('admin-ship-tracking-fields');
+  const carrierSelect = document.getElementById('admin-carrier-select');
   const trackingInput = document.getElementById('admin-tracking-input');
   const shipConfirmBtn = document.getElementById('admin-ship-confirm');
   const shipCancelBtn = document.getElementById('admin-ship-cancel');
 
   let orderBeingShipped = null;
+
+  // Address lines joined with real <br> line breaks (via innerHTML, hence
+  // escapeHtml on every piece going in) rather than one run-on paragraph --
+  // this is meant to be read at a glance like a shipping label, not a
+  // sentence. Line1/Line2 only included when actually present -- an order
+  // whose PaymentIntent predates 20260821000000_order_shipping_address_and_carrier.sql
+  // (or one that was never attributable to a real shipping_name at all) has
+  // some or all of these as null; this never fabricates a placeholder for a
+  // missing piece, it just omits that line.
+  function formatShippingAddress(order) {
+    const lines = [
+      order.shipping_name,
+      order.shipping_address_line1,
+      order.shipping_address_line2,
+      [order.shipping_postal_code, order.shipping_city].filter(Boolean).join(' '),
+      order.shipping_country,
+    ].filter(Boolean);
+    if (!lines.length) return 'Adresse non disponible pour cette commande.';
+    return lines.map(escapeHtml).join('<br>');
+  }
+
+  // The reveal gate itself -- see admin.html's own comment on
+  // #admin-ship-reveal-btn. Unhides the address + carrier/tracking fields
+  // (and the Confirm button, so there's genuinely nothing submittable
+  // before this runs, not just something visually hidden) and pre-fills
+  // the carrier/tracking values for a correction, exactly like
+  // trackingInput's own pre-fill already did before this change.
+  function revealShippingInfo() {
+    if (!orderBeingShipped) return;
+    addressTextEl.innerHTML = formatShippingAddress(orderBeingShipped);
+    addressBlockEl.hidden = false;
+    trackingFieldsEl.hidden = false;
+    shipConfirmBtn.hidden = false;
+    revealBtn.hidden = true;
+    const alreadyShipped = orderBeingShipped.shipping_status === 'shipped';
+    carrierSelect.value = alreadyShipped && orderBeingShipped.carrier ? orderBeingShipped.carrier : '';
+    trackingInput.focus();
+    trackingInput.select();
+  }
 
   function openShipModal(order) {
     orderBeingShipped = order;
@@ -296,12 +340,20 @@
     // leaving it blank would make it too easy to accidentally resubmit the
     // exact same value expecting nothing to happen (it wouldn't send an
     // email either way, see mark-order-shipped's own trackingChanged check,
-    // but a visibly pre-filled field is the clearer UI regardless).
+    // but a visibly pre-filled field is the clearer UI regardless). Still
+    // set here (not just in revealShippingInfo()) so it's already correct
+    // the moment the fields become visible, with no flash of an empty value.
     trackingInput.value = alreadyShipped ? (order.tracking_number || '') : '';
     modalErrorEl.textContent = '';
+    // Reset the reveal gate every time this opens -- see admin.html's own
+    // comment: no exception for "Modifier le suivi" on an already-shipped
+    // order, the address/tracking fields start hidden again regardless.
+    addressBlockEl.hidden = true;
+    trackingFieldsEl.hidden = true;
+    shipConfirmBtn.hidden = true;
+    revealBtn.hidden = false;
     modal.hidden = false;
-    trackingInput.focus();
-    trackingInput.select();
+    revealBtn.focus();
   }
 
   function closeShipModal() {
@@ -309,6 +361,7 @@
     orderBeingShipped = null;
   }
 
+  revealBtn.addEventListener('click', revealShippingInfo);
   shipCancelBtn.addEventListener('click', closeShipModal);
   modal.addEventListener('click', (e) => { if (e.target === modal) closeShipModal(); });
   document.addEventListener('keydown', (e) => {
@@ -317,6 +370,12 @@
 
   shipConfirmBtn.addEventListener('click', async () => {
     const trackingNumber = trackingInput.value.trim();
+    const carrier = carrierSelect.value;
+    if (!carrier) {
+      modalErrorEl.textContent = 'Merci de choisir un transporteur.';
+      carrierSelect.focus();
+      return;
+    }
     if (!trackingNumber) {
       modalErrorEl.textContent = 'Merci de renseigner un numéro de suivi.';
       trackingInput.focus();
@@ -325,13 +384,16 @@
     if (!orderBeingShipped) return;
 
     // Only prompts for an actual CORRECTION -- an order already marked
-    // shipped, where the tracking number is genuinely changing (not just
-    // resubmitted unchanged, which mark-order-shipped's own trackingChanged
-    // check wouldn't email for anyway, see openShipModal()'s own comment).
-    // First-time "mark as shipped" (shipping_status !== 'shipped') never
-    // hits this -- that's the expected, no-confirmation-needed action.
+    // shipped, where the tracking number OR the carrier is genuinely
+    // changing (not just resubmitted unchanged, which mark-order-shipped's
+    // own trackingChanged check wouldn't email for anyway, see
+    // openShipModal()'s own comment -- extended to carrier for the same
+    // reason as that function's own comment on why a carrier-only change
+    // still counts as a correction). First-time "mark as shipped"
+    // (shipping_status !== 'shipped') never hits this -- that's the
+    // expected, no-confirmation-needed action.
     const isCorrection = orderBeingShipped.shipping_status === 'shipped'
-      && trackingNumber !== (orderBeingShipped.tracking_number || '');
+      && (trackingNumber !== (orderBeingShipped.tracking_number || '') || carrier !== (orderBeingShipped.carrier || ''));
     if (isCorrection && !window.confirm("Ce numéro de suivi va être modifié. Un e-mail de correction sera envoyé au client. Confirmer ?")) {
       return;
     }
@@ -348,7 +410,7 @@
     // current session as the Authorization header automatically -- that's
     // what the function's own is_admin check runs against.
     const { data, error } = await client().functions.invoke('mark-order-shipped', {
-      body: { orderId: orderBeingShipped.id, trackingNumber },
+      body: { orderId: orderBeingShipped.id, trackingNumber, carrier },
     });
 
     shipConfirmBtn.disabled = false;

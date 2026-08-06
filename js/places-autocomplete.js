@@ -249,6 +249,29 @@
     // list scroll internally past that, same as the old fixed-240 case
     // already relied on for a result list taller than 240 itself).
     //
+    // BUG FIX round 3: round 1's "viable at all" floor turned out to be so
+    // low that it effectively became "always above" in ordinary use -- 96px
+    // clears easily in nearly every real layout/scroll position (confirmed
+    // live: a fresh Shipping-step open with no unusual scrolling already
+    // measures 300-450px above by default), so "below" was in practice
+    // almost never reachable even though it often had dramatically more
+    // room. Concretely reproduced live: above=110/below=500 still chose
+    // "above," squeezing the 3-row suggestion list into ~110px directly on
+    // top of the Account section summary right above the field, when 500px
+    // below would have shown it comfortably -- exactly the "forced above
+    // with little room, pushing content awkwardly" symptom this fixes.
+    // "Above" now also needs to NOT be clearly worse than "below" -- it
+    // still wins outright once it clears the full PANEL_MAX_HEIGHT (a
+    // "perfectly usable above," same worked example as round 1's own
+    // comment: above=250/below=400 still picks above, since 250 alone is
+    // already enough -- round 1's own reasoning holds unchanged there), but
+    // below that, it only wins if it's not smaller than "below" either --
+    // restoring an actual space comparison for the narrow, genuinely
+    // ambiguous case round 1 didn't have to consider (a small-but-viable
+    // above going up against a much roomier below), while still never
+    // preferring "below" over an above that's already spacious enough on
+    // its own, which is what round 1 set out to prevent in the first place.
+    //
     // BUG FIX round 2: re-opening a completed accordion step (e.g. Shipping,
     // after visiting Payment and clicking back) never scrolls that step back
     // into view on its own (no browser default for it, and this codebase's
@@ -281,13 +304,14 @@
         input.scrollIntoView({ block: 'center', behavior: 'auto' });
         ({ above, below } = availableRoom());
       }
-      // Prefers "above" whenever it's viable at ALL (>= PANEL_MIN_HEIGHT),
-      // not whichever side happens to have more room -- Chrome's native
-      // popup only ever renders below the field, so "below" is the one
-      // placement actually worth avoiding; picking whichever side is
-      // numerically bigger would still choose "below" any time it slightly
-      // out-measures a perfectly usable "above", defeating the whole point.
-      const goAbove = above >= PANEL_MIN_HEIGHT;
+      // See "BUG FIX round 3" above: "above" needs the PANEL_MIN_HEIGHT
+      // floor to be viable at all, and then either enough room to be fully
+      // comfortable on its own (>= PANEL_MAX_HEIGHT -- Chrome's overlap
+      // avoidance wins outright here, no comparison needed) or at least as
+      // much room as "below" actually has (a genuine space comparison for
+      // the in-between case, so a barely-viable "above" stops beating a
+      // dramatically roomier "below").
+      const goAbove = above >= PANEL_MIN_HEIGHT && (above >= PANEL_MAX_HEIGHT || above >= below);
       panel.classList.toggle('monark-places-suggestions--above', goAbove);
       const usable = goAbove ? above : below;
       panel.style.maxHeight = usable < PANEL_MAX_HEIGHT ? `${Math.max(PANEL_MIN_HEIGHT, usable - 8)}px` : '';

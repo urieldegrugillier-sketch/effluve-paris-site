@@ -526,6 +526,14 @@
       <h2 class="checkout-confirmation-title" data-i18n="checkout.orderReceived">Order Received</h2>
       <p class="checkout-confirmation-text" data-i18n="checkout.confirmationText">This is a demo confirmation — no real order has been placed, no payment was processed, and no email was sent.</p>
       <p class="checkout-confirmation-total" id="checkout-confirmation-total"><!-- populated by inline script below --></p>
+      <!-- The address the order-confirmation email (supabase/functions/
+           stripe-webhook's sendConfirmationEmail()) was actually sent to --
+           same session.email/URL email param both completeOrder() and the
+           ?expressSuccess=1 branch already have on hand, so the customer has
+           visual confirmation of where to go check without guessing. Hidden
+           (not a placeholder) rather than shown empty on the rare path
+           where no email is resolvable at all. -->
+      <p class="checkout-confirmation-email" id="checkout-confirmation-email" hidden></p>
       <!-- Only ever filled in once supabase/functions/stripe-webhook has
            reconciled this order to 'paid' + assigned a reference_number --
            see completeOrder()'s own pollForOrderReference() comment below.

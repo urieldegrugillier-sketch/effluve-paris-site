@@ -93,6 +93,17 @@
   margin: 0 0 0.6rem;
 }
 
+/* Same small-mono/muted treatment as .checkout-confirmation-reference just
+   below (secondary/supporting info, not the primary number -- that's
+   .checkout-confirmation-total's own bronze line above). */
+.checkout-confirmation-email {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin: 0 0 0.6rem;
+}
+
 /* Only ever unhidden once supabase/functions/stripe-webhook has actually
    assigned a reference_number (see completeOrder()'s own pollForOrderReference()
    comment in checkout.html) -- same small-mono treatment as the total just
@@ -1401,7 +1412,16 @@
 .checkout-account-marketing-row span { text-transform: none; letter-spacing: 0.02em; font-size: 0.78rem; font-family: var(--font-body); font-weight: 300; }
 .checkout-account-marketing-row a { color: var(--accent-bronze-light); }
 
-.checkout-submit { width: 100%; text-align: center; margin-top: 0.6rem; cursor: pointer; }
+/* Filled-bronze treatment for the final "Place Order" action -- same
+   already-established convention as .cart-preview-buy/.email-popup-submit/
+   .notfound-acquire-btn/.promo-banner (pure black text, not --bg-void, for
+   the same WCAG AA contrast reason those use -- see .notfound-acquire-btn's
+   own comment on this exact pairing), reused verbatim rather than inventing
+   a new color combination for what's this page's own primary CTA. No custom
+   :hover/:active override needed -- the shared .cta-button:hover/:active
+   rules (css/style.css) already lighten an already-solid-bronze button to
+   --accent-bronze-light on interaction, exactly like every button above. */
+.checkout-submit { width: 100%; text-align: center; margin-top: 0.6rem; cursor: pointer; background: var(--accent-bronze); border-color: var(--accent-bronze); color: #000; }
 .checkout-submit:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .checkout-confirmation { text-align: center; padding: 10vh 0; }

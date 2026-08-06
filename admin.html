@@ -230,12 +230,38 @@
   <div class="admin-modal-content">
     <h2 id="admin-ship-modal-title">Marquer comme expédié</h2>
     <p id="admin-ship-modal-ref"></p>
-    <label for="admin-tracking-input">Numéro de suivi</label>
-    <input type="text" id="admin-tracking-input" autocomplete="off">
+
+    <!-- Reveal gate (js/admin.js's revealShippingInfo()) -- the shipping
+         address AND the carrier/tracking fields below both stay hidden (the
+         Confirm button too, so there's nothing to submit either) until this
+         is clicked. Re-hidden every time the modal (re)opens, including for
+         "Modifier le suivi" on an already-shipped order -- no exception for
+         corrections, same one reveal step either way. -->
+    <button type="button" class="admin-ship-btn" id="admin-ship-reveal-btn">Afficher les infos d'expédition</button>
+
+    <div id="admin-ship-address-block" hidden>
+      <label>Adresse de livraison</label>
+      <p id="admin-ship-address-text"></p>
+    </div>
+
+    <div id="admin-ship-tracking-fields" hidden>
+      <label for="admin-carrier-select">Transporteur</label>
+      <select id="admin-carrier-select">
+        <option value="" disabled>Choisir…</option>
+        <option value="colissimo">Colissimo</option>
+        <option value="chronopost">Chronopost</option>
+        <option value="mondial_relay">Mondial Relay</option>
+        <option value="autre">Autre</option>
+      </select>
+
+      <label for="admin-tracking-input">Numéro de suivi</label>
+      <input type="text" id="admin-tracking-input" autocomplete="off">
+    </div>
+
     <p class="admin-modal-error" id="admin-ship-modal-error"></p>
     <div class="admin-modal-actions">
       <button type="button" id="admin-ship-cancel">Annuler</button>
-      <button type="button" id="admin-ship-confirm">Confirmer</button>
+      <button type="button" id="admin-ship-confirm" hidden>Confirmer</button>
     </div>
   </div>
 </div>

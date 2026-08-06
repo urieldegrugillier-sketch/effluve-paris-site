@@ -221,6 +221,24 @@
   }
 
   function showExtras(session) {
+    // BUG FIX (mobile): resolving here (a real Log In or Create Account
+    // submit, the common path onto this function) hides the auth step's
+    // still-focused password field in the same synchronous tick as
+    // unhiding every section below (order history, and for a real account
+    // also Edit Profile/Saved Address/Saved Card/Preferences/Delete
+    // Account) -- a big layout change landing at the exact same moment the
+    // on-screen keyboard closes. Mobile Safari/Chrome don't always
+    // recompute the page's scroll position cleanly when that happens (a
+    // known class of bug: the viewport was scrolled up to keep the focused
+    // field clear of the keyboard, and closing the keyboard while the
+    // focused element itself disappears can leave that scroll uncorrected),
+    // which is what left this page rendering with a blank gap above the
+    // fixed header's own clearance instead of flush at the top like every
+    // other page. Same fix, same reasoning as checkout.html's own
+    // completeOrder() -- "swapping state doesn't itself move the viewport"
+    // -- forcing it back to the top after the DOM change is what actually
+    // corrects it, since nothing else here would.
+    window.scrollTo(0, 0);
     orderHistory.hidden = false;
 
     if (session.isGuest) {

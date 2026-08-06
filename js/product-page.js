@@ -544,10 +544,14 @@
       // confirmed finalIntent.status === 'succeeded' with Stripe itself, at
       // the status check above, before ever reaching this line) -- see that
       // branch's own comment on why it, not this handler, is where that
-      // report happens.
+      // report happens. email is that same branch's own "confirmation sent
+      // to" display -- session.email is exactly the address
+      // create-checkout-session sent as customerEmail metadata, i.e. what
+      // stripe-webhook actually mailed the confirmation to.
       window.location.href = 'checkout.html?expressSuccess=1&total=' + encodeURIComponent(finalTotal.toFixed(2))
         + '&pi=' + encodeURIComponent(data.paymentIntentId || '')
-        + '&qty=' + encodeURIComponent(quantity);
+        + '&qty=' + encodeURIComponent(quantity)
+        + '&email=' + encodeURIComponent(session.email || '');
     } catch (err) {
       console.error('Payment Request Button confirm failed:', err);
       ev.complete('fail');

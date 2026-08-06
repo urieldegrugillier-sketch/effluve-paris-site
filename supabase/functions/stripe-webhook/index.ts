@@ -39,6 +39,12 @@
 //    exactly the same, they just never get a confirmation email (see
 //    sendConfirmationEmail()'s own check + orders.email_sent, which stays
 //    false in that case).
+// 7. (Telegram order ping, also separate from the five steps above and
+//    independent of step 6) See sendTelegramOrderNotification()'s own
+//    comment, right above that function further down this file, for the
+//    full walkthrough (create a bot via @BotFather, get its token, get your
+//    chat_id via getUpdates) -- also not required for order reconciliation
+//    itself, silently skipped without it.
 //
 // Until all five (order-reconciliation) steps are done, Stripe has nowhere to send these events, so
 // this function is simply never invoked -- checkout keeps working exactly as
@@ -68,6 +74,19 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 // own comment), only skip the confirmation email. sendConfirmationEmail()
 // logs loudly and leaves orders.email_sent false when this is missing.
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+// Same "deliberately NOT in the required-config check" reasoning as
+// RESEND_API_KEY just above -- a missing/invalid Telegram bot token or chat
+// id must never stop an order from being marked 'paid' either, only skip
+// the Telegram notification. sendTelegramOrderNotification() logs loudly
+// when either is missing, same as every other best-effort notification in
+// this file. See that function's own comment for what a project owner
+// needs to do (via @BotFather + one manual message + getUpdates) to obtain
+// real values for these two -- neither is guessable/derivable from
+// anything else, both have to be set by hand:
+//   supabase secrets set TELEGRAM_BOT_TOKEN=123456:ABC-... --linked
+//   supabase secrets set TELEGRAM_CHAT_ID=123456789 --linked
+const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+const TELEGRAM_CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID");
 // contact@ on effluve-paris.fr -- the domain verified in Resend (SPF/DKIM);
 // sending "from" any other domain would get the message rejected by Resend
 // outright, not just marked spam. contact@ specifically (not commandes@,
@@ -76,6 +95,14 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 // such forwarding rule, so a customer reply to it would have gone nowhere.
 const FROM_ADDRESS = "Effluve Paris <contact@effluve-paris.fr>";
 const CONTACT_EMAIL = "contact@effluve-paris.fr";
+// Internal ops inbox -- gets a plain notification every time an order is
+// actually paid (see sendInternalOrderNotification()'s own call sites in
+// reconcileOrder(), same three places sendOrderConfirmation() already
+// fires from), so a real Gmail inbox anyone can already check, not another
+// effluve-paris.fr address that would need its own Cloudflare Email Routing
+// rule set up first (see FROM_ADDRESS's own comment on why contact@ was
+// picked for exactly that reason on the CUSTOMER-facing side).
+const INTERNAL_NOTIFICATION_EMAIL = "effluvepariscontact@gmail.com";
 // Same api.whatsapp.com format (not wa.me) as checkout.html/contact.html's
 // own whatsappHref -- see those files' own comments on why: more reliable
 // than wa.me at carrying the ?text= prefill through the mobile OS's
@@ -202,6 +229,27 @@ Deno.serve(async (req) => {
 // PaymentIntent -- whichever side's INSERT lands first wins the row,
 // whichever side loses that race falls back to an UPDATE onto the winner's
 // row instead of ever creating a duplicate order.
+// public.orders never persisted the shipping address at all before this --
+// it only ever existed on the PaymentIntent's own metadata (see
+// create-checkout-session's own comment on why it's sent there), read once
+// by sendOrderConfirmation() below for the confirmation email's address
+// recap, then gone. admin.html's Orders tab needs it to survive past that
+// one read (see 20260821000000_order_shipping_address_and_carrier.sql's own
+// comment) -- this is the one place it's actually written, at each of
+// reconcileOrder()'s three call sites below, the same conditional
+// "only set what metadata actually carries" pattern already used for
+// `language` just below each of these.
+function shippingFieldsFromMetadata(metadata: Record<string, string>): Record<string, string> {
+  const fields: Record<string, string> = {};
+  if (metadata.shipping_name) fields.shipping_name = metadata.shipping_name;
+  if (metadata.shipping_address_line1) fields.shipping_address_line1 = metadata.shipping_address_line1;
+  if (metadata.shipping_address_line2) fields.shipping_address_line2 = metadata.shipping_address_line2;
+  if (metadata.shipping_city) fields.shipping_city = metadata.shipping_city;
+  if (metadata.shipping_postal_code) fields.shipping_postal_code = metadata.shipping_postal_code;
+  if (metadata.shipping_country) fields.shipping_country = metadata.shipping_country;
+  return fields;
+}
+
 async function reconcileOrder(
   supabaseAdmin: ReturnType<typeof createClient>,
   paymentIntent: Stripe.PaymentIntent,
@@ -229,21 +277,24 @@ async function reconcileOrder(
       referenceNumber = existing.reference_number;
       const { error: updateError } = await supabaseAdmin
         .from("orders")
-        .update({ status: "paid", ...(orderLanguage ? { language: orderLanguage } : {}) })
+        .update({ status: "paid", ...shippingFieldsFromMetadata(metadata), ...(orderLanguage ? { language: orderLanguage } : {}) })
         .eq("id", existing.id);
       if (updateError) throw updateError;
     } else {
       referenceNumber = await updateOrderWithFreshReference(supabaseAdmin, existing.id, {
         status: "paid",
+        ...shippingFieldsFromMetadata(metadata),
         ...(orderLanguage ? { language: orderLanguage } : {}),
       });
     }
     // Order status is now durably 'paid' regardless of what happens below --
     // sendConfirmationEmail() never throws, so a Resend outage/misconfig
     // can't turn this into a 500 that makes Stripe retry an already-settled
-    // reconciliation. incrementPromoCodeUsage() carries the same never-throw
-    // guarantee for the same reason -- see that function's own comment.
+    // reconciliation. incrementPromoCodeUsage()/decrementProductStock()
+    // carry the same never-throw guarantee for the same reason -- see each
+    // function's own comment.
     await incrementPromoCodeUsage(supabaseAdmin, metadata.promo_code || "");
+    await decrementProductStock(supabaseAdmin, existing.quantity);
     await sendOrderConfirmation(supabaseAdmin, metadata, existing.id, {
       referenceNumber,
       productName: existing.product_name,
@@ -252,6 +303,20 @@ async function reconcileOrder(
       guestEmail: existing.guest_email,
       userId: existing.user_id,
       createdAt: existing.created_at,
+    });
+    await sendInternalOrderNotification(supabaseAdmin, metadata, existing.id, {
+      referenceNumber,
+      productName: existing.product_name,
+      quantity: existing.quantity,
+      total: existing.total,
+      guestEmail: existing.guest_email,
+      userId: existing.user_id,
+    });
+    await sendTelegramOrderNotification(existing.id, {
+      referenceNumber,
+      productName: existing.product_name,
+      quantity: existing.quantity,
+      total: existing.total,
     });
     return;
   }
@@ -272,6 +337,7 @@ async function reconcileOrder(
     quantity,
     total,
     status: "paid",
+    ...shippingFieldsFromMetadata(metadata),
   };
   if (metadata.language === "en" || metadata.language === "fr") row.language = metadata.language;
   if (metadata.user_id) {
@@ -316,6 +382,7 @@ async function reconcileOrder(
 
   if (inserted) {
     await incrementPromoCodeUsage(supabaseAdmin, metadata.promo_code || "");
+    await decrementProductStock(supabaseAdmin, quantity);
     await sendOrderConfirmation(supabaseAdmin, metadata, inserted.id, {
       referenceNumber,
       productName,
@@ -325,6 +392,15 @@ async function reconcileOrder(
       userId: (row.user_id as string) || null,
       createdAt: inserted.created_at,
     });
+    await sendInternalOrderNotification(supabaseAdmin, metadata, inserted.id, {
+      referenceNumber,
+      productName,
+      quantity,
+      total,
+      guestEmail: (row.guest_email as string) || null,
+      userId: (row.user_id as string) || null,
+    });
+    await sendTelegramOrderNotification(inserted.id, { referenceNumber, productName, quantity, total });
     return;
   }
 
@@ -346,16 +422,18 @@ async function reconcileOrder(
         finalReference = raceWinner.reference_number;
         const { error: updateError } = await supabaseAdmin
           .from("orders")
-          .update({ status: "paid", ...(raceLanguage ? { language: raceLanguage } : {}) })
+          .update({ status: "paid", ...shippingFieldsFromMetadata(metadata), ...(raceLanguage ? { language: raceLanguage } : {}) })
           .eq("id", raceWinner.id);
         if (updateError) throw updateError;
       } else {
         finalReference = await updateOrderWithFreshReference(supabaseAdmin, raceWinner.id, {
           status: "paid",
+          ...shippingFieldsFromMetadata(metadata),
           ...(raceLanguage ? { language: raceLanguage } : {}),
         });
       }
       await incrementPromoCodeUsage(supabaseAdmin, metadata.promo_code || "");
+      await decrementProductStock(supabaseAdmin, raceWinner.quantity);
       await sendOrderConfirmation(supabaseAdmin, metadata, raceWinner.id, {
         referenceNumber: finalReference,
         productName: raceWinner.product_name,
@@ -364,6 +442,20 @@ async function reconcileOrder(
         guestEmail: raceWinner.guest_email,
         userId: raceWinner.user_id,
         createdAt: raceWinner.created_at,
+      });
+      await sendInternalOrderNotification(supabaseAdmin, metadata, raceWinner.id, {
+        referenceNumber: finalReference,
+        productName: raceWinner.product_name,
+        quantity: raceWinner.quantity,
+        total: raceWinner.total,
+        guestEmail: raceWinner.guest_email,
+        userId: raceWinner.user_id,
+      });
+      await sendTelegramOrderNotification(raceWinner.id, {
+        referenceNumber: finalReference,
+        productName: raceWinner.product_name,
+        quantity: raceWinner.quantity,
+        total: raceWinner.total,
       });
     }
     return;
@@ -401,6 +493,38 @@ async function incrementPromoCodeUsage(
   const { error } = await supabaseAdmin.rpc("increment_promo_code_usage", { p_code: promoCode });
   if (error) {
     console.error("stripe-webhook: failed to increment promo_codes.times_used for", promoCode, ":", error.message);
+  }
+}
+
+// public.products.stock_remaining was never decremented anywhere -- only
+// ever moved by hand via admin.html's Stock tab (see
+// 20260811000000_admin_stock_edit.sql). Called from the same three call
+// sites as incrementPromoCodeUsage() just above, for the exact same
+// "exactly once per order, the FIRST time it turns 'paid', never on a
+// Stripe retry" reasoning -- see that function's own comment. Same atomic,
+// SECURITY DEFINER SQL function pattern too (public.decrement_product_stock,
+// see its own migration for the race-safety/floor-at-0 reasoning) rather
+// than a read-then-write from here, for the same "two orders confirming
+// near-simultaneously can't race each other" reason. Never throws -- a
+// stock-counter glitch must never turn an already-settled 'paid' order into
+// a Stripe-retried 500, same as every other best-effort side effect here.
+async function decrementProductStock(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  quantity: number,
+) {
+  const { data, error } = await supabaseAdmin.rpc("decrement_product_stock", { p_quantity: quantity });
+  if (error) {
+    console.error("stripe-webhook: failed to decrement products.stock_remaining by", quantity, ":", error.message);
+    return;
+  }
+  // Purely informational -- logged so a run of orders that drains stock to
+  // (or past, before the floor) 0 is actually visible in the function logs,
+  // not silently invisible until someone happens to check admin.html's own
+  // Stock tab. Nothing here blocks or alters the order/response either way
+  // -- see this migration's own comment on why a "sold out" block is a
+  // separate, unconfirmed product decision, not built here.
+  if (typeof data === "number" && data <= 0) {
+    console.error("stripe-webhook: products.stock_remaining is at or below 0 after this order (", data, ") -- consider restocking or confirming whether checkout should block once sold out.");
   }
 }
 
@@ -464,6 +588,266 @@ async function sendOrderConfirmation(
     shippingPostalCode: metadata.shipping_postal_code || "",
     shippingCountry: metadata.shipping_country || "",
   });
+}
+
+// ============================================================================
+// Internal order notification (Resend) -- a plain heads-up to the business's
+// own inbox every time an order is actually paid, same trigger point/
+// never-throw guarantee as sendOrderConfirmation() just above (best-effort,
+// never turns an already-settled 'paid' order into a Stripe-retried 500).
+// Kept deliberately simpler than the customer-facing email: one language
+// (this always lands in the business owner's own inbox, never a customer's,
+// so there's no reader whose language preference matters here), no CTA/
+// reply/WhatsApp/legal footer (nothing for an internal reader to click
+// through to) -- just the essentials: reference, product, total, who it's
+// for, and where it's going.
+// ============================================================================
+
+interface InternalNotificationInput {
+  referenceNumber: string;
+  productName: string;
+  quantity: number;
+  total: number;
+  guestEmail: string | null;
+  userId: string | null;
+}
+
+async function sendInternalOrderNotification(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  metadata: Record<string, string>,
+  orderId: string,
+  order: InternalNotificationInput,
+) {
+  if (!RESEND_API_KEY) {
+    console.error("stripe-webhook: RESEND_API_KEY is not configured -- skipping internal order notification for order", orderId);
+    return;
+  }
+  // Same resolution as sendOrderConfirmation()'s own resolveCustomerEmail()
+  // call just above -- a second, independent call rather than threading the
+  // first call's result through, so this stays fully isolated from that
+  // function's own code path (never modifies it, never depends on it
+  // having run first or succeeded).
+  const customerEmail = await resolveCustomerEmail(supabaseAdmin, metadata, order);
+  const { subject, html, text } = buildInternalOrderNotificationEmail({
+    referenceNumber: order.referenceNumber,
+    productName: order.productName,
+    quantity: order.quantity,
+    total: order.total,
+    customerEmail: customerEmail || "",
+    // Same metadata fields shippingFieldsFromMetadata() persists onto the
+    // row -- read directly here rather than re-fetched from the row, same
+    // "already have it in hand at this exact synchronous point" reasoning
+    // as sendOrderConfirmation()'s own shippingName/etc. just above.
+    shippingName: metadata.shipping_name || "",
+    shippingAddressLine1: metadata.shipping_address_line1 || "",
+    shippingAddressLine2: metadata.shipping_address_line2 || "",
+    shippingCity: metadata.shipping_city || "",
+    shippingPostalCode: metadata.shipping_postal_code || "",
+    shippingCountry: metadata.shipping_country || "",
+    promoCode: metadata.promo_code || "",
+  });
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from: FROM_ADDRESS, to: [INTERNAL_NOTIFICATION_EMAIL], subject, html, text }),
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      throw new Error(`Resend API responded ${res.status}: ${errBody}`);
+    }
+    // No email_sent-style column/retry tracking for this one, unlike the
+    // customer-facing emails (orders.email_sent/shipping_email_sent) -- this
+    // is a best-effort internal heads-up, not something a customer is ever
+    // left waiting on; a lost delivery here just means checking admin.html's
+    // own Orders tab instead, which already has the full picture regardless.
+  } catch (err) {
+    console.error("stripe-webhook: internal order notification failed for order", orderId, ":", err instanceof Error ? err.message : err);
+  }
+}
+
+interface InternalNotificationDetails {
+  referenceNumber: string;
+  productName: string;
+  quantity: number;
+  total: number;
+  customerEmail: string;
+  shippingName: string;
+  shippingAddressLine1: string;
+  shippingAddressLine2: string;
+  shippingCity: string;
+  shippingPostalCode: string;
+  shippingCountry: string;
+  promoCode: string;
+}
+
+// Same dark card/logo header as the customer-facing emails (see
+// buildConfirmationEmail()'s own comment for why each visual choice is what
+// it is) reused for brand consistency -- but no CTA button, no WhatsApp/
+// reply footer, no legal footer: none of that means anything to an internal
+// reader, just the data table itself.
+function buildInternalOrderNotificationEmail(details: InternalNotificationDetails): { subject: string; html: string; text: string } {
+  const subject = `Nouvelle commande payée | ${details.referenceNumber}`;
+
+  const addressLines = [
+    details.shippingName,
+    details.shippingAddressLine1,
+    details.shippingAddressLine2,
+    [details.shippingPostalCode, details.shippingCity].filter(Boolean).join(" "),
+    details.shippingCountry,
+  ].filter(Boolean);
+  const addressHtml = addressLines.length ? addressLines.map(escapeHtml).join("<br>") : "Non renseignée";
+  const addressText = addressLines.length ? addressLines.join(", ") : "Non renseignée";
+
+  const rows: [string, string][] = [
+    ["Référence", details.referenceNumber || "—"],
+    ["Produit", `${details.productName} × ${details.quantity}`],
+    ["Total", formatMoney(details.total)],
+    ["Client", details.customerEmail || "—"],
+  ];
+  if (details.promoCode) rows.push(["Code promo", details.promoCode]);
+
+  const rowsHtml = rows.map(([label, value]) => `
+                  <tr>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${escapeHtml(label)}</td>
+                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${escapeHtml(value)}</td>
+                  </tr>`).join("");
+  const rowsText = rows.map(([label, value]) => `${label} : ${value}`).join("\n");
+
+  const html = `<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <meta name="supported-color-schemes" content="light dark">
+    <style>
+      :root { color-scheme: light dark; supported-color-schemes: light dark; }
+      [data-ogsc] body, [data-ogsc] .email-bg { background-color: #0a0908 !important; }
+      [data-ogsc] .email-card { background-color: #141210 !important; }
+      [data-ogsc] h1, [data-ogsc] h2, [data-ogsc] p, [data-ogsc] td, [data-ogsc] span { color: #ede7dd !important; }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background:#0a0908;font-family:'Manrope',Arial,sans-serif;color:#ede7dd;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0908" class="email-bg" style="background:#0a0908;">
+      <tr>
+        <td align="center" style="padding:40px 16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#141210" class="email-card" style="max-width:520px;background:#141210;border:1px solid #2a2620;">
+            <tr>
+              <td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #2a2620;">
+                <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                  <tr><td align="center"><img src="${LOGO_URL}" width="220" height="36" alt="Effluve Paris" style="display:block;border:0;outline:none;width:220px;height:36px;"></td></tr>
+                  <tr><td align="center" style="padding-top:6px;"><img src="${PARIS_LOGO_URL}" width="83" height="13" alt="Paris" style="display:block;border:0;outline:none;width:83px;height:13px;"></td></tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px;">
+                <h1 style="margin:0 0 20px;font-size:18px;font-weight:600;color:#ede7dd;">Nouvelle commande payée</h1>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;border-collapse:collapse;">
+                  ${rowsHtml}
+                </table>
+                <h2 style="margin:0 0 8px;font-size:13px;font-weight:600;color:#d8b27c;text-transform:uppercase;letter-spacing:0.05em;">Adresse de livraison</h2>
+                <p style="margin:0;font-size:13px;line-height:1.6;color:#ede7dd;">${addressHtml}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  const text = [
+    "NOUVELLE COMMANDE PAYÉE",
+    "",
+    rowsText,
+    "",
+    "Adresse de livraison :",
+    addressText,
+  ].join("\n");
+
+  return { subject, html, text };
+}
+
+// ============================================================================
+// Telegram order notification -- a quick real-time ping (not the fuller
+// Gmail heads-up sendInternalOrderNotification() above already covers) for
+// whichever chat TELEGRAM_CHAT_ID points at. Same trigger points, same
+// never-throw guarantee as every other post-payment notification in this
+// file. Deliberately narrower content than the internal email -- reference,
+// item, total only, no customer email/shipping address (Telegram is the
+// "glance at your phone" channel; admin.html's Orders tab or the internal
+// email already have the full picture for anything needing follow-up).
+//
+// SETUP -- three things a project owner has to do by hand, none of which
+// are guessable/creatable from here:
+//   1. Create the bot: message @BotFather on Telegram, send /newbot, follow
+//      its prompts (choose a name + a username ending in "bot"). It replies
+//      with a token shaped like "123456789:AAExampleTokenTextGoesHere" --
+//      that's TELEGRAM_BOT_TOKEN.
+//   2. Get the chat_id: start a conversation with your OWN new bot (search
+//      its username, hit Start, send it any message -- e.g. "hi") so it has
+//      something to read back, then visit
+//      https://api.telegram.org/bot<TOKEN>/getUpdates in a browser (with
+//      your real token in place of <TOKEN>). The JSON response contains
+//      your message under result[0].message.chat.id -- that number (can be
+//      negative for a group chat) is TELEGRAM_CHAT_ID. If the response is
+//      empty ({"ok":true,"result":[]}), the bot hasn't received a message
+//      yet -- send it one first, then reload that URL.
+//   3. Set both as Supabase secrets (never hardcoded here or committed):
+//        supabase secrets set TELEGRAM_BOT_TOKEN=123456789:AAExample... --linked
+//        supabase secrets set TELEGRAM_CHAT_ID=123456789 --linked
+// Until both are set, this silently no-ops (logged once per order, see
+// below) -- order reconciliation itself is entirely unaffected either way,
+// same as a missing RESEND_API_KEY only ever skipping email.
+// ============================================================================
+
+interface TelegramNotificationInput {
+  referenceNumber: string;
+  productName: string;
+  quantity: number;
+  total: number;
+}
+
+async function sendTelegramOrderNotification(orderId: string, order: TelegramNotificationInput) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    console.error("stripe-webhook: TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID not configured -- skipping Telegram notification for order", orderId);
+    return;
+  }
+
+  // parse_mode "HTML" (not "MarkdownV2") specifically so escapeHtml() --
+  // already used everywhere else in this file -- is the only escaping this
+  // needs. MarkdownV2 requires escaping a much longer list of characters
+  // (., -, !, (, ), etc.) that a real product name/reference could easily
+  // contain; getting that escaping wrong silently breaks the API call
+  // (Telegram rejects malformed Markdown entities), whereas HTML mode only
+  // ever cares about &/</>, exactly what escapeHtml() already handles.
+  const text = [
+    "🛍️ <b>Nouvelle commande payée</b>",
+    "",
+    `Référence : <b>${escapeHtml(order.referenceNumber || "—")}</b>`,
+    `Produit : ${escapeHtml(order.productName)} × ${order.quantity}`,
+    `Total : ${formatMoney(order.total)}`,
+  ].join("\n");
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, parse_mode: "HTML" }),
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      throw new Error(`Telegram API responded ${res.status}: ${errBody}`);
+    }
+  } catch (err) {
+    console.error("stripe-webhook: Telegram order notification failed for order", orderId, ":", err instanceof Error ? err.message : err);
+  }
 }
 
 // Builds the Subtotal/Shipping/VAT/[Promo]/Total breakdown shown in the
