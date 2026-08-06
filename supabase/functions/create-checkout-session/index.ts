@@ -187,6 +187,32 @@ export default {
         });
       }
 
+      // Abandoned-cart tracking (see public.abandoned_checkouts' own
+      // migration for the full picture) -- links this attempt's
+      // payment_intent_id onto whatever tracking row the Account step's own
+      // hook already created for this email (js/checkout-page.js's
+      // trackAbandonedCheckout()), or creates one if that hook somehow never
+      // ran. Never blocks or fails the actual checkout response below --
+      // same "ancillary bookkeeping must never break the real flow"
+      // reasoning as every other best-effort side effect in this codebase
+      // (e.g. stripe-webhook's own incrementPromoCodeUsage/
+      // sendConfirmationEmail). Uses ctx.supabase (the same RLS-scoped,
+      // non-privileged client already used for the product/promo lookups
+      // above), never the service role -- track_abandoned_checkout() is
+      // exactly the SECURITY DEFINER function that makes that safe.
+      const trackingEmail = customerEmail || guestEmail;
+      if (trackingEmail) {
+        const { error: trackError } = await ctx.supabase.rpc("track_abandoned_checkout", {
+          p_email: trackingEmail,
+          p_language: language || "fr",
+          p_user_id: userId || null,
+          p_payment_intent_id: paymentIntent.id,
+        });
+        if (trackError) {
+          console.error("create-checkout-session: track_abandoned_checkout failed:", trackError.message);
+        }
+      }
+
       return Response.json({
         clientSecret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,

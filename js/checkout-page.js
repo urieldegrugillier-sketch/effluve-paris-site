@@ -179,6 +179,25 @@
       : session.email;
   }
 
+  // Abandoned-cart tracking (see public.abandoned_checkouts' own migration
+  // for the full picture) -- this is the ONLY point in this codebase that
+  // ever captures "a customer entered their email at the checkout Account
+  // step," so it's where that half of the reminder system's data model has
+  // to start. Fire-and-forget: never awaited, and a failure here (RPC
+  // unreachable, etc.) is only ever logged -- this is a background
+  // bookkeeping write, not something that should ever delay or block the
+  // Account -> Shipping transition it's called right after.
+  function trackAbandonedCheckout(session) {
+    if (!session || !session.email) return;
+    window.MonarkSupabase.rpc('track_abandoned_checkout', {
+      p_email: session.email,
+      p_language: stripeLocale(),
+      p_user_id: (!session.isGuest && window.MonarkAccount.getCurrentUserId) ? window.MonarkAccount.getCurrentUserId() : null
+    }).then(({ error }) => {
+      if (error) console.error('trackAbandonedCheckout:', error.message);
+    });
+  }
+
   window.MonarkAccount.mountAccountGate(document.getElementById('checkout-account-gate'), {
     statusLabel: (session) => session.isGuest
       ? t('checkout.statusGuest', { email: session.email })
@@ -204,6 +223,7 @@
       await prefillShippingFromAccount(session);
       completeAccordionSection('account', accountSummaryText(session));
       openAccordionSection('shipping');
+      trackAbandonedCheckout(session);
     },
     onUnresolved: () => {
       completedFlags.account = false;

@@ -59,3 +59,17 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/mark-order-shipped/deno.json"
 entrypoint = "./functions/mark-order-shipped/index.ts"
+
+# Abandoned-cart reminder sweep -- invoked only by pg_cron (see
+# 20260819000100_schedule_abandoned_cart_reminders.sql), never by the
+# browser. verify_jwt = true HERE for a different reason than
+# mark-order-shipped above: this isn't identifying a real signed-in customer
+# at all -- the cron job authenticates as this project's service role (its
+# key IS a valid Supabase-signed JWT, so the platform gateway accepts it),
+# and the function's own additional check (see its own top comment) confirms
+# the bearer token is exactly that key, not just any authenticated user's.
+[functions.send-abandoned-cart-reminders]
+enabled = true
+verify_jwt = true
+import_map = "./functions/send-abandoned-cart-reminders/deno.json"
+entrypoint = "./functions/send-abandoned-cart-reminders/index.ts"
