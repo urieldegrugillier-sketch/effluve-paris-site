@@ -90,7 +90,7 @@
   // fails, so a network hiccup degrades to text instead of a broken-image icon.
   function flagHtml(iso2, cls) {
     const code = iso2.toLowerCase();
-    return `<img class="${cls}" src="https://flagcdn.com/${code}.svg" alt="" width="18" height="13" loading="lazy" onerror="this.hidden=true; this.nextElementSibling.hidden=false;"><span class="${cls}-fallback" hidden>${iso2}</span>`;
+    return `<img class="${cls}" src="https://flagcdn.com/${code}.svg" alt="" width="18" height="13" loading="lazy"><span class="${cls}-fallback" hidden>${iso2}</span>`;
   }
 
   // Intl.DisplayNames is supported in every evergreen browser this site
@@ -131,6 +131,23 @@
       : DEFAULT_COUNTRY;
 
     container.classList.add('phone-input');
+
+    // Flag <img> fallback (see flagHtml() above) used to be a literal
+    // onerror="" HTML attribute -- moved here as a real listener so it
+    // doesn't need CSP's script-src to allow inline event handlers. `error`
+    // events don't bubble, so this needs capture:true on an ancestor that
+    // outlives every re-render; container itself, registered once, covers
+    // both the trigger's own flag and every option's flag in the country
+    // list (renderList() rebuilds that <ul> from scratch on every
+    // keystroke) since flagHtml() marks both with a class ending "-flag-img".
+    container.addEventListener('error', (e) => {
+      const img = e.target;
+      if (img.tagName === 'IMG' && /-flag-img$/.test(img.className)) {
+        img.hidden = true;
+        if (img.nextElementSibling) img.nextElementSibling.hidden = false;
+      }
+    }, true);
+
     container.innerHTML = `
       <div class="phone-input-row">
         <button type="button" class="phone-country-trigger" id="${idBase}-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="${t('phoneInput.countrySelectorLabel')}">

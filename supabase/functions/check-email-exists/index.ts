@@ -66,6 +66,50 @@ const PER_PAGE = 1000;
 const MAX_FETCH_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 300;
 
+// Per-IP rate limit -- see 20260817000000_check_email_rate_limit.sql for why:
+// this endpoint pages through the whole user list on every call and needs no
+// auth, so without a cap a scripted caller could both run up cost and use
+// the boolean response as a mass email-enumeration oracle.
+const RATE_LIMIT_MAX_REQUESTS = 10;
+const RATE_LIMIT_WINDOW_SECONDS = 60;
+
+// Supabase Edge Functions run on Supabase's own edge network (not fronted by
+// this project's Cloudflare Workers, which only serve the static site), and
+// document x-forwarded-for as the way to read the caller's real IP there --
+// that header is set by Supabase's platform in front of the function, not
+// passed through untouched from the client, so it isn't client-spoofable.
+// cf-connecting-ip/x-real-ip are checked too in case that ever changes
+// (e.g. a CF-proxied custom domain in front of the function). A
+// comma-separated x-forwarded-for chain (client, proxy1, proxy2, ...) has
+// the original client first.
+function getClientIp(req: Request): string {
+  for (const header of ["x-forwarded-for", "cf-connecting-ip", "x-real-ip"]) {
+    const value = req.headers.get(header);
+    if (value) return value.split(",")[0].trim();
+  }
+  return "unknown";
+}
+
+// Fails OPEN (allows the request through, just logs) if the rate-limit check
+// itself errors -- a bug/outage in this bookkeeping table shouldn't be able
+// to take down the account gate's email step entirely. The listUsers() call
+// this guards has its own retry/cost bounds already; the worse case here is
+// a temporarily-unlimited caller, not an unbounded one.
+async function checkRateLimit(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  ip: string,
+): Promise<boolean> {
+  const { data, error } = await supabaseAdmin.rpc("check_email_rate_limit", {
+    p_ip: ip,
+    p_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
+  });
+  if (error) {
+    console.error("check-email-exists: rate limit check failed:", error.message);
+    return true;
+  }
+  return (data as number) <= RATE_LIMIT_MAX_REQUESTS;
+}
+
 async function listUsersPage(supabaseAdmin: ReturnType<typeof createClient>, page: number) {
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_FETCH_RETRIES; attempt++) {
@@ -102,6 +146,18 @@ export default {
       return Response.json({ error: "Not configured." }, { status: 500 });
     }
 
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const clientIp = getClientIp(req);
+    if (!(await checkRateLimit(supabaseAdmin, clientIp))) {
+      return Response.json(
+        { error: "Too many requests. Please try again in a minute." },
+        { status: 429, headers: { "Retry-After": String(RATE_LIMIT_WINDOW_SECONDS) } },
+      );
+    }
+
     let body: RequestBody;
     try {
       body = await req.json();
@@ -113,10 +169,6 @@ export default {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return Response.json({ error: "Invalid email." }, { status: 400 });
     }
-
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
 
     try {
       const exists = await emailExists(supabaseAdmin, email);

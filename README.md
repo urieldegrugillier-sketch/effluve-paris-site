@@ -94,20 +94,43 @@ beyond it being present in `assets.directory` (see `wrangler.jsonc`). The
 | `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Unused APIs, disabled. Deliberately does **not** restrict `payment` — Stripe's Payment Request Button (Apple Pay/Google Pay) depends on it. |
 | `Content-Security-Policy` | see `_headers` | See caveat below. |
 
-**CSP caveat:** ships `'unsafe-inline'` for both `script-src` and `style-src`.
-Several pages (`checkout.html`, `account.html`, `product.html`, `index.html`,
-`contact.html`) have genuine inline `<script>` blocks (not just external
-`.js` files), plus one inline `style=""` attribute (`product.html`'s stock
-bar) and an inline `onerror=` handler (`js/phone-input.js`'s flag `<img>`
-fallback) — a strict policy without `'unsafe-inline'` (or per-block nonces/
-hashes, which this static-output build has no mechanism to generate/keep in
-sync) would silently break all of them. `element.style.xxx` JS assignments
-(GSAP transforms/opacity, etc.) are *not* affected either way — CSP's
-`style-src` only governs markup-level style sources (`<style>` tags, `<link
-rel=stylesheet>`, inline `style=""` attributes), not runtime CSSOM
-mutations. Every other directive (`script-src`'s domain allow-list,
-`connect-src`, `frame-src`, `object-src 'none'`, `frame-ancestors 'none'`,
-etc.) is fully enforced with no such carve-out.
+**CSP caveat:** ships `'unsafe-inline'` for `style-src` only (not `script-src`
+— see below). One inline `style=""` attribute (`product.html`'s stock bar)
+needs it; `element.style.xxx` JS assignments (GSAP transforms/opacity, etc.)
+don't, either way — CSP's `style-src` only governs markup-level style
+sources (`<style>` tags, `<link rel=stylesheet>`, inline `style=""`
+attributes), not runtime CSSOM mutations.
+
+`script-src` has no `'unsafe-inline'`: every page-specific block that used
+to be a literal inline `<script>...</script>` now lives in its own file
+under `js/` (e.g. `checkout.html`'s former ~1,400-line inline block is
+`js/checkout-page.js`, `product.html`'s four blocks are
+`js/product-gallery.js`/`product-page.js`/`product-countdown-note.js`/
+`product-newsletter.js`, etc. — one file per former block, loaded via
+`<script src>` at the exact same position so execution order/timing didn't
+change). `js/phone-input.js`'s flag `<img>` fallback used to be a literal
+`onerror=""` HTML attribute (also governed by `script-src`, since there's no
+separate `script-src-attr` in this policy) — that's now a real
+`addEventListener('error', ..., true)` on the widget's container instead.
+The one exception is `product.html`'s JSON-LD `<script
+type="application/ld+json">` block, which was never affected in the first
+place: CSP's `script-src` only governs elements the HTML spec actually
+treats as "script blocks", and a non-JS `type` like `application/ld+json`
+means that element never is one, regardless of `'unsafe-inline'`.
+
+Nonces weren't an option for closing this gap: nonce-based CSP needs a
+fresh, unpredictable value minted per response, which requires server-side
+logic on every request — impossible here since `_headers` is served
+statically by Cloudflare Workers Static Assets with no per-request code
+running in front of it. Per-block `sha256-` hashes were the other
+alternative; externalizing was chosen instead since it also matches this
+site's own existing "one file per concern" convention and doesn't leave a
+hash to silently go stale (and start blocking the page) the next time
+someone edits that inline code without recomputing it.
+
+Every other directive (`script-src`'s domain allow-list, `connect-src`,
+`frame-src`, `object-src 'none'`, `frame-ancestors 'none'`, etc.) is fully
+enforced with no carve-out.
 
 One gap to know about: `js/places-autocomplete.js` loads
 `https://maps.googleapis.com` if a real Google Places API key is ever
