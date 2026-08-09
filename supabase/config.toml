@@ -74,6 +74,18 @@ verify_jwt = true
 import_map = "./functions/send-abandoned-cart-reminders/deno.json"
 entrypoint = "./functions/send-abandoned-cart-reminders/index.ts"
 
+# account.html's "Delete Account" action (js/account.js's deleteAccount()).
+# verify_jwt = true for the same reason as mark-order-shipped above: this
+# needs to know WHICH real, signed-in user is calling (see that function's
+# own top comment for the full pattern this mirrors) -- unlike that one,
+# there's no further is_admin-style authorization check, any authenticated
+# user may always delete their own account.
+[functions.delete-account]
+enabled = true
+verify_jwt = true
+import_map = "./functions/delete-account/deno.json"
+entrypoint = "./functions/delete-account/index.ts"
+
 # Supabase Auth's "Send Email" Hook -- replaces Supabase's own bare default
 # templates (password reset, signup confirmation, email change) with this
 # project's real dark/bronze branding + FR/EN support (see that function's

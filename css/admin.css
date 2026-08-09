@@ -146,13 +146,14 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
   color: var(--text-muted);
 }
 
-.admin-orders-table th:nth-child(1), .admin-orders-table td:nth-child(1) { width: 11%; }  /* Référence */
-.admin-orders-table th:nth-child(2), .admin-orders-table td:nth-child(2) { width: 16%; }  /* Client */
-.admin-orders-table th:nth-child(3), .admin-orders-table td:nth-child(3) { width: 22%; }  /* Produit */
-.admin-orders-table th:nth-child(4), .admin-orders-table td:nth-child(4) { width: 13%; }  /* Date */
-.admin-orders-table th:nth-child(5), .admin-orders-table td:nth-child(5) { width: 10%; }  /* Statut */
-.admin-orders-table th:nth-child(6), .admin-orders-table td:nth-child(6) { width: 13%; }  /* Suivi */
-.admin-orders-table th:nth-child(7), .admin-orders-table td:nth-child(7) { width: 15%; }  /* Action */
+.admin-orders-table th:nth-child(1), .admin-orders-table td:nth-child(1) { width: 10%; }  /* Référence */
+.admin-orders-table th:nth-child(2), .admin-orders-table td:nth-child(2) { width: 12%; }  /* Nom */
+.admin-orders-table th:nth-child(3), .admin-orders-table td:nth-child(3) { width: 16%; }  /* Email */
+.admin-orders-table th:nth-child(4), .admin-orders-table td:nth-child(4) { width: 18%; }  /* Produit */
+.admin-orders-table th:nth-child(5), .admin-orders-table td:nth-child(5) { width: 11%; }  /* Date */
+.admin-orders-table th:nth-child(6), .admin-orders-table td:nth-child(6) { width: 8%; }   /* Statut */
+.admin-orders-table th:nth-child(7), .admin-orders-table td:nth-child(7) { width: 10%; }  /* Suivi */
+.admin-orders-table th:nth-child(8), .admin-orders-table td:nth-child(8) { width: 15%; }  /* Action */
 
 .admin-promo-table th:nth-child(1), .admin-promo-table td:nth-child(1) { width: 16%; }  /* Code */
 .admin-promo-table th:nth-child(2), .admin-promo-table td:nth-child(2) { width: 14%; }  /* Réduction */
@@ -162,6 +163,66 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
 .admin-promo-table th:nth-child(6), .admin-promo-table td:nth-child(6) { width: 24%; }  /* Action -- widened for the Modifier+Supprimer pair */
 
 .admin-order-row-shipped { opacity: 0.55; }
+
+/* Inline reveal row (js/admin.js's revealOrderRow()) -- a full-width row
+   (colspan across every column) inserted right below a pending order's own
+   row the instant "Expédier" is clicked, replacing that button with the
+   customer's name/address plus Annuler/Expédié, all in place -- one click
+   instead of "open a modal, then click again to reveal." Pre-rendered
+   hidden alongside every pending order's normal row (same "hidden until
+   needed" pattern as the modal's own #admin-ship-address-block) rather than
+   inserted/removed from the DOM on click. */
+.admin-order-reveal-row[hidden] { display: none; }
+.admin-order-reveal-cell { background: var(--bg-ink); }
+
+.admin-order-reveal-address label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.3rem;
+}
+
+.admin-order-reveal-address p { margin: 0 0 1rem; font-size: 0.88rem; }
+
+/* Annuler on the left, Expédié on the right -- unlike .admin-modal-actions'
+   own flex-end pairing (both buttons right-aligned), this row explicitly
+   asked for opposite ends. */
+.admin-order-reveal-actions { display: flex; justify-content: space-between; align-items: center; }
+
+/* Same plain muted/outlined treatment as the modal's own #admin-ship-cancel
+   (.admin-modal-actions button's base rule) -- a secondary/dismissive
+   action, no accent color, no hover-fill. */
+.admin-order-reveal-cancel {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--text-muted);
+}
+
+/* Solid black background + gold/bronze text -- the same pair account.html's
+   #account-admin-mode-btn already uses (css/checkout.css) for its own
+   primary action, reused here rather than inventing a new color pairing.
+   Hover inverts to a filled-bronze/bg-void pair, matching every other
+   bronze-accented button in this file (.admin-ship-btn:hover,
+   #admin-ship-confirm:hover, etc.). */
+.admin-order-reveal-confirm {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.6rem 1.1rem;
+  background: var(--bg-void);
+  border: 1px solid var(--accent-bronze-light);
+  color: var(--accent-bronze-light);
+}
+.admin-order-reveal-confirm:hover { background: var(--accent-bronze-light); color: var(--bg-void); }
 
 /* Item 4: truncated by default, click (js/admin.js) toggles this class to
    let it wrap in place instead of a fixed-width overlay/popover -- the row

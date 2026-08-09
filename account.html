@@ -275,10 +275,21 @@
       <div id="account-delete-confirm" hidden>
         <p class="checkout-account-intro" data-i18n="account.deleteConfirmText">Delete your account permanently?</p>
         <p class="checkout-account-intro account-delete-irreversible" data-i18n="account.deleteConfirmIrreversible">This action is irreversible.</p>
+        <!-- Type-your-email safeguard -- deleteConfirmBtn stays disabled
+             (js/account-page.js) until this exactly matches the resolved
+             session's own email, so a stray/misplaced click can't trigger an
+             irreversible action. placeholder shows the address itself (set
+             from the resolved session, not static markup) since the label
+             text can't safely embed a per-user value. -->
+        <label class="checkout-field">
+          <span data-i18n="account.deleteConfirmEmailLabel">Type your email address to confirm</span>
+          <input type="email" id="account-delete-confirm-email" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </label>
         <div class="account-delete-actions">
-          <button type="button" class="cta-button checkout-account-btn-sm account-delete-confirm-btn" id="account-delete-confirm-btn" data-i18n="account.deleteConfirmBtn">Confirm Delete</button>
+          <button type="button" class="cta-button checkout-account-btn-sm account-delete-confirm-btn" id="account-delete-confirm-btn" data-i18n="account.deleteConfirmBtn" disabled>Confirm Delete</button>
           <button type="button" class="checkout-account-link-btn" id="account-delete-cancel-btn" data-i18n="account.deleteCancelBtn">Cancel</button>
         </div>
+        <p class="promo-message promo-message-error" id="account-delete-error" aria-live="polite" hidden></p>
       </div>
     </div>
   </div>
@@ -300,14 +311,14 @@
 <script src="js/analytics.js?v=20260823"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js?v=20260822"></script>
-<script src="js/i18n.js?v=20260822"></script>
+<script src="js/i18n.js?v=20260823"></script>
 <script src="js/header-position-fix.js?v=20260822"></script>
 <script src="js/footer-active-page.js?v=20260822"></script>
 <script src="js/cart.js?v=20260823"></script>
 <script src="js/cart-widget.js?v=20260822"></script>
 <script src="js/nav-menu.js?v=20260822"></script>
 <script src="js/phone-input.js?v=20260823"></script>
-<script src="js/account.js?v=20260822"></script>
+<script src="js/account.js?v=20260823"></script>
 <script src="js/places-autocomplete.js?v=20260822"></script>
 <script src="js/account-page.js?v=20260823"></script>
 <script src="js/promo-countdown.js?v=20260822"></script>

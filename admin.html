@@ -65,7 +65,8 @@
         <thead>
           <tr>
             <th>Référence</th>
-            <th>Client</th>
+            <th>Nom</th>
+            <th>Email</th>
             <th>Produit</th>
             <th>Date</th>
             <th>Statut</th>
@@ -228,15 +229,18 @@
 <!-- Mark-as-shipped modal -->
 <div class="admin-modal" id="admin-ship-modal" role="dialog" aria-modal="true" aria-labelledby="admin-ship-modal-title" hidden>
   <div class="admin-modal-content">
-    <h2 id="admin-ship-modal-title">Marquer comme expédié</h2>
+    <h2 id="admin-ship-modal-title">Expédier</h2>
     <p id="admin-ship-modal-ref"></p>
 
     <!-- Reveal gate (js/admin.js's revealShippingInfo()) -- the shipping
          address AND the carrier/tracking fields below both stay hidden (the
          Confirm button too, so there's nothing to submit either) until this
-         is clicked. Re-hidden every time the modal (re)opens, including for
-         "Modifier le suivi" on an already-shipped order -- no exception for
-         corrections, same one reveal step either way. -->
+         is clicked. Still used as-is for "Modifier le suivi" (correcting an
+         already-shipped order). The pending-order "Expédier" row action no
+         longer reaches this at all -- its own inline reveal step (js/admin.js's
+         revealOrderRow()) already showed the address before this modal ever
+         opens, so openShipModal() opens it pre-revealed for that path (see
+         its own startRevealed param), skipping straight past this button. -->
     <button type="button" class="admin-ship-btn" id="admin-ship-reveal-btn">Afficher les infos d'expédition</button>
 
     <div id="admin-ship-address-block" hidden>

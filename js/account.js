@@ -31,10 +31,10 @@
 
   // The real production domain (matches README.md's own
   // "https://effluve-paris.fr" note -- canonical links, robots.txt,
-  // sitemap.xml) -- Supabase redirects the user here after they click
-  // either the password-reset OR the signup-confirmation link in their
-  // email (see createAccount()'s own emailRedirectTo below, added
-  // alongside this one for the same reason).
+  // sitemap.xml) -- Supabase redirects the user here after they click the
+  // signup-confirmation link in their email. Landing on account.html is
+  // correct for THIS flow: confirming a brand-new account is exactly what
+  // should drop the visitor into their own (now-verified) account.
   //
   // NOTE: passing this explicitly here is necessary but NOT sufficient on
   // its own -- Supabase Auth also enforces its own server-side allow-list
@@ -47,6 +47,26 @@
   // this project's own session notes on the localhost-redirect
   // investigation for the exact dashboard fields to check.
   const AUTH_EMAIL_REDIRECT_URL = 'https://effluve-paris.fr/account.html';
+
+  // SECURITY FIX: password-reset links used to point at account.html too
+  // (same constant as above), on the theory that "redirect somewhere that
+  // resolves the session" was the whole job. It isn't: a password-recovery
+  // link grants a real, session-storage-persisted Supabase session, not a
+  // special limited-purpose one. mountAccountGate()'s resolveSession()
+  // does correctly intercept that FIRST landing (isPasswordRecovery() below
+  // is checked ahead of getSession()) -- but passwordRecoveryActive is a
+  // plain in-memory flag that resets to false on any page reload, while the
+  // underlying Supabase session survives the reload via its own storage.
+  // Refresh account.html/checkout.html BEFORE finishing setNewPassword(),
+  // and the next resolveSession() sees an ordinary valid session with no
+  // recovery marker left to check -- and unlocks full account access
+  // (shipping, saved card, order history, delete account) on nothing more
+  // than an unfinished password reset. Routing here instead closes that
+  // hole structurally rather than patching the flag: reset-password.html
+  // (js/reset-password.js) has no OTHER account content to unlock in the
+  // first place, so however Supabase classifies the session across a
+  // refresh, there's nothing broader for it to expose.
+  const AUTH_PASSWORD_RESET_REDIRECT_URL = 'https://effluve-paris.fr/reset-password.html';
 
   let currentAuthUser = null; // { id, email } | null -- kept in sync below
   let currentProfile = null; // last-fetched public.profiles row for currentAuthUser, cleared on any auth change
@@ -519,23 +539,31 @@
     }));
   }
 
-  // SECURITY: full account deletion (removing the auth.users row, and by
-  // cascade its profiles/orders rows) requires Supabase's admin/
-  // service-role API -- the publishable key this file uses can't do it, and
-  // a service-role key must never ship client-side (it bypasses RLS
-  // entirely for every table). What's safely possible from here is signing
-  // out and clearing local state. Real deletion needs a server-side
-  // Supabase Edge Function (using the service-role key there, invoked from
-  // here via client().functions.invoke('delete-account') once that function
-  // exists) as a follow-up task -- not attempting an insecure workaround.
+  // SECURITY FIX: this used to just call logOut() and report success --
+  // full account deletion (removing the auth.users row, and by cascade its
+  // profiles row -- see supabase/functions/delete-account's own comment on
+  // the ON DELETE CASCADE/SET NULL behavior confirmed directly against the
+  // live schema) requires Supabase's admin/service-role API, which the
+  // publishable key this file uses can't call directly (and a service-role
+  // key must never ship client-side -- it bypasses RLS entirely for every
+  // table). "Delete Account" looked like it worked (the UI signed out
+  // immediately) but never removed anything server-side -- the account,
+  // profile, and order history were all still there on the next log-in.
+  // Now routed through that Edge Function instead, which performs the real
+  // deletion using the service-role key server-side.
   async function deleteAccount(email) {
+    const { error } = await client().functions.invoke('delete-account');
+    if (error) {
+      console.error('MonarkAccount.deleteAccount:', error.message);
+      return { ok: false };
+    }
     await logOut();
-    return { ok: true, requiresServerSideFollowUp: true };
+    return { ok: true };
   }
 
   async function requestPasswordReset(email) {
     const { error } = await client().auth.resetPasswordForEmail(String(email || '').trim(), {
-      redirectTo: AUTH_EMAIL_REDIRECT_URL
+      redirectTo: AUTH_PASSWORD_RESET_REDIRECT_URL
     });
     if (error) {
       console.error('MonarkAccount.requestPasswordReset:', error.message);

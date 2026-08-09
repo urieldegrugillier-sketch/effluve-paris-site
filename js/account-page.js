@@ -101,10 +101,27 @@
   const dangerSection = document.getElementById('account-danger');
   const deleteBtn = document.getElementById('account-delete-btn');
   const deleteConfirmBlock = document.getElementById('account-delete-confirm');
+  const deleteConfirmEmailInput = document.getElementById('account-delete-confirm-email');
   const deleteConfirmBtn = document.getElementById('account-delete-confirm-btn');
   const deleteCancelBtn = document.getElementById('account-delete-cancel-btn');
+  const deleteError = document.getElementById('account-delete-error');
 
-  function resetDeleteConfirm() { deleteConfirmBlock.hidden = true; }
+  function resetDeleteConfirm() {
+    deleteConfirmBlock.hidden = true;
+    deleteConfirmEmailInput.value = '';
+    deleteConfirmBtn.disabled = true;
+    deleteError.hidden = true;
+  }
+
+  // Type-your-email safeguard -- deleteConfirmBtn (disabled by default, see
+  // account.html's own markup) only re-enables once this exactly matches the
+  // resolved session's own email, so an accidental/misdirected click can
+  // never trigger this irreversible action on its own.
+  deleteConfirmEmailInput.addEventListener('input', () => {
+    const session = account.getSession();
+    const typed = deleteConfirmEmailInput.value.trim().toLowerCase();
+    deleteConfirmBtn.disabled = !(session && !session.isGuest && typed === session.email.toLowerCase());
+  });
 
   // Order History is shown for every resolved session, but guests see a
   // dedicated prompt instead of the real list (see showExtras() below) --
@@ -504,16 +521,26 @@
   deleteConfirmBtn.addEventListener('click', async () => {
     const session = account.getSession();
     if (!session || session.isGuest) return;
-    // Only signs out + clears local state -- full deletion needs a
-    // server-side Edge Function, see js/account.js's deleteAccount() comment
-    // on why that can't safely happen from here.
-    await account.deleteAccount(session.email);
-    // deleteAccount() already calls logOut() internally (clears the session
-    // + fires 'account:updated'), but the gate instance below only reacts to
-    // 'monark:langchange' and its own 'account:updated' listener with a
-    // fresh microtask -- calling gate.resolveSession() here too is what
-    // flips its own UI back to the logged-out email-entry step immediately
-    // rather than waiting on that.
+    // Re-checked here too, not just via the input listener disabling the
+    // button -- a disabled button is a UI nicety, not a security boundary,
+    // so this is the real gate against triggering deletion without the
+    // email actually matching.
+    if (deleteConfirmEmailInput.value.trim().toLowerCase() !== session.email.toLowerCase()) return;
+    deleteError.hidden = true;
+    deleteConfirmBtn.disabled = true;
+    const result = await account.deleteAccount(session.email);
+    if (!result.ok) {
+      deleteError.textContent = t('account.deleteError');
+      deleteError.hidden = false;
+      deleteConfirmBtn.disabled = false;
+      return;
+    }
+    // deleteAccount() already calls logOut() internally on success (clears
+    // the session + fires 'account:updated'), but the gate instance below
+    // only reacts to 'monark:langchange' and its own 'account:updated'
+    // listener with a fresh microtask -- calling gate.resolveSession() here
+    // too is what flips its own UI back to the logged-out email-entry step
+    // immediately rather than waiting on that.
     gate.resolveSession();
   });
 

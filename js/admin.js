@@ -121,6 +121,7 @@
   // ---------------- Orders tab ----------------
   let ordersCache = []; // last successful fetch, re-rendered on filter toggle without a refetch
   let profileNameById = {}; // user_id -> "First Last" (or "" if never set)
+  let profileEmailById = {}; // user_id -> auth email (public.profiles.email, synced via trigger -- see supabase/migrations/20260822000000_add_profiles_email_sync.sql)
 
   const loadingEl = document.getElementById('admin-orders-loading');
   const errorEl = document.getElementById('admin-orders-error');
@@ -165,18 +166,20 @@
     // is the straightforward option here.
     const userIds = Array.from(new Set(orders.filter((o) => o.user_id).map((o) => o.user_id)));
     profileNameById = {};
+    profileEmailById = {};
     if (userIds.length) {
       const { data: profiles, error: profilesError } = await client()
         .from('profiles')
-        .select('id, first_name, last_name')
+        .select('id, first_name, last_name, email')
         .in('id', userIds);
       if (profilesError) {
         console.error('admin.js loadOrders (profiles):', profilesError.message);
-        // Not fatal -- orders still render, just with a blank customer name
-        // for whichever rows needed a profile lookup that failed.
+        // Not fatal -- orders still render, just with a blank customer name/
+        // email for whichever rows needed a profile lookup that failed.
       } else {
         profiles.forEach((p) => {
           profileNameById[p.id] = [p.first_name, p.last_name].filter(Boolean).join(' ');
+          profileEmailById[p.id] = p.email || '';
         });
       }
     }
@@ -186,10 +189,27 @@
     renderOrders();
   }
 
-  function customerLabel(order) {
-    if (order.user_id) return profileNameById[order.user_id] || '(compte sans nom)';
-    if (order.guest_email) return order.guest_email;
-    return '—';
+  // Name column -- prefers the real account's own profile name (the
+  // canonical, editable-via-Edit-Profile identity) when there is one, same
+  // as this used to be the only source shown here. Falls back to
+  // shipping_name (this specific order's own captured name -- see
+  // formatShippingAddress()'s own comment on where that column comes from)
+  // for a guest order (no profile at all to read) or an account with no
+  // name ever set on its profile, rather than leaving either blank the way
+  // this column used to for a guest.
+  function customerName(order) {
+    if (order.user_id) return profileNameById[order.user_id] || order.shipping_name || '—';
+    return order.shipping_name || '—';
+  }
+
+  // Email column -- public.profiles.email for a real account (synced from
+  // auth.users via trigger, see supabase/migrations/20260822000000_add_
+  // profiles_email_sync.sql), guest_email for a guest order. Previously
+  // there was no separate email column at all -- an account order showed
+  // only its name, a guest order only its email, never both together.
+  function customerEmail(order) {
+    if (order.user_id) return profileEmailById[order.user_id] || '—';
+    return order.guest_email || '—';
   }
 
   // DD/MM/YYYY HH:MM, always -- toLocaleDateString's own output shape isn't
@@ -243,20 +263,50 @@
     tableEl.hidden = false;
     tbodyEl.innerHTML = rows.map((order) => {
       const shipped = order.shipping_status === 'shipped';
-      // Shipped orders get an edit action too (not just pending ones) --
-      // item 3 needs a way to actually CORRECT a tracking number after the
-      // fact, which the previous round's "no button once shipped" design
-      // had no path to at all.
-      const actionLabel = shipped ? 'Modifier le suivi' : 'Marquer comme expédié';
-      return `
-        <tr class="${shipped ? 'admin-order-row-shipped' : ''}" data-order-id="${order.id}">
+      const nameCell = `<td data-label="Nom">${escapeHtml(customerName(order))}</td>`;
+      const emailCell = `<td data-label="Email">${escapeHtml(customerEmail(order))}</td>`;
+      const commonCells = `
           <td data-label="Référence">${escapeHtml(order.reference_number || '—')}</td>
-          <td data-label="Client">${escapeHtml(customerLabel(order))}</td>
+          ${nameCell}
+          ${emailCell}
           <td data-label="Produit">${productCellHtml(order)}</td>
           <td data-label="Date">${formatDate(order.created_at)}</td>
           <td data-label="Statut"><span class="admin-status-pill ${shipped ? 'admin-status-shipped' : 'admin-status-pending'}">${shipped ? 'Expédiée' : 'En attente'}</span></td>
           <td data-label="Suivi">${order.tracking_number ? `<span class="admin-tracking-value">${escapeHtml(order.tracking_number)}</span>` : '—'}</td>
-          <td data-label=""><button type="button" class="admin-ship-btn" data-ship-order-id="${order.id}">${actionLabel}</button></td>
+      `;
+
+      // Shipped orders keep the old direct-to-modal action ("Modifier le
+      // suivi" -- item 3's correction path, untouched by this round's
+      // inline-reveal change, see openShipModal()'s own comment on why).
+      if (shipped) {
+        return `
+          <tr class="admin-order-row-shipped" data-order-id="${order.id}">
+            ${commonCells}
+            <td data-label=""><button type="button" class="admin-ship-btn" data-ship-order-id="${order.id}">Modifier le suivi</button></td>
+          </tr>
+        `;
+      }
+
+      // Pending orders: "Expédier" triggers the inline reveal row right
+      // below (revealOrderRow()) instead of opening the modal directly --
+      // pre-rendered hidden here, same "hidden until needed" pattern as the
+      // modal's own address/tracking blocks.
+      return `
+        <tr data-order-id="${order.id}">
+          ${commonCells}
+          <td data-label=""><button type="button" class="admin-ship-btn" data-reveal-order-id="${order.id}">Expédier</button></td>
+        </tr>
+        <tr class="admin-order-reveal-row" data-reveal-row-for="${order.id}" hidden>
+          <td colspan="8" class="admin-order-reveal-cell">
+            <div class="admin-order-reveal-address">
+              <label>Adresse de livraison</label>
+              <p>${formatShippingAddress(order)}</p>
+            </div>
+            <div class="admin-order-reveal-actions">
+              <button type="button" class="admin-order-reveal-cancel" data-reveal-cancel-id="${order.id}">Annuler</button>
+              <button type="button" class="admin-order-reveal-confirm" data-reveal-ship-id="${order.id}">Expédié</button>
+            </div>
+          </td>
         </tr>
       `;
     }).join('');
@@ -268,9 +318,58 @@
       });
     });
 
+    // "Expédier" -- shows the reveal row in place of this button (see
+    // revealOrderRow()) instead of opening the modal, so the customer's
+    // name/address is one click away, not two.
+    tbodyEl.querySelectorAll('[data-reveal-order-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const orderId = btn.getAttribute('data-reveal-order-id');
+        const order = ordersCache.find((o) => o.id === orderId);
+        if (order) revealOrderRow(order, btn);
+      });
+    });
+
+    tbodyEl.querySelectorAll('[data-reveal-cancel-id]').forEach((btn) => {
+      btn.addEventListener('click', () => hideOrderRowReveal(btn.getAttribute('data-reveal-cancel-id')));
+    });
+
+    // "Expédié" (inline, black/gold) -- opens the SAME mark-as-shipped modal
+    // "Expédier" used to open directly, just already past its own reveal
+    // gate (see openShipModal()'s startRevealed param) since the address was
+    // already shown right here a moment ago.
+    tbodyEl.querySelectorAll('[data-reveal-ship-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const orderId = btn.getAttribute('data-reveal-ship-id');
+        const order = ordersCache.find((o) => o.id === orderId);
+        if (order) openShipModal(order, { startRevealed: true });
+      });
+    });
+
     tbodyEl.querySelectorAll('.admin-product-truncated').forEach((el) => {
       el.addEventListener('click', () => el.classList.toggle('admin-product-expanded'));
     });
+  }
+
+  // Swaps a pending order's own "Expédier" button for the full-width reveal
+  // row right below it (pre-rendered hidden in renderOrders(), see that
+  // function's own comment) -- "replacing the button itself," not just
+  // adding content alongside it, so `btn` (the clicked "Expédier") is hidden
+  // here too, not left sitting there still clickable.
+  function revealOrderRow(order, btn) {
+    btn.hidden = true;
+    const row = tbodyEl.querySelector(`[data-reveal-row-for="${order.id}"]`);
+    if (row) row.hidden = false;
+  }
+
+  // "Annuler" -- reverses revealOrderRow(): hides the reveal row, re-shows
+  // the "Expédier" button it replaced. Looks the button up fresh by
+  // selector rather than capturing it in a closure -- simpler than plumbing
+  // it through two more click handlers for the same result.
+  function hideOrderRowReveal(orderId) {
+    const row = tbodyEl.querySelector(`[data-reveal-row-for="${orderId}"]`);
+    if (row) row.hidden = true;
+    const btn = tbodyEl.querySelector(`[data-reveal-order-id="${orderId}"]`);
+    if (btn) btn.hidden = false;
   }
 
   // ---------------- Mark-as-shipped / edit-tracking modal ----------------
@@ -328,10 +427,18 @@
     trackingInput.select();
   }
 
-  function openShipModal(order) {
+  // `startRevealed` -- used by the orders row's own inline "Expédié" action
+  // (js/admin.js's revealOrderRow()/the [data-reveal-ship-id] handler
+  // above): the address was already shown right there in the table a
+  // moment ago, so this modal opens straight past its own reveal gate
+  // instead of making the admin click "Afficher les infos d'expédition"
+  // again for information they just saw. "Modifier le suivi" (already-
+  // shipped correction path) never passes this -- unaffected, still opens
+  // on the reveal gate exactly as before.
+  function openShipModal(order, { startRevealed = false } = {}) {
     orderBeingShipped = order;
     const alreadyShipped = order.shipping_status === 'shipped';
-    modalTitleEl.textContent = alreadyShipped ? 'Modifier le numéro de suivi' : 'Marquer comme expédié';
+    modalTitleEl.textContent = alreadyShipped ? 'Modifier le numéro de suivi' : 'Expédier';
     modalRefEl.textContent = alreadyShipped
       ? `Commande ${order.reference_number || order.id} -- déjà expédiée. Un nouveau numéro enverra un e-mail de correction au client (pas un second e-mail d'expédition).`
       : `Commande ${order.reference_number || order.id}`;
@@ -347,13 +454,23 @@
     modalErrorEl.textContent = '';
     // Reset the reveal gate every time this opens -- see admin.html's own
     // comment: no exception for "Modifier le suivi" on an already-shipped
-    // order, the address/tracking fields start hidden again regardless.
+    // order, the address/tracking fields start hidden again regardless
+    // (still true here -- startRevealed reveals them again immediately
+    // below, it doesn't skip this reset).
     addressBlockEl.hidden = true;
     trackingFieldsEl.hidden = true;
     shipConfirmBtn.hidden = true;
     revealBtn.hidden = false;
     modal.hidden = false;
-    revealBtn.focus();
+    if (startRevealed) {
+      // Same reveal as a manual reveal-gate click -- address block, tracking
+      // fields, and Confirm all shown together (see revealShippingInfo()'s
+      // own comment on why address stays visible here too, not just the
+      // tracking fields, per this change's own requirement).
+      revealShippingInfo();
+    } else {
+      revealBtn.focus();
+    }
   }
 
   function closeShipModal() {

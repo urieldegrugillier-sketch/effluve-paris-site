@@ -2,6 +2,39 @@
   const shippingForm = document.getElementById('checkout-form');
   function t(key, vars) { return window.MonarkI18n ? window.MonarkI18n.t(key, vars) : key; }
 
+  // Renders an i18n string containing a single {varName} placeholder (e.g.
+  // "Confirmation sent to {email}") with the placeholder's own value wrapped
+  // in <strong> -- bold (font-weight, not a new visual style) is the point,
+  // while the surrounding label text stays exactly as-is. Deliberately NOT
+  // done by handing an interpolated string to innerHTML/data-i18n-html: both
+  // `email` and `reference` here are values a customer (or, for email,
+  // anyone) supplied, and js/i18n.js's own data-i18n-html comment is explicit
+  // that pattern is only for this project's own authored markup, never for
+  // anything derived from user input. Splitting on the placeholder and
+  // building real text nodes + one <strong> element keeps every character of
+  // the value as plain text, immune to that regardless of what it contains.
+  // Locates the placeholder within the CURRENT language's own template
+  // (not a hardcoded "value comes last" assumption) so this still reads
+  // correctly if a future translation puts the value somewhere other than
+  // the end.
+  function setLineWithBoldValue(el, key, varName, value) {
+    const template = t(key);
+    const placeholder = `{${varName}}`;
+    const idx = template.indexOf(placeholder);
+    el.textContent = '';
+    if (idx === -1) {
+      el.textContent = template;
+      return;
+    }
+    const strong = document.createElement('strong');
+    strong.textContent = value;
+    el.append(
+      document.createTextNode(template.slice(0, idx)),
+      strong,
+      document.createTextNode(template.slice(idx + placeholder.length))
+    );
+  }
+
   // Landed here right after a successful Payment Request Button purchase on
   // product.html (Apple Pay/Google Pay/Link) -- payment was already
   // confirmed and the order already recorded there (see product.html's own
@@ -32,7 +65,7 @@
     const expressConfirmationEmailEl = document.getElementById('checkout-confirmation-email');
     const expressEmail = expressParams.get('email');
     if (expressEmail) {
-      expressConfirmationEmailEl.textContent = t('checkout.confirmationEmailSentTo', { email: expressEmail });
+      setLineWithBoldValue(expressConfirmationEmailEl, 'checkout.confirmationEmailSentTo', 'email', expressEmail);
       expressConfirmationEmailEl.hidden = false;
     }
     // GA4 purchase for the Payment Request Button (Apple Pay/Google Pay/
@@ -310,7 +343,7 @@
   // empty "Confirmation sent to " line over).
   function showConfirmationEmail(email) {
     if (!email) { confirmationEmail.hidden = true; return; }
-    confirmationEmail.textContent = t('checkout.confirmationEmailSentTo', { email });
+    setLineWithBoldValue(confirmationEmail, 'checkout.confirmationEmailSentTo', 'email', email);
     confirmationEmail.hidden = false;
   }
 
@@ -1384,7 +1417,7 @@
       const orders = await window.MonarkAccount.getOrders(session.email);
       const match = orders.find((o) => o.paymentIntentId === paymentIntentId);
       if (match && match.referenceNumber) {
-        confirmationReference.textContent = t('checkout.confirmationReference', { reference: match.referenceNumber });
+        setLineWithBoldValue(confirmationReference, 'checkout.confirmationReference', 'reference', match.referenceNumber);
         confirmationReference.hidden = false;
         return;
       }

@@ -139,13 +139,15 @@
     // A blur()+focus() cycle right as this panel opened (in an attempt to
     // force Chrome's native popup closed) was tried and reverted -- confirmed
     // on a real device it didn't actually dismiss Chrome's popup, so it was
-    // pure downside (an extra focus cycle) for no upside. What's shipped
-    // instead: on desktop widths, this panel renders ABOVE the input rather
-    // than below (see updatePanelPlacement()) -- Chrome's own native popup
-    // renders below/near the field, so putting this one on the opposite side
-    // keeps both visible and distinguishable instead of overlapping. Mobile
-    // keeps the below placement unchanged (confirmed to already work well
-    // there, staying clear of the on-screen keyboard).
+    // pure downside (an extra focus cycle) for no upside. On desktop widths,
+    // this panel CAN render ABOVE the input instead of below (see
+    // updatePanelPlacement()) -- Chrome's own native popup renders below/
+    // near the field, so putting this one on the opposite side keeps both
+    // visible and distinguishable instead of overlapping -- but that's now
+    // the rare exception, not the default: see updatePanelPlacement()'s own
+    // comment on why below is the strong default everywhere (mobile and
+    // desktop alike), with above only kicking in when below is genuinely
+    // unusable.
     input.setAttribute('autocomplete', 'off');
 
     let sessionToken = null;
@@ -209,15 +211,16 @@
       input.setAttribute('aria-expanded', String(suggestions.length > 0));
     }
 
-    // Desktop-only mitigation for Chrome's own native address-autofill
+    // Desktop-only escape hatch for Chrome's own native address-autofill
     // popup visually overlapping this panel (see this file's autocomplete=
-    // "off" comment above) -- flips this panel to render ABOVE the input
+    // "off" comment above) -- CAN flip this panel to render ABOVE the input
     // instead of below, via the --above modifier class (css/checkout.css),
     // so the two don't compete for the same space under the field. Same
     // min-width:769px desktop breakpoint used elsewhere in this codebase for
     // desktop-vs-mobile behavior (see js/app.js's own isDesktop). Mobile
-    // always stays below, unchanged -- confirmed to already work well there,
-    // clear of the on-screen keyboard.
+    // never flips to above regardless of room -- confirmed to already work
+    // well staying below, clear of the on-screen keyboard, and Chrome's
+    // native popup isn't the same concern there either.
     //
     // PANEL_MAX_HEIGHT mirrors .monark-places-suggestions's own CSS
     // max-height (css/checkout.css) -- the panel's own inline max-height
@@ -229,25 +232,10 @@
     // otherwise falling all the way back to "below" -- which put the panel
     // right back in Chrome's own native-popup space the moment there wasn't
     // quite enough room for the worst-case full-height list, even with real,
-    // usable (just smaller) room still available above. Confirmed via direct
-    // measurement this is a real, reachable state (not just theoretical): a
-    // field sitting near the top of the viewport (e.g. right after its
-    // accordion section opens with the page not scrolled down at all yet)
-    // can easily have some real room above -- just less than the full
-    // 240px -- and no window.scrollY to gain more by scrolling further up.
-    // Fixed by placing "above" whenever it has at least PANEL_MIN_HEIGHT to
-    // work with, full stop -- deliberately NOT "whichever side has more
-    // room": Chrome's native popup only ever renders below the field, so
-    // "below" is the one placement actually worth avoiding, and comparing
-    // raw pixel counts would still pick "below" any time it slightly
-    // out-measures a perfectly usable "above" (e.g. above=250/below=400 --
-    // above alone is already enough, picking "below" there would silently
-    // reopen the exact overlap this whole mitigation exists to prevent).
-    // The panel's own max-height then shrinks to fit whatever the chosen
-    // side genuinely has, down to that same PANEL_MIN_HEIGHT floor (a
-    // couple of visible rows -- overflow-y:auto still lets a longer result
-    // list scroll internally past that, same as the old fixed-240 case
-    // already relied on for a result list taller than 240 itself).
+    // usable (just smaller) room still available above. Fixed by placing
+    // "above" whenever it had at least PANEL_MIN_HEIGHT to work with, full
+    // stop -- deliberately not a raw above-vs-below comparison, since Chrome's
+    // popup only ever renders below the field.
     //
     // BUG FIX round 3: round 1's "viable at all" floor turned out to be so
     // low that it effectively became "always above" in ordinary use -- 96px
@@ -258,33 +246,46 @@
     // room. Concretely reproduced live: above=110/below=500 still chose
     // "above," squeezing the 3-row suggestion list into ~110px directly on
     // top of the Account section summary right above the field, when 500px
-    // below would have shown it comfortably -- exactly the "forced above
-    // with little room, pushing content awkwardly" symptom this fixes.
-    // "Above" now also needs to NOT be clearly worse than "below" -- it
-    // still wins outright once it clears the full PANEL_MAX_HEIGHT (a
-    // "perfectly usable above," same worked example as round 1's own
-    // comment: above=250/below=400 still picks above, since 250 alone is
-    // already enough -- round 1's own reasoning holds unchanged there), but
-    // below that, it only wins if it's not smaller than "below" either --
-    // restoring an actual space comparison for the narrow, genuinely
-    // ambiguous case round 1 didn't have to consider (a small-but-viable
-    // above going up against a much roomier below), while still never
-    // preferring "below" over an above that's already spacious enough on
-    // its own, which is what round 1 set out to prevent in the first place.
+    // below would have shown it comfortably -- "forced above with little
+    // room, pushing content awkwardly." Rounds 1 and 3 together added an
+    // above-vs-below space comparison on top of the PANEL_MIN_HEIGHT floor,
+    // so a barely-viable "above" would stop beating a dramatically roomier
+    // "below" -- but "above" still won in a lot of ordinary, no-real-problem
+    // layouts any time it simply had a bit more raw room than "below," which
+    // is exactly what round 4 below removes.
     //
-    // BUG FIX round 2: re-opening a completed accordion step (e.g. Shipping,
-    // after visiting Payment and clicking back) never scrolls that step back
-    // into view on its own (no browser default for it, and this codebase's
-    // own accordion code doesn't add one), so the field can simply be
-    // sitting at whatever scroll position was last left over from being
-    // further down the page. Scrolling the field into a centered view before
-    // the real placement decision -- but ONLY when the current position
-    // both has less than the full PANEL_MAX_HEIGHT above AND has room to
-    // scroll further up in the first place (window.scrollY > 0) -- gives
-    // round 1's above-viability check the most room it can actually get
-    // before deciding, without ever forcing a scroll on a field that's
-    // genuinely near the top of the page's own content (scrollY already 0),
-    // where scrolling up further wouldn't help anyway.
+    // CHANGE (round 4): the above-vs-below comparison from rounds 1/3 made
+    // "above" the DE FACTO default in most real layouts -- above only had to
+    // be roughly as roomy as below to win, and above is very often the
+    // roomier side simply because these fields tend to sit mid-page with
+    // plenty of content above them. That's backwards from the actual intent:
+    // "above" exists ONLY as a Chrome-popup-overlap escape hatch for the rare
+    // case where below genuinely can't show anything useful, not as a
+    // competing placement to be chosen whenever it happens to measure larger.
+    // Below is now the strong default, full stop -- "above" is used only
+    // when below has LESS than PANEL_MIN_HEIGHT to work with (i.e. below
+    // isn't just smaller than above, it's actually unusable on its own) AND
+    // above itself clears that same floor (flipping to an equally-unusable
+    // "above" would fix nothing). No above-vs-below comparison anymore --
+    // exactly the "genuinely no usable room below, not just less room below
+    // than above" bar this was changed to enforce.
+    //
+    // BUG FIX round 2 (re-targeted for round 4's new default): re-opening a
+    // completed accordion step (e.g. Shipping, after visiting Payment and
+    // clicking back) never scrolls that step back into view on its own (no
+    // browser default for it, and this codebase's own accordion code doesn't
+    // add one), so the field can simply be sitting at whatever scroll
+    // position was last left over from being further down the page. This
+    // used to give the (then-default) "above" side the most room it could
+    // actually get before deciding; now that below is the default, it does
+    // the same thing for "below" instead -- scrolling the field into a
+    // centered view before the real placement decision, but ONLY when the
+    // current position both has less than the full PANEL_MAX_HEIGHT below
+    // AND there's actual room to scroll further down the page to gain more
+    // (checked directly against the document's own remaining scroll
+    // distance, not just window.scrollY > 0 -- scrolling UP is what used to
+    // grow "above" room; growing "below" room instead needs room to scroll
+    // DOWN).
     const PANEL_MAX_HEIGHT = 240;
     const PANEL_MIN_HEIGHT = 96;
     function availableRoom() {
@@ -293,6 +294,9 @@
       const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
       return { above: inputRect.top - headerBottom, below: window.innerHeight - inputRect.bottom };
     }
+    function canScrollDown() {
+      return (document.documentElement.scrollHeight - window.scrollY - window.innerHeight) > 0;
+    }
     function updatePanelPlacement() {
       if (!isDesktopQuery.matches) {
         panel.classList.remove('monark-places-suggestions--above');
@@ -300,18 +304,15 @@
         return;
       }
       let { above, below } = availableRoom();
-      if (above < PANEL_MAX_HEIGHT && window.scrollY > 0) {
+      if (below < PANEL_MAX_HEIGHT && canScrollDown()) {
         input.scrollIntoView({ block: 'center', behavior: 'auto' });
         ({ above, below } = availableRoom());
       }
-      // See "BUG FIX round 3" above: "above" needs the PANEL_MIN_HEIGHT
-      // floor to be viable at all, and then either enough room to be fully
-      // comfortable on its own (>= PANEL_MAX_HEIGHT -- Chrome's overlap
-      // avoidance wins outright here, no comparison needed) or at least as
-      // much room as "below" actually has (a genuine space comparison for
-      // the in-between case, so a barely-viable "above" stops beating a
-      // dramatically roomier "below").
-      const goAbove = above >= PANEL_MIN_HEIGHT && (above >= PANEL_MAX_HEIGHT || above >= below);
+      // See "CHANGE (round 4)" above: below is the strong default -- above
+      // is only used once below is confirmed genuinely unusable (less than
+      // PANEL_MIN_HEIGHT), and even then only if above itself actually clears
+      // that same floor. No above-vs-below comparison.
+      const goAbove = below < PANEL_MIN_HEIGHT && above >= PANEL_MIN_HEIGHT;
       panel.classList.toggle('monark-places-suggestions--above', goAbove);
       const usable = goAbove ? above : below;
       panel.style.maxHeight = usable < PANEL_MAX_HEIGHT ? `${Math.max(PANEL_MIN_HEIGHT, usable - 8)}px` : '';

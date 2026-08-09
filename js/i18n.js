@@ -431,6 +431,13 @@
         phoneLabel: 'Phone Number (optional)',
         marketingLabel: 'I\'d like to receive product updates, promotions, and the MONARK newsletter by email. You can change this anytime from your Account page, see our <a href="confidentialite.html" target="_blank" rel="noopener">Privacy Policy</a> for details.'
       },
+      resetPassword: {
+        pageTitle: 'Set a New Password',
+        formIntro: 'Choose a new password for your account.',
+        invalidText: 'This link is invalid or has expired. Please request a new password reset email and try again.',
+        successHeading: 'Password Updated',
+        successText: 'Your password has been changed. You can close this tab and return to the page you were previously on — it will now recognize you as logged in.'
+      },
       phoneInput: {
         countrySelectorLabel: 'Country code',
         numberLabel: 'Phone number',
@@ -487,8 +494,10 @@
         deleteAccountBtn: 'Delete Account',
         deleteConfirmText: 'Delete your account permanently?',
         deleteConfirmIrreversible: 'This action is irreversible.',
+        deleteConfirmEmailLabel: 'Type your email address to confirm',
         deleteConfirmBtn: 'Confirm Delete',
-        deleteCancelBtn: 'Cancel'
+        deleteCancelBtn: 'Cancel',
+        deleteError: 'Something went wrong and your account could not be deleted. Please try again.'
       },
       faq: {
         pageTitle: 'Frequently Asked Questions',
@@ -960,6 +969,13 @@
         phoneLabel: 'Numéro de Téléphone (facultatif)',
         marketingLabel: 'Je souhaite recevoir par e-mail les actualités produits, les promotions et la newsletter MONARK. Vous pouvez modifier ce choix à tout moment depuis votre page Compte, consultez notre <a href="confidentialite.html" target="_blank" rel="noopener">Politique de Confidentialité</a> pour en savoir plus.'
       },
+      resetPassword: {
+        pageTitle: 'Définir un Nouveau Mot de Passe',
+        formIntro: 'Choisissez un nouveau mot de passe pour votre compte.',
+        invalidText: 'Ce lien est invalide ou a expiré. Veuillez demander un nouvel e-mail de réinitialisation et réessayer.',
+        successHeading: 'Mot de Passe Mis à Jour',
+        successText: 'Votre mot de passe a été modifié. Vous pouvez fermer cet onglet et retourner sur la page où vous étiez — elle vous reconnaîtra désormais comme connecté(e).'
+      },
       phoneInput: {
         countrySelectorLabel: 'Indicatif du pays',
         numberLabel: 'Numéro de téléphone',
@@ -1014,8 +1030,10 @@
         deleteAccountBtn: 'Supprimer le Compte',
         deleteConfirmText: 'Supprimer définitivement votre compte ?',
         deleteConfirmIrreversible: 'Cette action est irréversible.',
+        deleteConfirmEmailLabel: 'Saisissez votre adresse e-mail pour confirmer',
         deleteConfirmBtn: 'Confirmer la Suppression',
-        deleteCancelBtn: 'Annuler'
+        deleteCancelBtn: 'Annuler',
+        deleteError: "Une erreur s'est produite et votre compte n'a pas pu être supprimé. Veuillez réessayer."
       },
       faq: {
         pageTitle: 'Foire Aux Questions',
