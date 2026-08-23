@@ -168,7 +168,7 @@
         // that migration's own comment). Can't be a plain data-i18n tag
         // (needs the dynamic count interpolated), so this is resolved via
         // t(key, {count}) in JS instead, same as confirmedHeading below.
-        promoCodesRemaining: 'Only {count} promo codes left at this price.',
+        promoCodesRemaining: 'Only {count} promo codes left.',
         emailPlaceholder: 'you@email.com',
         emailAriaLabel: 'Email address',
         consent: 'By submitting, you agree to receive marketing emails from Effluve Paris.',
@@ -407,6 +407,8 @@
         logInBtn: 'Log In',
         continueAsGuest: 'Continue as Guest',
         createAccountInstead: 'Create an account instead',
+        guestPasswordIntro: 'Enter your password to pre-fill your saved information, or continue without it.',
+        guestPasswordSkip: 'Continue without password',
         confirmPasswordLabel: 'Confirm Password',
         createAccountAndContinue: 'Create Account & Continue',
         errorEmailEmpty: 'Please enter your email.',
@@ -758,7 +760,7 @@
         kicker: 'Une Petite Concession',
         heading: '10% de Réduction sur Votre Premier Flacon',
         copy: "Inscrivez-vous avant qu'il n'y ait plus de flacons disponibles.",
-        promoCodesRemaining: 'Plus que {count} codes promo à ce tarif.',
+        promoCodesRemaining: 'Plus que {count} codes promo.',
         emailPlaceholder: 'vous@email.com',
         emailAriaLabel: 'Adresse e-mail',
         consent: "En soumettant ce formulaire, vous acceptez de recevoir des e-mails marketing d'Effluve Paris.",
@@ -945,6 +947,8 @@
         logInBtn: 'Se Connecter',
         continueAsGuest: 'Continuer en tant qu\'Invité',
         createAccountInstead: 'Créer un compte à la place',
+        guestPasswordIntro: 'Saisissez votre mot de passe pour pré-remplir vos informations enregistrées, ou continuez sans cela.',
+        guestPasswordSkip: 'Continuer sans mot de passe',
         confirmPasswordLabel: 'Confirmer le Mot de Passe',
         createAccountAndContinue: 'Créer un Compte et Continuer',
         errorEmailEmpty: 'Veuillez saisir votre e-mail.',

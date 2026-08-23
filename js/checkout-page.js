@@ -301,6 +301,16 @@
       openAccordionSection('shipping');
       trackAbandonedCheckout(session);
     },
+    // See js/account.js's mountAccountGate() own comment on this option --
+    // fires with a momentary real session right after a customer chose
+    // Guest for an email that already has an account and verified its
+    // password, before that session reverts to guest. Reuses
+    // prefillShippingFromAccount() as-is (it only branches on session.isGuest,
+    // already false here) rather than a second copy of the same field-mapping
+    // logic.
+    onGuestAuthenticated: async (session) => {
+      await prefillShippingFromAccount(session);
+    },
     onUnresolved: () => {
       completedFlags.account = false;
       completedFlags.shipping = false;

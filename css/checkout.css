@@ -93,30 +93,36 @@
   margin: 0 0 0.6rem;
 }
 
-/* Same small-mono/muted treatment as .checkout-confirmation-reference just
-   below (secondary/supporting info, not the primary number -- that's
-   .checkout-confirmation-total's own bronze line above). */
+/* Same small-mono treatment as .checkout-confirmation-reference just below
+   (secondary/supporting info, not the primary number -- that's
+   .checkout-confirmation-total's own bronze line above) -- white
+   (--text-on-dark), not muted, so it stays readable at a glance; the
+   <strong>-wrapped email itself (see js/checkout-page.js's own
+   setLineWithBoldValue()) is the one thing on this line already set apart,
+   by weight rather than a second color. */
 .checkout-confirmation-email {
   font-family: var(--font-mono);
   font-size: 0.7rem;
   letter-spacing: 0.05em;
-  color: var(--text-muted);
+  color: var(--text-on-dark);
   margin: 0 0 0.6rem;
 }
 
 /* Only ever unhidden once supabase/functions/stripe-webhook has actually
    assigned a reference_number (see completeOrder()'s own pollForOrderReference()
    comment in checkout.html) -- same small-mono treatment as the total just
-   above it, but muted rather than bronze so the total (the one number that
-   matters immediately) still reads as the primary line. The button below
-   gets its OWN margin-top (not this element's margin-bottom) specifically
-   so the button's spacing stays consistent whether or not this line ever
-   shows up. */
+   above it, but white (--text-on-dark) rather than bronze so the total (the
+   one number that matters immediately) still reads as the primary line. The
+   <strong>-wrapped reference itself (see js/checkout-page.js's own
+   setLineWithBoldValue()) is set apart by weight, not a second color. The
+   button below gets its OWN margin-top (not this element's margin-bottom)
+   specifically so the button's spacing stays consistent whether or not this
+   line ever shows up. */
 .checkout-confirmation-reference {
   font-family: var(--font-mono);
   font-size: 0.7rem;
   letter-spacing: 0.05em;
-  color: var(--text-muted);
+  color: var(--text-on-dark);
   margin: 0 0 0.6rem;
 }
 

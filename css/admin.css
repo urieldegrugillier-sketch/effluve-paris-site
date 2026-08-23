@@ -146,13 +146,28 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
   color: var(--text-muted);
 }
 
+/* BUG FIX: Statut was 8% (~83px at this table's own max rendered width,
+   1036px -- main.admin-main's max-width:1100px minus its own 2rem×2
+   padding, unaffected by how much wider the actual browser window is) --
+   "En attente" (the pill text most orders actually show, longer than
+   "Expédiée") measures ~84px on its own, one pixel over that cell's own
+   width, and .admin-status-pill's white-space:nowrap means it doesn't wrap
+   to absorb the overflow -- it just visually spills into the Suivi column
+   next to it instead. Confirmed via direct measurement (getBoundingClientRect())
+   at five widths from 1024-1440px, all capped to the same ~1036px table
+   width: the overlap reproduced at every one of them, this isn't a narrow-
+   viewport-only issue. Statut widened to comfortably clear it (10%, ~104px)
+   with real margin to spare, Suivi widened too (10% -> 12%) for longer real
+   tracking numbers (Colissimo/Chronopost run 13-17 characters) -- the extra
+   4% taken from Email/Produit, which both had more room than either
+   actually needs. */
 .admin-orders-table th:nth-child(1), .admin-orders-table td:nth-child(1) { width: 10%; }  /* Référence */
 .admin-orders-table th:nth-child(2), .admin-orders-table td:nth-child(2) { width: 12%; }  /* Nom */
-.admin-orders-table th:nth-child(3), .admin-orders-table td:nth-child(3) { width: 16%; }  /* Email */
-.admin-orders-table th:nth-child(4), .admin-orders-table td:nth-child(4) { width: 18%; }  /* Produit */
+.admin-orders-table th:nth-child(3), .admin-orders-table td:nth-child(3) { width: 14%; }  /* Email */
+.admin-orders-table th:nth-child(4), .admin-orders-table td:nth-child(4) { width: 16%; }  /* Produit */
 .admin-orders-table th:nth-child(5), .admin-orders-table td:nth-child(5) { width: 11%; }  /* Date */
-.admin-orders-table th:nth-child(6), .admin-orders-table td:nth-child(6) { width: 8%; }   /* Statut */
-.admin-orders-table th:nth-child(7), .admin-orders-table td:nth-child(7) { width: 10%; }  /* Suivi */
+.admin-orders-table th:nth-child(6), .admin-orders-table td:nth-child(6) { width: 10%; }  /* Statut */
+.admin-orders-table th:nth-child(7), .admin-orders-table td:nth-child(7) { width: 12%; }  /* Suivi */
 .admin-orders-table th:nth-child(8), .admin-orders-table td:nth-child(8) { width: 15%; }  /* Action */
 
 .admin-promo-table th:nth-child(1), .admin-promo-table td:nth-child(1) { width: 16%; }  /* Code */
@@ -187,10 +202,13 @@ main.admin-main { padding: 2rem; max-width: 1100px; margin: 0 auto; }
 
 .admin-order-reveal-address p { margin: 0 0 1rem; font-size: 0.88rem; }
 
-/* Annuler on the left, Expédié on the right -- unlike .admin-modal-actions'
-   own flex-end pairing (both buttons right-aligned), this row explicitly
-   asked for opposite ends. */
-.admin-order-reveal-actions { display: flex; justify-content: space-between; align-items: center; }
+/* BUG FIX: used to be justify-content:space-between (Annuler pinned to the
+   far left, Expédié far right) -- looked disconnected, like two unrelated
+   controls rather than a single confirm/cancel pair. Same flex-end +
+   gap:0.6rem pairing as .admin-modal-actions' own two buttons (Annuler
+   still sits left of Expédié -- that's just DOM order -- but now directly
+   beside it instead of spaced apart). */
+.admin-order-reveal-actions { display: flex; justify-content: flex-end; align-items: center; gap: 0.6rem; }
 
 /* Same plain muted/outlined treatment as the modal's own #admin-ship-cancel
    (.admin-modal-actions button's base rule) -- a secondary/dismissive

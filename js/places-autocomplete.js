@@ -117,38 +117,52 @@
     input.setAttribute('role', 'combobox');
     input.setAttribute('aria-expanded', 'false');
     input.setAttribute('aria-autocomplete', 'list');
-    // Chrome deliberately ignores autocomplete="off" on address-shaped
-    // fields (confirmed via extensive real-device testing elsewhere in this
-    // codebase -- see checkout.html's/account.html's own Address Line 2
-    // field comments) and will still render its own native saved-address
-    // autofill dropdown here regardless of this attribute, sometimes
-    // visibly overlapping this panel. Left in place anyway: Chrome's own
-    // heuristic is genuinely name/label-driven, not attribute-driven, but
-    // other browsers (Firefox, Safari) DO still respect "off", and this
-    // field's real name="address" is exactly the semantic hook every one of
-    // those heuristics keys off of -- renaming it away (the fix that worked
-    // for Address Line 2) isn't an option here, since unlike that field,
-    // Chrome's native autofill on THIS one is a wanted feature (see its own
-    // autocomplete="street-address" in the HTML, tuned over 5 rounds
-    // specifically to make that native autofill work for anyone this
-    // in-page panel doesn't reach, e.g. before the Places library has
-    // loaded). Chrome's native popup is rendered by the browser chrome
-    // itself, entirely outside this page's DOM/paint layer -- no CSS
-    // z-index, position, or JS reaches it from here.
+    // CHANGE: Chrome's native saved-address autofill dropdown used to be a
+    // deliberate, wanted fallback here (autocomplete="street-address" in the
+    // HTML, tuned over 5 rounds -- see checkout.html's/account.html's own
+    // Address field comments -- specifically to make that native autofill
+    // work correctly for anyone this in-page panel doesn't reach, e.g.
+    // before the Places library has loaded). That trade-off is no longer
+    // wanted: only this custom panel should ever suggest anything on this
+    // field, in every case, including the fallback one -- so the HTML's own
+    // default was changed too (same value as set here), not just this
+    // runtime override.
     //
-    // A blur()+focus() cycle right as this panel opened (in an attempt to
-    // force Chrome's native popup closed) was tried and reverted -- confirmed
-    // on a real device it didn't actually dismiss Chrome's popup, so it was
-    // pure downside (an extra focus cycle) for no upside. On desktop widths,
-    // this panel CAN render ABOVE the input instead of below (see
-    // updatePanelPlacement()) -- Chrome's own native popup renders below/
-    // near the field, so putting this one on the opposite side keeps both
-    // visible and distinguishable instead of overlapping -- but that's now
-    // the rare exception, not the default: see updatePanelPlacement()'s own
-    // comment on why below is the strong default everywhere (mobile and
-    // desktop alike), with above only kicking in when below is genuinely
-    // unusable.
-    input.setAttribute('autocomplete', 'off');
+    // plain autocomplete="off" does NOT achieve this -- Chrome deliberately
+    // ignores "off" specifically on fields its own heuristic recognizes as
+    // address-shaped (confirmed via extensive real-device testing; this file
+    // used to set exactly "off" here for that reason, insufficient on its
+    // own). "new-password" does work: it's a real, spec-recognized
+    // autocomplete token, and Chrome trusts an explicit, valid token over
+    // its own name/label-driven guess -- this reclassifies the field away
+    // from "address" in Chrome's eyes entirely, rather than merely asking it
+    // (via "off") to suppress a classification it's already made. This is a
+    // widely documented, long-standing technique for exactly this problem,
+    // not a guess -- but NOT independently re-confirmed by a real visual
+    // test in this change: an attempt to verify it live (CDP
+    // Autofill.setAddresses seeding a profile + a real headed browser, since
+    // Chrome's own suggestion popup is a browser-chrome-owned surface no
+    // page-level screenshot can see) was abandoned mid-attempt after the
+    // screen-capture step twice grabbed the wrong window on the real desktop
+    // it was running on, briefly exposing unrelated content -- not a risk
+    // worth re-attempting for this. Worth an explicit manual check (type
+    // into this field with a real saved Chrome address on file) before
+    // treating this as fully verified.
+    //
+    // Chrome's native popup (when it does appear) is rendered by the
+    // browser chrome itself, entirely outside this page's DOM/paint layer --
+    // no CSS z-index, position, or JS reaches it from here. A blur()+focus()
+    // cycle right as this panel opened (in an attempt to force it closed)
+    // was tried and reverted -- confirmed on a real device it didn't
+    // actually dismiss Chrome's popup, so it was pure downside (an extra
+    // focus cycle) for no upside; moot now that it shouldn't appear at all,
+    // left unreverted as a "don't retry this" note. On desktop widths, this
+    // panel CAN render ABOVE the input instead of below (see
+    // updatePanelPlacement()) -- originally to keep clear of Chrome's native
+    // popup specifically, no longer the reason it exists now that popup is
+    // suppressed, but still a reasonable placement rule on its own merits
+    // (see that function's own comment), so left as-is.
+    input.setAttribute('autocomplete', 'new-password');
 
     let sessionToken = null;
     let suggestions = [];

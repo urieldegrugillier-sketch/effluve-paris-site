@@ -258,6 +258,21 @@
         <option value="autre">Autre</option>
       </select>
 
+      <!-- Shown only when "Autre" is selected above (js/admin.js's own
+           carrierSelect change listener) -- carrierTrackingUrl() in
+           supabase/functions/mark-order-shipped already never builds a
+           clickable link for this carrier (no known tracking-page URL
+           pattern to build one from), same as before this field existed;
+           this just lets the shipping email name the actual carrier
+           ("Mode de transport : ...") instead of saying nothing at all
+           about it. Persisted to public.orders.carrier_other_name (see
+           20260823000000_order_carrier_other_name.sql), null for every
+           other carrier. -->
+      <div id="admin-carrier-other-block" hidden>
+        <label for="admin-carrier-other-input">Mode de transport</label>
+        <input type="text" id="admin-carrier-other-input" autocomplete="off" placeholder="ex. Coursier local" maxlength="80">
+      </div>
+
       <label for="admin-tracking-input">Numéro de suivi</label>
       <input type="text" id="admin-tracking-input" autocomplete="off">
     </div>

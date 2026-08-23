@@ -670,6 +670,28 @@
           <button type="button" class="cta-button checkout-account-btn-sm" id="checkout-account-create-toggle" data-i18n="accountGate.createAccountInstead">Create an account instead</button>
         </div>
 
+        <!-- Shown instead of continuing straight to guest whenever guestBtn
+             is clicked for an email that already has a real account
+             (emailAlreadyExists) -- see guestBtn's own click handler and
+             checkout-account-guest-password-form's submit handler further
+             below for the full sign-in/pre-fill/revert-to-guest sequence.
+             Reset (re-hidden, cleared) every time the auth step is freshly
+             entered, see applyAuthOptionsVisibility(). -->
+        <div id="checkout-account-guest-password-block" hidden>
+          <p class="checkout-account-intro" data-i18n="accountGate.guestPasswordIntro">Enter your password to pre-fill your saved information, or continue without it.</p>
+          <form id="checkout-account-guest-password-form" novalidate>
+            <label class="checkout-field">
+              <span data-i18n="accountGate.passwordLabel">Password</span>
+              <input type="password" id="checkout-account-guest-password-input" autocomplete="current-password" required>
+            </label>
+            <p class="promo-message promo-message-error" id="checkout-account-guest-password-error" aria-live="polite" hidden></p>
+            <span class="checkout-account-login-actions">
+              <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-guest-password-submit-btn" data-i18n="accountGate.continueBtn">Continue</button>
+              <button type="button" class="checkout-account-link-btn" id="checkout-account-guest-password-skip-btn" data-i18n="accountGate.guestPasswordSkip">Continue without password</button>
+            </span>
+          </form>
+        </div>
+
         <form id="checkout-account-create-form" class="checkout-account-create-form" novalidate hidden>
           <div class="checkout-field-row">
             <label class="checkout-field">
@@ -755,6 +777,19 @@
          resolution at mount (nothing to compare against).
        - onUnresolved(): called whenever there's no session (on mount, and
          after changeLabel's button is clicked)
+       - onGuestAuthenticated(session): optional, checkout.html-only in
+         practice (guestBtn is always hidden on account.html, see
+         hideGuestOption below, so its own click handler -- the only call
+         site -- can never fire there). Called with a real (isGuest: false)
+         session right after a customer chose Guest for an email that
+         already has an account and then successfully verified that
+         account's password -- while that momentary real session is still
+         active, before it's reverted to guest (see guestPasswordForm's own
+         submit handler further down for the full sequence). Meant for
+         pre-filling account-specific form fields (checkout-page.js wires
+         this to its own prefillShippingFromAccount()) that need a real,
+         RLS-authorized session to read from -- never for anything that
+         should outlive this single call.
      Returns { resolveSession } in case the host page ever needs to force a
      re-check (account.html uses this after deleteAccount() and its own
      guest-to-create-account shortcut). */
@@ -853,6 +888,13 @@
     const guestBtn = container.querySelector('#checkout-account-guest-btn');
     const createToggle = container.querySelector('#checkout-account-create-toggle');
 
+    const guestPasswordBlock = container.querySelector('#checkout-account-guest-password-block');
+    const guestPasswordForm = container.querySelector('#checkout-account-guest-password-form');
+    const guestPasswordInput = container.querySelector('#checkout-account-guest-password-input');
+    const guestPasswordError = container.querySelector('#checkout-account-guest-password-error');
+    const guestPasswordSubmitBtn = container.querySelector('#checkout-account-guest-password-submit-btn');
+    const guestPasswordSkipBtn = container.querySelector('#checkout-account-guest-password-skip-btn');
+
     const createForm = container.querySelector('#checkout-account-create-form');
     const createFirstNameInput = container.querySelector('#checkout-account-create-firstname');
     const createLastNameInput = container.querySelector('#checkout-account-create-lastname');
@@ -891,6 +933,38 @@
     function showFieldError(el, key) {
       el.textContent = t(key);
       el.hidden = false;
+    }
+
+    // Used by guestPasswordForm's own submit handler below, right after
+    // logIn() -- signInWithPassword() resolving only means the network call
+    // itself succeeded, not that this file's module-level currentAuthUser
+    // (what getSession()/findAccount() actually read) has caught up yet;
+    // that only happens once the separate, async onAuthStateChange callback
+    // fires and this same 'account:updated' event dispatches. Resolves as
+    // soon as getSession() genuinely reflects `email` as a real session, or
+    // once `timeoutMs` elapses, whichever comes first -- never rejects, so a
+    // caller can always proceed afterward (worst case: pre-fill finds
+    // nothing yet, same as if this wait didn't exist at all, just without
+    // the near-guaranteed race the immediate version had).
+    function waitForRealSession(email, timeoutMs) {
+      const matches = () => {
+        const session = getSession();
+        return !!session && !session.isGuest && session.email.toLowerCase() === email.toLowerCase();
+      };
+      if (matches()) return Promise.resolve();
+      return new Promise((resolve) => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          document.removeEventListener('account:updated', onUpdate);
+          clearTimeout(timer);
+          resolve();
+        };
+        const onUpdate = () => { if (matches()) finish(); };
+        document.addEventListener('account:updated', onUpdate);
+        const timer = setTimeout(finish, timeoutMs);
+      });
     }
 
     // Delegates to the single canonical email-format check (js/email-popup.js,
@@ -986,6 +1060,15 @@
       createToggle.hidden = emailAlreadyExists || hideGuestOption;
       optionsWrap.hidden = guestBtn.hidden && createToggle.hidden;
       if (hideGuestOption && !emailAlreadyExists) createForm.hidden = false;
+      // Re-hidden/cleared on every fresh entry into the auth step (this runs
+      // right alongside resetAuthStepFields(), see emailForm's own submit
+      // handler) -- guestBtn's own click handler is what actually shows this
+      // (hiding loginForm/optionsWrap in its place) when emailAlreadyExists,
+      // so a prompt left open from a previous email/attempt never leaks into
+      // a fresh one.
+      guestPasswordBlock.hidden = true;
+      guestPasswordInput.value = '';
+      guestPasswordError.hidden = true;
     }
 
     // Hides every sub-step of the gate, then reveals only the one asked for
@@ -1219,9 +1302,82 @@
       forgotPasswordStatus.hidden = false;
     });
 
+    // BUG FIX: used to always continue straight to a guest session. A
+    // returning customer choosing Guest for an email that already has a real
+    // account has every reason to want their saved shipping info without
+    // fully logging in (see checkout-account-guest-password-block's own
+    // markup comment) -- offer that instead of silently starting them from a
+    // blank form. A brand-new email (no account to offer credentials for)
+    // still continues straight to guest exactly as before.
     guestBtn.addEventListener('click', async () => {
+      if (emailAlreadyExists) {
+        loginForm.hidden = true;
+        optionsWrap.hidden = true;
+        guestPasswordBlock.hidden = false;
+        guestPasswordInput.focus();
+        return;
+      }
       await continueAsGuest(authEmailEcho.textContent);
       resolveSession();
+    });
+
+    // Declines the password prompt -- proceeds as a true guest with an empty
+    // form, exactly like guestBtn's own original (pre-BUG-FIX) behavior.
+    guestPasswordSkipBtn.addEventListener('click', async () => {
+      await continueAsGuest(authEmailEcho.textContent);
+      resolveSession();
+    });
+
+    guestPasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      guestPasswordError.hidden = true;
+      guestPasswordSubmitBtn.disabled = true;
+      guestPasswordInput.disabled = true;
+      try {
+        const email = authEmailEcho.textContent;
+        const result = await logIn(email, guestPasswordInput.value);
+        if (!result.ok) {
+          showFieldError(guestPasswordError, 'accountGate.errorWrongPassword');
+          return;
+        }
+        // logIn() succeeded -- a real session now exists just long enough to
+        // pre-fill from the account's own saved data via the exact same
+        // trusted path a genuine logged-in session uses (see
+        // checkout-page.js's own onGuestAuthenticated option, wired to its
+        // prefillShippingFromAccount()) -- then immediately reverted to a
+        // plain guest session below, so the rest of checkout behaves exactly
+        // like any other guest flow: no forced account-mode redirect, no
+        // session left logged in as the real account.
+        //
+        // BUG FIX: onGuestAuthenticated used to fire immediately here --
+        // but logIn()'s own signInWithPassword() resolving only means the
+        // network call succeeded, not that this file's module-level
+        // currentAuthUser has actually been updated yet (that only happens
+        // inside the SEPARATE, async onAuthStateChange callback -- see this
+        // file's own top-of-file ASYNC NOTE on getSession()'s cache). Since
+        // findAccount() -- what checkout-page.js's prefillShippingFromAccount()
+        // actually reads from -- refuses to resolve anything unless
+        // currentAuthUser already matches the requested email (its own
+        // "only ever resolves for the CURRENTLY authenticated user" guard),
+        // calling onGuestAuthenticated before that lands was a real, silent
+        // failure mode: the prefill callback would run, find no matching
+        // currentAuthUser yet, and quietly return nothing to pre-fill.
+        // waitForRealSession() below blocks on the SAME 'account:updated'
+        // event getSession()'s own cache is kept current by, with a bounded
+        // timeout so a pathological case (the event never fires at all)
+        // can't hang this indefinitely -- prefill just runs with whatever
+        // state exists once that timeout elapses instead.
+        await waitForRealSession(email, 3000);
+        if (options.onGuestAuthenticated) {
+          await options.onGuestAuthenticated({ email, isGuest: false });
+        }
+        await logOut();
+        await continueAsGuest(email);
+        resolveSession();
+      } finally {
+        guestPasswordSubmitBtn.disabled = false;
+        guestPasswordInput.disabled = false;
+      }
     });
 
     createToggle.addEventListener('click', () => {

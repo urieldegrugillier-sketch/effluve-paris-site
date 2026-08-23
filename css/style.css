@@ -1090,6 +1090,48 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   overflow: hidden;
 }
 
+/* BUG FIX (mobile landscape): height:100vh + justify-content:center above
+   assumed a tall (portrait/desktop) viewport -- on a short one (a rotated
+   phone, ~375-430px tall) the fixed header above this section (and the
+   cookie-consent banner below, while it's still showing) both eat into
+   that space with no way for this box to grow in response: they're
+   position:fixed, entirely outside this flex box's own layout/height math.
+   Confirmed via real-device testing: MONARK rendered clipped behind the
+   header (z-index 100 vs. this section's own 10 -- the header painted over
+   it, not literal overflow clipping), the tagline clipped behind the
+   cookie banner. Portrait and desktop are untouched by this rule (already
+   correct there, comfortably clearing both with room to spare) --
+   max-height:500px is well under any portrait phone's own height, only
+   ever matching a short/landscape viewport.
+     - height:100vh -> min-height:100vh + height:auto: lets the section grow
+       taller than one screen if its content still doesn't fit after the
+       changes below, instead of the fixed-height box clipping it -- a
+       landscape visitor scrolling a little further within the hero is a
+       normal, expected trade-off, not a bug.
+     - justify-content:center -> flex-start with real top padding:
+       guarantees actual clearance from the fixed header instead of relying
+       on incidental whitespace that only ever existed because the content
+       comfortably fit within a much taller (portrait/desktop) box. Reuses
+       the exact calc(var(--promo-banner-h) + 6.5rem) pattern .nav-menu's
+       own padding-top already established for "clear the fixed header,
+       including when the promo banner is also showing" (see that rule's
+       own comment for where 6.5rem comes from -- the header's own measured
+       real height), rather than a new one-off estimate. */
+@media (max-height: 500px) {
+  .hero-standalone {
+    height: auto;
+    min-height: 100vh;
+    justify-content: flex-start;
+    padding: calc(var(--promo-banner-h) + 6.5rem) 1.5rem 4rem;
+  }
+  /* .hero-heading's own font-size override lives further down, right after
+     that selector's base rule (not here) -- same specificity (one class),
+     so source order decides the winner, and placing it here would have put
+     this media query's copy BEFORE .hero-heading's own base rule, which
+     would then win instead (confirmed live: the override silently had no
+     effect until moved). */
+}
+
 .hero-standalone::before {
   content: "";
   position: absolute;
@@ -1145,6 +1187,26 @@ body.shop-page .site-header { mix-blend-mode: normal; }
      interior. */
   color: #ffffff;
   -webkit-text-stroke: 2.5px #ffffff;
+}
+
+/* BUG FIX (mobile landscape), part 2 of the .hero-standalone fix above --
+   MUST come after the base rule directly above (same specificity, one
+   class each; source order decides the winner, and this needs to win only
+   below max-height:500px). The clamp()'s middle term (9.5vw) scales off
+   viewport WIDTH -- the wrong axis for this problem: a landscape phone is
+   WIDER than its own portrait self, so MONARK rendered LARGER exactly when
+   there was LESS vertical room for it (9.5vw of a ~390px-tall landscape
+   phone's matching ~844px width lands near the clamp's own 7.5rem ceiling,
+   vs. the 3.2rem floor a same-width PORTRAIT phone clamps down to). Pinned
+   to that same floor here instead -- not a new size, just applying the
+   clamp's own existing small end on this axis too, exactly as it already
+   renders on a narrow portrait phone (confirmed via real-device testing
+   this was the missing piece: .hero-standalone's own padding/min-height
+   fix alone was already enough to clear the fixed header, but leaving the
+   oversized landscape font in place made the section grow taller than it
+   needed to). */
+@media (max-height: 500px) {
+  .hero-heading { font-size: 3.2rem; }
 }
 
 .hero-letter { display: inline-block; }

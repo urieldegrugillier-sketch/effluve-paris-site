@@ -147,7 +147,7 @@
     // ship yet regardless of what shipping_status defaults to.
     const { data: orders, error: ordersError } = await client()
       .from('orders')
-      .select('id, reference_number, user_id, guest_email, product_name, quantity, total, created_at, shipping_status, tracking_number, carrier, shipping_name, shipping_address_line1, shipping_address_line2, shipping_city, shipping_postal_code, shipping_country')
+      .select('id, reference_number, user_id, guest_email, product_name, quantity, total, created_at, shipping_status, tracking_number, carrier, carrier_other_name, shipping_name, shipping_address_line1, shipping_address_line2, shipping_city, shipping_postal_code, shipping_country')
       .eq('status', 'paid')
       .order('created_at', { ascending: false });
 
@@ -382,9 +382,22 @@
   const addressTextEl = document.getElementById('admin-ship-address-text');
   const trackingFieldsEl = document.getElementById('admin-ship-tracking-fields');
   const carrierSelect = document.getElementById('admin-carrier-select');
+  const carrierOtherBlock = document.getElementById('admin-carrier-other-block');
+  const carrierOtherInput = document.getElementById('admin-carrier-other-input');
   const trackingInput = document.getElementById('admin-tracking-input');
   const shipConfirmBtn = document.getElementById('admin-ship-confirm');
   const shipCancelBtn = document.getElementById('admin-ship-cancel');
+
+  // Shows/hides the free-text "Mode de transport" field alongside the
+  // carrier <select> itself, not just at reveal/open time -- an admin
+  // switching TO "Autre" mid-edit needs the field to appear immediately,
+  // and switching AWAY from it should hide (not just visually keep) a
+  // stale value so shipConfirmBtn's own submit handler below never sends
+  // one for a non-"autre" carrier.
+  carrierSelect.addEventListener('change', () => {
+    carrierOtherBlock.hidden = carrierSelect.value !== 'autre';
+    if (carrierSelect.value !== 'autre') carrierOtherInput.value = '';
+  });
 
   let orderBeingShipped = null;
 
@@ -423,6 +436,12 @@
     revealBtn.hidden = true;
     const alreadyShipped = orderBeingShipped.shipping_status === 'shipped';
     carrierSelect.value = alreadyShipped && orderBeingShipped.carrier ? orderBeingShipped.carrier : '';
+    // Same pre-fill-for-a-correction reasoning as carrierSelect/trackingInput
+    // just above -- only ever meaningful when the existing carrier really is
+    // "autre" (mirrors carrier_other_name itself only ever being set in that
+    // case, see 20260823000000_order_carrier_other_name.sql).
+    carrierOtherBlock.hidden = carrierSelect.value !== 'autre';
+    carrierOtherInput.value = alreadyShipped && orderBeingShipped.carrier === 'autre' ? (orderBeingShipped.carrier_other_name || '') : '';
     trackingInput.focus();
     trackingInput.select();
   }
@@ -451,6 +470,9 @@
     // set here (not just in revealShippingInfo()) so it's already correct
     // the moment the fields become visible, with no flash of an empty value.
     trackingInput.value = alreadyShipped ? (order.tracking_number || '') : '';
+    // Same pre-fill reasoning as trackingInput just above.
+    carrierOtherInput.value = alreadyShipped && order.carrier === 'autre' ? (order.carrier_other_name || '') : '';
+    carrierOtherBlock.hidden = true; // re-shown by revealShippingInfo() below when carrier really is "autre"
     modalErrorEl.textContent = '';
     // Reset the reveal gate every time this opens -- see admin.html's own
     // comment: no exception for "Modifier le suivi" on an already-shipped
@@ -493,6 +515,15 @@
       carrierSelect.focus();
       return;
     }
+    // Required only for "Autre" -- every other option already names a real
+    // carrier on its own (see carrierOtherBlock's own visibility, tied to
+    // this same condition).
+    const carrierOtherName = carrier === 'autre' ? carrierOtherInput.value.trim() : '';
+    if (carrier === 'autre' && !carrierOtherName) {
+      modalErrorEl.textContent = 'Merci de préciser le mode de transport.';
+      carrierOtherInput.focus();
+      return;
+    }
     if (!trackingNumber) {
       modalErrorEl.textContent = 'Merci de renseigner un numéro de suivi.';
       trackingInput.focus();
@@ -501,16 +532,21 @@
     if (!orderBeingShipped) return;
 
     // Only prompts for an actual CORRECTION -- an order already marked
-    // shipped, where the tracking number OR the carrier is genuinely
-    // changing (not just resubmitted unchanged, which mark-order-shipped's
-    // own trackingChanged check wouldn't email for anyway, see
-    // openShipModal()'s own comment -- extended to carrier for the same
-    // reason as that function's own comment on why a carrier-only change
-    // still counts as a correction). First-time "mark as shipped"
+    // shipped, where the tracking number, the carrier, OR (for "Autre") the
+    // typed carrier name is genuinely changing (not just resubmitted
+    // unchanged, which mark-order-shipped's own trackingChanged check
+    // wouldn't email for anyway, see openShipModal()'s own comment --
+    // extended to carrier for the same reason as that function's own
+    // comment on why a carrier-only change still counts as a correction,
+    // and now to carrierOtherName for the same reason again: the customer
+    // reading "Mode de transport : X" deserves the same correction email if
+    // X turns out to have been wrong). First-time "mark as shipped"
     // (shipping_status !== 'shipped') never hits this -- that's the
     // expected, no-confirmation-needed action.
     const isCorrection = orderBeingShipped.shipping_status === 'shipped'
-      && (trackingNumber !== (orderBeingShipped.tracking_number || '') || carrier !== (orderBeingShipped.carrier || ''));
+      && (trackingNumber !== (orderBeingShipped.tracking_number || '')
+        || carrier !== (orderBeingShipped.carrier || '')
+        || carrierOtherName !== (orderBeingShipped.carrier_other_name || ''));
     if (isCorrection && !window.confirm("Ce numéro de suivi va être modifié. Un e-mail de correction sera envoyé au client. Confirmer ?")) {
       return;
     }
@@ -527,7 +563,7 @@
     // current session as the Authorization header automatically -- that's
     // what the function's own is_admin check runs against.
     const { data, error } = await client().functions.invoke('mark-order-shipped', {
-      body: { orderId: orderBeingShipped.id, trackingNumber, carrier },
+      body: { orderId: orderBeingShipped.id, trackingNumber, carrier, carrierOtherName },
     });
 
     shipConfirmBtn.disabled = false;

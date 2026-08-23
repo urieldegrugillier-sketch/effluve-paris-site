@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
     return json(403, { error: "Not authorized." });
   }
 
-  let body: { orderId?: unknown; trackingNumber?: unknown; carrier?: unknown };
+  let body: { orderId?: unknown; trackingNumber?: unknown; carrier?: unknown; carrierOtherName?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -124,10 +124,21 @@ Deno.serve(async (req) => {
   if (!orderId || !trackingNumber || !ALLOWED_CARRIERS.includes(carrier)) {
     return json(400, { error: "orderId, trackingNumber, and a valid carrier are required." });
   }
+  // Only required/stored for "autre" -- same "never trust the browser"
+  // re-validation as carrier/trackingNumber above (js/admin.js's own
+  // shipConfirmBtn handler already requires this client-side, but that's
+  // only ever a UX convenience, not the real gate). Forced to "" (not
+  // whatever the client sent) for every other carrier, so a stale value
+  // from an earlier "autre" submission can never linger onto a later
+  // correction that switched to a real carrier.
+  const carrierOtherName = carrier === "autre" && typeof body.carrierOtherName === "string" ? body.carrierOtherName.trim() : "";
+  if (carrier === "autre" && !carrierOtherName) {
+    return json(400, { error: "carrierOtherName is required when carrier is \"autre\"." });
+  }
 
   const { data: order, error: orderError } = await supabaseAdmin
     .from("orders")
-    .select("id, reference_number, product_name, quantity, total, user_id, guest_email, shipping_status, tracking_number, carrier, language, shipping_postal_code")
+    .select("id, reference_number, product_name, quantity, total, user_id, guest_email, shipping_status, tracking_number, carrier, carrier_other_name, language, shipping_postal_code")
     .eq("id", orderId)
     .maybeSingle();
   if (orderError || !order) {
@@ -135,15 +146,19 @@ Deno.serve(async (req) => {
   }
 
   const wasAlreadyShipped = order.shipping_status === "shipped";
-  // Either the number OR the carrier changing counts as a real correction --
-  // the same number under a different carrier still points the customer's
-  // tracking link at the wrong courier's site, so it needs the same
-  // apologetic re-send as the number itself changing.
-  const trackingChanged = order.tracking_number !== trackingNumber || order.carrier !== carrier;
-  // First time -> normal shipping notification. Already shipped but the
-  // number actually changed -> the apologetic correction email instead. Any
-  // other case (already shipped, same number re-submitted -- e.g. an
-  // accidental double confirm in the admin UI) -> nothing changed, so
+  // The number, the carrier, OR (for "autre") the typed carrier name
+  // changing all count as a real correction -- the same number under a
+  // different carrier (or a different name for the same "autre" carrier)
+  // still tells the customer something different about their shipment than
+  // what they were already told, so it needs the same apologetic re-send as
+  // the tracking number itself changing.
+  const trackingChanged = order.tracking_number !== trackingNumber
+    || order.carrier !== carrier
+    || (order.carrier_other_name || "") !== carrierOtherName;
+  // First time -> normal shipping notification. Already shipped but
+  // something actually changed -> the apologetic correction email instead.
+  // Any other case (already shipped, same everything re-submitted -- e.g.
+  // an accidental double confirm in the admin UI) -> nothing changed, so
   // nothing to email about; still returns success below, just silently.
   const isCorrection = wasAlreadyShipped && trackingChanged;
   const shouldSendEmail = !wasAlreadyShipped || trackingChanged;
@@ -154,6 +169,10 @@ Deno.serve(async (req) => {
       shipping_status: "shipped",
       tracking_number: trackingNumber,
       carrier,
+      // "" (from carrierOtherName's own derivation above) normalized to
+      // null for storage -- matches every other optional text column on
+      // this table (shipping_address_line2 etc.), never an empty string.
+      carrier_other_name: carrierOtherName || null,
       // Reset on every real change (not just the first) -- a correction is
       // its own send attempt with its own success/failure to track, same
       // "false until a confirmed Resend accept" reasoning as email_sent
@@ -172,7 +191,7 @@ Deno.serve(async (req) => {
     // that's the fact that actually matters; a failed notification email is
     // logged + left as shipping_email_sent: false for later follow-up, same
     // as the confirmation email's own graceful-degradation design.
-    await sendShippingEmail(supabaseAdmin, order, trackingNumber, carrier, isCorrection);
+    await sendShippingEmail(supabaseAdmin, order, trackingNumber, carrier, carrierOtherName, isCorrection);
   }
 
   return json(200, { ok: true, isCorrection, emailSent: shouldSendEmail });
@@ -226,6 +245,7 @@ async function sendShippingEmail(
   order: OrderRow,
   trackingNumber: string,
   carrier: string,
+  carrierOtherName: string,
   isCorrection: boolean,
 ) {
   const { email, firstName } = await resolveCustomerEmailAndName(supabaseAdmin, order);
@@ -246,6 +266,7 @@ async function sendShippingEmail(
     productName: order.product_name,
     trackingNumber,
     carrier,
+    carrierOtherName,
     postalCode: order.shipping_postal_code || "",
     isCorrection,
   });
@@ -288,6 +309,11 @@ interface ShippingEmailDetails {
   productName: string;
   trackingNumber: string;
   carrier: string;
+  // Only ever non-empty when carrier === "autre" (see this file's own
+  // top-level validation) -- the admin-typed carrier name shown as plain
+  // text ("Mode de transport : ...") for the one carrier
+  // carrierTrackingUrl() below never builds a link for.
+  carrierOtherName: string;
   // Only actually used for Mondial Relay (see carrierTrackingUrl()'s own
   // comment) -- harmless to always pass, ignored by every other carrier's
   // branch.
@@ -392,6 +418,18 @@ function buildShippingEmail(details: ShippingEmailDetails): { subject: string; h
     ? `<a href="${trackingUrl}" style="color:#ede7dd;text-decoration:underline;">${escapeHtml(details.trackingNumber)}</a>`
     : escapeHtml(details.trackingNumber);
 
+  // "autre" only (carrierOtherName is only ever non-empty then, see
+  // ShippingEmailDetails' own comment) -- plain text naming the actual
+  // carrier, never a link (carrierTrackingUrl() already returns null for
+  // "autre", same as before this field existed -- there's no known
+  // tracking-page URL pattern to build one from for a courier this project
+  // doesn't otherwise integrate with).
+  const carrierLabel = isFr ? "Mode de transport" : "Carrier";
+  const carrierNameHtml = details.carrierOtherName
+    ? `<p style="margin:8px 0 0;font-size:12px;line-height:1.4;color:#8f887c;">${carrierLabel} : <span style="color:#ede7dd;">${escapeHtml(details.carrierOtherName)}</span></p>`
+    : "";
+  const carrierNameText = details.carrierOtherName ? `${carrierLabel}: ${details.carrierOtherName}` : "";
+
   const signOff = isFr ? "À bientôt," : "See you soon,";
   const visitSiteLabel = isFr ? "Voir nos parfums" : "See our fragrances";
 
@@ -464,6 +502,7 @@ function buildShippingEmail(details: ShippingEmailDetails): { subject: string; h
                       <p style="margin:0 0 10px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;">${productNameNatural} | ${ref}</p>
                       <p style="margin:0 0 4px;font-size:12px;line-height:1.4;color:#8f887c;">${trackingLabel}</p>
                       <p style="margin:0;font-size:22px;font-weight:700;line-height:1.15;color:#ede7dd;">${trackingNumberHtml}</p>
+                      ${carrierNameHtml}
                     </td>
                   </tr>
                 </table>
@@ -505,6 +544,7 @@ function buildShippingEmail(details: ShippingEmailDetails): { subject: string; h
     "",
     `${details.productName} | ${ref}`,
     `${trackingLabel}: ${details.trackingNumber}${trackingUrl ? ` (${trackingUrl})` : ""}`,
+    ...(carrierNameText ? [carrierNameText] : []),
     "",
     signOff,
     "Effluve Paris",

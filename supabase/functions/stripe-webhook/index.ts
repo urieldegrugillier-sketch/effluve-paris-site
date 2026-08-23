@@ -109,6 +109,13 @@ const INTERNAL_NOTIFICATION_EMAIL = "effluvepariscontact@gmail.com";
 // wa.me -> WhatsApp app hand-off.
 const WHATSAPP_PHONE = "33605893897";
 const WEBSITE_URL = "https://effluve-paris.fr";
+// Used by sendInternalOrderNotification()/sendTelegramOrderNotification()
+// below -- both used to have no link back into the site at all, so tapping
+// either notification from a phone went nowhere; this is the one place both
+// need to point to (there's no per-order admin.html deep link -- Orders tab
+// shows every pending order at a glance, no id/reference query param to
+// build one from).
+const ADMIN_URL = `${WEBSITE_URL}/admin.html`;
 // PNG (not the site's own assets/icons/effluve-word-dark-bg.svg) -- Outlook
 // desktop's rendering engine (Word, not a real browser engine) has no SVG
 // support at all, so a raster export is the only format guaranteed to
@@ -687,9 +694,13 @@ interface InternalNotificationDetails {
 
 // Same dark card/logo header as the customer-facing emails (see
 // buildConfirmationEmail()'s own comment for why each visual choice is what
-// it is) reused for brand consistency -- but no CTA button, no WhatsApp/
-// reply footer, no legal footer: none of that means anything to an internal
-// reader, just the data table itself.
+// it is) reused for brand consistency -- no WhatsApp/reply footer, no legal
+// footer: none of that means anything to an internal reader. One plain text
+// link to admin.html though (see ADMIN_URL) -- not the fuller bronze
+// .cta-button treatment customer emails use (this reader already knows
+// what the site looks like; a quiet link is enough), just something to tap
+// straight into the Orders tab from a phone instead of this email being a
+// dead end.
 function buildInternalOrderNotificationEmail(details: InternalNotificationDetails): { subject: string; html: string; text: string } {
   const subject = `Nouvelle commande payée | ${details.referenceNumber}`;
 
@@ -752,7 +763,8 @@ function buildInternalOrderNotificationEmail(details: InternalNotificationDetail
                   ${rowsHtml}
                 </table>
                 <h2 style="margin:0 0 8px;font-size:13px;font-weight:600;color:#d8b27c;text-transform:uppercase;letter-spacing:0.05em;">Adresse de livraison</h2>
-                <p style="margin:0;font-size:13px;line-height:1.6;color:#ede7dd;">${addressHtml}</p>
+                <p style="margin:0 0 20px;font-size:13px;line-height:1.6;color:#ede7dd;">${addressHtml}</p>
+                <p style="margin:0;font-size:13px;"><a href="${ADMIN_URL}" style="color:#d8b27c;">Voir dans l'administration &rarr;</a></p>
               </td>
             </tr>
           </table>
@@ -769,6 +781,8 @@ function buildInternalOrderNotificationEmail(details: InternalNotificationDetail
     "",
     "Adresse de livraison :",
     addressText,
+    "",
+    `Voir dans l'administration : ${ADMIN_URL}`,
   ].join("\n");
 
   return { subject, html, text };
@@ -833,6 +847,11 @@ async function sendTelegramOrderNotification(orderId: string, order: TelegramNot
     `Référence : <b>${escapeHtml(order.referenceNumber || "—")}</b>`,
     `Produit : ${escapeHtml(order.productName)} × ${order.quantity}`,
     `Total : ${formatMoney(order.total)}`,
+    "",
+    // ADMIN_URL is a fixed constant (never user input), so no escapeHtml()
+    // needed on it -- same reasoning as every other hardcoded URL already
+    // embedded raw elsewhere in this file's own <a href="..."> attributes.
+    `<a href="${ADMIN_URL}">Voir dans l'administration →</a>`,
   ].join("\n");
 
   try {
