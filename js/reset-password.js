@@ -24,11 +24,36 @@
   const formBlock = document.getElementById('reset-password-form-block');
   const invalidBlock = document.getElementById('reset-password-invalid');
   const successBlock = document.getElementById('reset-password-success');
+  const emailLine = document.getElementById('reset-password-email-line');
   const form = document.getElementById('reset-password-form');
   const passwordInput = document.getElementById('reset-password-input');
+  const confirmInput = document.getElementById('reset-password-confirm-input');
+  const confirmError = document.getElementById('reset-password-confirm-error');
   const requirementsList = document.getElementById('reset-password-requirements');
   const errorEl = document.getElementById('reset-password-error');
   const submitBtn = document.getElementById('reset-password-submit-btn');
+
+  // Same split-on-{placeholder} + real <strong> element approach as
+  // js/checkout-page.js's own setLineWithBoldValue() -- see that file's
+  // comment for why this is never done via innerHTML/data-i18n-html: the
+  // email is session-supplied, not this project's own authored copy.
+  function setLineWithBoldValue(el, key, varName, value) {
+    const template = t(key);
+    const placeholder = `{${varName}}`;
+    const idx = template.indexOf(placeholder);
+    el.textContent = '';
+    if (idx === -1) {
+      el.textContent = template;
+      return;
+    }
+    const strong = document.createElement('strong');
+    strong.textContent = value;
+    el.append(
+      document.createTextNode(template.slice(0, idx)),
+      strong,
+      document.createTextNode(template.slice(idx + placeholder.length))
+    );
+  }
 
   // Same floor as js/account.js's own mountAccountGate() create-account rule
   // (8+ characters, at least one letter, one number, and one special
@@ -65,7 +90,27 @@
       if (icon) icon.textContent = met ? '✓' : '○';
     });
   }
-  passwordInput.addEventListener('input', updatePasswordRequirements);
+  // Gates the submit button itself rather than only erroring on submit
+  // (unlike the create-account form's own on-submit-only mismatch check,
+  // js/account.js's mountAccountGate()) -- requested explicitly for this
+  // page: both fields must be present and equal, and the password itself
+  // must already pass isValidPassword(), before Set Password becomes
+  // clickable at all.
+  function updateSubmitState() {
+    const password = passwordInput.value;
+    const confirm = confirmInput.value;
+    const matches = confirm.length > 0 && password === confirm;
+    // Only surface the mismatch note once Confirm actually has content that
+    // doesn't match yet -- not before the visitor has started typing it, and
+    // not while it currently matches.
+    const showMismatch = confirm.length > 0 && !matches;
+    confirmError.hidden = !showMismatch;
+    if (showMismatch) confirmError.textContent = t('accountGate.errorPasswordMismatch');
+    submitBtn.disabled = !(isValidPassword(password) && matches);
+  }
+  passwordInput.addEventListener('input', () => { updatePasswordRequirements(); updateSubmitState(); });
+  confirmInput.addEventListener('input', updateSubmitState);
+  updateSubmitState();
 
   function showBlock(name) {
     formBlock.hidden = name !== 'form';
@@ -94,6 +139,7 @@
     // real Supabase session) or no session at all still correctly falls
     // through to "invalid or expired".
     if (session && !session.isGuest) {
+      setLineWithBoldValue(emailLine, 'resetPassword.forEmail', 'email', session.email);
       showBlock('form');
     } else {
       showBlock('invalid');
@@ -112,8 +158,15 @@
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const password = passwordInput.value;
+    // Defensive backstop -- submitBtn.disabled already keeps this
+    // unreachable via a normal click, see updateSubmitState() above.
     if (!isValidPassword(password)) {
       errorEl.textContent = t('accountGate.errorPasswordWeak');
+      errorEl.hidden = false;
+      return;
+    }
+    if (password !== confirmInput.value) {
+      errorEl.textContent = t('accountGate.errorPasswordMismatch');
       errorEl.hidden = false;
       return;
     }

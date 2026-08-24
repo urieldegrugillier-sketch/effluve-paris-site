@@ -626,6 +626,42 @@ window.addEventListener('resize', () => { if (resizeIsGenuine) recalcCtaFadeThre
 // refresh-on-resize instead of just running alongside it.
 window.addEventListener('resize', () => { if (resizeIsGenuine) ScrollTrigger.refresh(); });
 
+/* BUG FIX (mobile landscape: scrolling stopped working entirely after the
+   .hero-standalone height:auto fix, css/style.css's own @media(max-height:500px)
+   rule): a landscape phone (~844px wide) is above isDesktop's own
+   min-width:769px threshold, so it takes the PINNED ScrollTrigger path below
+   (pin: pyramidSection) -- a real spacer element whose height GSAP sets
+   explicitly from whatever it measures at refresh time, not a self-correcting
+   native layout. iOS is documented to fire 'resize' during an orientation
+   change before the viewport has actually finished settling to its final
+   dimensions, sometimes more than once. resizeIsGenuine's own width-only
+   comparison just above (built to solve a DIFFERENT problem -- an
+   address-bar-collapse resize that shares the same width as before) treats
+   the first width-changing event of a rotation as the one and only "genuine"
+   resize and immediately records that width as the new baseline -- so if
+   THAT first event still carries a transitional/incorrect height, any later
+   event correcting it shares the already-matched width and gets silently
+   discarded by the very gate meant to let genuine changes through.
+   ScrollTrigger.refresh() above then measures pyramidSection's pin distance
+   against that transitional (pre-settle) layout, which can undersize the
+   spacer enough to make the whole document effectively unscrollable.
+   'orientationchange' only ever fires for a real device rotation (never an
+   address-bar toggle), so it needs no such gating -- a short delay lets the
+   browser actually finish settling before re-running the exact same
+   resize-consumer chain a second time, correcting a stale measurement
+   without touching resizeIsGenuine's own (still correct) fix for its
+   original problem. */
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => {
+    cachedViewportHeight = window.innerHeight;
+    positionSections();
+    resizeCanvas();
+    recalcDarkOverlayEnter();
+    recalcCtaFadeThresholds();
+    ScrollTrigger.refresh();
+  }, 300);
+});
+
 function updateCtaVisibility(p) {
   if (!ctaSection) return;
   const opacity = Math.max(0, Math.min(1, (p - ctaFadeEnterEffective) / (ctaFadeVisibleEffective - ctaFadeEnterEffective)));

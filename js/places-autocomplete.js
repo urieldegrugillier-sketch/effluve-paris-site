@@ -188,12 +188,9 @@
 
     // Same min-width:769px desktop breakpoint used elsewhere in this
     // codebase for desktop-vs-mobile behavior (see js/app.js's own
-    // isDesktop) -- used below both to decide above-vs-below placement and
-    // to gate the "Suggestions" label (see renderPanel()). Both exist
-    // specifically to help tell this panel apart from Chrome's own native
-    // autofill popup, which only ever competes for the same space on
-    // desktop -- mobile already works well on its own (stays clear of the
-    // on-screen keyboard, confirmed), so neither applies there.
+    // isDesktop) -- used below to decide above-vs-below placement, which
+    // only matters on desktop (mobile already stays clear of the on-screen
+    // keyboard on its own, confirmed).
     const isDesktopQuery = window.matchMedia('(min-width: 769px)');
 
     function closePanel() {
@@ -205,22 +202,12 @@
       input.removeAttribute('aria-activedescendant');
     }
 
-    // A non-selectable label row prepended above the actual suggestions --
-    // role="presentation" (not "option") keeps it out of the listbox's own
-    // selectable set, so every piece of index-based logic below
-    // (highlight(), the mousedown handler, keyboard nav) targets
-    // '[role="option"]' specifically rather than raw panel.children, which
-    // would otherwise be off-by-one the moment this label exists as the
-    // first child.
     function renderPanel() {
-      const label = suggestions.length && isDesktopQuery.matches
-        ? `<li class="monark-places-suggestions-label" role="presentation">${window.MonarkI18n ? window.MonarkI18n.t('common.placesSuggestionsLabel') : 'Suggestions'}</li>`
-        : '';
       const items = suggestions.map((s, i) => {
         const text = s.placePrediction && s.placePrediction.text ? s.placePrediction.text.text : '';
         return `<li role="option" id="monark-places-opt-${i}" data-index="${i}">${text}</li>`;
       }).join('');
-      panel.innerHTML = label + items;
+      panel.innerHTML = items;
       panel.hidden = suggestions.length === 0;
       input.setAttribute('aria-expanded', String(suggestions.length > 0));
     }

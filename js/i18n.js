@@ -209,7 +209,6 @@
       common: {
         backToShop: '← Back to Shop',
         account: 'Account',
-        placesSuggestionsLabel: 'Suggestions',
         errorNameFormat: 'Please use only letters, spaces, hyphens, and apostrophes (max 50 characters).',
         errorCityFormat: 'Please use only letters, spaces, hyphens, apostrophes, and periods (max 100 characters).',
         errorAddressFormat: 'Please use only letters, numbers, spaces, and basic punctuation (- \' . ,), max 150 characters.',
@@ -426,6 +425,7 @@
         forgotPassword: 'Forgot password?',
         resetPasswordSent: 'A password reset email has been sent to {email}.',
         resetPasswordError: 'Could not send the reset email. Please check the address and try again.',
+        updatedElsewhere: 'Your account was just updated in another tab — you’re now logged in.',
         confirmAccountPending: 'Check your inbox at {email} to confirm your account before logging in.',
         setNewPasswordHeading: 'Set a New Password',
         newPasswordLabel: 'New Password',
@@ -436,6 +436,7 @@
       resetPassword: {
         pageTitle: 'Set a New Password',
         formIntro: 'Choose a new password for your account.',
+        forEmail: 'Setting a new password for {email}.',
         invalidText: 'This link is invalid or has expired. Please request a new password reset email and try again.',
         successHeading: 'Password Updated',
         successText: 'Your password has been changed. You can close this tab and return to the page you were previously on — it will now recognize you as logged in.'
@@ -795,7 +796,6 @@
       common: {
         backToShop: '← Retour à la Boutique',
         account: 'Compte',
-        placesSuggestionsLabel: 'Adresses suggérées',
         errorNameFormat: "Veuillez utiliser uniquement des lettres, espaces, tirets et apostrophes (50 caractères maximum).",
         errorCityFormat: "Veuillez utiliser uniquement des lettres, espaces, tirets, apostrophes et points (100 caractères maximum).",
         errorAddressFormat: "Veuillez utiliser uniquement des lettres, chiffres, espaces et une ponctuation simple (- ' . ,), 150 caractères maximum.",
@@ -966,6 +966,7 @@
         forgotPassword: 'Mot de passe oublié ?',
         resetPasswordSent: 'Un e-mail de réinitialisation du mot de passe a été envoyé à {email}.',
         resetPasswordError: "Impossible d'envoyer l'e-mail de réinitialisation. Veuillez vérifier l'adresse et réessayer.",
+        updatedElsewhere: 'Votre compte vient d’être mis à jour dans un autre onglet — vous êtes maintenant connecté(e).',
         confirmAccountPending: 'Consultez votre boîte de réception à {email} pour confirmer votre compte avant de vous connecter.',
         setNewPasswordHeading: 'Définir un Nouveau Mot de Passe',
         newPasswordLabel: 'Nouveau Mot de Passe',
@@ -976,6 +977,7 @@
       resetPassword: {
         pageTitle: 'Définir un Nouveau Mot de Passe',
         formIntro: 'Choisissez un nouveau mot de passe pour votre compte.',
+        forEmail: 'Définition d\'un nouveau mot de passe pour {email}.',
         invalidText: 'Ce lien est invalide ou a expiré. Veuillez demander un nouvel e-mail de réinitialisation et réessayer.',
         successHeading: 'Mot de Passe Mis à Jour',
         successText: 'Votre mot de passe a été modifié. Vous pouvez fermer cet onglet et retourner sur la page où vous étiez — elle vous reconnaîtra désormais comme connecté(e).'

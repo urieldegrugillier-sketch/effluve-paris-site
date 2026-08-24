@@ -72,6 +72,32 @@
   let currentProfile = null; // last-fetched public.profiles row for currentAuthUser, cleared on any auth change
   let passwordRecoveryActive = false; // true between a PASSWORD_RECOVERY auth event and a successful setNewPassword()
 
+  // Set for the duration of any auth.updateUser() call made BY THIS TAB
+  // (password/email change, the language-metadata sync below) so
+  // onAuthStateChange's USER_UPDATED branch can tell that apart from a
+  // USER_UPDATED event arriving from elsewhere -- supabase-js broadcasts
+  // every auth state change to every same-origin tab via a BroadcastChannel
+  // keyed off the project's own storageKey (confirmed live: posting on one
+  // tab's client().auth.broadcastChannel is received by another tab's
+  // onAuthStateChange with zero extra wiring), which is exactly what lets a
+  // customer who finishes reset-password.html in one tab come back to an
+  // already-open account.html/checkout.html tab and find it quietly
+  // resolved to logged-in instead of still showing the login form -- see
+  // updateUserLocally() below and the USER_UPDATED branch a few lines down.
+  let localAuthChangeInFlight = false;
+
+  // Every LOCAL call to auth.updateUser() should go through this instead of
+  // calling client().auth.updateUser() directly -- see
+  // localAuthChangeInFlight's own comment above for why.
+  async function updateUserLocally(patch) {
+    localAuthChangeInFlight = true;
+    try {
+      return await client().auth.updateUser(patch);
+    } finally {
+      localAuthChangeInFlight = false;
+    }
+  }
+
   function notifySessionChange() {
     const session = getSession();
     document.dispatchEvent(new CustomEvent('account:updated', { detail: { email: session ? session.email : null } }));
@@ -100,6 +126,21 @@
       // who started a guest checkout, then logged in on another tab.
       if (currentAuthUser) localStorage.removeItem(GUEST_KEY);
       notifySessionChange();
+      // localAuthChangeInFlight (see its own comment above) is only ever true
+      // while THIS tab's own updateUserLocally() call is in flight (Edit
+      // Profile, the language sync, or reset-password.html/the in-page
+      // recovery step's own setNewPassword()) -- false here means this
+      // USER_UPDATED arrived from somewhere else via supabase-js's own
+      // cross-tab BroadcastChannel, the one case mountAccountGate() doesn't
+      // already have its own on-page confirmation for. Fired after
+      // notifySessionChange() above (whose 'account:updated' resolveSession()
+      // already handled synchronously by this point) so any listener sees an
+      // already-resolved, up to date session underneath it.
+      if (event === 'USER_UPDATED' && !localAuthChangeInFlight) {
+        document.dispatchEvent(new CustomEvent('account:updated-elsewhere', {
+          detail: { email: currentAuthUser ? currentAuthUser.email : null }
+        }));
+      }
     });
   } else {
     console.error('MonarkAccount: Supabase client unavailable -- account features will fail until js/supabase-client.js has real SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY values.');
@@ -120,7 +161,7 @@
   document.addEventListener('monark:langchange', () => {
     if (!currentAuthUser || !client()) return;
     const lang = window.MonarkI18n ? window.MonarkI18n.getLang() : 'fr';
-    client().auth.updateUser({ data: { language: lang } }).then(({ error }) => {
+    updateUserLocally({ data: { language: lang } }).then(({ error }) => {
       if (error) console.error('MonarkAccount: failed to sync language to user_metadata:', error.message);
     });
   });
@@ -389,7 +430,7 @@
 
     let emailChangePending = false;
     if (Object.keys(authPatch).length) {
-      const { error } = await client().auth.updateUser(authPatch);
+      const { error } = await updateUserLocally(authPatch);
       if (error) {
         if (/already registered|already exists/i.test(error.message)) return { ok: false, error: 'email-exists' };
         console.error('MonarkAccount.updateAccount (auth):', error.message);
@@ -566,8 +607,16 @@
       redirectTo: AUTH_PASSWORD_RESET_REDIRECT_URL
     });
     if (error) {
+      // Same over_email_send_rate_limit (HTTP 429) throttle documented on
+      // createAccount() above -- confirmed live: requesting a reset twice
+      // within ~60s for the same address trips this. Surface it distinctly
+      // instead of the generic "check the address" message, which is
+      // actively misleading here (the address is fine).
+      if (error.status === 429 || error.code === 'over_email_send_rate_limit') {
+        return { ok: false, error: 'rate-limited' };
+      }
       console.error('MonarkAccount.requestPasswordReset:', error.message);
-      return { ok: false };
+      return { ok: false, error: 'unknown' };
     }
     return { ok: true };
   }
@@ -577,7 +626,7 @@
   // session authorized to call this) -- see mountAccountGate()'s recovery
   // step below.
   async function setNewPassword(password) {
-    const { error } = await client().auth.updateUser({ password: String(password || '') });
+    const { error } = await updateUserLocally({ password: String(password || '') });
     if (error) {
       console.error('MonarkAccount.setNewPassword:', error.message);
       return { ok: false };
@@ -628,6 +677,12 @@
         </span>
       </p>
       <p class="promo-message promo-message-success" id="checkout-account-created-note" aria-live="polite" hidden></p>
+      <!-- Shown only for a session change that arrived from elsewhere (see
+           account:updated-elsewhere, dispatched by this file's own
+           onAuthStateChange) -- reset-password.html finishing in another tab
+           is the real-world case, but the trigger is generic (any
+           out-of-band auth.updateUser()), so the copy stays generic too. -->
+      <p class="promo-message promo-message-success" id="checkout-account-elsewhere-note" aria-live="polite" hidden></p>
 
       <form id="checkout-account-email-form" novalidate>
         <p class="checkout-account-intro" data-i18n="accountGate.intro">Please enter your email to continue as a guest, log in, or create an account.</p>
@@ -851,6 +906,7 @@
     const guestUpgradeBtn = container.querySelector('#checkout-account-guest-upgrade-btn');
     const modifyEmailBtn = container.querySelector('#checkout-account-modify-email-btn');
     const createdNote = container.querySelector('#checkout-account-created-note');
+    const elsewhereNote = container.querySelector('#checkout-account-elsewhere-note');
     changeBtn.textContent = changeLabel();
     // BUG FIX: changeBtn and modifyEmailBtn used to do the exact same thing
     // (both entered the cancelable email-edit mode below) -- checkout.html
@@ -1297,6 +1353,7 @@
       const result = await requestPasswordReset(email);
       forgotPasswordStatus.textContent = result.ok
         ? t('accountGate.resetPasswordSent', { email })
+        : result.error === 'rate-limited' ? t('accountGate.errorRateLimited')
         : t('accountGate.resetPasswordError');
       forgotPasswordStatus.className = 'promo-message ' + (result.ok ? 'promo-message-success' : 'promo-message-error');
       forgotPasswordStatus.hidden = false;
@@ -1679,6 +1736,24 @@
     // already call resolveSession() themselves -- harmless, resolveSession()
     // just re-renders from current state either way.
     document.addEventListener('account:updated', resolveSession);
+
+    // account:updated-elsewhere (see account.js's own onAuthStateChange) only
+    // ever fires for a USER_UPDATED event this tab didn't itself trigger --
+    // in practice, almost always a customer finishing reset-password.html in
+    // another tab while this one was already sitting on the Log In step.
+    // resolveSession() (bound just above, via the shared 'account:updated'
+    // it dispatches first) has already swapped this same tab over to the
+    // "Logged in as X" status by the time this listener runs -- this note is
+    // just the explicit call-out telling the customer why, since their
+    // attention was on the OTHER tab when it happened. Auto-hides itself
+    // rather than waiting for the customer to notice and dismiss it.
+    let elsewhereNoteTimer = null;
+    document.addEventListener('account:updated-elsewhere', () => {
+      if (elsewhereNoteTimer) clearTimeout(elsewhereNoteTimer);
+      elsewhereNote.textContent = t('accountGate.updatedElsewhere');
+      elsewhereNote.hidden = false;
+      elsewhereNoteTimer = setTimeout(() => { elsewhereNote.hidden = true; }, 8000);
+    });
 
     resolveSession();
 
