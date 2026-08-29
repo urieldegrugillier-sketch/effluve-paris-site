@@ -162,6 +162,11 @@
     // password-recovery. This is the single source of truth currentAuthUser
     // is ever written from.
     client().auth.onAuthStateChange((event, session) => {
+      // TEMP DEBUG -- diagnosing a real-Chrome-only bug where the original
+      // tab shows full account access instead of the recovery form after
+      // receiving the cross-tab broadcast. Remove once the real event
+      // sequence has been captured from the user's own DevTools console.
+      console.log('[MONARK DEBUG]', new Date().toISOString(), 'onAuthStateChange event:', event, 'session:', session ? session.user.email : null);
       if (event === 'PASSWORD_RECOVERY') {
         setRecoveryPending(true);
       } else if (
