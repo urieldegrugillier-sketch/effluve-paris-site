@@ -28,6 +28,12 @@
 
   const GUEST_KEY = 'monark_guest_email';
   const MOCK_CARD_KEY_PREFIX = 'monark_mock_card_';
+  // sessionStorage (survives a refresh of this tab, unlike the in-memory
+  // passwordRecoveryActive flag below -- but still cleared once the tab
+  // itself closes, unlike localStorage, which would wrongly carry a
+  // recovery-pending marker into a totally unrelated later visit) -- see
+  // passwordRecoveryActive's own comment for exactly what this closes.
+  const RECOVERY_PENDING_KEY = 'monark_recovery_pending';
 
   // The real production domain (matches README.md's own
   // "https://effluve-paris.fr" note -- canonical links, robots.txt,
@@ -54,23 +60,52 @@
   // link grants a real, session-storage-persisted Supabase session, not a
   // special limited-purpose one. mountAccountGate()'s resolveSession()
   // does correctly intercept that FIRST landing (isPasswordRecovery() below
-  // is checked ahead of getSession()) -- but passwordRecoveryActive is a
-  // plain in-memory flag that resets to false on any page reload, while the
-  // underlying Supabase session survives the reload via its own storage.
-  // Refresh account.html/checkout.html BEFORE finishing setNewPassword(),
-  // and the next resolveSession() sees an ordinary valid session with no
-  // recovery marker left to check -- and unlocks full account access
-  // (shipping, saved card, order history, delete account) on nothing more
-  // than an unfinished password reset. Routing here instead closes that
-  // hole structurally rather than patching the flag: reset-password.html
-  // (js/reset-password.js) has no OTHER account content to unlock in the
-  // first place, so however Supabase classifies the session across a
-  // refresh, there's nothing broader for it to expose.
+  // is checked ahead of getSession()) -- but passwordRecoveryActive USED TO
+  // BE a plain in-memory flag that resets to false on any page reload,
+  // while the underlying Supabase session survives the reload via its own
+  // storage. Refresh account.html/checkout.html BEFORE finishing
+  // setNewPassword(), and the next resolveSession() sees an ordinary valid
+  // session with no recovery marker left to check -- and unlocks full
+  // account access (shipping, saved card, order history, delete account) on
+  // nothing more than an unfinished password reset. Routing new links here
+  // instead of account.html closes that hole structurally for the NORMAL
+  // path: reset-password.html (js/reset-password.js) has no OTHER account
+  // content to unlock in the first place, so however Supabase classifies
+  // the session across a refresh, there's nothing broader for it to expose.
+  //
+  // mountAccountGate() below still keeps its OWN embedded recovery step as a
+  // deliberate fallback (old links already sent out before this redirect
+  // changed, a customer bookmarking/refreshing THIS page mid-recovery
+  // instead) -- and that fallback had the exact same refresh hole, just
+  // reachable through a second door: passwordRecoveryActive alone couldn't
+  // structurally close it the way reset-password.html did, since THIS page
+  // has real account content for a wrongly-resolved session to reach.
+  // RECOVERY_PENDING_KEY (sessionStorage, not a plain variable) is what
+  // actually closes it here -- see setRecoveryPending()/isPasswordRecovery()
+  // just below.
   const AUTH_PASSWORD_RESET_REDIRECT_URL = 'https://effluve-paris.fr/reset-password.html';
 
   let currentAuthUser = null; // { id, email } | null -- kept in sync below
   let currentProfile = null; // last-fetched public.profiles row for currentAuthUser, cleared on any auth change
-  let passwordRecoveryActive = false; // true between a PASSWORD_RECOVERY auth event and a successful setNewPassword()
+  // true between a PASSWORD_RECOVERY auth event and a successful
+  // setNewPassword() -- kept alongside RECOVERY_PENDING_KEY (not replaced by
+  // it) purely as a same-tick-fast-path; RECOVERY_PENDING_KEY is the one
+  // that actually has to survive a reload, see setRecoveryPending() below.
+  let passwordRecoveryActive = false;
+
+  // The only place either half of "is a password recovery still pending in
+  // this tab" ever gets written -- keeps passwordRecoveryActive (fast,
+  // in-memory) and RECOVERY_PENDING_KEY (sessionStorage, survives a refresh
+  // of this same tab) always in sync, so nothing can set one without the
+  // other and drift out of agreement.
+  function setRecoveryPending(pending) {
+    passwordRecoveryActive = pending;
+    if (pending) {
+      sessionStorage.setItem(RECOVERY_PENDING_KEY, '1');
+    } else {
+      sessionStorage.removeItem(RECOVERY_PENDING_KEY);
+    }
+  }
 
   // Set for the duration of any auth.updateUser() call made BY THIS TAB
   // (password/email change, the language-metadata sync below) so
@@ -119,7 +154,21 @@
     // password-recovery. This is the single source of truth currentAuthUser
     // is ever written from.
     client().auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') passwordRecoveryActive = true;
+      if (event === 'PASSWORD_RECOVERY') {
+        setRecoveryPending(true);
+      } else if (event !== 'INITIAL_SESSION') {
+        // Any OTHER real auth event (SIGNED_IN from a normal password
+        // login, SIGNED_OUT, USER_UPDATED, TOKEN_REFRESHED) supersedes
+        // whatever recovery-pending marker this tab might still be
+        // carrying -- e.g. a customer who abandoned an unfinished recovery,
+        // came back later, and logged in normally with their still-valid
+        // OLD password shouldn't stay stuck being shown the recovery step
+        // forever after. INITIAL_SESSION is deliberately excluded: that's
+        // just this same event firing again on a plain refresh, re-hydrating
+        // whatever session was already in storage -- exactly the case
+        // RECOVERY_PENDING_KEY exists to survive, not clear.
+        setRecoveryPending(false);
+      }
       currentAuthUser = session && session.user ? { id: session.user.id, email: session.user.email } : null;
       currentProfile = null;
       // A real session always wins over a leftover guest email -- e.g. a user
@@ -242,7 +291,13 @@
     return currentAuthUser ? currentAuthUser.id : null;
   }
 
-  function isPasswordRecovery() { return passwordRecoveryActive; }
+  // Checks BOTH halves -- passwordRecoveryActive alone would miss exactly
+  // the case this exists for: a refresh, which loses the in-memory flag but
+  // not the sessionStorage marker (see setRecoveryPending() above and its
+  // own comment on why sessionStorage specifically).
+  function isPasswordRecovery() {
+    return passwordRecoveryActive || sessionStorage.getItem(RECOVERY_PENDING_KEY) === '1';
+  }
 
   // Only ever resolves for the CURRENTLY authenticated user's own email --
   // there is no client-safe way to look up an arbitrary email's account
@@ -343,8 +398,11 @@
   // comment for why this can't be done client-side (no email column exposed,
   // RLS blocks any other user's row, and probing signUp()/signInWithPassword()
   // is exactly the enumeration attack Supabase's API design prevents). Used
-  // only by mountAccountGate() below to decide whether to show the login-only
-  // view or the normal guest/create-account choices. Fails open (returns
+  // by mountAccountGate() below to decide whether to show the login-only
+  // view or the normal guest/create-account choices -- also exposed publicly
+  // (see this file's own MonarkAccount export) for account-page.js's own
+  // guest-with-an-existing-account Order History note, the same distinction
+  // applied a second time outside the gate itself. Fails open (returns
   // false, the "doesn't exist" branch) on any network/server error, so a
   // transient failure here degrades to today's full three-option flow
   // instead of blocking the gate entirely.
@@ -576,7 +634,18 @@
       // (see completeOrder()'s own comment on that).
       status: row.status,
       referenceNumber: row.reference_number,
-      paymentIntentId: row.payment_intent_id
+      paymentIntentId: row.payment_intent_id,
+      // shippingStatus starts 'pending' (public.orders' own default) and
+      // flips to 'shipped' via supabase/functions/mark-order-shipped, which
+      // is also the only writer of shippedAt (set once, on that first
+      // transition -- see that function's own comment). deliveredAt is
+      // scaffolding for a planned automated delivery-detection feature --
+      // always null today, nothing writes it yet (see
+      // supabase/functions/check-delivery-status's own placeholder
+      // structure and 20260829000000_order_shipped_delivered_timestamps.sql).
+      shippingStatus: row.shipping_status,
+      shippedAt: row.shipped_at,
+      deliveredAt: row.delivered_at
     }));
   }
 
@@ -628,10 +697,27 @@
   async function setNewPassword(password) {
     const { error } = await updateUserLocally({ password: String(password || '') });
     if (error) {
+      // Supabase rejects setting the account's CURRENT password again as
+      // the "new" one -- error.code is 'same_password' when this trips.
+      // Message-pattern fallback alongside it for the same reason
+      // createAccount()'s own already-registered detection above does the
+      // same: a specific code lookup could miss a future wording/shape
+      // change Supabase makes on their end without notice.
+      if (error.code === 'same_password' || /different from the old|same as the old|same as your current/i.test(error.message)) {
+        return { ok: false, error: 'same-password' };
+      }
       console.error('MonarkAccount.setNewPassword:', error.message);
-      return { ok: false };
+      return { ok: false, error: 'unknown' };
     }
-    passwordRecoveryActive = false;
+    // onAuthStateChange's own USER_UPDATED branch above already calls
+    // setRecoveryPending(false) for this exact same successful call (see
+    // updateUserLocally()'s own comment: the underlying auth.updateUser()
+    // awaits _notifyAllSubscribers() before its promise resolves, so that
+    // branch has already run by the time control returns here) -- explicit
+    // here too anyway, matching how passwordRecoveryActive alone already
+    // was before, rather than leaving this function looking like it does
+    // nothing on success.
+    setRecoveryPending(false);
     notifySessionChange();
     return { ok: true };
   }
@@ -740,9 +826,20 @@
               <input type="password" id="checkout-account-guest-password-input" autocomplete="current-password" required>
             </label>
             <p class="promo-message promo-message-error" id="checkout-account-guest-password-error" aria-live="polite" hidden></p>
-            <span class="checkout-account-login-actions">
-              <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-guest-password-submit-btn" data-i18n="accountGate.continueBtn">Continue</button>
+            <!-- Own class, not the shared .checkout-account-login-actions (that
+                 one wraps a DIFFERENT pair, Log In + Forgot password, with its
+                 own unrelated stacked/right-aligned treatment) -- see
+                 .account-delete-actions's own comment in css/checkout.css for
+                 the same "reused a class, inherited the wrong pair's styling,
+                 own class instead" fix. Skip comes before Continue in the DOM
+                 (same "swap the order so the primary action lands on the
+                 visual right" approach .checkout-account-email-actions's own
+                 Cancel+Continue already uses) -- css/checkout.css flips this
+                 to a column on mobile via flex-direction, not a second
+                 physical ordering, so Continue still renders first/top there. -->
+            <span class="checkout-account-guest-password-actions">
               <button type="button" class="checkout-account-link-btn" id="checkout-account-guest-password-skip-btn" data-i18n="accountGate.guestPasswordSkip">Continue without password</button>
+              <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-guest-password-submit-btn" data-i18n="accountGate.continueBtn">Continue</button>
             </span>
           </form>
         </div>
@@ -989,6 +1086,30 @@
     function showFieldError(el, key) {
       el.textContent = t(key);
       el.hidden = false;
+    }
+
+    // Same split-on-{placeholder} + real <strong> element approach as
+    // js/checkout-page.js's own setLineWithBoldValue() (and js/reset-password.js's
+    // copy of it) -- see that original's comment for why this is never done
+    // via innerHTML/data-i18n-html: email is user-supplied, not this
+    // project's own authored copy, and this keeps every character of the
+    // value as plain text regardless of what it contains.
+    function setTextWithBoldValue(el, key, varName, value) {
+      const template = t(key);
+      const placeholder = `{${varName}}`;
+      const idx = template.indexOf(placeholder);
+      el.textContent = '';
+      if (idx === -1) {
+        el.textContent = template;
+        return;
+      }
+      const strong = document.createElement('strong');
+      strong.textContent = value;
+      el.append(
+        document.createTextNode(template.slice(0, idx)),
+        strong,
+        document.createTextNode(template.slice(idx + placeholder.length))
+      );
     }
 
     // Used by guestPasswordForm's own submit handler below, right after
@@ -1351,10 +1472,13 @@
       const email = authEmailEcho.textContent;
       forgotPasswordStatus.hidden = true;
       const result = await requestPasswordReset(email);
-      forgotPasswordStatus.textContent = result.ok
-        ? t('accountGate.resetPasswordSent', { email })
-        : result.error === 'rate-limited' ? t('accountGate.errorRateLimited')
-        : t('accountGate.resetPasswordError');
+      if (result.ok) {
+        setTextWithBoldValue(forgotPasswordStatus, 'accountGate.resetPasswordSent', 'email', email);
+      } else {
+        forgotPasswordStatus.textContent = result.error === 'rate-limited'
+          ? t('accountGate.errorRateLimited')
+          : t('accountGate.resetPasswordError');
+      }
       forgotPasswordStatus.className = 'promo-message ' + (result.ok ? 'promo-message-success' : 'promo-message-error');
       forgotPasswordStatus.hidden = false;
     });
@@ -1549,7 +1673,7 @@
         if (result.ok) {
           resolveSession();
         } else {
-          showFieldError(recoveryError, 'accountGate.errorGeneric');
+          showFieldError(recoveryError, result.error === 'same-password' ? 'accountGate.errorSamePassword' : 'accountGate.errorGeneric');
         }
       } finally {
         recoverySubmitBtn.disabled = false;
@@ -1775,6 +1899,7 @@
     requestPasswordReset,
     setNewPassword,
     isPasswordRecovery,
+    checkEmailExists,
     mountAccountGate
   };
 })(window);

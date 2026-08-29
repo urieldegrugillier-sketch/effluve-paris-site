@@ -100,3 +100,15 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/send-auth-email/deno.json"
 entrypoint = "./functions/send-auth-email/index.ts"
+
+# Ship24 delivery-tracking webhook (see that function's own header comment
+# for the full Ship24 Dashboard setup steps). verify_jwt = false for the
+# same reason as stripe-webhook/send-auth-email above: called directly by
+# Ship24's own servers, no apikey/JWT a browser call would carry -- trust
+# comes entirely from the bearer secret Ship24 sends, verified in-function
+# against SHIP24_WEBHOOK_SECRET.
+[functions.ship24-webhook]
+enabled = true
+verify_jwt = false
+import_map = "./functions/ship24-webhook/deno.json"
+entrypoint = "./functions/ship24-webhook/index.ts"

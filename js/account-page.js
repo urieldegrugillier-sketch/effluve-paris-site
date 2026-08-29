@@ -94,6 +94,8 @@
   const orderHistory = document.getElementById('account-order-history');
   const guestOrderNote = document.getElementById('account-order-history-guest-note');
   const guestCreateBtn = document.getElementById('account-guest-create-btn');
+  const guestExistingAccountNote = document.getElementById('account-order-history-guest-existing-note');
+  const guestLoginBtn = document.getElementById('account-guest-login-btn');
   const orderHistoryContent = document.getElementById('account-order-history-content');
   const noOrdersNote = document.getElementById('account-no-orders');
   const orderList = document.getElementById('account-order-list');
@@ -149,6 +151,20 @@
       const referenceLine = order.referenceNumber
         ? `<p class="account-order-reference">${t('account.orderReference', { reference: order.referenceNumber })}</p>`
         : '';
+      // Same "absent means not there yet, not an error" reasoning as
+      // referenceLine above -- shippedAt is only ever set once
+      // supabase/functions/mark-order-shipped fires (see js/account.js's
+      // getOrders() own comment), so an order still 'processing'/'pending'
+      // simply shows neither line yet. deliveredAt is scaffolding for a
+      // planned automated delivery-detection feature -- always null today
+      // (nothing writes it yet), so this line never actually renders yet,
+      // but the display is ready the moment something does.
+      const shippedLine = order.shippingStatus === 'shipped' && order.shippedAt
+        ? `<p class="account-order-shipping">${t('account.orderShipped', { date: new Date(order.shippedAt).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' }) })}</p>`
+        : '';
+      const deliveredLine = order.deliveredAt
+        ? `<p class="account-order-shipping account-order-delivered">${t('account.orderDelivered', { date: new Date(order.deliveredAt).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' }) })}</p>`
+        : '';
       return `
         <li class="account-order-item">
           <p class="account-order-date">${t('account.orderDate', { date: dateStr })}</p>
@@ -158,6 +174,8 @@
             <span>${t('account.orderQty', { qty: order.quantity })}</span>
             <span>${t('account.orderTotalLine', { total: money(order.total) })}</span>
           </p>
+          ${shippedLine}
+          ${deliveredLine}
         </li>
       `;
     }).join('');
@@ -237,7 +255,7 @@
     adminModeBtn.hidden = false;
   }
 
-  function showExtras(session) {
+  async function showExtras(session) {
     // BUG FIX (mobile): resolving here (a real Log In or Create Account
     // submit, the common path onto this function) hides the auth step's
     // still-focused password field in the same synchronous tick as
@@ -259,7 +277,6 @@
     orderHistory.hidden = false;
 
     if (session.isGuest) {
-      guestOrderNote.hidden = false;
       orderHistoryContent.hidden = true;
       profileSection.hidden = true;
       addressSection.hidden = true;
@@ -267,9 +284,32 @@
       preferencesSection.hidden = true;
       dangerSection.hidden = true;
       adminModeBtn.hidden = true;
+      // Both hidden while the existence check is in flight, rather than
+      // optimistically showing the "create an account" note first -- avoids
+      // a flash of the wrong note for the (more security-sensitive of the
+      // two) already-has-an-account case. checkEmailExists() itself "fails
+      // open" (js/account.js's own comment) to the "doesn't exist" branch on
+      // a network error, so a transient failure here still degrades to
+      // today's original behavior rather than showing neither note at all.
+      guestOrderNote.hidden = true;
+      guestExistingAccountNote.hidden = true;
+      const exists = await account.checkEmailExists(session.email);
+      // The guest session could have changed (logged out, logged in, or
+      // switched to a different guest email) while that network call was in
+      // flight -- re-check against the CURRENT session rather than trusting
+      // the one this call started with, so a stale result can't land after
+      // a newer resolveSession() has already moved this section on.
+      const current = account.getSession();
+      if (!current || !current.isGuest || current.email !== session.email) return;
+      if (exists) {
+        guestExistingAccountNote.hidden = false;
+      } else {
+        guestOrderNote.hidden = false;
+      }
       return;
     }
     guestOrderNote.hidden = true;
+    guestExistingAccountNote.hidden = true;
     orderHistoryContent.hidden = false;
     renderOrders(session.email);
     renderProfile(session.email);
@@ -562,6 +602,29 @@
     const emailInput = document.getElementById('checkout-account-email-input');
     if (emailInput) emailInput.value = guestEmail;
     document.getElementById('account-step').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  // Mirror-image shortcut for account-order-history-guest-existing-note --
+  // showExtras()'s own checkEmailExists() call already confirmed this guest
+  // email DOES have a real account, so this goes one step further than
+  // guestCreateBtn above: rather than leaving the customer to retype/resubmit
+  // an email they already gave once, it submits the email step for them,
+  // landing directly on the password field. requestSubmit() re-runs the
+  // gate's own real submit handler (not a duplicated/parallel login path) --
+  // that handler's own checkEmailExists() call resolves true again for this
+  // email, and account.html's hideGuestOption already narrows that to a
+  // login-only view with no separate logic needed here for what happens next.
+  guestLoginBtn.addEventListener('click', async () => {
+    const session = account.getSession();
+    if (!session || !session.isGuest) return;
+    const guestEmail = session.email;
+    await account.logOut();
+    gate.resolveSession();
+    const emailInput = document.getElementById('checkout-account-email-input');
+    const emailForm = document.getElementById('checkout-account-email-form');
+    if (emailInput) emailInput.value = guestEmail;
+    document.getElementById('account-step').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (emailForm) emailForm.requestSubmit();
   });
 
   // statusLabel/changeLabel passed as functions, not plain strings -- see

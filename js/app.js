@@ -66,12 +66,25 @@ const FRAME_COUNT = 120;
    canvas didn't. 1.0 makes frame 120 land at progress 1.0 (document bottom, per
    ScrollTrigger's end:'bottom bottom'), so the animation runs the full scroll. */
 const FRAME_SPEED = 1.0;
-const isDesktop = window.matchMedia('(min-width: 769px)').matches;
+// BUG FIX (mobile landscape overlap/scroll-block across repeated orientation
+// switches): these two used to be `const`, computed once here and never
+// touched again -- but a landscape phone (~844px wide) sits on the DESKTOP
+// side of the 769px threshold below while the SAME phone in portrait
+// (~390px) sits on the mobile side, so a single rotation is enough to make
+// every isDesktop/isMobileOrTablet-gated branch in this file keep running
+// whichever one was true at the ORIGINAL page load, permanently mismatched
+// against the real current viewport from that point on. Each subsequent
+// rotation compounded the mismatch further instead of only ever affecting
+// the first switch, since nothing re-read these. Now `let`, recomputed live
+// on every genuine resize/settled orientationchange -- see that shared
+// recalculation further below (right after resizeIsGenuine is declared) for
+// the single place both actually get reassigned.
+let isDesktop = window.matchMedia('(min-width: 769px)').matches;
 // Separate, wider threshold for fixes explicitly scoped to "mobile/tablet" as a
 // group (e.g. the dark overlay's reduced max opacity below) -- matches the
 // max-width used for the equivalent CSS media queries elsewhere in this round,
 // deliberately including 1024px-wide tablet landscape while excluding desktop.
-const isMobileOrTablet = window.matchMedia('(max-width: 1024px)').matches;
+let isMobileOrTablet = window.matchMedia('(max-width: 1024px)').matches;
 
 const framePath = (i) => `assets/frames/frame_${String(i).padStart(4, '0')}.webp`;
 
@@ -216,6 +229,26 @@ window.addEventListener('resize', () => {
 window.addEventListener('resize', () => {
   if (!resizeIsGenuine) return;
   cachedViewportHeight = window.innerHeight;
+});
+
+// Recomputes isDesktop/isMobileOrTablet/DARK_OVERLAY_MAX_OPACITY (see their
+// own comments above) and re-syncs the pyramid pin (syncPyramidPin(),
+// defined further below near pyramidSection -- a hoisted function
+// declaration, callable here regardless of textual order since this only
+// ever actually RUNS on a later resize event, well after the whole script
+// has finished its first pass). Registered here, right after
+// cachedViewportHeight's own listener above and before every
+// isDesktop-consuming function's own resize listener further down this file
+// (positionSections, recalcDarkOverlayEnter, recalcCtaFadeThresholds,
+// ScrollTrigger.refresh) -- addEventListener fires listeners for the same
+// event in registration order, so all of them see the corrected values by
+// the time their own turn comes for this same event.
+window.addEventListener('resize', () => {
+  if (!resizeIsGenuine) return;
+  isDesktop = window.matchMedia('(min-width: 769px)').matches;
+  isMobileOrTablet = window.matchMedia('(max-width: 1024px)').matches;
+  DARK_OVERLAY_MAX_OPACITY = isMobileOrTablet ? 0.6 : 0.9;
+  syncPyramidPin();
 });
 
 function containerScrollRange() {
@@ -514,8 +547,9 @@ window.addEventListener('resize', () => { if (resizeIsGenuine) recalcDarkOverlay
 // Mobile/tablet (<=1024px): confirmed on a real phone that 0.9 (desktop's value)
 // reads as too dark/crushing over the canvas visuals -- 0.6 keeps the same
 // legibility purpose without flattening the underlying imagery as much. Desktop
-// keeps 0.9 unchanged.
-const DARK_OVERLAY_MAX_OPACITY = isMobileOrTablet ? 0.6 : 0.9;
+// keeps 0.9 unchanged. `let`, not `const` -- see isMobileOrTablet's own comment
+// above; kept in sync with it by the same shared recalculation.
+let DARK_OVERLAY_MAX_OPACITY = isMobileOrTablet ? 0.6 : 0.9;
 
 function updateDarkOverlay(p) {
   const fadeRange = DARK_OVERLAY_FADE_RANGE;
@@ -628,32 +662,59 @@ window.addEventListener('resize', () => { if (resizeIsGenuine) ScrollTrigger.ref
 
 /* BUG FIX (mobile landscape: scrolling stopped working entirely after the
    .hero-standalone height:auto fix, css/style.css's own @media(max-height:500px)
-   rule): a landscape phone (~844px wide) is above isDesktop's own
-   min-width:769px threshold, so it takes the PINNED ScrollTrigger path below
-   (pin: pyramidSection) -- a real spacer element whose height GSAP sets
-   explicitly from whatever it measures at refresh time, not a self-correcting
-   native layout. iOS is documented to fire 'resize' during an orientation
-   change before the viewport has actually finished settling to its final
-   dimensions, sometimes more than once. resizeIsGenuine's own width-only
-   comparison just above (built to solve a DIFFERENT problem -- an
+   rule) -- REVISED after the symptom kept recurring across MULTIPLE
+   consecutive rotations, not just the first one. The original theory here
+   (kept below, still real) was a pure timing race: iOS is documented to fire
+   'resize' during an orientation change before the viewport has actually
+   finished settling, sometimes more than once, and resizeIsGenuine's own
+   width-only comparison (built to solve a DIFFERENT problem -- an
    address-bar-collapse resize that shares the same width as before) treats
-   the first width-changing event of a rotation as the one and only "genuine"
-   resize and immediately records that width as the new baseline -- so if
-   THAT first event still carries a transitional/incorrect height, any later
-   event correcting it shares the already-matched width and gets silently
-   discarded by the very gate meant to let genuine changes through.
-   ScrollTrigger.refresh() above then measures pyramidSection's pin distance
-   against that transitional (pre-settle) layout, which can undersize the
-   spacer enough to make the whole document effectively unscrollable.
-   'orientationchange' only ever fires for a real device rotation (never an
-   address-bar toggle), so it needs no such gating -- a short delay lets the
-   browser actually finish settling before re-running the exact same
-   resize-consumer chain a second time, correcting a stale measurement
-   without touching resizeIsGenuine's own (still correct) fix for its
-   original problem. */
+   the FIRST width-changing event of a rotation as the one and only "genuine"
+   resize, so if that first event still carries a transitional/incorrect
+   height, a later correcting event sharing the same already-matched width
+   gets silently discarded. A single delayed re-run of the resize chain after
+   things settle fixes that part.
+
+   What that pass MISSED: isDesktop/isMobileOrTablet (see their own comment
+   near the top of this file) were still `const` at the time, computed once
+   at page load and never updated again -- so EVERY isDesktop-gated branch in
+   this file (positionSections' entire mobile-cascade-vs-desktop-midpoint
+   split, recalcDarkOverlayEnter, the pyramid pin's own existence via
+   syncPyramidPin, updatePyramidTiers' gating) kept running whichever branch
+   matched the ORIGINAL orientation forever, regardless of how many times
+   this handler re-ran positionSections()/ScrollTrigger.refresh() against it
+   -- re-measuring the WRONG branch's layout is not the same as switching to
+   the right one. A landscape phone (~844px wide) sits on the desktop side of
+   the 769px threshold while the same phone in portrait (~390px) sits on the
+   mobile side, so this was reachable on literally every single rotation, and
+   each one compounded the mismatch further (JS still positioning sections
+   via stale-branch math against a container whose CSS height -- 900vh
+   desktop vs 600vh mobile, a real, always-current media query -- had already
+   moved on) rather than only ever affecting the first switch. isDesktop is
+   now `let`, recomputed below alongside everything else, and the pyramid
+   pin is killed and recreated (not just refreshed) via syncPyramidPin() --
+   see that function's own comment for why a stale pin can't just be
+   remeasured into correctness either.
+
+   Debouncing: this used to be a bare, unguarded setTimeout on every single
+   orientationchange firing -- two rotations inside the same 300ms window
+   queued two independent timers, each redoing the full recalculation
+   against whatever was current when IT fired, rather than one clean
+   recalculation against the final, actually-settled state. Tracking the
+   timer and clearing any pending one before scheduling a new one collapses
+   a rapid back-and-forth flip into a single recalculation once things
+   actually stop moving, while a single rotation still gets its own full,
+   correct pass exactly as before. */
+let orientationSettleTimer = null;
 window.addEventListener('orientationchange', () => {
-  setTimeout(() => {
+  if (orientationSettleTimer) clearTimeout(orientationSettleTimer);
+  orientationSettleTimer = setTimeout(() => {
+    orientationSettleTimer = null;
     cachedViewportHeight = window.innerHeight;
+    isDesktop = window.matchMedia('(min-width: 769px)').matches;
+    isMobileOrTablet = window.matchMedia('(max-width: 1024px)').matches;
+    DARK_OVERLAY_MAX_OPACITY = isMobileOrTablet ? 0.6 : 0.9;
+    syncPyramidPin();
     positionSections();
     resizeCanvas();
     recalcDarkOverlayEnter();
@@ -882,16 +943,39 @@ lenis.on('scroll', () => {
 
 /* ---------------- Pyramid pin (desktop only) ---------------- */
 
-if (isDesktop && pyramidSection) {
-  ScrollTrigger.create({
-    trigger: scrollContainer,
-    start: () => 'top+=' + progressToContainerPx(0.34) + ' top',
-    end: () => 'top+=' + progressToContainerPx(0.56) + ' top',
-    pin: pyramidSection,
-    pinSpacing: false,
-    scrub: true
-  });
+// BUG FIX: this used to be a one-time `if (isDesktop && pyramidSection)`
+// block, run only once at initial script execution -- so on a phone that
+// loaded in portrait (isDesktop false at that moment), the pin was simply
+// never created at all, even after a later rotation to landscape put it on
+// the desktop side of isDesktop's own threshold; loading in landscape had
+// the opposite problem, the pin created once and then left running forever
+// (mismeasured against whatever the viewport later became) even after
+// rotating back to portrait. Wrapped in its own function, tracked via
+// pyramidPinTrigger, and made idempotent (always kill any existing instance
+// before deciding whether to create a fresh one) so it can be re-run from
+// the resize/orientationchange handlers below every time isDesktop's own
+// live value might have changed, not just once at load. ScrollTrigger.kill()
+// on a pinned trigger already reverts pyramidSection's own inline pin
+// styles back to normal -- no manual cleanup needed on the mobile side of a
+// kill.
+let pyramidPinTrigger = null;
+function syncPyramidPin() {
+  if (pyramidPinTrigger) {
+    pyramidPinTrigger.kill();
+    pyramidPinTrigger = null;
+  }
+  if (isDesktop && pyramidSection) {
+    pyramidPinTrigger = ScrollTrigger.create({
+      trigger: scrollContainer,
+      start: () => 'top+=' + progressToContainerPx(0.34) + ' top',
+      end: () => 'top+=' + progressToContainerPx(0.56) + ' top',
+      pin: pyramidSection,
+      pinSpacing: false,
+      scrub: true
+    });
+  }
 }
+syncPyramidPin();
 
 /* ---------------- Section entrance choreography ---------------- */
 

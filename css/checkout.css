@@ -874,6 +874,41 @@
   margin-top: 0.8rem;
 }
 
+/* BUG FIX: Continue + Continue without password (js/account.js's
+   accountGateMarkup(), #checkout-account-guest-password-block) used to
+   inherit .checkout-account-login-actions's plain block flow (that class is
+   really Log In + Forgot password's own stacked/right-aligned treatment,
+   just shared by accident) -- the two sat directly on top of each other
+   with no gap at all. Same display:flex/align-items/gap treatment as
+   .checkout-account-email-actions above (that pair's own Cancel+Continue is
+   the closest existing precedent: primary action second in the DOM so it
+   lands on the visual right, whole row centered as a group) -- margin-top:0
+   on the button itself for the same reason that rule needs it too (its
+   default 1rem, from .checkout-account-btn-sm, would otherwise throw off
+   align-items:center against Skip's own unrelated top margin). */
+.checkout-account-guest-password-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2rem;
+  margin-top: 1rem;
+}
+.checkout-account-guest-password-actions .checkout-account-btn-sm { margin-top: 0; }
+
+@media (max-width: 768px) {
+  /* column-reverse, not a second physical DOM ordering: Skip is first in the
+     DOM (so desktop's row above renders it on the left, Continue on the
+     right) -- reversing the STACKING direction here puts Continue (the
+     customer's most likely next action) on top instead, without needing two
+     different orderings of the same markup for the two breakpoints. Smaller
+     gap than desktop's 1.2rem (a horizontal side-by-side gap) -- 0.6rem
+     reads as a real but tighter break between two vertically stacked lines. */
+  .checkout-account-guest-password-actions {
+    flex-direction: column-reverse;
+    gap: 0.6rem;
+  }
+}
+
 /* BUG FIX: "Modify Email" was overflowing off-screen on mobile once "Log
    Out" also shares the gate's status row (see account.html's own inline
    script, syncLogoutBtn()) -- two text-link actions plus the status text
@@ -1137,6 +1172,24 @@
   font-size: 0.72rem;
   color: var(--accent-bronze-light);
 }
+
+/* Same bronze "confirmed status" tone as .account-order-reference above --
+   only ever rendered once shipping_status has actually flipped to 'shipped'
+   (see account-page.js's own renderOrders() comment), so this reads as a
+   real update, not a guess/placeholder. */
+.account-order-shipping {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-bronze-light);
+}
+/* Delivered is the more final of the two states -- same tone as Shipped
+   just above it, bolder so the two remain visually distinguishable when
+   both show at once (currently never happens live -- see
+   account.deliveredAt's own "scaffolding, nothing writes it yet" comment). */
+.account-order-delivered { font-weight: 700; }
 
 /* "Delete Account" reuses .checkout-account-link-btn's underlined-mono
    treatment (same element type/role as "Modify"/"Create an account instead"

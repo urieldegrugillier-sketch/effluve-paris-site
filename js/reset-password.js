@@ -175,7 +175,13 @@
     try {
       const result = await account.setNewPassword(password);
       if (!result.ok) {
-        errorEl.textContent = t('accountGate.errorGeneric');
+        // Same distinguishable 'same-password' reason js/account.js's own
+        // mountAccountGate() recovery step now checks for (see
+        // setNewPassword()'s own comment) -- both consume the same shared
+        // function, so both get the clearer message instead of the generic
+        // fallback for this one specific, common case (retyping the current
+        // password out of habit).
+        errorEl.textContent = t(result.error === 'same-password' ? 'accountGate.errorSamePassword' : 'accountGate.errorGeneric');
         errorEl.hidden = false;
         return;
       }

@@ -29,6 +29,9 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+// Same "missing key never blocks the actual shipping update" degradation as
+// RESEND_API_KEY above -- see createShip24Tracker()'s own comment.
+const SHIP24_API_KEY = Deno.env.get("SHIP24_API_KEY");
 
 // Same constants/addresses as supabase/functions/stripe-webhook -- see that
 // file's own comments for why each one is what it is (contact@ specifically
@@ -178,6 +181,13 @@ Deno.serve(async (req) => {
       // "false until a confirmed Resend accept" reasoning as email_sent
       // itself (see the migration that added this column).
       ...(shouldSendEmail ? { shipping_email_sent: false } : {}),
+      // Set once, on the FIRST transition to shipped only -- a correction
+      // (a different tracking number/carrier for an order already marked
+      // shipped) changes what the customer was told, not when the order
+      // actually left, so it must never overwrite the real original ship
+      // date (see 20260829000000_order_shipped_delivered_timestamps.sql's
+      // own comment on why this column exists at all).
+      ...(!wasAlreadyShipped ? { shipped_at: new Date().toISOString() } : {}),
     })
     .eq("id", orderId);
   if (updateError) {
@@ -192,6 +202,15 @@ Deno.serve(async (req) => {
     // logged + left as shipping_email_sent: false for later follow-up, same
     // as the confirmation email's own graceful-degradation design.
     await sendShippingEmail(supabaseAdmin, order, trackingNumber, carrier, carrierOtherName, isCorrection);
+    // Same gate as the email above (first ship OR a real correction) --
+    // reusing shouldSendEmail rather than a separate condition: a
+    // resubmit-with-nothing-changed has nothing new to track either. A
+    // correction with a genuinely different tracking number creates a NEW
+    // Ship24 tracker for the new number (see createShip24Tracker()'s own
+    // comment on why overwriting ship24_tracker_id here is correct, not a
+    // leak of the old one). Never blocks this response -- same
+    // graceful-degradation reasoning as the email send just above.
+    await createShip24Tracker(supabaseAdmin, order, trackingNumber, carrier);
   }
 
   return json(200, { ok: true, isCorrection, emailSent: shouldSendEmail });
@@ -290,6 +309,82 @@ async function sendShippingEmail(
     }
   } catch (err) {
     console.error("mark-order-shipped: notification email failed for order", order.id, ":", err instanceof Error ? err.message : err);
+  }
+}
+
+// Creates a Ship24 tracker for this shipment (POST /trackers/track -- the
+// "create AND get results" endpoint, not the plain /trackers one: this call
+// site has no separate need to fetch results synchronously, but the two
+// cost the same and this one saves a round trip if results happen to be
+// ready immediately). Stores the returned trackerId on the order --
+// supabase/functions/ship24-webhook is the only reader, matching a future
+// delivery webhook back to this order.
+//
+// "autre" is deliberately skipped -- it's an admin-typed carrier name, not
+// a real courier Ship24 can plausibly auto-detect or track, and the free
+// tier's 10-trackers/month quota is too scarce to spend on a shipment
+// that's very unlikely to resolve to anything.
+//
+// courierCode is deliberately NOT passed, even though this project already
+// knows which courier (colissimo/chronopost/mondial_relay) was picked --
+// Ship24's own documentation recommends omitting it and letting their
+// auto-detection run unless a specific code needs to be forced, and this
+// project doesn't have a verified courierCode string for any of these
+// carriers (Ship24's own courier list is only available via a live
+// GET /couriers call or a dashboard CSV export, not published as a static
+// reference) -- passing a guessed value risked being silently wrong rather
+// than just relying on the documented default behavior.
+//
+// Never blocks the caller -- same graceful-degradation reasoning as
+// sendShippingEmail() just above: a failed/skipped tracker creation means
+// no automated delivery detection for this one order, not a failure to
+// mark it shipped, which already committed before this function is ever
+// called.
+async function createShip24Tracker(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  order: OrderRow,
+  trackingNumber: string,
+  carrier: string,
+) {
+  if (carrier === "autre") return;
+  if (!SHIP24_API_KEY) {
+    console.error("mark-order-shipped: SHIP24_API_KEY is not configured -- skipping Ship24 tracker creation for order", order.id);
+    return;
+  }
+  try {
+    const res = await fetch("https://api.ship24.com/public/v1/trackers/track", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SHIP24_API_KEY}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      // orderNumber is purely for Ship24's own dashboard (shown alongside
+      // the tracker there) -- not read back by this project, matching
+      // reference_number's own role as the customer-facing identifier.
+      body: JSON.stringify({ trackingNumber, orderNumber: order.reference_number || order.id }),
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      throw new Error(`Ship24 API responded ${res.status}: ${errBody}`);
+    }
+    const body = await res.json();
+    // data.trackings is an array (Ship24 can in principle resolve a single
+    // tracking number to more than one leg/courier) -- [0] is the tracker
+    // this exact trackingNumber was just created for, always present on a
+    // successful response.
+    const trackerId = body?.data?.trackings?.[0]?.tracker?.trackerId;
+    if (typeof trackerId !== "string" || !trackerId) {
+      throw new Error("Ship24 response had no trackerId.");
+    }
+    const { error: trackerUpdateError } = await supabaseAdmin
+      .from("orders")
+      .update({ ship24_tracker_id: trackerId })
+      .eq("id", order.id);
+    if (trackerUpdateError) {
+      console.error("mark-order-shipped: tracker created but failed to store ship24_tracker_id for order", order.id, ":", trackerUpdateError.message);
+    }
+  } catch (err) {
+    console.error("mark-order-shipped: Ship24 tracker creation failed for order", order.id, ":", err instanceof Error ? err.message : err);
   }
 }
 
