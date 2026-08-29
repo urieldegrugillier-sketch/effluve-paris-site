@@ -79,12 +79,51 @@ const FRAME_SPEED = 1.0;
 // on every genuine resize/settled orientationchange -- see that shared
 // recalculation further below (right after resizeIsGenuine is declared) for
 // the single place both actually get reassigned.
-let isDesktop = window.matchMedia('(min-width: 769px)').matches;
+//
+// REVISED (short/landscape viewports still broke -- overlap, blocked
+// scroll, an oversized canvas -- even after the fix above): isDesktop used
+// to be width-only, min-width:769px, which is exactly what put a landscape
+// phone on the desktop side of the split in the first place -- inheriting
+// the pinned pyramid, the 900vh scroll-timeline, and every other piece of
+// machinery this file has that assumes a genuinely tall viewport, none of
+// it designed or tested against one this short. Now also requires
+// min-height:501px, matching css/style.css's own max-height:500px
+// "short viewport" threshold (the hero section's own existing fix, and now
+// also the boundary #scroll-container/.section-pyramid/.section-cta's own
+// static-flow fallback uses -- see that CSS rule's comment) -- so a short
+// landscape phone is classified as "not desktop" the same way a narrow
+// portrait phone already is, taking the SAME already-proven mobile code
+// path (positionSections' cascade branch, no pin, scroll-scrubbed entrance
+// animations) instead of a third, bespoke system. isMobileOrTablet is
+// untouched -- its own max-width:1024px already covers a landscape phone
+// regardless of height, so it was never part of this confusion.
+let isDesktop = window.matchMedia('(min-width: 769px) and (min-height: 501px)').matches;
 // Separate, wider threshold for fixes explicitly scoped to "mobile/tablet" as a
 // group (e.g. the dark overlay's reduced max opacity below) -- matches the
 // max-width used for the equivalent CSS media queries elsewhere in this round,
 // deliberately including 1024px-wide tablet landscape while excluding desktop.
 let isMobileOrTablet = window.matchMedia('(max-width: 1024px)').matches;
+// Independent of isDesktop above -- "not desktop" also covers a narrow but
+// TALL portrait phone, which should keep its normal scroll-scrubbed canvas
+// animation untouched. This is specifically "too short for the frame-by-
+// frame canvas animation and its circle-wipe reveal to be worth the
+// fragility" -- same css/style.css max-height:500px threshold as
+// isDesktop's own height requirement, checked on its own since a
+// desktop-width-but-short browser window (isDesktop already false there
+// too, now) should ALSO get the frozen canvas, not just a landscape phone
+// specifically. See applyShortViewportCanvasState() further below for what
+// this actually changes.
+let isShortViewport = window.matchMedia('(max-height: 500px)').matches;
+// Picked deliberately, not just "frame 1": crisp, product-clear, well past
+// the very first frame (confirmed by eye across the whole sequence -- the
+// bottle stays fully intact through roughly frame 20, then visibly starts
+// separating/blurring by 24, and is fully shattered into scattered shards
+// by 30, staying that way through the rest of the sequence with no
+// re-forming visible before frame 120). 12 specifically because it's the
+// last frame in preloadFrames()'s own FIRST_BATCH (see that function) --
+// guaranteed already loaded by the time a short viewport needs to freeze on
+// it, no extra load-order handling required.
+const SHORT_VIEWPORT_FRAME = 12;
 
 const framePath = (i) => `assets/frames/frame_${String(i).padStart(4, '0')}.webp`;
 
@@ -231,24 +270,26 @@ window.addEventListener('resize', () => {
   cachedViewportHeight = window.innerHeight;
 });
 
-// Recomputes isDesktop/isMobileOrTablet/DARK_OVERLAY_MAX_OPACITY (see their
-// own comments above) and re-syncs the pyramid pin (syncPyramidPin(),
-// defined further below near pyramidSection -- a hoisted function
-// declaration, callable here regardless of textual order since this only
-// ever actually RUNS on a later resize event, well after the whole script
-// has finished its first pass). Registered here, right after
-// cachedViewportHeight's own listener above and before every
-// isDesktop-consuming function's own resize listener further down this file
-// (positionSections, recalcDarkOverlayEnter, recalcCtaFadeThresholds,
-// ScrollTrigger.refresh) -- addEventListener fires listeners for the same
-// event in registration order, so all of them see the corrected values by
-// the time their own turn comes for this same event.
+// Recomputes isDesktop/isMobileOrTablet/isShortViewport/DARK_OVERLAY_MAX_OPACITY
+// (see their own comments above) and re-syncs the pyramid pin + the frozen
+// canvas state (syncPyramidPin()/applyShortViewportCanvasState(), both
+// defined further below -- hoisted function declarations, callable here
+// regardless of textual order since this only ever actually RUNS on a later
+// resize event, well after the whole script has finished its first pass).
+// Registered here, right after cachedViewportHeight's own listener above and
+// before every isDesktop-consuming function's own resize listener further
+// down this file (positionSections, recalcDarkOverlayEnter,
+// recalcCtaFadeThresholds, ScrollTrigger.refresh) -- addEventListener fires
+// listeners for the same event in registration order, so all of them see
+// the corrected values by the time their own turn comes for this same event.
 window.addEventListener('resize', () => {
   if (!resizeIsGenuine) return;
-  isDesktop = window.matchMedia('(min-width: 769px)').matches;
+  isDesktop = window.matchMedia('(min-width: 769px) and (min-height: 501px)').matches;
   isMobileOrTablet = window.matchMedia('(max-width: 1024px)').matches;
+  isShortViewport = window.matchMedia('(max-height: 500px)').matches;
   DARK_OVERLAY_MAX_OPACITY = isMobileOrTablet ? 0.6 : 0.9;
   syncPyramidPin();
+  applyShortViewportCanvasState();
 });
 
 function containerScrollRange() {
@@ -368,7 +409,12 @@ async function preloadFrames() {
   const firstBatch = [];
   for (let i = 1; i <= FIRST_BATCH; i++) firstBatch.push(loadFrame(i));
   await Promise.all(firstBatch);
-  drawFrame(1);
+  // SHORT_VIEWPORT_FRAME (12) is FIRST_BATCH's own last frame, deliberately
+  // -- see that constant's own comment for why: guarantees it's already
+  // loaded right here, no separate load-order handling needed.
+  currentFrame = isShortViewport ? SHORT_VIEWPORT_FRAME : 1;
+  drawFrame(currentFrame);
+  if (isShortViewport) canvasWrap.style.clipPath = 'circle(75% at 50% 50%)';
 
   const rest = [];
   for (let i = FIRST_BATCH + 1; i <= FRAME_COUNT; i++) rest.push(loadFrame(i));
@@ -451,6 +497,46 @@ function updateHeroReveal(p) {
   const wipeProgress = Math.min(1, Math.max(0, (p - HERO_WIPE_START_P) / HERO_WIPE_DURATION_P));
   const radius = wipeProgress * 75;
   canvasWrap.style.clipPath = `circle(${radius}% at 50% 50%)`;
+}
+
+/* Freezes the canvas to a single static frame for short viewports (see
+   isShortViewport's own comment near the top of this file) instead of
+   continuing the scroll-scrubbed frame-by-frame animation and circle-wipe
+   reveal -- both are exactly the mechanics most entangled with the fragile
+   height/timeline math this whole round of fixes is trying to get away
+   from, and the source frames' own 1.79:1 aspect ratio was never a good
+   match for a very wide, very short viewport's own shape anyway. Called on
+   init and every time isShortViewport might have changed (the same
+   resize/orientationchange handlers that already recompute it) -- safe to
+   call any time, not just on a genuine transition. */
+function applyShortViewportCanvasState() {
+  if (isShortViewport) {
+    currentFrame = SHORT_VIEWPORT_FRAME;
+    drawFrame(currentFrame);
+    // Matches updateHeroReveal()'s own fully-open target (radius:75%) --
+    // shown fully revealed from the start instead of animating open, since
+    // the lenis 'scroll' handler below skips calling updateHeroReveal()
+    // entirely while isShortViewport is true, so nothing else will open it.
+    canvasWrap.style.clipPath = 'circle(75% at 50% 50%)';
+    // Cleared, not left at whatever a PRIOR (non-short) scroll position set
+    // them to -- same reasoning, nothing else will correct a stale inline
+    // value left over from before a rotation into landscape.
+    heroSection.style.opacity = '';
+    heroSection.style.pointerEvents = '';
+    return;
+  }
+  // Transitioning OUT of short: recompute the real frame/reveal state for
+  // the CURRENT scroll position immediately, rather than leaving the frozen
+  // frame showing until the next scroll event happens to fire (which might
+  // be a while -- e.g. rotating back to portrait without immediately
+  // scrolling again). Mirrors the exact math the lenis 'scroll' handler
+  // below uses for the same two lines.
+  const maxScroll = document.documentElement.scrollHeight - cachedViewportHeight;
+  const pageP = maxScroll > 0 ? Math.min(1, Math.max(0, window.scrollY / maxScroll)) : 0;
+  const accelerated = Math.min(pageP * FRAME_SPEED, 1);
+  currentFrame = Math.max(1, Math.min(Math.floor(accelerated * FRAME_COUNT) + 1, FRAME_COUNT));
+  drawFrame(currentFrame);
+  updateHeroReveal(pageP);
 }
 
 /* ---------------- Dark overlay (stats section) ---------------- */
@@ -711,14 +797,16 @@ window.addEventListener('orientationchange', () => {
   orientationSettleTimer = setTimeout(() => {
     orientationSettleTimer = null;
     cachedViewportHeight = window.innerHeight;
-    isDesktop = window.matchMedia('(min-width: 769px)').matches;
+    isDesktop = window.matchMedia('(min-width: 769px) and (min-height: 501px)').matches;
     isMobileOrTablet = window.matchMedia('(max-width: 1024px)').matches;
+    isShortViewport = window.matchMedia('(max-height: 500px)').matches;
     DARK_OVERLAY_MAX_OPACITY = isMobileOrTablet ? 0.6 : 0.9;
     syncPyramidPin();
     positionSections();
     resizeCanvas();
     recalcDarkOverlayEnter();
     recalcCtaFadeThresholds();
+    applyShortViewportCanvasState();
     ScrollTrigger.refresh();
   }, 300);
 });
@@ -926,14 +1014,22 @@ lenis.on('scroll', () => {
   const maxScroll = document.documentElement.scrollHeight - cachedViewportHeight;
   const pageP = maxScroll > 0 ? Math.min(1, Math.max(0, window.scrollY / maxScroll)) : 0;
 
-  const accelerated = Math.min(pageP * FRAME_SPEED, 1);
-  const index = Math.max(1, Math.min(Math.floor(accelerated * FRAME_COUNT) + 1, FRAME_COUNT));
-  if (index !== currentFrame) {
-    currentFrame = index;
-    requestAnimationFrame(() => drawFrame(currentFrame));
+  // Frame-stepping and the circle-wipe reveal are both frozen for short
+  // viewports -- see applyShortViewportCanvasState()'s own comment for why.
+  // updateCtaPin()/updateDarkOverlay() below are left running either way:
+  // neither is part of the pinned/timeline machinery this freeze exists to
+  // avoid -- .section-cta's own position:fixed-until-unpinned mechanism and
+  // the dark overlay's opacity ramp already work the same way on today's
+  // mobile portrait layout, which never had a pin either.
+  if (!isShortViewport) {
+    const accelerated = Math.min(pageP * FRAME_SPEED, 1);
+    const index = Math.max(1, Math.min(Math.floor(accelerated * FRAME_COUNT) + 1, FRAME_COUNT));
+    if (index !== currentFrame) {
+      currentFrame = index;
+      requestAnimationFrame(() => drawFrame(currentFrame));
+    }
+    updateHeroReveal(pageP);
   }
-
-  updateHeroReveal(pageP);
   updateCtaPin();
 
   const { scrollable } = containerScrollRange();

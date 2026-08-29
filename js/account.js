@@ -54,35 +54,43 @@
   // investigation for the exact dashboard fields to check.
   const AUTH_EMAIL_REDIRECT_URL = 'https://effluve-paris.fr/account.html';
 
-  // SECURITY FIX: password-reset links used to point at account.html too
-  // (same constant as above), on the theory that "redirect somewhere that
-  // resolves the session" was the whole job. It isn't: a password-recovery
-  // link grants a real, session-storage-persisted Supabase session, not a
-  // special limited-purpose one. mountAccountGate()'s resolveSession()
-  // does correctly intercept that FIRST landing (isPasswordRecovery() below
-  // is checked ahead of getSession()) -- but passwordRecoveryActive USED TO
-  // BE a plain in-memory flag that resets to false on any page reload,
-  // while the underlying Supabase session survives the reload via its own
-  // storage. Refresh account.html/checkout.html BEFORE finishing
-  // setNewPassword(), and the next resolveSession() sees an ordinary valid
-  // session with no recovery marker left to check -- and unlocks full
-  // account access (shipping, saved card, order history, delete account) on
-  // nothing more than an unfinished password reset. Routing new links here
-  // instead of account.html closes that hole structurally for the NORMAL
-  // path: reset-password.html (js/reset-password.js) has no OTHER account
-  // content to unlock in the first place, so however Supabase classifies
-  // the session across a refresh, there's nothing broader for it to expose.
+  // ARCHITECTURE (revised -- flow direction inverted from the original
+  // design, after a real security bug surfaced in that one): every
+  // password-reset email link still points here, but reset-password.html no
+  // longer contains a working "set new password" form at all -- it only
+  // confirms the link was valid and tells the customer to go back to
+  // whichever tab they started the request from (see js/reset-password.js's
+  // own header comment). The actual form now lives in THIS file's own
+  // mountAccountGate() recovery step, on account.html/checkout.html --
+  // reached not by the customer clicking anything there, but by that tab
+  // picking up the SAME PASSWORD_RECOVERY session reset-password.html's tab
+  // just established, via supabase-js's own cross-tab BroadcastChannel sync
+  // (onAuthStateChange below receives it exactly like a same-tab event --
+  // confirmed live, no extra wiring needed; see updateUserLocally()'s own
+  // comment for the same mechanism already relied on for USER_UPDATED).
   //
-  // mountAccountGate() below still keeps its OWN embedded recovery step as a
-  // deliberate fallback (old links already sent out before this redirect
-  // changed, a customer bookmarking/refreshing THIS page mid-recovery
-  // instead) -- and that fallback had the exact same refresh hole, just
-  // reachable through a second door: passwordRecoveryActive alone couldn't
-  // structurally close it the way reset-password.html did, since THIS page
-  // has real account content for a wrongly-resolved session to reach.
-  // RECOVERY_PENDING_KEY (sessionStorage, not a plain variable) is what
-  // actually closes it here -- see setRecoveryPending()/isPasswordRecovery()
-  // just below.
+  // WHY THIS CHANGED: the original design had reset-password.html show its
+  // OWN full working form (the "structural" fix for a real refresh-based
+  // access hole, see git history) while mountAccountGate() ALSO kept a
+  // second, separate recovery form as a declared "legacy fallback" for old
+  // links. Once the cross-tab broadcast above existed (built for a
+  // different, legitimate reason -- syncing an ALREADY-COMPLETED reset back
+  // to an open original tab), it turned out to ALSO relay the recovery
+  // session itself to account.html/checkout.html the moment the customer
+  // clicked the email link in any tab -- which the "legacy fallback" form
+  // was fully able to act on. Confirmed live: a tab sitting on checkout.html
+  // that never processed any token itself still received a working
+  // recovery session purely from another tab's broadcast, and its own
+  // (unhardened-for-this) recovery form would have let it complete the
+  // reset from there. Two independent, simultaneously-live forms reachable
+  // from the exact same broadcasted session was the actual bug -- not the
+  // broadcast itself, which is real, Supabase-verified state, not something
+  // forged by clicking "Forgot password" alone (confirmed separately: that
+  // click alone, with no token ever verified anywhere, changes nothing).
+  // Removing the duplicate and making the broadcast-driven path the ONE,
+  // deliberate, hardened way to reach this form (RECOVERY_PENDING_KEY below
+  // still gates it exactly the same way across a refresh) closes that
+  // rather than patching around it a second time.
   const AUTH_PASSWORD_RESET_REDIRECT_URL = 'https://effluve-paris.fr/reset-password.html';
 
   let currentAuthUser = null; // { id, email } | null -- kept in sync below
@@ -156,17 +164,55 @@
     client().auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setRecoveryPending(true);
-      } else if (event !== 'INITIAL_SESSION') {
-        // Any OTHER real auth event (SIGNED_IN from a normal password
-        // login, SIGNED_OUT, USER_UPDATED, TOKEN_REFRESHED) supersedes
-        // whatever recovery-pending marker this tab might still be
-        // carrying -- e.g. a customer who abandoned an unfinished recovery,
+      } else if (
+        event === 'SIGNED_IN' || event === 'SIGNED_OUT' ||
+        (event === 'USER_UPDATED' && !localAuthChangeInFlight)
+      ) {
+        // Written as a positive allow-list of the events that SHOULD
+        // supersede a pending recovery, not a growing exclusion list --
+        // easy to get wrong the other way around, and already was once
+        // (see the BUG FIX note just below).
+        //
+        // SIGNED_IN/SIGNED_OUT: a genuine new login or explicit logout is a
+        // real, deliberate action that should win over a stale recovery
+        // attempt -- e.g. a customer who abandoned an unfinished recovery,
         // came back later, and logged in normally with their still-valid
         // OLD password shouldn't stay stuck being shown the recovery step
-        // forever after. INITIAL_SESSION is deliberately excluded: that's
-        // just this same event firing again on a plain refresh, re-hydrating
-        // whatever session was already in storage -- exactly the case
-        // RECOVERY_PENDING_KEY exists to survive, not clear.
+        // forever after.
+        //
+        // USER_UPDATED, only when NOT this tab's own local call
+        // (localAuthChangeInFlight -- see updateUserLocally()'s own
+        // comment): covers setNewPassword() completing (which ALSO calls
+        // setRecoveryPending(false) explicitly and unconditionally itself,
+        // see that function's own comment -- this branch is redundant for
+        // that exact case, not the only thing making it work) and, more
+        // importantly, a REMOTE USER_UPDATED broadcast from another tab
+        // finishing the SAME recovery first (so a second tab showing the
+        // same stale form doesn't stay stuck on it after the reset already
+        // completed elsewhere).
+        //
+        // BUG FIX: TOKEN_REFRESHED and a LOCAL USER_UPDATED both used to
+        // ALSO clear this (found while re-auditing this exact logic for the
+        // cross-tab security fix -- see AUTH_PASSWORD_RESET_REDIRECT_URL's
+        // own updated comment for the full context). Both are real bugs,
+        // not just theoretical: TOKEN_REFRESHED fires automatically in the
+        // background purely from a session staying open long enough
+        // (Supabase's own default auto-refresh, nothing to do with any
+        // customer action) -- a customer who simply takes a few minutes to
+        // read the requirements checklist and type/confirm a new password
+        // could get silently booted out of the recovery step mid-attempt
+        // for no reason connected to the recovery itself. A LOCAL
+        // USER_UPDATED has the same problem via a different door: the
+        // language-sync listener below calls updateUserLocally() (which
+        // sets localAuthChangeInFlight) any time the site's language
+        // changes, on ANY page, including while a customer is genuinely
+        // mid-recovery -- switching FR/EN while typing a new password would
+        // have cleared this the same way. INITIAL_SESSION was already
+        // correctly excluded before this rewrite (that's just this same
+        // event re-firing on a plain refresh, re-hydrating whatever session
+        // was already in storage -- exactly the case RECOVERY_PENDING_KEY
+        // exists to survive, not clear) and still is here, simply by not
+        // being in the allow-list.
         setRecoveryPending(false);
       }
       currentAuthUser = session && session.user ? { id: session.user.id, email: session.user.email } : null;
@@ -894,18 +940,48 @@
         <p class="promo-message promo-message-success" id="checkout-account-confirm-pending" aria-live="polite" hidden></p>
       </div>
 
-      <!-- Reached only via a real password-reset email link (Supabase grants
-           a temporary recovery session that authorizes setNewPassword()) --
-           see mountAccountGate()'s PASSWORD_RECOVERY handling below. -->
+      <!-- Reached not by anything clicked on THIS page, but by this tab
+           picking up a real PASSWORD_RECOVERY session established by
+           reset-password.html in another tab, via supabase-js's own
+           cross-tab broadcast (see AUTH_PASSWORD_RESET_REDIRECT_URL's own
+           comment above for the full picture) -- mountAccountGate()'s
+           resolveSession() shows this step the moment isPasswordRecovery()
+           is true, ahead of the normal email/login/create-account steps.
+           Same requirements-checklist + confirm-password pattern as
+           reset-password.html used to have directly (that page now only
+           points back here, see its own header comment) -- ported rather
+           than duplicated-and-diverged: updatePasswordRequirements() below
+           is shared with the create-account form above, just parameterized
+           per call site now. -->
       <div id="checkout-account-recovery" hidden>
         <p class="checkout-account-intro" data-i18n="accountGate.setNewPasswordHeading">Set a New Password</p>
+        <!-- Text populated by setTextWithBoldValue() (this file, used
+             already for the "reset email sent" message above) -- never
+             innerHTML/data-i18n-html: the email is session-supplied, not
+             this project's own authored copy. -->
+        <p class="checkout-account-intro" id="checkout-account-recovery-email-line"></p>
         <form id="checkout-account-recovery-form" novalidate>
           <label class="checkout-field">
             <span data-i18n="accountGate.newPasswordLabel">New Password</span>
             <input type="password" id="checkout-account-recovery-password" autocomplete="new-password" required>
+            <ul class="password-requirements" id="checkout-account-recovery-password-requirements" data-i18n-attr="aria-label:accountGate.passwordHint" aria-label="Minimum 8 characters, with at least one letter, one number, and one special character (! @ # $ % &amp; *).">
+              <li class="password-requirement" data-requirement="length"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqLength">8+ characters</span></li>
+              <li class="password-requirement" data-requirement="letter"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqLetter">One letter</span></li>
+              <li class="password-requirement" data-requirement="number"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqNumber">One number</span></li>
+              <li class="password-requirement" data-requirement="special"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqSpecial">One special character (! @ # $ % &amp; *)</span></li>
+            </ul>
+          </label>
+          <label class="checkout-field">
+            <span data-i18n="accountGate.confirmPasswordLabel">Confirm Password</span>
+            <input type="password" id="checkout-account-recovery-confirm" autocomplete="new-password" required>
+            <!-- Live-updating, same as reset-password.html's own former
+                 confirm field -- shown as-you-type, not just on submit,
+                 since this field's whole job is keeping Set Password
+                 disabled until it actually matches. -->
+            <p class="promo-message promo-message-error" id="checkout-account-recovery-confirm-error" aria-live="polite" hidden></p>
           </label>
           <p class="promo-message promo-message-error" id="checkout-account-recovery-error" aria-live="polite" hidden></p>
-          <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-recovery-submit-btn" data-i18n="accountGate.setNewPasswordBtn">Set Password</button>
+          <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-recovery-submit-btn" data-i18n="accountGate.setNewPasswordBtn" disabled>Set Password</button>
         </form>
       </div>
     `;
@@ -1071,8 +1147,12 @@
       : null;
 
     const recoveryBlock = container.querySelector('#checkout-account-recovery');
+    const recoveryEmailLine = container.querySelector('#checkout-account-recovery-email-line');
     const recoveryForm = container.querySelector('#checkout-account-recovery-form');
     const recoveryPasswordInput = container.querySelector('#checkout-account-recovery-password');
+    const recoveryPasswordRequirements = container.querySelector('#checkout-account-recovery-password-requirements');
+    const recoveryConfirmInput = container.querySelector('#checkout-account-recovery-confirm');
+    const recoveryConfirmError = container.querySelector('#checkout-account-recovery-confirm-error');
     const recoverySubmitBtn = container.querySelector('#checkout-account-recovery-submit-btn');
     const recoveryError = container.querySelector('#checkout-account-recovery-error');
 
@@ -1169,12 +1249,16 @@
       return value.length >= 8 && /[A-Za-z]/.test(value) && /[0-9]/.test(value) && PASSWORD_SPECIAL_CHARS_RE.test(value);
     }
 
-    // Live requirements checklist (create-account form only -- see this
-    // file's own comment above on scope) -- each item's met/unmet state is
-    // just isValidPassword()'s own four conditions checked individually
-    // instead of combined, so the user sees exactly which ones are still
-    // missing instead of one all-or-nothing pass/fail. ○/✓ glyphs (not
-    // color alone) so the state doesn't rely on color perception either.
+    // Live requirements checklist -- shared by the create-account form AND
+    // the recovery step's own "New Password" field (previously create-form
+    // only, hardcoded to that form's own inputs -- parameterized now that a
+    // second field needs the identical checklist behavior, rather than a
+    // second copy of this same function drifting from this one). Each
+    // item's met/unmet state is just isValidPassword()'s own four
+    // conditions checked individually instead of combined, so the user sees
+    // exactly which ones are still missing instead of one all-or-nothing
+    // pass/fail. ○/✓ glyphs (not color alone) so the state doesn't rely on
+    // color perception either.
     const createPasswordRequirements = container.querySelector('#checkout-account-create-password-requirements');
     const PASSWORD_REQUIREMENT_CHECKS = {
       length: (value) => value.length >= 8,
@@ -1182,11 +1266,11 @@
       number: (value) => /[0-9]/.test(value),
       special: (value) => PASSWORD_SPECIAL_CHARS_RE.test(value)
     };
-    function updatePasswordRequirements() {
-      if (!createPasswordRequirements) return;
-      const value = createPasswordInput.value;
+    function updatePasswordRequirements(inputEl, listEl) {
+      if (!listEl) return;
+      const value = inputEl.value;
       Object.keys(PASSWORD_REQUIREMENT_CHECKS).forEach((key) => {
-        const item = createPasswordRequirements.querySelector(`[data-requirement="${key}"]`);
+        const item = listEl.querySelector(`[data-requirement="${key}"]`);
         if (!item) return;
         const met = PASSWORD_REQUIREMENT_CHECKS[key](value);
         item.classList.toggle('password-requirement-met', met);
@@ -1194,7 +1278,32 @@
         if (icon) icon.textContent = met ? '✓' : '○';
       });
     }
-    createPasswordInput.addEventListener('input', updatePasswordRequirements);
+    createPasswordInput.addEventListener('input', () => updatePasswordRequirements(createPasswordInput, createPasswordRequirements));
+
+    // Live match-gating for the recovery step's New Password + Confirm
+    // Password pair -- same "disable Set Password until both fields are
+    // valid AND matching" pattern reset-password.html's own former confirm
+    // field used (that page no longer has a form at all, see its own header
+    // comment) -- ported here as the form's new home rather than
+    // reimplemented from scratch. Unlike the create-account form's own
+    // confirm field (checked only on submit, via createError below), this
+    // gates the button itself: the customer only ever reaches this step via
+    // a real recovery session, so there's no "wrong email/already have an
+    // account" branching to justify a softer, submit-time-only check here.
+    function updateRecoverySubmitState() {
+      const password = recoveryPasswordInput.value;
+      const confirm = recoveryConfirmInput.value;
+      const matches = confirm.length > 0 && password === confirm;
+      const showMismatch = confirm.length > 0 && !matches;
+      recoveryConfirmError.hidden = !showMismatch;
+      if (showMismatch) recoveryConfirmError.textContent = t('accountGate.errorPasswordMismatch');
+      recoverySubmitBtn.disabled = !(isValidPassword(password) && matches);
+    }
+    recoveryPasswordInput.addEventListener('input', () => {
+      updatePasswordRequirements(recoveryPasswordInput, recoveryPasswordRequirements);
+      updateRecoverySubmitState();
+    });
+    recoveryConfirmInput.addEventListener('input', updateRecoverySubmitState);
 
     // Set by the email-form submit handler below, right after the
     // check-email-exists lookup resolves -- read here to decide which of the
@@ -1271,6 +1380,25 @@
     // though getSession() is null then too.
     let lastResolvedKey;
 
+    // Same dedup purpose as lastResolvedKey above, scoped to the recovery
+    // branch specifically (that branch returns before ever reaching
+    // lastResolvedKey's own check, so it needed its own).
+    //
+    // BUG FIX: without this, every resolveSession() call while
+    // isPasswordRecovery() stayed true -- not just the first -- unconditionally
+    // wiped both password fields back to empty. Harmless on the OLD, single-
+    // field, quick-to-refill recovery form; a real problem on this one: a
+    // TOKEN_REFRESHED firing purely from Supabase's own background session
+    // maintenance (nothing to do with any customer action -- see
+    // onAuthStateChange's own comment on why TOKEN_REFRESHED is deliberately
+    // NOT in its clear-the-marker allow-list) would still silently wipe
+    // whatever the customer had already typed into New Password/Confirm
+    // Password, without kicking them out of the step entirely -- confirmed
+    // live via a real TOKEN_REFRESHED broadcast. Reset once resolveSession()
+    // actually leaves recovery mode (not on every call) so a genuinely LATER
+    // recovery attempt still renders fresh.
+    let recoveryRendered = false;
+
     // Set by changeBtn/modifyEmailBtn's click handlers (see
     // enterEmailEditMode() below) to whatever getSession() reported right
     // before they forced the UI to the email step -- the exact state
@@ -1286,12 +1414,45 @@
       // otherwise report this as a normal logged-in state and skip straight
       // past the "set a new password" step entirely.
       if (isPasswordRecovery()) {
-        statusEl.hidden = true;
-        showStep('recovery');
-        recoveryPasswordInput.value = '';
-        recoveryError.hidden = true;
+        if (!recoveryRendered) {
+          recoveryRendered = true;
+          statusEl.hidden = true;
+          showStep('recovery');
+          recoveryPasswordInput.value = '';
+          recoveryConfirmInput.value = '';
+          recoveryError.hidden = true;
+          recoveryConfirmError.hidden = true;
+          updatePasswordRequirements(recoveryPasswordInput, recoveryPasswordRequirements);
+          updateRecoverySubmitState();
+        }
+        // Independent of recoveryRendered's own one-time guard above --
+        // keeps correcting itself across the async session-hydration gap
+        // (see below) or a later TOKEN_REFRESHED without re-touching
+        // anything the customer may have already typed. getSession() (not a
+        // separate lookup) -- a recovery session is a real session,
+        // currentAuthUser is already set from it by the time resolveSession()
+        // runs (same onAuthStateChange callback, always synchronously
+        // before notifySessionChange()'s own 'account:updated' reaches this
+        // listener). Still checked every time regardless: on the very first
+        // synchronous resolveSession() call at mount, isPasswordRecovery()
+        // can already be true from RECOVERY_PENDING_KEY (a refresh) while
+        // Supabase's own async session hydration hasn't landed yet -- this
+        // line just no-ops that one tick, and the follow-up resolveSession()
+        // from 'account:updated' (already wired below) fills it in correctly
+        // moments later, same "briefly stale until hydration lands" pattern
+        // already documented at this file's own top.
+        const recoverySession = getSession();
+        if (recoverySession && !recoverySession.isGuest) {
+          // One combined sentence ("Choisissez un nouveau mot de passe pour
+          // votre compte : {email}.") rather than two separate lines --
+          // this used to be reset-password.html's own intro ("Choisissez un
+          // nouveau mot de passe pour votre compte.") plus a second line
+          // just for the email, back when that page had the form itself.
+          setTextWithBoldValue(recoveryEmailLine, 'accountGate.setNewPasswordIntro', 'email', recoverySession.email);
+        }
         return;
       }
+      recoveryRendered = false;
       const session = getSession();
       const resolvedKey = session ? session.email + '|' + session.isGuest : null;
       // BUG FIX: 'account:updated' fires for every auth-state change,
@@ -1361,7 +1522,7 @@
       createLastNameInput.value = '';
       createPasswordInput.value = '';
       createConfirmInput.value = '';
-      updatePasswordRequirements();
+      updatePasswordRequirements(createPasswordInput, createPasswordRequirements);
       if (createPhoneWidget) createPhoneWidget.setValue({ number: '', country: 'FR' });
       // Checked by default every time this step is (re)shown, matching
       // account.html's own marketing toggle default (see that page's
@@ -1659,15 +1820,22 @@
 
     recoveryForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      // Defensive backstop -- recoverySubmitBtn.disabled (updateRecoverySubmitState()
+      // above) already keeps both of these unreachable via a normal click,
+      // same "belt and suspenders" reasoning reset-password.html's own
+      // former submit handler used for the identical pair of checks.
       if (!isValidPassword(recoveryPasswordInput.value)) {
         showFieldError(recoveryError, 'accountGate.errorPasswordWeak');
         return;
       }
+      if (recoveryPasswordInput.value !== recoveryConfirmInput.value) {
+        showFieldError(recoveryError, 'accountGate.errorPasswordMismatch');
+        return;
+      }
       recoveryError.hidden = true;
-      // Single dominant field -- same disable-input-and-button pattern as
-      // the email step's own emailSubmitBtn/emailInput.
       recoverySubmitBtn.disabled = true;
       recoveryPasswordInput.disabled = true;
+      recoveryConfirmInput.disabled = true;
       try {
         const result = await setNewPassword(recoveryPasswordInput.value);
         if (result.ok) {
@@ -1678,6 +1846,7 @@
       } finally {
         recoverySubmitBtn.disabled = false;
         recoveryPasswordInput.disabled = false;
+        recoveryConfirmInput.disabled = false;
       }
     });
 

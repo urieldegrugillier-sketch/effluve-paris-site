@@ -4,34 +4,40 @@
    guest/create-account/order history/Edit Profile/etc.), and reusing it here
    would reintroduce exactly the surface area this page exists to eliminate.
 
-   SECURITY CONTEXT (see js/account.js's AUTH_PASSWORD_RESET_REDIRECT_URL for
-   the full writeup): a password-recovery link grants a real, persisted
-   Supabase session -- not a special limited-purpose one. account.html/
-   checkout.html's shared gate does correctly intercept that on first landing
-   (isPasswordRecovery(), checked ahead of getSession()), but that flag is
-   plain in-memory state that resets on any reload, while the underlying
-   session survives via Supabase's own storage -- so a refresh before
-   finishing the reset used to fall through to a normal resolved-session
-   state and unlock full account access. This page closes that hole
-   structurally: it has no OTHER content for any session state to unlock, on
-   first load or any later refresh, so which way Supabase classifies the
-   session no longer matters.
-*/
+   ARCHITECTURE (revised -- this page used to have its own full "set new
+   password" form; it no longer does): the previous design had TWO
+   independent, fully-working forms that could both act on the same recovery
+   session -- this page's own, and a "legacy fallback" one embedded in
+   account.html/checkout.html's shared gate. A real security bug came from
+   that duplication, not from either form's own validation: supabase-js
+   broadcasts every auth event (including PASSWORD_RECOVERY) to every
+   same-origin tab via its own BroadcastChannel, by default -- confirmed
+   live, no extra wiring needed. That's exactly what already let a customer
+   who finished a reset on THIS page find their original checkout.html/
+   account.html tab quietly resolved to logged-in (see js/account.js's own
+   USER_UPDATED handling) -- but it turns out to ALSO relay the recovery
+   session itself the moment the email link is clicked, before any password
+   is ever set. The original tab's OWN recovery form could act on that
+   broadcasted session directly, with no token of its own ever verified
+   there. The broadcast itself isn't the bug (it's real, Supabase-verified
+   state, not something forged by clicking "Forgot password" alone --
+   confirmed separately that on its own changes nothing); having two
+   separate, independently-reachable forms wired to accept it was.
+
+   Fixed by removing this page's own form entirely rather than hardening it
+   further: the ONE actual "set new password" form now lives only in
+   js/account.js's mountAccountGate() (the #checkout-account-recovery step),
+   reached only via that same cross-tab broadcast -- now the single,
+   deliberate path instead of a second, accidental one. This page's only
+   remaining job is confirming the link was valid and pointing the customer
+   back to whichever tab they started from. */
 (function () {
   const account = window.MonarkAccount;
   function t(key, vars) { return window.MonarkI18n ? window.MonarkI18n.t(key, vars) : key; }
 
-  const formBlock = document.getElementById('reset-password-form-block');
+  const returnBlock = document.getElementById('reset-password-return-block');
   const invalidBlock = document.getElementById('reset-password-invalid');
-  const successBlock = document.getElementById('reset-password-success');
   const emailLine = document.getElementById('reset-password-email-line');
-  const form = document.getElementById('reset-password-form');
-  const passwordInput = document.getElementById('reset-password-input');
-  const confirmInput = document.getElementById('reset-password-confirm-input');
-  const confirmError = document.getElementById('reset-password-confirm-error');
-  const requirementsList = document.getElementById('reset-password-requirements');
-  const errorEl = document.getElementById('reset-password-error');
-  const submitBtn = document.getElementById('reset-password-submit-btn');
 
   // Same split-on-{placeholder} + real <strong> element approach as
   // js/checkout-page.js's own setLineWithBoldValue() -- see that file's
@@ -55,92 +61,23 @@
     );
   }
 
-  // Same floor as js/account.js's own mountAccountGate() create-account rule
-  // (8+ characters, at least one letter, one number, and one special
-  // character from !@#$%&*) -- duplicated here rather than exported from
-  // account.js since it's also declared privately inside that file's own
-  // mountAccountGate() closure, not part of its public API. Same approach
-  // js/account-page.js's own Edit Profile password field already takes (see
-  // that file's own comment) -- kept in sync by rule, not by import, so a
-  // password accepted at signup/reset is never later rejected (or vice
-  // versa) anywhere else on the site.
-  const PASSWORD_SPECIAL_CHARS_RE = /[!@#$%&*]/;
-  function isValidPassword(value) {
-    return value.length >= 8 && /[A-Za-z]/.test(value) && /[0-9]/.test(value) && PASSWORD_SPECIAL_CHARS_RE.test(value);
-  }
-
-  // Live requirements checklist -- same four checks/glyphs as the
-  // create-account form's own updatePasswordRequirements() (js/account.js),
-  // reimplemented here for the same "not part of the public API" reason as
-  // isValidPassword() above.
-  const PASSWORD_REQUIREMENT_CHECKS = {
-    length: (value) => value.length >= 8,
-    letter: (value) => /[A-Za-z]/.test(value),
-    number: (value) => /[0-9]/.test(value),
-    special: (value) => PASSWORD_SPECIAL_CHARS_RE.test(value)
-  };
-  function updatePasswordRequirements() {
-    const value = passwordInput.value;
-    Object.keys(PASSWORD_REQUIREMENT_CHECKS).forEach((key) => {
-      const item = requirementsList.querySelector(`[data-requirement="${key}"]`);
-      if (!item) return;
-      const met = PASSWORD_REQUIREMENT_CHECKS[key](value);
-      item.classList.toggle('password-requirement-met', met);
-      const icon = item.querySelector('.password-requirement-icon');
-      if (icon) icon.textContent = met ? '✓' : '○';
-    });
-  }
-  // Gates the submit button itself rather than only erroring on submit
-  // (unlike the create-account form's own on-submit-only mismatch check,
-  // js/account.js's mountAccountGate()) -- requested explicitly for this
-  // page: both fields must be present and equal, and the password itself
-  // must already pass isValidPassword(), before Set Password becomes
-  // clickable at all.
-  function updateSubmitState() {
-    const password = passwordInput.value;
-    const confirm = confirmInput.value;
-    const matches = confirm.length > 0 && password === confirm;
-    // Only surface the mismatch note once Confirm actually has content that
-    // doesn't match yet -- not before the visitor has started typing it, and
-    // not while it currently matches.
-    const showMismatch = confirm.length > 0 && !matches;
-    confirmError.hidden = !showMismatch;
-    if (showMismatch) confirmError.textContent = t('accountGate.errorPasswordMismatch');
-    submitBtn.disabled = !(isValidPassword(password) && matches);
-  }
-  passwordInput.addEventListener('input', () => { updatePasswordRequirements(); updateSubmitState(); });
-  confirmInput.addEventListener('input', updateSubmitState);
-  updateSubmitState();
-
   function showBlock(name) {
-    formBlock.hidden = name !== 'form';
+    returnBlock.hidden = name !== 'return';
     invalidBlock.hidden = name !== 'invalid';
-    successBlock.hidden = name !== 'success';
   }
-
-  // Set the instant setNewPassword() succeeds -- render() below no-ops after
-  // that, so the account:updated event setNewPassword() itself fires (via
-  // notifySessionChange(), synchronously, before its own promise resolves)
-  // can't flip the success screen back to the form in between.
-  let succeeded = false;
 
   function render() {
-    if (succeeded) return;
     const session = account.getSession();
     // A real (non-guest) session covers both the fresh recovery-link landing
-    // (Supabase's PASSWORD_RECOVERY event, from the recovery token in the
-    // URL) and a same-tab refresh before submitting, where that URL marker
-    // and the in-memory isPasswordRecovery() flag are both already gone but
-    // the session Supabase already established is still genuinely valid --
-    // gating on the session itself, not the transient flag, is what keeps
-    // this form working across a refresh instead of stranding the visitor on
-    // "invalid link" for a session that's still perfectly good for setting a
-    // new password. A guest session (just an email in localStorage, not a
-    // real Supabase session) or no session at all still correctly falls
-    // through to "invalid or expired".
+    // and a same-tab refresh -- gating on the session itself, not the
+    // transient isPasswordRecovery() flag, is what keeps this page working
+    // across a refresh instead of stranding the visitor on "invalid link"
+    // for a session that's still perfectly good. A guest session (just an
+    // email in localStorage, not a real Supabase session) or no session at
+    // all still correctly falls through to "invalid or expired".
     if (session && !session.isGuest) {
       setLineWithBoldValue(emailLine, 'resetPassword.forEmail', 'email', session.email);
-      showBlock('form');
+      showBlock('return');
     } else {
       showBlock('invalid');
     }
@@ -152,43 +89,6 @@
   // execution, until Supabase's INITIAL_SESSION/PASSWORD_RECOVERY event
   // resolves a tick later) -- the synchronous render() above can't see that
   // yet on a page that was never going to show a "logged out" flash either
-  // way, so this is what upgrades "invalid" to "form" once it lands.
+  // way, so this is what upgrades "invalid" to "return" once it lands.
   document.addEventListener('account:updated', render);
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const password = passwordInput.value;
-    // Defensive backstop -- submitBtn.disabled already keeps this
-    // unreachable via a normal click, see updateSubmitState() above.
-    if (!isValidPassword(password)) {
-      errorEl.textContent = t('accountGate.errorPasswordWeak');
-      errorEl.hidden = false;
-      return;
-    }
-    if (password !== confirmInput.value) {
-      errorEl.textContent = t('accountGate.errorPasswordMismatch');
-      errorEl.hidden = false;
-      return;
-    }
-    errorEl.hidden = true;
-    submitBtn.disabled = true;
-    try {
-      const result = await account.setNewPassword(password);
-      if (!result.ok) {
-        // Same distinguishable 'same-password' reason js/account.js's own
-        // mountAccountGate() recovery step now checks for (see
-        // setNewPassword()'s own comment) -- both consume the same shared
-        // function, so both get the clearer message instead of the generic
-        // fallback for this one specific, common case (retyping the current
-        // password out of habit).
-        errorEl.textContent = t(result.error === 'same-password' ? 'accountGate.errorSamePassword' : 'accountGate.errorGeneric');
-        errorEl.hidden = false;
-        return;
-      }
-      succeeded = true;
-      showBlock('success');
-    } finally {
-      submitBtn.disabled = false;
-    }
-  });
 })();

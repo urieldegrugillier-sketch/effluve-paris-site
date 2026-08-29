@@ -1124,12 +1124,15 @@ body.shop-page .site-header { mix-blend-mode: normal; }
     justify-content: flex-start;
     padding: calc(var(--promo-banner-h) + 6.5rem) 1.5rem 4rem;
   }
-  /* .hero-heading's own font-size override lives further down, right after
-     that selector's base rule (not here) -- same specificity (one class),
-     so source order decides the winner, and placing it here would have put
-     this media query's copy BEFORE .hero-heading's own base rule, which
-     would then win instead (confirmed live: the override silently had no
-     effect until moved). */
+  /* .hero-heading's own font-size override, and .scroll-indicator's own
+     position override, both live further down, right after each
+     selector's own base rule (not here) -- same specificity (one class
+     each), so source order decides the winner, and placing either here
+     would put this media query's copy BEFORE the base rule, which would
+     then win instead (confirmed live for .hero-heading already; then
+     confirmed AGAIN for .scroll-indicator, the exact same mistake, despite
+     this very comment -- see that override's own comment for the overlap
+     bug it fixes). */
 }
 
 .hero-standalone::before {
@@ -1325,6 +1328,35 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   text-transform: uppercase;
   color: var(--text-muted);
   z-index: 2;
+}
+
+/* BUG FIX (mobile landscape overlap): this base rule's own position:absolute;
+   bottom:3rem anchors to .hero-standalone's own box, completely outside the
+   flex column layout that stacks .hero-inner above it -- absolutely
+   positioned elements don't participate in a flex container's height
+   calculation at all. Once .hero-standalone's own height became
+   auto+min-height:100vh under @media(max-height:500px) (see that rule,
+   further up this file) instead of a fixed 100vh, nothing guaranteed
+   .hero-inner's real content stayed clear of a bottom-anchored sibling any
+   more -- confirmed live: on a short enough viewport, .hero-inner's own
+   bottom edge extended into .scroll-indicator's own 3rem-from-the-bottom
+   position, overlapping the tagline with "Défilez pour que le règne
+   commence" (or its EN equivalent), present from the very first landscape
+   load, not just after rotating. position:static (with a real top margin
+   instead of bottom:3rem) makes it a normal flex child again -- it stacks
+   below .hero-inner in DOM order and contributes its own height to
+   .hero-standalone's own auto sizing, the same guarantee every other child
+   in this flex column already has. MUST come after the base rule directly
+   above (same specificity, one class each -- source order decides the
+   winner) -- see @media(max-height:500px)'s own .hero-standalone comment
+   further up this file for why this exact mistake already happened once,
+   for .hero-heading, before it happened again here too. */
+@media (max-height: 500px) {
+  .scroll-indicator {
+    position: static;
+    margin-top: 2rem;
+    transform: none;
+  }
 }
 
 .scroll-arrow { animation: bob 1.8s ease-in-out infinite; font-size: 0.9rem; }
@@ -2078,7 +2110,25 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   }
 }
 
-@media (max-width: 768px) {
+/* BUG FIX (short/landscape viewports -- blocked scroll, overlapping
+   sections, an oversized canvas, all worse across repeated orientation
+   switches): a landscape phone (~844px wide) never matched this block on
+   its own (max-width:768px) -- it inherited the DESKTOP treatment instead:
+   the pinned pyramid, the 900vh scroll-timeline, absolutely-positioned/
+   midpoint-anchored sections, none of it designed or tested against a
+   viewport this short, no matter how many individual timing/measurement
+   races got fixed around the edges of that same system (see js/app.js's
+   own isDesktop comment for the fuller history). Adding
+   `, (max-height: 500px)` here -- comma is OR between media queries, not
+   AND -- pulls a short viewport into this SAME already-proven stacked/
+   static layout regardless of width, instead of inventing a third, bespoke
+   system: the exact fallback requested was "bypass the pinned/scroll-jacked
+   system entirely below a height threshold," and this IS that system,
+   already shipped and working for narrow portrait phones. js/app.js's own
+   isDesktop is now min-height:501px-gated too (see that file's own
+   comment), so JS and CSS agree on which viewports get this treatment --
+   nothing in this block needed to change beyond its own selector. */
+@media (max-width: 768px), (max-height: 500px) {
   .site-header { padding: 1.4rem 6vw; }
   .nav-links { gap: 1.2rem; }
 

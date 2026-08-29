@@ -407,7 +407,7 @@
         continueAsGuest: 'Continue as Guest',
         createAccountInstead: 'Create an account instead',
         guestPasswordIntro: 'Enter your password to pre-fill your saved information, or continue without it.',
-        guestPasswordSkip: 'Continue without password',
+        guestPasswordSkip: 'Continue without my info',
         confirmPasswordLabel: 'Confirm Password',
         createAccountAndContinue: 'Create Account & Continue',
         errorEmailEmpty: 'Please enter your email.',
@@ -429,18 +429,17 @@
         updatedElsewhere: 'Your account was just updated in another tab — you’re now logged in.',
         confirmAccountPending: 'Check your inbox at {email} to confirm your account before logging in.',
         setNewPasswordHeading: 'Set a New Password',
+        setNewPasswordIntro: 'Choose a new password for your account: {email}.',
         newPasswordLabel: 'New Password',
         setNewPasswordBtn: 'Set Password',
         phoneLabel: 'Phone Number (optional)',
         marketingLabel: 'I\'d like to receive product updates, promotions, and the MONARK newsletter by email. You can change this anytime from your Account page, see our <a href="confidentialite.html" target="_blank" rel="noopener">Privacy Policy</a> for details.'
       },
       resetPassword: {
-        pageTitle: 'Set a New Password',
-        formIntro: 'Choose a new password for your account.',
+        pageTitle: 'Password Reset',
         forEmail: 'Setting a new password for {email}.',
-        invalidText: 'This link is invalid or has expired. Please request a new password reset email and try again.',
-        successHeading: 'Password Updated',
-        successText: 'Your password has been changed. You can close this tab and return to the page you were previously on — it will now recognize you as logged in.'
+        returnToTabMessage: 'Please return to the page where you requested this reset to set your new password.',
+        invalidText: 'This link is invalid or has expired. Please request a new password reset email and try again.'
       },
       phoneInput: {
         countrySelectorLabel: 'Country code',
@@ -953,7 +952,7 @@
         continueAsGuest: 'Continuer en tant qu\'Invité',
         createAccountInstead: 'Créer un compte à la place',
         guestPasswordIntro: 'Saisissez votre mot de passe pour pré-remplir vos informations enregistrées, ou continuez sans cela.',
-        guestPasswordSkip: 'Continuer sans mot de passe',
+        guestPasswordSkip: 'Continuer sans mes infos',
         confirmPasswordLabel: 'Confirmer le Mot de Passe',
         createAccountAndContinue: 'Créer un Compte et Continuer',
         errorEmailEmpty: 'Veuillez saisir votre e-mail.',
@@ -975,18 +974,17 @@
         updatedElsewhere: 'Votre compte vient d’être mis à jour dans un autre onglet — vous êtes maintenant connecté(e).',
         confirmAccountPending: 'Consultez votre boîte de réception à {email} pour confirmer votre compte avant de vous connecter.',
         setNewPasswordHeading: 'Définir un Nouveau Mot de Passe',
+        setNewPasswordIntro: 'Choisissez un nouveau mot de passe pour votre compte : {email}.',
         newPasswordLabel: 'Nouveau Mot de Passe',
         setNewPasswordBtn: 'Définir le Mot de Passe',
         phoneLabel: 'Numéro de Téléphone (facultatif)',
         marketingLabel: 'Je souhaite recevoir par e-mail les actualités produits, les promotions et la newsletter MONARK. Vous pouvez modifier ce choix à tout moment depuis votre page Compte, consultez notre <a href="confidentialite.html" target="_blank" rel="noopener">Politique de Confidentialité</a> pour en savoir plus.'
       },
       resetPassword: {
-        pageTitle: 'Définir un Nouveau Mot de Passe',
-        formIntro: 'Choisissez un nouveau mot de passe pour votre compte.',
+        pageTitle: 'Réinitialisation du Mot de Passe',
         forEmail: 'Définition d\'un nouveau mot de passe pour {email}.',
-        invalidText: 'Ce lien est invalide ou a expiré. Veuillez demander un nouvel e-mail de réinitialisation et réessayer.',
-        successHeading: 'Mot de Passe Mis à Jour',
-        successText: 'Votre mot de passe a été modifié. Vous pouvez fermer cet onglet et retourner sur la page où vous étiez — elle vous reconnaîtra désormais comme connecté(e).'
+        returnToTabMessage: 'Veuillez retourner sur la page où vous avez fait votre demande pour définir votre nouveau mot de passe.',
+        invalidText: 'Ce lien est invalide ou a expiré. Veuillez demander un nouvel e-mail de réinitialisation et réessayer.'
       },
       phoneInput: {
         countrySelectorLabel: 'Indicatif du pays',
