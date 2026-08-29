@@ -700,6 +700,13 @@
   max-width: 46ch;
 }
 
+/* Browsers' default <strong> weight is the relative "bolder" keyword, which
+   against this 300 base only computes to 400 -- too close to read as bold.
+   Pinned to an explicit weight so the session-supplied email (see
+   setLineWithBoldValue()/setTextWithBoldValue() in js/reset-password.js and
+   js/account.js) actually stands out. */
+.checkout-account-intro strong { font-weight: 700; }
+
 /* Cancel + Continue (email-edit-mode, order swapped so Cancel comes first --
    see accountGateMarkup() in js/account.js) -- same 1.2rem action-button gap
    as .checkout-account-status-actions/.checkout-account-options elsewhere in
