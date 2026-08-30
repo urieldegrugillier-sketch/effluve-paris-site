@@ -210,6 +210,36 @@ function positionDarkOverlayWidth() {
 positionDarkOverlayWidth();
 window.addEventListener('resize', positionDarkOverlayWidth);
 
+/* ---------------- Canvas-wrap / dark-overlay height (px-based, not CSS height:100%) ----------------
+   BUG FIX (background canvas visibly cropped at the top, landscape/short-
+   viewport): both are position:fixed with height:100%, which for a fixed-
+   position element resolves against the viewport just like a bare 100vh
+   would -- and real iOS Safari is documented to size that against the
+   LARGE viewport (address bar collapsed) rather than whatever's actually
+   visible right now, same class of bug already fixed for WIDTH above (see
+   that comment) via document.documentElement.clientWidth instead of
+   window.innerWidth/100%. Only actually visible here once .hero-standalone
+   can render taller than one screen (height:auto + min-height:100vh under
+   the short-viewport media query, css/style.css) -- drawFrame() already
+   centers the drawn image WITHIN the canvas's own buffer correctly (dx/dy
+   = (cw-dw)/2, (ch-dh)/2), so a mis-sized wrapper was always the more
+   likely explanation than the drawing math once that was checked. Same
+   clientHeight-not-vh/dvh approach js/nav-menu.js's own sizeMenuHeight()
+   already established for the identical reason. */
+function positionCanvasHeight() {
+  if (!canvasWrap) return;
+  canvasWrap.style.height = document.documentElement.clientHeight + 'px';
+}
+positionCanvasHeight();
+window.addEventListener('resize', positionCanvasHeight);
+
+function positionDarkOverlayHeight() {
+  if (!darkOverlay) return;
+  darkOverlay.style.height = document.documentElement.clientHeight + 'px';
+}
+positionDarkOverlayHeight();
+window.addEventListener('resize', positionDarkOverlayHeight);
+
 /* ---------------- Progress <-> pixel mapping ----------------
    ScrollTrigger's "top top"/"bottom bottom" progress maps 0..1 to
    scrollY range [containerTop, containerTop + containerHeight - viewportHeight].
@@ -379,7 +409,26 @@ function positionSections() {
     // resize/orientationchange this function already does -- the real
     // cascaded height can change (font reflow, image aspect ratios at a
     // new width) even when isDesktop/isShortViewport themselves don't.
-    scrollContainer.style.height = mobileLastSectionBottomPx + 'px';
+    //
+    // BUG FIX, part 2 (CTA appearing while the last content section was
+    // still substantially on screen -- confirmed live after the freeze fix
+    // above): setting the height to EXACTLY mobileLastSectionBottomPx left
+    // zero slack beyond the last section's own bottom edge -- scrollable
+    // (containerHeight - viewportHeight) then came out LESS than
+    // mobileLastSectionBottomPx by construction, so
+    // recalcCtaFadeThresholds()'s own enterPx/scrollable ratio was
+    // mathematically guaranteed to exceed 1 and hit CTA_FADE_ENTER_MAX
+    // every time, regardless of real content -- and hitting that cap with
+    // this particular (much smaller than the old 900vh/600vh) scrollable
+    // meant the CTA could start fading in while a meaningful chunk of the
+    // last section was still inside the viewport. Reserving one extra
+    // viewportHeight of real slack here makes scrollable equal
+    // mobileLastSectionBottomPx exactly instead of falling short of it --
+    // enough room for "the last section has fully scrolled past" (progress
+    // 1.0 exactly) to actually be reachable, so CTA_FADE_ENTER_MAX (bumped
+    // alongside this, see its own comment) can sit close to that instead of
+    // needing to protect against an impossible-to-reach 1.0.
+    scrollContainer.style.height = (mobileLastSectionBottomPx + viewportHeight) + 'px';
     return;
   }
 
@@ -747,17 +796,33 @@ let ctaFadeVisibleEffective = CTA_FADE_VISIBLE;
 
 // How much of the container's own scroll range recalcCtaFadeThresholds() is
 // allowed to push ctaFadeEnterEffective toward, at most. Confirmed via real
-// testing at 320x568 (a real, common small-phone width): without this cap,
+// testing at 320x568 (a real, common small-phone width): without SOME cap,
 // heavily-wrapped copy on a narrow/short viewport can push stats' cascaded
 // bottom edge PAST the container's entire scrollable range, so
 // Math.min(1, enterPx/scrollable) clamped both thresholds to exactly 1 --
 // collapsing updateCtaVisibility's (p - enter)/(visible - enter) division to
 // 0/0 (NaN), which silently left the CTA at opacity 0 forever. It never
-// appeared at all. Capping below 1 guarantees the fade window (and some
-// dwell time before the true scroll end) always exists, even in that extreme
-// case -- at the cost of a small, unavoidable overlap risk in that same
-// extreme case, which is the lesser problem of the two.
-const CTA_FADE_ENTER_MAX = 0.94;
+// appeared at all. Any value strictly below 1 avoids that exact collapse
+// (ctaFadeVisibleEffective's own Math.min(1, ...) means the fade window
+// only actually reaches zero width if ctaFadeEnterEffective reaches exactly
+// 1, not just close to it).
+//
+// BUG FIX: was 0.94, chosen before positionSections() reserved real slack
+// beyond the last mobile section's own bottom edge (see that function's own
+// comment). Back when scrollContainer's height had ZERO slack past the
+// content, scrollable was structurally always LESS than
+// mobileLastSectionBottomPx -- so enterPx/scrollable was mathematically
+// guaranteed to exceed 1 and hit whatever this cap was, every time,
+// regardless of real content, and progress 1.0 (the last section fully
+// scrolled past) was never actually reachable to begin with. 0.94 left 6%
+// of scrollable (well over half a viewport's worth of scroll distance, at
+// the sizes this cascade actually renders at) as real, confirmed overlap --
+// the CTA fading in while a meaningful chunk of the last section was still
+// on screen. Now that positionSections() reserves a real viewportHeight of
+// slack, progress 1.0 genuinely means "fully scrolled past" -- pushed this
+// as close to that as safely possible (leaving only a hair of margin below
+// 1, not 6% of it) to shrink that overlap down to something incidental.
+const CTA_FADE_ENTER_MAX = 0.99;
 
 function recalcCtaFadeThresholds() {
   if (isDesktop || mobileLastSectionBottomPx == null) {
