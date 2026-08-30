@@ -356,8 +356,38 @@ function positionSections() {
       prevBottom = top + section.offsetHeight + MOBILE_SECTION_GAP_PX;
     });
     mobileLastSectionBottomPx = prevBottom;
+    // BUG FIX (real scroll lockup, landscape/short-viewport, confirmed live
+    // via ?debug=landscape on a real iPhone): #scroll-container's own CSS
+    // height (900vh desktop / 600vh short-viewport, css/style.css) is a
+    // fixed vh-based guess with no relationship to this cascade's own real
+    // total height -- fine on desktop (900vh comfortably exceeds its own
+    // spacious layout) and on portrait mobile (600vh at a TALL viewport is
+    // still generous), but a SHORT viewport's much smaller absolute vh
+    // budget (600vh x ~375px is a fraction of the same 600vh x ~844px
+    // portrait gets) can fall well short of the same cascaded content --
+    // confirmed at 724x375: 2250px of CSS height against ~3000px of real
+    // content. Every scroll-progress calculation everywhere in this file
+    // (containerScrollRange()'s own scrollable, the master ScrollTrigger's
+    // own 'bottom bottom', updateCtaPin()'s containerBottomY/stitchY) reads
+    // #scroll-container's offsetHeight fresh, not a cached copy -- so
+    // setting the REAL measured height here, overriding the CSS guess via
+    // inline style (which wins on specificity), fixes every one of those
+    // at the source instead of patching each consumer separately. Cleared
+    // back to '' in the isDesktop branch below so a stale mobile-cascade
+    // height from before a rotation never lingers into desktop's own
+    // spacious 900vh. Also why this needs to keep running on every
+    // resize/orientationchange this function already does -- the real
+    // cascaded height can change (font reflow, image aspect ratios at a
+    // new width) even when isDesktop/isShortViewport themselves don't.
+    scrollContainer.style.height = mobileLastSectionBottomPx + 'px';
     return;
   }
+
+  // See the !isDesktop branch's own comment on scrollContainer.style.height
+  // above -- clears any stale inline height a previous short-viewport
+  // cascade may have set, so desktop always falls back to the CSS's own
+  // 900vh, never an inline value left over from before a rotation.
+  scrollContainer.style.height = '';
 
   sections.forEach((section) => {
     const enter = parseFloat(section.dataset.enter) / 100;
@@ -1344,125 +1374,4 @@ preloadFrames();
    scrollTo(0,0) above already left the user exactly there. */
 if (initialHash) {
   scrollToSection(document.querySelector(initialHash));
-}
-
-/* TEMP DEBUG -- diagnosing a real-iPhone-only landscape bug. Round 1 (the
-   isDesktop/isShortViewport values alone) came back from a real device
-   fully correct -- isDesktop false, isShortViewport true, every matchMedia
-   result consistent -- ruling out the JS/CSS desync theory entirely. Round
-   2, added after investigating further: #scroll-container's own CSS height
-   (900vh desktop / 600vh short-viewport, css/style.css) is a FIXED
-   vh-based value with nothing to do with the ACTUAL rendered height of the
-   cascaded mobile-stacked layout positionSections() builds (see that
-   function's own !isDesktop branch) -- confirmed locally at the user's
-   exact reported 724x375: #scroll-container's own offsetHeight comes out
-   to 2250px (600vh x 375px), but document.documentElement.scrollHeight
-   (the REAL total content height) is 3015px, ~34% more. That matters
-   because containerScrollRange()'s own `scrollable` (containerHeight -
-   viewportHeight, using the WRONG 2250px-based number) is what
-   recalcDarkOverlayEnter()/recalcCtaFadeThresholds() divide real pixel
-   positions by to get a 0-1 progress threshold -- while the actual
-   scroll-progress those thresholds get COMPARED against (see the lenis
-   'scroll' handler further up) is computed from the REAL, correct
-   document.documentElement.scrollHeight instead. Two different denominators
-   for what's supposed to be the same 0-1 scale -- exactly the kind of thing
-   that could show up as the CTA/dark-overlay firing at the wrong real
-   scroll position, i.e. "overlapping elements, blocked scroll". This
-   round adds the actual numbers so the real device can confirm or rule
-   this out directly, rather than staying theoretical.
-
-   ROUND 3 (after the real device confirmed thresholds frozen at the wrong
-   value, then a full scroll lockup that survives even without rotating):
-   traced every consumer of the same wrong #scroll-container height and
-   found two more, neither gated by isDesktop at all -- both always active,
-   every device: the master ScrollTrigger (trigger: scrollContainer,
-   end:'bottom bottom') resolves its own end against the too-short CSS
-   height, so self.progress hits 1.0 well before the real page end; and
-   updateCtaPin()'s containerBottomY (= scrollContainer.offsetTop +
-   offsetHeight, same wrong number) drives stitchY, the scrollY where it
-   swaps .section-cta from position:fixed to normal flow with a NEGATIVE
-   margin-top that shrinks the document's own total height. If that swap
-   fires at the wrong (too-early) real scrollY, it can shrink the page to a
-   height at or below the user's current scroll position -- which the
-   browser then force-clamps -- and updateCtaPin() re-applies that same
-   margin on every subsequent scroll event once unpinned, so the page can
-   never grow back. That would explain a lockup that persists with no
-   further rotation needed. stitchY/shiftPx/containerBottomY are local to
-   updateCtaPin() -- recomputed read-only here with the exact same formula
-   (not calling it, just mirroring the math) rather than changing that
-   function to expose them.
-
-   ROUND 4 (the real device couldn't scroll far enough to even reach the
-   CTA-unpin zone -- lockup happens almost immediately, right after the
-   hero's own scroll-indicator text): re-investigated the hero/transition
-   area -- .hero-standalone becomes height:auto + min-height:100vh under the
-   short-viewport media query (css/style.css), deliberately allowed to
-   render taller than one screen if its content doesn't fit, so where it
-   ends (= where #scroll-container's own master ScrollTrigger start:'top
-   top' fires) can land well past window.innerHeight on a short viewport --
-   right around where the user reports getting stuck.
-
-   ROUND 5 (trimmed): rounds 2-4 added a lot of fields that turned out to
-   be more than fits/reads on an actual landscape phone screen at once.
-   Trimmed to scrollY history, hero height vs viewport, and body/html
-   overflow-y.
-
-   ROUND 6 (real device, trimmed overlay): scrollY frozen HARD at 2657 (all
-   8 samples identical) -- deep in the page, not near the top as round 4
-   assumed. Screenshot showed the footer (wordmark/copyright/nav links)
-   visibly OVERLAPPING a stats section -- the exact "overlapping elements"
-   symptom from the original report. 2657 falls squarely inside the
-   stitchY range computed in rounds 2-3 (2471-2808px, depending on exact
-   measurements) -- the scrollY where updateCtaPin() swaps .section-cta
-   from position:fixed to normal flow with a negative margin-top, computed
-   from the same wrong #scroll-container height, which shrinks the
-   document's total height and can force-freeze scrollY exactly like this.
-   Restoring those CTA-unpin fields (removed in round 5) for one more
-   real-device confirmation before touching that shared code -- keeping the
-   round-5 fields too since they're still cheap and occasionally relevant.
-   Visible only with ?debug=landscape in the URL. Remove entirely once
-   confirmed. */
-if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
-  const debugBox = document.createElement('div');
-  debugBox.id = 'monark-debug-landscape';
-  debugBox.style.cssText = 'position:fixed;top:0;left:0;z-index:2147483647;'
-    + 'background:rgba(0,0,0,0.85);color:#0f0;font:10px/1.2 monospace;'
-    + 'padding:5px 7px;max-width:100vw;max-height:100vh;overflow:auto;'
-    + 'white-space:pre;pointer-events:none;';
-  document.body.appendChild(debugBox);
-  const scrollYHistory = [];
-  function updateDebugBox() {
-    const heroHeight = heroSection ? heroSection.offsetHeight : null;
-    const bodyOverflowY = getComputedStyle(document.body).overflowY;
-    const htmlOverflowY = getComputedStyle(document.documentElement).overflowY;
-    scrollYHistory.push(Math.round(window.scrollY));
-    if (scrollYHistory.length > 8) scrollYHistory.shift();
-    // Mirrors updateCtaPin()'s own formula exactly, read-only (not calling
-    // it, just recomputing the same math for display) -- see this block's
-    // own top-of-file comment for why.
-    const { viewportHeight, scrollable } = containerScrollRange();
-    const containerBottomY = scrollContainer.offsetTop + scrollContainer.offsetHeight;
-    const fadeCompleteY = scrollContainer.offsetTop + ctaFadeVisibleEffective * scrollable;
-    const gapPx = CTA_GAP_VH * viewportHeight;
-    const desiredStitchY = fadeCompleteY + gapPx;
-    const footerHeight = siteFooter ? siteFooter.offsetHeight : 0;
-    const noDeadZoneFloor = containerBottomY - viewportHeight - footerHeight;
-    const stitchY = Math.max(desiredStitchY, noDeadZoneFloor);
-    const shiftPx = containerBottomY - stitchY;
-    const shouldUnpin = window.scrollY >= stitchY;
-    debugBox.textContent =
-      'scrollY: ' + scrollYHistory.join(', ') + '\n'
-      + 'hero height: ' + heroHeight + 'px / viewport: ' + window.innerHeight + 'px\n'
-      + 'body/html overflow-y: ' + bodyOverflowY + ' / ' + htmlOverflowY + '\n'
-      + '--- cta-unpin ---\n'
-      + 'containerBottomY: ' + Math.round(containerBottomY) + '  stitchY: ' + Math.round(stitchY) + '\n'
-      + 'shiftPx: ' + Math.round(shiftPx) + '  shouldUnpin: ' + shouldUnpin + '\n'
-      + 'ctaUnpinned: ' + ctaUnpinned;
-  }
-  updateDebugBox();
-  window.addEventListener('resize', updateDebugBox);
-  window.addEventListener('orientationchange', updateDebugBox);
-  window.addEventListener('scroll', updateDebugBox);
-  // Cheap enough to just run continuously while this debug flag is on.
-  setInterval(updateDebugBox, 300);
 }
