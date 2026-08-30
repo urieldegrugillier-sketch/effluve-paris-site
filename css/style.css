@@ -2267,7 +2267,17 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    an element to a different point in the document. */
 @media (max-height: 500px) {
   .section-cta.cta-static-flow {
-    position: static;
+    /* BUG FIX (canvas rendered ON TOP of the CTA's own text/content --
+       confirmed via real-device screenshot): z-index has no effect at all
+       on a position:static element -- only positioned elements (relative/
+       absolute/fixed/sticky) participate in z-index stacking, so this
+       rule's static position was silently making the base .section-cta
+       rule's z-index:20 inert, leaving .canvas-wrap (position:fixed;
+       z-index:5) paint on top regardless of DOM order or that z-index
+       value. position:relative with no offsets lays out identically to
+       static (participates in normal document flow the same way) while
+       still establishing a stacking context, so z-index:20 applies again. */
+    position: relative;
     bottom: auto;
     left: auto;
     opacity: 1;

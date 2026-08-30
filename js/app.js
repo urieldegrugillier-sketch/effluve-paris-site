@@ -300,6 +300,51 @@ window.addEventListener('resize', () => {
   cachedViewportHeight = window.innerHeight;
 });
 
+// BUG FIX (frozen short-viewport canvas showing frame 1 sitewide instead of
+// the intended frame 12 -- confirmed via real device logs alongside the
+// resizeCanvas() bug just above: document.documentElement.clientHeight
+// swings through several wrong transitional values, e.g. 537 -> 670 -> 265,
+// while Safari's chrome finishes animating after a rotation, not one clean
+// jump from wrong to right). isShortViewport is itself a max-height media
+// query -- exactly the metric that's unstable during that same window. A
+// transient reading >500px momentarily flips isShortViewport to false,
+// which sends applyShortViewportCanvasState() down its "recompute the
+// scroll-scrubbed frame" branch -- typically frame 1, near the top of the
+// page -- overwriting the frozen frame-12 state. If that misfire happens to
+// be the LAST one before the real value settles, nothing ever redraws frame
+// 12 again (the lenis scroll handler skips frame-stepping entirely while
+// isShortViewport is true, so nothing else will correct it either).
+// makeHeightSettleWaiter() re-polls document.documentElement.clientHeight
+// every CHECK_MS and only commits once two consecutive reads agree (or a
+// MAX_WAIT_MS ceiling is hit) -- same "don't trust whichever value arrives
+// first" fix as resizeCanvas()'s own settle correction below, shared here
+// since both bugs have the identical root cause. Re-armable (a trigger()
+// call cancels any poll already in progress) so a burst of near-simultaneous
+// resize events collapses into one final pass against the truly-settled
+// height, mirroring orientationSettleTimer's own "clear pending, reschedule"
+// pattern elsewhere in this file.
+function makeHeightSettleWaiter(onSettled) {
+  const CHECK_MS = 200;
+  const MAX_WAIT_MS = 2000;
+  let pollTimer = null;
+  return function trigger(arg) {
+    if (pollTimer) clearTimeout(pollTimer);
+    const startedAt = Date.now();
+    let lastReading = document.documentElement.clientHeight;
+    const poll = () => {
+      const h = document.documentElement.clientHeight;
+      if (h === lastReading || Date.now() - startedAt >= MAX_WAIT_MS) {
+        pollTimer = null;
+        onSettled(h, arg);
+        return;
+      }
+      lastReading = h;
+      pollTimer = setTimeout(poll, CHECK_MS);
+    };
+    pollTimer = setTimeout(poll, CHECK_MS);
+  };
+}
+
 // Recomputes isDesktop/isMobileOrTablet/isShortViewport/DARK_OVERLAY_MAX_OPACITY
 // (see their own comments above) and re-syncs the pyramid pin + the frozen
 // canvas state (syncPyramidPin()/applyShortViewportCanvasState(), both
@@ -312,8 +357,10 @@ window.addEventListener('resize', () => {
 // recalcCtaFadeThresholds, ScrollTrigger.refresh) -- addEventListener fires
 // listeners for the same event in registration order, so all of them see
 // the corrected values by the time their own turn comes for this same event.
-window.addEventListener('resize', () => {
-  if (!resizeIsGenuine) return;
+// Wrapped in makeHeightSettleWaiter() (see its own comment above) so this
+// whole block only runs once clientHeight has genuinely stopped moving,
+// rather than immediately off a single, possibly mid-animation resize event.
+const settleViewportModeRecompute = makeHeightSettleWaiter(() => {
   isDesktop = window.matchMedia('(min-width: 769px) and (min-height: 501px)').matches;
   isMobileOrTablet = window.matchMedia('(max-width: 1024px)').matches;
   isShortViewport = window.matchMedia('(max-height: 500px)').matches;
@@ -328,6 +375,10 @@ window.addEventListener('resize', () => {
   // scroll. Hoisted function declaration, safe to call here regardless of
   // source order.
   updateHeaderVisibility();
+});
+window.addEventListener('resize', () => {
+  if (!resizeIsGenuine) return;
+  settleViewportModeRecompute();
 });
 
 // visualViewport.height (where supported -- iOS Safari since 13, so safe to
@@ -673,12 +724,31 @@ function drawFrame(index) {
 // later in the session or never. Own dedicated height check, independent of
 // resizeIsGenuine, so a real height change is never missed regardless of
 // whether width also changed.
+//
+// BUG FIX ROUND 2 (canvas STILL wrong even with the above -- real device
+// log: init h=537, load-settle-400ms h=537, resize-event h=670, resize-event
+// h=265, orientationchange-settle h=265, real settled height ~375px, so
+// EVERY logged value was wrong): clientHeight itself genuinely oscillates
+// through multiple different wrong readings while Safari's chrome finishes
+// animating, not just one jump from wrong to right -- calling resizeCanvas()
+// immediately off whichever single resize event happens to fire commits to
+// whatever transient value that event caught. Routed through
+// makeHeightSettleWaiter() (defined above, alongside settleViewportModeRecompute
+// which has the identical problem for isShortViewport) instead of calling
+// resizeCanvas() directly -- polls clientHeight until two consecutive reads
+// agree before committing, and being re-armable means a burst of resize
+// events (exactly what the log shows) collapses into one final corrected
+// pass rather than each one independently drawing at its own possibly-wrong
+// height.
 let lastCanvasHeight = document.documentElement.clientHeight;
+const settleCanvasResize = makeHeightSettleWaiter((h, source) => {
+  lastCanvasHeight = h;
+  resizeCanvas(source);
+});
 window.addEventListener('resize', () => {
   const h = document.documentElement.clientHeight;
   if (!resizeIsGenuine && h === lastCanvasHeight) return;
-  lastCanvasHeight = h;
-  resizeCanvas('resize-event');
+  settleCanvasResize('resize-event');
 });
 
 /* ---------------- Hero circle-wipe reveal ---------------- */
@@ -1019,7 +1089,7 @@ window.addEventListener('orientationchange', () => {
     syncPyramidPin();
     syncCtaShortViewportState();
     positionSections();
-    resizeCanvas('orientationchange-settle');
+    settleCanvasResize('orientationchange-settle');
     recalcDarkOverlayEnter();
     recalcCtaFadeThresholds();
     applyShortViewportCanvasState();
@@ -1031,6 +1101,16 @@ window.addEventListener('orientationchange', () => {
     // here regardless of source order).
     updateHeaderVisibility();
     ScrollTrigger.refresh();
+    // BUG FIX (real device log: even THIS 300ms-settled read can still be
+    // wrong -- orientationchange-settle logged clientHeight=265 against a
+    // real ~375px): everything above still runs off this callback's own
+    // single, immediate read, the same race settleCanvasResize()/
+    // settleViewportModeRecompute() (see their own comments above) exist to
+    // catch. Triggers a second, settle-verified pass once clientHeight has
+    // genuinely stopped changing, so a still-wrong reading here self-
+    // corrects (re-syncing the pin/CTA/frozen-frame state) instead of being
+    // the last word.
+    settleViewportModeRecompute();
   }, 300);
 });
 
@@ -1652,9 +1732,23 @@ preloadFrames();
 // alongside the resize listener above) to match -- it captured the same
 // transient value at the same moment for the same reason, so left alone it
 // would understate whether a LATER real resize actually changed anything.
+// BUG FIX ROUND 2 (real device log: even this 400ms settle correction was
+// still wrong -- init h=537, load-settle-400ms h=537 -- identical readings,
+// meaning clientHeight hadn't even started moving toward its real ~375px
+// value yet at that point): routed through settleCanvasResize() (see its
+// own comment above, alongside settleViewportModeRecompute for the matching
+// isShortViewport/frozen-frame race) instead of a single fixed-delay
+// correction -- polls until two consecutive reads agree rather than trusting
+// whichever value happens to be current 400ms in. Also triggers
+// settleViewportModeRecompute() so a short-viewport device that loaded
+// straight into landscape (no rotation event to ever fire the resize/
+// orientationchange settle paths) still gets its frozen frame-12 state
+// re-verified against the genuinely settled height, not just whatever
+// isShortViewport happened to read at the very first, pre-settle instant
+// preloadFrames() used.
 setTimeout(() => {
-  resizeCanvas('load-settle-400ms');
-  lastCanvasHeight = document.documentElement.clientHeight;
+  settleCanvasResize('load-settle-400ms');
+  settleViewportModeRecompute();
 }, 400);
 
 /* Honor a hash that was present on load (captured and stripped from the URL
