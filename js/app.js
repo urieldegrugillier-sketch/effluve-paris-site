@@ -329,20 +329,70 @@ window.addEventListener('resize', () => {
   updateHeaderVisibility();
 });
 
-// live=true bypasses cachedViewportHeight in favor of a fresh
-// window.innerHeight read -- see updateCtaPin()'s own call for why it needs
-// this and cachedViewportHeight's own comment (just above its declaration)
-// for why every OTHER caller here must keep using the cached value: that
-// caching exists specifically to stop positionSections() from reacting to a
-// pure address-bar-collapse resize (no width change) and re-cascading
-// section positions mid-scroll, which GSAP's own ScrollTrigger then
-// re-measures against, snapping progress backward -- a real, confirmed
-// "double zoom" regression, not a hypothetical one. updateCtaPin() doesn't
-// reposition any OTHER section and re-applies its own result on every
-// single scroll tick regardless (see its own "keep reapplying" comment), so
-// it was never protected BY that caching to begin with -- only hurt by it,
-// via a real, confirmed bug of its own: cachedViewportHeight going stale
-// after a toolbar toggle that isn't a genuine (width) resize left its own
+// visualViewport.height (where supported -- iOS Safari since 13, so safe to
+// prefer outright with a plain fallback) is the platform-correct way to
+// track the ACTUALLY visible viewport height: unlike window.innerHeight
+// (the layout viewport), it's specifically designed to track mobile browser
+// chrome changes -- toolbar show/hide, on-screen keyboard -- accurately.
+// Only the SOURCE of the read; see getSettledLiveViewportHeight() just
+// below for why the raw value still isn't safe to use directly on every
+// scroll tick.
+function currentViewportHeight() {
+  return window.visualViewport ? window.visualViewport.height : window.innerHeight;
+}
+
+// BUG FIX (CTA/footer ordering + scroll difficulty inconsistent across
+// repeated passes, three different real-device attempts giving three
+// different results -- confirmed as a NEW instability from switching
+// updateCtaPin() to a live read last round, not the staleness that fix
+// itself was for): window.innerHeight/visualViewport.height are NOT stable
+// DURING an active touch-scroll gesture on iOS -- the visible viewport
+// continuously changes size as Safari's toolbar animates in/out mid-
+// gesture, not just once after it's finished settling. Reading either raw
+// on every single lenis scroll tick (what containerScrollRange(true) used
+// to do) means stitchY/shiftPx get recalculated against a moving target
+// WITHIN the same gesture, not just correctly refreshed BETWEEN gestures --
+// exactly the kind of thing that would produce non-reproducible results
+// from one pass to the next. Same settle-delay shape as
+// orientationSettleTimer/the canvas init correction elsewhere in this file,
+// just much shorter (this has to track a value live during active
+// scrolling, not wait for a full rotation to finish) and continuously
+// re-armed on every sample rather than a one-shot timer: only accepts a new
+// height once it's stopped changing for LIVE_HEIGHT_SETTLE_MS, otherwise
+// keeps returning whatever the last settled value was -- window.scrollY
+// itself (read separately, directly, wherever it's actually compared)
+// still updates every tick as it always should; only this one input is
+// deliberately lagged.
+const LIVE_HEIGHT_SETTLE_MS = 120;
+let liveHeightCandidate = currentViewportHeight();
+let liveHeightCandidateSince = 0;
+let settledLiveViewportHeight = liveHeightCandidate;
+function getSettledLiveViewportHeight() {
+  const h = currentViewportHeight();
+  const now = performance.now();
+  if (h !== liveHeightCandidate) {
+    liveHeightCandidate = h;
+    liveHeightCandidateSince = now;
+  } else if (now - liveHeightCandidateSince >= LIVE_HEIGHT_SETTLE_MS) {
+    settledLiveViewportHeight = liveHeightCandidate;
+  }
+  return settledLiveViewportHeight;
+}
+
+// live=true bypasses cachedViewportHeight in favor of the settled live read
+// above -- see updateCtaPin()'s own call for why it needs this and
+// cachedViewportHeight's own comment (just above its declaration) for why
+// every OTHER caller here must keep using the cached value: that caching
+// exists specifically to stop positionSections() from reacting to a pure
+// address-bar-collapse resize (no width change) and re-cascading section
+// positions mid-scroll, which GSAP's own ScrollTrigger then re-measures
+// against, snapping progress backward -- a real, confirmed "double zoom"
+// regression, not a hypothetical one. updateCtaPin() doesn't reposition any
+// OTHER section and re-applies its own result on every single scroll tick
+// regardless (see its own "keep reapplying" comment), so it was never
+// protected BY that caching to begin with -- only hurt by it, via a real,
+// confirmed bug of its own: cachedViewportHeight going stale after a
+// toolbar toggle that isn't a genuine (width) resize left its own
 // stitchY/shiftPx computed against the WRONG viewport height until the next
 // genuine resize or orientationchange happened to come along, which could
 // be much later or never in the same scroll session -- confirmed live via a
@@ -352,7 +402,7 @@ window.addEventListener('resize', () => {
 // in between.
 function containerScrollRange(live) {
   const containerHeight = scrollContainer.offsetHeight;
-  const viewportHeight = live ? window.innerHeight : cachedViewportHeight;
+  const viewportHeight = live ? getSettledLiveViewportHeight() : cachedViewportHeight;
   return { containerHeight, viewportHeight, scrollable: containerHeight - viewportHeight };
 }
 
@@ -1487,6 +1537,31 @@ document.querySelectorAll('[data-nav-link]').forEach((link) => {
 
 resizeCanvas();
 preloadFrames();
+
+// BUG FIX (canvas still cropped even after resizeCanvas() gained its own
+// height-change resize listener -- confirmed live: canvas.style.height
+// still stuck wrong on a FRESH load, no resize event involved at all): this
+// very first resizeCanvas() call above runs synchronously at script
+// execution, reading document.documentElement.clientHeight before iOS
+// Safari's own toolbar/chrome has necessarily settled into its final state
+// post-load -- there's no 'resize' event to catch this specific case,
+// because nothing actually resizes afterward; the FIRST read itself was
+// just transiently wrong (the earlier round's captured 265px vs a real
+// 375px is consistent with this: not a change resizeCanvas() ever saw, a
+// wrong value from the very first paint that nothing ever corrected). Same
+// settle-delay pattern already established for orientationSettleTimer
+// elsewhere in this file, just a one-shot at load instead of tied to a
+// recurring event -- unconditional (not gated behind comparing to a
+// previous value, unlike the resize listener's own check) specifically
+// because this needs to catch the case where NOTHING ever changes to
+// trigger a correction otherwise. Also re-syncs lastCanvasHeight (declared
+// alongside the resize listener above) to match -- it captured the same
+// transient value at the same moment for the same reason, so left alone it
+// would understate whether a LATER real resize actually changed anything.
+setTimeout(() => {
+  resizeCanvas();
+  lastCanvasHeight = document.documentElement.clientHeight;
+}, 400);
 
 /* Honor a hash that was present on load (captured and stripped from the URL
    bar at the very top of this file) now that Lenis/ScrollTrigger are fully
