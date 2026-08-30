@@ -14,7 +14,8 @@
   function isValidEmail(value) { return window.MonarkValidateEmail ? window.MonarkValidateEmail(value) : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
   // Same floor as js/account.js's own createAccount() password rule (8+
   // chars, at least one letter, one number, and one special character from
-  // !@#$%&*) -- Edit Profile's "same validation as account creation"
+  // the standard keyboard set -- see PASSWORD_SPECIAL_CHARS_RE's own comment
+  // there) -- Edit Profile's "same validation as account creation"
   // requirement, duplicated here rather than exported from account.js since
   // it's also re-declared privately inside that file's own
   // mountAccountGate() closure, not part of its public API. No live
@@ -22,12 +23,15 @@
   // js/account.js) -- only the rule itself needs to stay in sync, so a
   // password accepted at signup is never later rejected (or vice versa)
   // when changed here.
-  function isValidPassword(value) { return value.length >= 8 && /[A-Za-z]/.test(value) && /[0-9]/.test(value) && /[!@#$%&*]/.test(value); }
+  function isValidPassword(value) { return value.length >= 8 && /[A-Za-z]/.test(value) && /[0-9]/.test(value) && /[!@#$%&*_+=.,;:?/\\|(){}[\]<>~`'"^-]/.test(value); }
 
   const profileSection = document.getElementById('account-profile');
   const profileForm = document.getElementById('account-profile-form');
   const profileEmailInput = profileForm.querySelector('[name="email"]');
   const profilePasswordInput = profileForm.querySelector('[name="password"]');
+  // See js/password-toggle.js's own comment -- same guard pattern as
+  // js/account.js's own mount() calls for its password fields.
+  if (window.MonarkPasswordToggle) window.MonarkPasswordToggle.mount(profilePasswordInput);
   const profileFirstNameInput = profileForm.querySelector('[name="firstName"]');
   const profileLastNameInput = profileForm.querySelector('[name="lastName"]');
   const profileDobInput = profileForm.querySelector('[name="dob"]');

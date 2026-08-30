@@ -335,6 +335,41 @@
 
 .checkout-field textarea { resize: vertical; }
 
+/* Show/hide toggle for every <input type="password"> site-wide
+   (js/password-toggle.js's own mount() builds this markup around the
+   existing input -- see that file's comment). .password-toggle-wrap takes
+   the input's own place as the flex child of .checkout-field, so it needs
+   nothing beyond position:relative to anchor the absolutely-positioned
+   button; the input itself gets right-padding here so typed text never
+   runs under the icon. */
+.password-toggle-wrap { position: relative; }
+.password-toggle-wrap input { padding-right: 2.2rem; }
+.password-toggle-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.password-toggle-btn:hover,
+.password-toggle-btn:focus-visible { color: var(--text-on-dark); }
+.password-toggle-btn:focus-visible { outline: 2px solid var(--accent-bronze-light); outline-offset: 2px; }
+/* Single persistent icon (see js/password-toggle.js's own comment on why),
+   the slash line just fades in/out over it rather than swapping to a whole
+   second icon. */
+.password-toggle-slash { opacity: 0; transition: opacity 0.15s ease; }
+.password-toggle-btn[aria-pressed="true"] .password-toggle-slash { opacity: 1; }
+
 /* Google Places Autocomplete suggestions panel (js/places-autocomplete.js)
    for the Address field -- same positioned-panel convention as
    .phone-country-panel just below (dark surface, hairline border, drop

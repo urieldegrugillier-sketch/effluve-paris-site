@@ -959,7 +959,7 @@
                  used to show, as a single-string summary for assistive
                  tech that doesn't benefit from four separately-announced
                  live items. -->
-            <ul class="password-requirements" id="checkout-account-create-password-requirements" data-i18n-attr="aria-label:accountGate.passwordHint" aria-label="Minimum 8 characters, with at least one letter, one number, and one special character (! @ # $ % &amp; *).">
+            <ul class="password-requirements" id="checkout-account-create-password-requirements" data-i18n-attr="aria-label:accountGate.passwordHint" aria-label="Minimum 8 characters, with at least one letter, one number, and one special character (e.g. ! @ # $ % -).">
               <li class="password-requirement" data-requirement="length"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqLength">8+ characters</span></li>
               <li class="password-requirement" data-requirement="letter"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqLetter">One letter</span></li>
               <li class="password-requirement" data-requirement="number"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqNumber">One number</span></li>
@@ -1008,7 +1008,7 @@
           <label class="checkout-field">
             <span data-i18n="accountGate.newPasswordLabel">New Password</span>
             <input type="password" id="checkout-account-recovery-password" autocomplete="new-password" required>
-            <ul class="password-requirements" id="checkout-account-recovery-password-requirements" data-i18n-attr="aria-label:accountGate.passwordHint" aria-label="Minimum 8 characters, with at least one letter, one number, and one special character (! @ # $ % &amp; *).">
+            <ul class="password-requirements" id="checkout-account-recovery-password-requirements" data-i18n-attr="aria-label:accountGate.passwordHint" aria-label="Minimum 8 characters, with at least one letter, one number, and one special character (e.g. ! @ # $ % -).">
               <li class="password-requirement" data-requirement="length"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqLength">8+ characters</span></li>
               <li class="password-requirement" data-requirement="letter"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqLetter">One letter</span></li>
               <li class="password-requirement" data-requirement="number"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqNumber">One number</span></li>
@@ -1200,6 +1200,19 @@
     const recoverySubmitBtn = container.querySelector('#checkout-account-recovery-submit-btn');
     const recoveryError = container.querySelector('#checkout-account-recovery-error');
 
+    // Show/hide toggle on every password field this gate renders -- see
+    // js/password-toggle.js's own comment for why it wraps the input in
+    // place instead of expecting a pre-built container (unlike
+    // MonarkPhoneInput.mount() above, these inputs already exist as real
+    // markup). Guarded the same way createPhoneWidget's own mount() call is,
+    // in case that script failed to load.
+    if (global.MonarkPasswordToggle) {
+      [
+        loginPasswordInput, guestPasswordInput, createPasswordInput,
+        createConfirmInput, recoveryPasswordInput, recoveryConfirmInput
+      ].forEach((input) => global.MonarkPasswordToggle.mount(input));
+    }
+
     // Takes an i18n key (not raw text) -- each of these fields can show one
     // of several different messages depending on which validation/request
     // failed, so (unlike accountGateMarkup()'s single-message static fields
@@ -1282,13 +1295,13 @@
     // character -- a floor, not a real strength policy. Supabase's own
     // server-side minimum (6 chars by default) is looser than this, so this
     // client-side check is always the binding one in practice. Special-char
-    // set is the common/standard one (not exotic Unicode symbols) -- kept in
+    // set is every standard keyboard symbol (not exotic Unicode) -- kept in
     // one place here so the live checklist below, this check, and
-    // account.html's own identical copy (its Edit Profile password-change
+    // account-page.js's own identical copy (its Edit Profile password-change
     // field, which reuses the same rule/message but has no checklist of its
     // own, out of this feature's scope) can't drift out of sync with each
     // other or with the accountGate.passwordHint/passwordReqSpecial wording.
-    const PASSWORD_SPECIAL_CHARS_RE = /[!@#$%&*]/;
+    const PASSWORD_SPECIAL_CHARS_RE = /[!@#$%&*_+=.,;:?/\\|(){}[\]<>~`'"^-]/;
     function isValidPassword(value) {
       return value.length >= 8 && /[A-Za-z]/.test(value) && /[0-9]/.test(value) && PASSWORD_SPECIAL_CHARS_RE.test(value);
     }
