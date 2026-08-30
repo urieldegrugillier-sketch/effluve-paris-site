@@ -34,6 +34,16 @@
   // recovery-pending marker into a totally unrelated later visit) -- see
   // passwordRecoveryActive's own comment for exactly what this closes.
   const RECOVERY_PENDING_KEY = 'monark_recovery_pending';
+  // The account a pending recovery is FOR -- lets onAuthStateChange's
+  // SIGNED_IN branch tell a genuine new login (a DIFFERENT account, which
+  // should win over a stale recovery) apart from supabase-js's own internal
+  // re-notification of the SAME recovery session, which real Chrome testing
+  // confirmed DOES happen: switching back to this tab fires a real
+  // visibilitychange, which supabase-js's _onVisibilityChanged() ->
+  // _recoverAndRefresh() (confirmed via its own source) answers by
+  // unconditionally re-firing SIGNED_IN for whatever valid session is
+  // already in shared storage -- nothing to do with any actual new login.
+  const RECOVERY_PENDING_EMAIL_KEY = 'monark_recovery_pending_email';
 
   // The real production domain (matches README.md's own
   // "https://effluve-paris.fr" note -- canonical links, robots.txt,
@@ -100,19 +110,39 @@
   // it) purely as a same-tick-fast-path; RECOVERY_PENDING_KEY is the one
   // that actually has to survive a reload, see setRecoveryPending() below.
   let passwordRecoveryActive = false;
+  // The email the pending recovery is FOR -- same in-memory/sessionStorage
+  // pairing as passwordRecoveryActive/RECOVERY_PENDING_KEY, see
+  // RECOVERY_PENDING_EMAIL_KEY's own comment for why onAuthStateChange's
+  // SIGNED_IN branch needs this.
+  let recoveryPendingEmail = null;
 
   // The only place either half of "is a password recovery still pending in
   // this tab" ever gets written -- keeps passwordRecoveryActive (fast,
   // in-memory) and RECOVERY_PENDING_KEY (sessionStorage, survives a refresh
   // of this same tab) always in sync, so nothing can set one without the
-  // other and drift out of agreement.
-  function setRecoveryPending(pending) {
+  // other and drift out of agreement. email is only meaningful when pending
+  // is true (see RECOVERY_PENDING_EMAIL_KEY's own comment).
+  function setRecoveryPending(pending, email) {
     passwordRecoveryActive = pending;
+    recoveryPendingEmail = pending ? (email || null) : null;
     if (pending) {
       sessionStorage.setItem(RECOVERY_PENDING_KEY, '1');
+      if (email) sessionStorage.setItem(RECOVERY_PENDING_EMAIL_KEY, email);
+      else sessionStorage.removeItem(RECOVERY_PENDING_EMAIL_KEY);
     } else {
       sessionStorage.removeItem(RECOVERY_PENDING_KEY);
+      sessionStorage.removeItem(RECOVERY_PENDING_EMAIL_KEY);
     }
+  }
+
+  // Same dual in-memory/sessionStorage read as isPasswordRecovery() below --
+  // null when nothing's pending, or when it never got an email (shouldn't
+  // happen in practice, see the PASSWORD_RECOVERY branch below, but a
+  // missing email should never itself grant the "trust this SIGNED_IN"
+  // exception, hence isPasswordRecovery() being the caller's own required
+  // gate, not this alone).
+  function getRecoveryPendingEmail() {
+    return recoveryPendingEmail || sessionStorage.getItem(RECOVERY_PENDING_EMAIL_KEY);
   }
 
   // Set for the duration of any auth.updateUser() call made BY THIS TAB
@@ -162,39 +192,48 @@
     // password-recovery. This is the single source of truth currentAuthUser
     // is ever written from.
     client().auth.onAuthStateChange((event, session) => {
-      // TEMP DEBUG -- diagnosing a real-Chrome-only bug where the original
-      // tab shows full account access instead of the recovery form after
-      // receiving the cross-tab broadcast. Remove once the real event
-      // sequence has been captured from the user's own DevTools console.
-      console.log('[MONARK DEBUG]', new Date().toISOString(), 'onAuthStateChange event:', event, 'session:', session ? session.user.email : null);
+      const incomingEmail = session && session.user ? session.user.email : null;
       if (event === 'PASSWORD_RECOVERY') {
-        setRecoveryPending(true);
-      } else if (
-        event === 'SIGNED_IN' || event === 'SIGNED_OUT' ||
-        (event === 'USER_UPDATED' && !localAuthChangeInFlight)
-      ) {
-        // Written as a positive allow-list of the events that SHOULD
-        // supersede a pending recovery, not a growing exclusion list --
-        // easy to get wrong the other way around, and already was once
-        // (see the BUG FIX note just below).
-        //
-        // SIGNED_IN/SIGNED_OUT: a genuine new login or explicit logout is a
-        // real, deliberate action that should win over a stale recovery
-        // attempt -- e.g. a customer who abandoned an unfinished recovery,
-        // came back later, and logged in normally with their still-valid
-        // OLD password shouldn't stay stuck being shown the recovery step
-        // forever after.
-        //
-        // USER_UPDATED, only when NOT this tab's own local call
-        // (localAuthChangeInFlight -- see updateUserLocally()'s own
-        // comment): covers setNewPassword() completing (which ALSO calls
-        // setRecoveryPending(false) explicitly and unconditionally itself,
-        // see that function's own comment -- this branch is redundant for
-        // that exact case, not the only thing making it work) and, more
-        // importantly, a REMOTE USER_UPDATED broadcast from another tab
-        // finishing the SAME recovery first (so a second tab showing the
-        // same stale form doesn't stay stuck on it after the reset already
-        // completed elsewhere).
+        setRecoveryPending(true, incomingEmail);
+      } else if (event === 'SIGNED_OUT') {
+        // A real, deliberate action that should win over a stale recovery
+        // attempt -- e.g. a customer who abandoned an unfinished recovery
+        // shouldn't stay stuck being shown the recovery step forever after.
+        setRecoveryPending(false);
+      } else if (event === 'SIGNED_IN') {
+        // BUG FIX (real Chrome, confirmed via a temporary debug log + the
+        // supabase-js source itself): this used to unconditionally clear a
+        // pending recovery, on the theory that a genuine new login is a
+        // deliberate action that should win over a stale recovery attempt.
+        // True for a DIFFERENT account -- but supabase-js also fires a
+        // completely genuine SIGNED_IN for the SAME account with zero
+        // customer action behind it: switching back to this tab after
+        // clicking the recovery link in another one fires a real
+        // visibilitychange, and supabase-js's own _onVisibilityChanged() ->
+        // _recoverAndRefresh() answers that by unconditionally re-notifying
+        // SIGNED_IN for whatever valid session is already in shared storage
+        // (confirmed by reading that function's own source) -- which, mid
+        // recovery, IS the recovery session. Only a SIGNED_IN for a
+        // genuinely different account should supersede a pending recovery;
+        // this same-account case is that internal re-notification, not a
+        // real login, and must never grant account access on its own.
+        const pendingEmail = getRecoveryPendingEmail();
+        if (!isPasswordRecovery() || !pendingEmail || !incomingEmail || pendingEmail.toLowerCase() !== incomingEmail.toLowerCase()) {
+          setRecoveryPending(false);
+        }
+      } else if (event === 'USER_UPDATED' && !localAuthChangeInFlight) {
+        // Only when NOT this tab's own local call (localAuthChangeInFlight
+        // -- see updateUserLocally()'s own comment): covers setNewPassword()
+        // completing (which ALSO calls setRecoveryPending(false) explicitly
+        // and unconditionally itself, see that function's own comment --
+        // this branch is redundant for that exact case, not the only thing
+        // making it work) and, more importantly, a REMOTE USER_UPDATED
+        // broadcast from another tab finishing the SAME recovery first (so a
+        // second tab showing the same stale form doesn't stay stuck on it
+        // after the reset already completed elsewhere) -- unlike SIGNED_IN
+        // above, a same-account USER_UPDATED here IS exactly the "recovery
+        // just completed" signal, not a spurious re-notification, so this
+        // stays unconditional.
         //
         // BUG FIX: TOKEN_REFRESHED and a LOCAL USER_UPDATED both used to
         // ALSO clear this (found while re-auditing this exact logic for the
