@@ -1346,8 +1346,38 @@ if (initialHash) {
    further rotation needed. stitchY/shiftPx/containerBottomY are local to
    updateCtaPin() -- recomputed read-only here with the exact same formula
    (not calling it, just mirroring the math) rather than changing that
-   function to expose them. Visible only with ?debug=landscape in the URL.
-   Remove once confirmed either way. */
+   function to expose them.
+
+   ROUND 4 (the real device couldn't scroll far enough to even reach the
+   CTA-unpin zone -- lockup happens almost immediately, right after the
+   hero's own scroll-indicator text): the CTA-unpin theory can still be A
+   cause further down the page, but can't be THIS one. Re-investigated the
+   hero/transition area specifically: .hero-standalone becomes height:auto +
+   min-height:100vh under the short-viewport media query (css/style.css),
+   deliberately allowed to render taller than one screen if its content
+   (heading/signature/tagline/scroll-indicator, .scroll-indicator itself
+   made a normal flex child instead of position:absolute under that same
+   media query) doesn't fit -- so on a short viewport the hero can genuinely
+   be taller than window.innerHeight, and where it ends is exactly where
+   #scroll-container's own master ScrollTrigger start:'top top' fires,
+   right around where the user reports getting stuck. Checked and ruled out
+   by tracing (not yet confirmed live): no ScrollTrigger anywhere in this
+   file pins on the !isDesktop side (grepped for every `pin:` -- the only
+   one is the pyramid pin, isDesktop-gated); no CSS overflow/touch-action/
+   overscroll-behavior rule on html/body, under this media query or any
+   other; no JS anywhere sets document.body/documentElement.style directly;
+   nav-menu.js/email-popup.js don't lock body scroll. Lenis's own bundled
+   source confirms autoResize:true by default with a ResizeObserver on both
+   the window AND the content element, so a stale too-short limit from
+   before the hero's real height settled shouldn't persist either -- but
+   that's the one piece not yet directly confirmed against a REAL hero
+   overflow, hence the fields below. Adds the hero's actual rendered height
+   vs viewport, where the container begins (= where the hero ends), the
+   first section's own live position, the loader's own dismiss state (ruling
+   out a stuck, invisible, pointer-events-active loader some other way), and
+   a short scrollY history so it's unambiguous whether scrollY is actually
+   moving at all versus the page just not visibly responding. Visible only
+   with ?debug=landscape in the URL. Remove once confirmed either way. */
 if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
   const debugBox = document.createElement('div');
   debugBox.id = 'monark-debug-landscape';
@@ -1356,6 +1386,7 @@ if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
     + 'padding:6px 8px;max-width:100vw;max-height:100vh;overflow:auto;'
     + 'white-space:pre;pointer-events:none;';
   document.body.appendChild(debugBox);
+  const scrollYHistory = [];
   function updateDebugBox() {
     const { containerHeight, viewportHeight, scrollable } = containerScrollRange();
     const realScrollHeight = document.documentElement.scrollHeight;
@@ -1374,6 +1405,15 @@ if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
     const stitchY = Math.max(desiredStitchY, noDeadZoneFloor);
     const shiftPx = containerBottomY - stitchY;
     const shouldUnpin = window.scrollY >= stitchY;
+    // ROUND 4 additions -- see this block's own top-of-file comment.
+    const heroRect = heroSection ? heroSection.getBoundingClientRect() : null;
+    const heroHeight = heroSection ? heroSection.offsetHeight : null;
+    const firstSection = document.querySelector('.scroll-section:not(.section-cta)');
+    const firstSectionRect = firstSection ? firstSection.getBoundingClientRect() : null;
+    const bodyOverflowY = getComputedStyle(document.body).overflowY;
+    const htmlOverflowY = getComputedStyle(document.documentElement).overflowY;
+    scrollYHistory.push(Math.round(window.scrollY));
+    if (scrollYHistory.length > 8) scrollYHistory.shift();
     debugBox.textContent =
       'innerWidth: ' + window.innerWidth + '\n'
       + 'innerHeight: ' + window.innerHeight + '\n'
@@ -1382,6 +1422,16 @@ if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
       + "mq(max-height:500px): " + window.matchMedia('(max-height:500px)').matches + '\n'
       + 'isDesktop: ' + isDesktop + '\n'
       + 'isShortViewport: ' + isShortViewport + '\n'
+      + '--- hero / transition zone (round 4) ---\n'
+      + 'hero offsetHeight: ' + heroHeight + 'px (viewport: ' + window.innerHeight + 'px)\n'
+      + 'hero overflow past viewport: ' + (heroHeight != null ? heroHeight - window.innerHeight : 'n/a') + 'px\n'
+      + 'hero rect top/bottom: ' + (heroRect ? Math.round(heroRect.top) + ' / ' + Math.round(heroRect.bottom) : 'n/a') + '\n'
+      + '#scroll-container offsetTop (= hero end): ' + scrollContainer.offsetTop + '\n'
+      + 'first section rect top/bottom: ' + (firstSectionRect ? Math.round(firstSectionRect.top) + ' / ' + Math.round(firstSectionRect.bottom) : 'n/a') + '\n'
+      + 'first section style.top: ' + (firstSection ? firstSection.style.top : 'n/a') + '\n'
+      + 'body/html overflow-y: ' + bodyOverflowY + ' / ' + htmlOverflowY + '\n'
+      + 'loader: loadedCount=' + loadedCount + '/' + FRAME_COUNT + ' hidden=' + loader.classList.contains('loader-hidden') + '\n'
+      + 'scrollY history (oldest->newest): ' + scrollYHistory.join(', ') + '\n'
       + '--- scroll range mismatch ---\n'
       + '#scroll-container offsetHeight: ' + containerHeight + 'px\n'
       + 'document.scrollHeight (real): ' + realScrollHeight + 'px\n'
