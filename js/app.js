@@ -992,11 +992,6 @@ function updatePyramidTiers(p) {
 
 /* ---------------- Master scroll-bound ScrollTrigger ---------------- */
 
-// TEMP DEBUG -- captured read-only for the ?debug=landscape overlay further
-// down this file (self isn't otherwise reachable from outside this
-// callback). Remove alongside the rest of that overlay.
-let masterScrollTriggerDebug = { progress: null, start: null, end: null };
-
 ScrollTrigger.create({
   trigger: scrollContainer,
   start: 'top top',
@@ -1004,7 +999,6 @@ ScrollTrigger.create({
   scrub: true,
   onUpdate: (self) => {
     const p = self.progress;
-    masterScrollTriggerDebug = { progress: self.progress, start: self.start, end: self.end };
     updateCtaVisibility(p);
     if (isDesktop) updatePyramidTiers(p);
   }
@@ -1400,133 +1394,49 @@ if (initialHash) {
 
    ROUND 4 (the real device couldn't scroll far enough to even reach the
    CTA-unpin zone -- lockup happens almost immediately, right after the
-   hero's own scroll-indicator text): the CTA-unpin theory can still be A
-   cause further down the page, but can't be THIS one. Re-investigated the
-   hero/transition area specifically: .hero-standalone becomes height:auto +
-   min-height:100vh under the short-viewport media query (css/style.css),
-   deliberately allowed to render taller than one screen if its content
-   (heading/signature/tagline/scroll-indicator, .scroll-indicator itself
-   made a normal flex child instead of position:absolute under that same
-   media query) doesn't fit -- so on a short viewport the hero can genuinely
-   be taller than window.innerHeight, and where it ends is exactly where
-   #scroll-container's own master ScrollTrigger start:'top top' fires,
-   right around where the user reports getting stuck. Checked and ruled out
-   by tracing (not yet confirmed live): no ScrollTrigger anywhere in this
-   file pins on the !isDesktop side (grepped for every `pin:` -- the only
-   one is the pyramid pin, isDesktop-gated); no CSS overflow/touch-action/
-   overscroll-behavior rule on html/body, under this media query or any
-   other; no JS anywhere sets document.body/documentElement.style directly;
-   nav-menu.js/email-popup.js don't lock body scroll. Lenis's own bundled
-   source confirms autoResize:true by default with a ResizeObserver on both
-   the window AND the content element, so a stale too-short limit from
-   before the hero's real height settled shouldn't persist either -- but
-   that's the one piece not yet directly confirmed against a REAL hero
-   overflow, hence the fields below. Adds the hero's actual rendered height
-   vs viewport, where the container begins (= where the hero ends), the
-   first section's own live position, the loader's own dismiss state (ruling
-   out a stuck, invisible, pointer-events-active loader some other way), and
-   a short scrollY history so it's unambiguous whether scrollY is actually
-   moving at all versus the page just not visibly responding. Visible only
-   with ?debug=landscape in the URL. Remove once confirmed either way. */
+   hero's own scroll-indicator text): re-investigated the hero/transition
+   area -- .hero-standalone becomes height:auto + min-height:100vh under the
+   short-viewport media query (css/style.css), deliberately allowed to
+   render taller than one screen if its content doesn't fit, so where it
+   ends (= where #scroll-container's own master ScrollTrigger start:'top
+   top' fires) can land well past window.innerHeight on a short viewport --
+   right around where the user reports getting stuck.
+
+   ROUND 5 (trimmed): rounds 2-4 added a lot of fields (scroll-range
+   mismatch, CTA-unpin math, master ScrollTrigger state, Lenis internals,
+   the first section's own position, loader state) that turned out to be
+   more than fits/reads on an actual landscape phone screen at once, and
+   most of them aren't relevant to THIS specific near-top lockup anyway (the
+   CTA-unpin mechanism they were built for is further down the page, not
+   reachable yet). Trimmed down to just the three fields that matter for
+   diagnosing the hero/transition-zone lockup specifically: scrollY history,
+   hero height vs viewport, and body/html overflow-y. Everything else is
+   recoverable from git history if a later round needs it back. Visible
+   only with ?debug=landscape in the URL. Remove entirely once confirmed. */
 if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
   const debugBox = document.createElement('div');
   debugBox.id = 'monark-debug-landscape';
   debugBox.style.cssText = 'position:fixed;top:0;left:0;z-index:2147483647;'
-    + 'background:rgba(0,0,0,0.85);color:#0f0;font:10px/1.35 monospace;'
-    + 'padding:6px 8px;max-width:100vw;max-height:100vh;overflow:auto;'
+    + 'background:rgba(0,0,0,0.85);color:#0f0;font:10px/1.2 monospace;'
+    + 'padding:5px 7px;max-width:100vw;max-height:100vh;overflow:auto;'
     + 'white-space:pre;pointer-events:none;';
   document.body.appendChild(debugBox);
   const scrollYHistory = [];
   function updateDebugBox() {
-    const { containerHeight, viewportHeight, scrollable } = containerScrollRange();
-    const realScrollHeight = document.documentElement.scrollHeight;
-    const realMaxScroll = realScrollHeight - window.innerHeight;
-    const ctaRect = ctaSection ? ctaSection.getBoundingClientRect() : null;
-    const ctaStyle = ctaSection ? getComputedStyle(ctaSection) : null;
-    // Mirrors updateCtaPin()'s own formula exactly, read-only -- see this
-    // block's own top-of-file comment for why it's duplicated here instead
-    // of exposed from that function.
-    const containerBottomY = scrollContainer.offsetTop + scrollContainer.offsetHeight;
-    const fadeCompleteY = scrollContainer.offsetTop + ctaFadeVisibleEffective * scrollable;
-    const gapPx = CTA_GAP_VH * viewportHeight;
-    const desiredStitchY = fadeCompleteY + gapPx;
-    const footerHeight = siteFooter ? siteFooter.offsetHeight : 0;
-    const noDeadZoneFloor = containerBottomY - viewportHeight - footerHeight;
-    const stitchY = Math.max(desiredStitchY, noDeadZoneFloor);
-    const shiftPx = containerBottomY - stitchY;
-    const shouldUnpin = window.scrollY >= stitchY;
-    // ROUND 4 additions -- see this block's own top-of-file comment.
-    const heroRect = heroSection ? heroSection.getBoundingClientRect() : null;
     const heroHeight = heroSection ? heroSection.offsetHeight : null;
-    const firstSection = document.querySelector('.scroll-section:not(.section-cta)');
-    const firstSectionRect = firstSection ? firstSection.getBoundingClientRect() : null;
     const bodyOverflowY = getComputedStyle(document.body).overflowY;
     const htmlOverflowY = getComputedStyle(document.documentElement).overflowY;
     scrollYHistory.push(Math.round(window.scrollY));
     if (scrollYHistory.length > 8) scrollYHistory.shift();
     debugBox.textContent =
-      'innerWidth: ' + window.innerWidth + '\n'
-      + 'innerHeight: ' + window.innerHeight + '\n'
-      + "mq(min-width:769px): " + window.matchMedia('(min-width:769px)').matches + '\n'
-      + "mq(min-height:501px): " + window.matchMedia('(min-height:501px)').matches + '\n'
-      + "mq(max-height:500px): " + window.matchMedia('(max-height:500px)').matches + '\n'
-      + 'isDesktop: ' + isDesktop + '\n'
-      + 'isShortViewport: ' + isShortViewport + '\n'
-      + '--- hero / transition zone (round 4) ---\n'
-      + 'hero offsetHeight: ' + heroHeight + 'px (viewport: ' + window.innerHeight + 'px)\n'
-      + 'hero overflow past viewport: ' + (heroHeight != null ? heroHeight - window.innerHeight : 'n/a') + 'px\n'
-      + 'hero rect top/bottom: ' + (heroRect ? Math.round(heroRect.top) + ' / ' + Math.round(heroRect.bottom) : 'n/a') + '\n'
-      + '#scroll-container offsetTop (= hero end): ' + scrollContainer.offsetTop + '\n'
-      + 'first section rect top/bottom: ' + (firstSectionRect ? Math.round(firstSectionRect.top) + ' / ' + Math.round(firstSectionRect.bottom) : 'n/a') + '\n'
-      + 'first section style.top: ' + (firstSection ? firstSection.style.top : 'n/a') + '\n'
-      + 'body/html overflow-y: ' + bodyOverflowY + ' / ' + htmlOverflowY + '\n'
-      + 'loader: loadedCount=' + loadedCount + '/' + FRAME_COUNT + ' hidden=' + loader.classList.contains('loader-hidden') + '\n'
-      + 'scrollY history (oldest->newest): ' + scrollYHistory.join(', ') + '\n'
-      + '--- scroll range mismatch ---\n'
-      + '#scroll-container offsetHeight: ' + containerHeight + 'px\n'
-      + 'document.scrollHeight (real): ' + realScrollHeight + 'px\n'
-      + 'MISMATCH (real - container): ' + (realScrollHeight - containerHeight) + 'px\n'
-      + 'containerScrollRange().scrollable: ' + Math.round(scrollable) + 'px\n'
-      + 'real maxScroll (scrollHeight-innerHeight): ' + Math.round(realMaxScroll) + 'px\n'
-      + '--- live scroll position ---\n'
-      + 'window.scrollY: ' + Math.round(window.scrollY) + '\n'
-      + 'pageP (scrollY/realMaxScroll): ' + (realMaxScroll > 0 ? (window.scrollY / realMaxScroll).toFixed(3) : 'n/a') + '\n'
-      + '--- computed thresholds (0-1 scale, should match pageP\'s scale) ---\n'
-      + 'darkOverlayEnterEffective: ' + darkOverlayEnterEffective.toFixed(3) + '\n'
-      + 'ctaFadeEnterEffective: ' + ctaFadeEnterEffective.toFixed(3) + '\n'
-      + '--- lenis ---\n'
-      + 'lenis.scroll: ' + Math.round(lenis.scroll) + '\n'
-      + 'lenis.limit: ' + Math.round(lenis.limit) + '\n'
-      + 'lenis.isScrolling: ' + lenis.isScrolling + '\n'
-      + 'lenis.velocity: ' + (lenis.velocity || 0).toFixed(2) + '\n'
-      + 'lenis.direction: ' + lenis.direction + '\n'
-      + '--- .section-cta live state ---\n'
-      + 'cta computed position: ' + (ctaStyle ? ctaStyle.position : 'n/a') + '\n'
-      + 'cta computed opacity: ' + (ctaStyle ? ctaStyle.opacity : 'n/a') + '\n'
-      + 'cta pointerEvents: ' + (ctaStyle ? ctaStyle.pointerEvents : 'n/a') + '\n'
-      + 'cta rect top/bottom: ' + (ctaRect ? Math.round(ctaRect.top) + ' / ' + Math.round(ctaRect.bottom) : 'n/a') + '\n'
-      + 'cta unpinned class: ' + (ctaSection ? ctaSection.classList.contains('cta-unpinned') : 'n/a') + '\n'
-      + 'ctaUnpinned (JS var): ' + ctaUnpinned + '\n'
-      + '--- updateCtaPin() unpin math (recomputed, read-only) ---\n'
-      + 'containerBottomY: ' + Math.round(containerBottomY) + '\n'
-      + 'stitchY: ' + Math.round(stitchY) + '\n'
-      + 'shiftPx: ' + Math.round(shiftPx) + '\n'
-      + 'shouldUnpin (scrollY>=stitchY): ' + shouldUnpin + '\n'
-      + '--- master ScrollTrigger (trigger:#scroll-container) ---\n'
-      + 'progress: ' + (masterScrollTriggerDebug.progress != null ? masterScrollTriggerDebug.progress.toFixed(3) : 'n/a') + '\n'
-      + 'start: ' + (masterScrollTriggerDebug.start != null ? Math.round(masterScrollTriggerDebug.start) : 'n/a') + '\n'
-      + 'end: ' + (masterScrollTriggerDebug.end != null ? Math.round(masterScrollTriggerDebug.end) : 'n/a') + '\n'
-      + 'time: ' + new Date().toISOString().slice(11, 23);
+      'scrollY: ' + scrollYHistory.join(', ') + '\n'
+      + 'hero height: ' + heroHeight + 'px / viewport: ' + window.innerHeight + 'px\n'
+      + 'body/html overflow-y: ' + bodyOverflowY + ' / ' + htmlOverflowY;
   }
   updateDebugBox();
   window.addEventListener('resize', updateDebugBox);
   window.addEventListener('orientationchange', updateDebugBox);
   window.addEventListener('scroll', updateDebugBox);
-  // Supplementary to the listeners above -- isDesktop/isShortViewport only
-  // update after orientationchange's own SETTLE DELAY (see that handler's
-  // own comment further up this file), not synchronously with the event
-  // itself, and lenis's own scroll state changes continuously between
-  // discrete 'scroll' events too -- cheap enough to just run continuously
-  // while this debug flag is on.
+  // Cheap enough to just run continuously while this debug flag is on.
   setInterval(updateDebugBox, 300);
 }
