@@ -355,7 +355,25 @@ body::before {
      for index.html's own mobile-specific opaque treatment. */
   mix-blend-mode: difference;
   background: linear-gradient(to bottom, #000000 0%, transparent 100%);
+  /* Landscape/short-viewport only (js/app.js's own isShortViewport signal --
+     see .site-header-hidden just below) -- reclaims vertical space on a
+     viewport where every pixel of height is scarce. Desktop and portrait
+     mobile never get this class added at all, so this transition sits
+     unused (and harmless) there. */
+  transition: top 0.4s ease, transform 0.3s ease;
 }
+
+/* Added/removed by js/app.js's updateHeaderVisibility(), gated on
+   isShortViewport -- hides the fixed header on scroll-down, reveals it again
+   on scroll-up (or near the very top, regardless of direction), same
+   "scroll-direction-aware header" pattern used site-wide by countless mobile
+   web apps to reclaim vertical space once it's this scarce. translateY on
+   the header's OWN box (not touching `top`, which js/promo-banner.js's
+   --promo-banner-h already drives) so the two mechanisms compose cleanly
+   regardless of whether the promo banner is showing. -100% of the header's
+   own height is always enough to fully clear it off-screen, independent of
+   whatever `top` currently is. */
+.site-header-hidden { transform: translateY(-100%); }
 
 /* Every page except the homepage (see body.shop-page, set on each of their
    <body> tags) -- previously only true for product.html (the one place this

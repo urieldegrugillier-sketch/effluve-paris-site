@@ -290,6 +290,13 @@ window.addEventListener('resize', () => {
   DARK_OVERLAY_MAX_OPACITY = isMobileOrTablet ? 0.6 : 0.9;
   syncPyramidPin();
   applyShortViewportCanvasState();
+  // Same immediate-reset reasoning as the orientationchange handler's own
+  // call further down this file -- a genuine WIDTH resize (e.g. a desktop
+  // window resized short enough to cross isShortViewport's own threshold)
+  // should force the header visible right away too, not just on the next
+  // scroll. Hoisted function declaration, safe to call here regardless of
+  // source order.
+  updateHeaderVisibility();
 });
 
 function containerScrollRange() {
@@ -807,6 +814,13 @@ window.addEventListener('orientationchange', () => {
     recalcDarkOverlayEnter();
     recalcCtaFadeThresholds();
     applyShortViewportCanvasState();
+    // Forces the header back to visible immediately on rotating OUT of
+    // landscape, rather than leaving it hidden until the next scroll event
+    // happens to fire updateHeaderVisibility() again -- see that function's
+    // own !isShortViewport branch for the actual reset logic (hoisted
+    // function declaration, defined further down this file -- safe to call
+    // here regardless of source order).
+    updateHeaderVisibility();
     ScrollTrigger.refresh();
   }, 300);
 });
@@ -1016,7 +1030,43 @@ ScrollTrigger.create({
    here. Computing container-relative progress directly from raw scrollY
    (unclamped, so it can go negative too) instead of relying on the master
    ScrollTrigger's own supplied progress sidesteps that gating entirely. */
+
+/* ---------------- Scroll-direction-aware header (landscape/short-viewport only) ----------------
+   Reclaims vertical space once it's this scarce (see isShortViewport's own
+   comment near the top of this file) -- hides the fixed header on scroll-
+   down, reveals it again on scroll-up. Desktop and portrait mobile never
+   call classList.add here at all, so the header stays exactly as it always
+   has there -- this isn't a "hidden by default, shown on scroll-up" toggle,
+   it's strictly opt-in per scroll event, gated fresh every time rather than
+   once at load, so a mid-session rotation to/from landscape takes effect
+   immediately without needing its own separate handling.
+   HEADER_HIDE_THRESHOLD keeps the header visible near the very top of the
+   page regardless of direction -- hiding it after a few px of the first
+   downward nudge would read as flickery/premature; this is deliberately not
+   tied to isShortViewport's own 500px height threshold, just a small,
+   fixed scroll distance. */
+const HEADER_HIDE_THRESHOLD = 80;
+let headerHiddenByScroll = false;
+function updateHeaderVisibility() {
+  if (!isShortViewport) {
+    if (headerHiddenByScroll) {
+      headerHiddenByScroll = false;
+      siteHeader.classList.remove('site-header-hidden');
+    }
+    return;
+  }
+  const shouldHide = lenis.direction === 1 && window.scrollY > HEADER_HIDE_THRESHOLD;
+  if (shouldHide && !headerHiddenByScroll) {
+    headerHiddenByScroll = true;
+    siteHeader.classList.add('site-header-hidden');
+  } else if (!shouldHide && headerHiddenByScroll) {
+    headerHiddenByScroll = false;
+    siteHeader.classList.remove('site-header-hidden');
+  }
+}
+
 lenis.on('scroll', () => {
+  updateHeaderVisibility();
   const maxScroll = document.documentElement.scrollHeight - cachedViewportHeight;
   const pageP = maxScroll > 0 ? Math.min(1, Math.max(0, window.scrollY / maxScroll)) : 0;
 
