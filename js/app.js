@@ -1402,17 +1402,26 @@ if (initialHash) {
    top' fires) can land well past window.innerHeight on a short viewport --
    right around where the user reports getting stuck.
 
-   ROUND 5 (trimmed): rounds 2-4 added a lot of fields (scroll-range
-   mismatch, CTA-unpin math, master ScrollTrigger state, Lenis internals,
-   the first section's own position, loader state) that turned out to be
-   more than fits/reads on an actual landscape phone screen at once, and
-   most of them aren't relevant to THIS specific near-top lockup anyway (the
-   CTA-unpin mechanism they were built for is further down the page, not
-   reachable yet). Trimmed down to just the three fields that matter for
-   diagnosing the hero/transition-zone lockup specifically: scrollY history,
-   hero height vs viewport, and body/html overflow-y. Everything else is
-   recoverable from git history if a later round needs it back. Visible
-   only with ?debug=landscape in the URL. Remove entirely once confirmed. */
+   ROUND 5 (trimmed): rounds 2-4 added a lot of fields that turned out to
+   be more than fits/reads on an actual landscape phone screen at once.
+   Trimmed to scrollY history, hero height vs viewport, and body/html
+   overflow-y.
+
+   ROUND 6 (real device, trimmed overlay): scrollY frozen HARD at 2657 (all
+   8 samples identical) -- deep in the page, not near the top as round 4
+   assumed. Screenshot showed the footer (wordmark/copyright/nav links)
+   visibly OVERLAPPING a stats section -- the exact "overlapping elements"
+   symptom from the original report. 2657 falls squarely inside the
+   stitchY range computed in rounds 2-3 (2471-2808px, depending on exact
+   measurements) -- the scrollY where updateCtaPin() swaps .section-cta
+   from position:fixed to normal flow with a negative margin-top, computed
+   from the same wrong #scroll-container height, which shrinks the
+   document's total height and can force-freeze scrollY exactly like this.
+   Restoring those CTA-unpin fields (removed in round 5) for one more
+   real-device confirmation before touching that shared code -- keeping the
+   round-5 fields too since they're still cheap and occasionally relevant.
+   Visible only with ?debug=landscape in the URL. Remove entirely once
+   confirmed. */
 if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
   const debugBox = document.createElement('div');
   debugBox.id = 'monark-debug-landscape';
@@ -1428,10 +1437,27 @@ if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
     const htmlOverflowY = getComputedStyle(document.documentElement).overflowY;
     scrollYHistory.push(Math.round(window.scrollY));
     if (scrollYHistory.length > 8) scrollYHistory.shift();
+    // Mirrors updateCtaPin()'s own formula exactly, read-only (not calling
+    // it, just recomputing the same math for display) -- see this block's
+    // own top-of-file comment for why.
+    const { viewportHeight, scrollable } = containerScrollRange();
+    const containerBottomY = scrollContainer.offsetTop + scrollContainer.offsetHeight;
+    const fadeCompleteY = scrollContainer.offsetTop + ctaFadeVisibleEffective * scrollable;
+    const gapPx = CTA_GAP_VH * viewportHeight;
+    const desiredStitchY = fadeCompleteY + gapPx;
+    const footerHeight = siteFooter ? siteFooter.offsetHeight : 0;
+    const noDeadZoneFloor = containerBottomY - viewportHeight - footerHeight;
+    const stitchY = Math.max(desiredStitchY, noDeadZoneFloor);
+    const shiftPx = containerBottomY - stitchY;
+    const shouldUnpin = window.scrollY >= stitchY;
     debugBox.textContent =
       'scrollY: ' + scrollYHistory.join(', ') + '\n'
       + 'hero height: ' + heroHeight + 'px / viewport: ' + window.innerHeight + 'px\n'
-      + 'body/html overflow-y: ' + bodyOverflowY + ' / ' + htmlOverflowY;
+      + 'body/html overflow-y: ' + bodyOverflowY + ' / ' + htmlOverflowY + '\n'
+      + '--- cta-unpin ---\n'
+      + 'containerBottomY: ' + Math.round(containerBottomY) + '  stitchY: ' + Math.round(stitchY) + '\n'
+      + 'shiftPx: ' + Math.round(shiftPx) + '  shouldUnpin: ' + shouldUnpin + '\n'
+      + 'ctaUnpinned: ' + ctaUnpinned;
   }
   updateDebugBox();
   window.addEventListener('resize', updateDebugBox);
