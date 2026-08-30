@@ -1296,24 +1296,45 @@ if (initialHash) {
   scrollToSection(document.querySelector(initialHash));
 }
 
-/* TEMP DEBUG -- diagnosing a real-iPhone-only landscape bug: the isDesktop
-   min-height:501px gate + isShortViewport short-viewport handling (see their
-   own comments near the top of this file) is confirmed committed AND live
-   in production, yet a real physical iPhone (private browsing, fully closed
-   and reopened Safari -- ruling out any stale cache) shows zero change from
-   before the fix existed. Can't reproduce via Chromium/Playwright, which
-   uses a fixed, static viewport with no simulated dynamic toolbar chrome --
-   so this reads the real values directly off the real device instead of
-   guessing. Visible only with ?debug=landscape in the URL. Remove once the
-   real device's values have been captured and reported back. */
+/* TEMP DEBUG -- diagnosing a real-iPhone-only landscape bug. Round 1 (the
+   isDesktop/isShortViewport values alone) came back from a real device
+   fully correct -- isDesktop false, isShortViewport true, every matchMedia
+   result consistent -- ruling out the JS/CSS desync theory entirely. Round
+   2, added after investigating further: #scroll-container's own CSS height
+   (900vh desktop / 600vh short-viewport, css/style.css) is a FIXED
+   vh-based value with nothing to do with the ACTUAL rendered height of the
+   cascaded mobile-stacked layout positionSections() builds (see that
+   function's own !isDesktop branch) -- confirmed locally at the user's
+   exact reported 724x375: #scroll-container's own offsetHeight comes out
+   to 2250px (600vh x 375px), but document.documentElement.scrollHeight
+   (the REAL total content height) is 3015px, ~34% more. That matters
+   because containerScrollRange()'s own `scrollable` (containerHeight -
+   viewportHeight, using the WRONG 2250px-based number) is what
+   recalcDarkOverlayEnter()/recalcCtaFadeThresholds() divide real pixel
+   positions by to get a 0-1 progress threshold -- while the actual
+   scroll-progress those thresholds get COMPARED against (see the lenis
+   'scroll' handler further up) is computed from the REAL, correct
+   document.documentElement.scrollHeight instead. Two different denominators
+   for what's supposed to be the same 0-1 scale -- exactly the kind of thing
+   that could show up as the CTA/dark-overlay firing at the wrong real
+   scroll position, i.e. "overlapping elements, blocked scroll". This
+   round adds the actual numbers so the real device can confirm or rule
+   this out directly, rather than staying theoretical. Visible only with
+   ?debug=landscape in the URL. Remove once confirmed either way. */
 if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
   const debugBox = document.createElement('div');
   debugBox.id = 'monark-debug-landscape';
   debugBox.style.cssText = 'position:fixed;top:0;left:0;z-index:2147483647;'
-    + 'background:rgba(0,0,0,0.85);color:#0f0;font:11px/1.4 monospace;'
-    + 'padding:8px 10px;max-width:100vw;white-space:pre;pointer-events:none;';
+    + 'background:rgba(0,0,0,0.85);color:#0f0;font:10px/1.35 monospace;'
+    + 'padding:6px 8px;max-width:100vw;max-height:100vh;overflow:auto;'
+    + 'white-space:pre;pointer-events:none;';
   document.body.appendChild(debugBox);
   function updateDebugBox() {
+    const { containerHeight, viewportHeight, scrollable } = containerScrollRange();
+    const realScrollHeight = document.documentElement.scrollHeight;
+    const realMaxScroll = realScrollHeight - window.innerHeight;
+    const ctaRect = ctaSection ? ctaSection.getBoundingClientRect() : null;
+    const ctaStyle = ctaSection ? getComputedStyle(ctaSection) : null;
     debugBox.textContent =
       'innerWidth: ' + window.innerWidth + '\n'
       + 'innerHeight: ' + window.innerHeight + '\n'
@@ -1322,16 +1343,41 @@ if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
       + "mq(max-height:500px): " + window.matchMedia('(max-height:500px)').matches + '\n'
       + 'isDesktop: ' + isDesktop + '\n'
       + 'isShortViewport: ' + isShortViewport + '\n'
+      + '--- scroll range mismatch ---\n'
+      + '#scroll-container offsetHeight: ' + containerHeight + 'px\n'
+      + 'document.scrollHeight (real): ' + realScrollHeight + 'px\n'
+      + 'MISMATCH (real - container): ' + (realScrollHeight - containerHeight) + 'px\n'
+      + 'containerScrollRange().scrollable: ' + Math.round(scrollable) + 'px\n'
+      + 'real maxScroll (scrollHeight-innerHeight): ' + Math.round(realMaxScroll) + 'px\n'
+      + '--- live scroll position ---\n'
+      + 'window.scrollY: ' + Math.round(window.scrollY) + '\n'
+      + 'pageP (scrollY/realMaxScroll): ' + (realMaxScroll > 0 ? (window.scrollY / realMaxScroll).toFixed(3) : 'n/a') + '\n'
+      + '--- computed thresholds (0-1 scale, should match pageP\'s scale) ---\n'
+      + 'darkOverlayEnterEffective: ' + darkOverlayEnterEffective.toFixed(3) + '\n'
+      + 'ctaFadeEnterEffective: ' + ctaFadeEnterEffective.toFixed(3) + '\n'
+      + '--- lenis ---\n'
+      + 'lenis.scroll: ' + Math.round(lenis.scroll) + '\n'
+      + 'lenis.limit: ' + Math.round(lenis.limit) + '\n'
+      + 'lenis.isScrolling: ' + lenis.isScrolling + '\n'
+      + 'lenis.velocity: ' + (lenis.velocity || 0).toFixed(2) + '\n'
+      + 'lenis.direction: ' + lenis.direction + '\n'
+      + '--- .section-cta live state ---\n'
+      + 'cta computed position: ' + (ctaStyle ? ctaStyle.position : 'n/a') + '\n'
+      + 'cta computed opacity: ' + (ctaStyle ? ctaStyle.opacity : 'n/a') + '\n'
+      + 'cta pointerEvents: ' + (ctaStyle ? ctaStyle.pointerEvents : 'n/a') + '\n'
+      + 'cta rect top/bottom: ' + (ctaRect ? Math.round(ctaRect.top) + ' / ' + Math.round(ctaRect.bottom) : 'n/a') + '\n'
+      + 'cta unpinned class: ' + (ctaSection ? ctaSection.classList.contains('cta-unpinned') : 'n/a') + '\n'
       + 'time: ' + new Date().toISOString().slice(11, 23);
   }
   updateDebugBox();
   window.addEventListener('resize', updateDebugBox);
   window.addEventListener('orientationchange', updateDebugBox);
-  // Supplementary to the two listeners above -- isDesktop/isShortViewport
-  // only update after orientationchange's own SETTLE DELAY (see that
-  // handler's own comment further up this file), not synchronously with the
-  // event itself, so a resize/orientationchange-only refresh could miss
-  // exactly the transient window this overlay exists to catch. Cheap enough
-  // to just run continuously while this debug flag is on.
+  window.addEventListener('scroll', updateDebugBox);
+  // Supplementary to the listeners above -- isDesktop/isShortViewport only
+  // update after orientationchange's own SETTLE DELAY (see that handler's
+  // own comment further up this file), not synchronously with the event
+  // itself, and lenis's own scroll state changes continuously between
+  // discrete 'scroll' events too -- cheap enough to just run continuously
+  // while this debug flag is on.
   setInterval(updateDebugBox, 300);
 }
