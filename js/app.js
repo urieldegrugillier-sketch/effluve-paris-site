@@ -982,6 +982,18 @@ const CTA_GAP_VH = 0.20; // 20vh: a deliberate pause after the fade-in completes
                          // short enough that the footer still feels like "the next thing"
 let ctaUnpinned = false;
 
+// TEMP DEBUG -- diagnosing an intermittent scroll-up stall + intermittent
+// footer/CTA overlap regression near the CTA/006 boundary, real device.
+// Logged unconditionally (cheap: a capped-length array push) so the
+// ?debug=landscape overlay further down this file can show it without
+// updateCtaPin() itself needing to know whether that flag is on. Remove
+// alongside the rest of that overlay once confirmed.
+const ctaPinToggleLog = [];
+function logCtaPinToggle(action, scrollY, shouldUnpin) {
+  ctaPinToggleLog.push({ t: new Date().toISOString().slice(11, 23), action, scrollY: Math.round(scrollY), shouldUnpin });
+  if (ctaPinToggleLog.length > 5) ctaPinToggleLog.shift();
+}
+
 function updateCtaPin() {
   if (!ctaSection || !ctaSpacer) return;
   const { viewportHeight, scrollable } = containerScrollRange();
@@ -1000,12 +1012,14 @@ function updateCtaPin() {
     ctaSection.classList.add('cta-unpinned');
     ctaSection.style.marginTop = `-${shiftPx}px`;
     ctaSpacer.replaceWith(ctaSection);
+    logCtaPinToggle('UNPIN', window.scrollY, shouldUnpin);
   } else if (!shouldUnpin && ctaUnpinned) {
     ctaUnpinned = false;
     ctaSection.classList.remove('cta-unpinned');
     ctaSection.style.marginTop = '';
     ctaSection.replaceWith(ctaSpacer);
     scrollContainer.appendChild(ctaSection); // position:fixed again, so exact spot inside doesn't matter
+    logCtaPinToggle('RE-PIN', window.scrollY, shouldUnpin);
   } else if (shouldUnpin && ctaUnpinned) {
     // Already unpinned -- keep reapplying the (freshly recomputed, from live
     // values above) margin every call, not just at the transition instant.
@@ -1439,4 +1453,61 @@ preloadFrames();
    scrollTo(0,0) above already left the user exactly there. */
 if (initialHash) {
   scrollToSection(document.querySelector(initialHash));
+}
+
+/* TEMP DEBUG -- two remaining landscape issues that already had one wrong
+   fix attempt each, so this reads real values instead of guessing again:
+   (1) scroll-up intermittently stalls near the CTA/006 boundary, and the
+   footer/CTA overlap regressed back intermittently too -- suspect
+   updateCtaPin()'s shouldUnpin boundary flapping (Lenis's own easing can
+   overshoot/correct right at a threshold, re-triggering the
+   ctaSpacer.replaceWith()/scrollContainer.appendChild() DOM swap on small
+   deltas) -- ctaPinToggleLog (declared alongside updateCtaPin() above,
+   logged unconditionally, cheap) captures the last 5 actual pin/unpin
+   transitions with a timestamp, scrollY, and shouldUnpin, so real flapping
+   -- several toggles in quick succession, timestamps close together -- is
+   directly visible instead of inferred. (2) the canvas is still reported
+   cropped despite positionCanvasHeight() (last round) matching the
+   already-proven clientHeight-based width-fix pattern -- showing the
+   canvas's actual pixel buffer (canvas.width/height) next to its CSS size
+   (canvas.style.width/height) next to canvasWrap's own live rendered rect
+   (getBoundingClientRect) all at once, since these three could each be
+   right on their own and still disagree with each other (a DPR mismatch
+   between the buffer and CSS size, or canvasWrap itself not actually
+   picking up positionCanvasHeight()'s write for some reason). Visible only
+   with ?debug=landscape in the URL. Remove once confirmed either way. */
+if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
+  const debugBox = document.createElement('div');
+  debugBox.id = 'monark-debug-landscape';
+  debugBox.style.cssText = 'position:fixed;top:0;left:0;z-index:2147483647;'
+    + 'background:rgba(0,0,0,0.85);color:#0f0;font:10px/1.2 monospace;'
+    + 'padding:5px 7px;max-width:100vw;max-height:100vh;overflow:auto;'
+    + 'white-space:pre;pointer-events:none;';
+  document.body.appendChild(debugBox);
+  function updateDebugBox() {
+    const dpr = window.devicePixelRatio || 1;
+    const wrapRect = canvasWrap ? canvasWrap.getBoundingClientRect() : null;
+    const toggleLines = ctaPinToggleLog.length
+      ? ctaPinToggleLog.map((e) => '  ' + e.t + '  ' + e.action + '  y=' + e.scrollY + '  shouldUnpin=' + e.shouldUnpin).join('\n')
+      : '  (none yet)';
+    debugBox.textContent =
+      'scrollY: ' + Math.round(window.scrollY) + '  ctaUnpinned: ' + ctaUnpinned + '\n'
+      + '--- last 5 cta pin/unpin toggles ---\n'
+      + toggleLines + '\n'
+      + '--- canvas sizing (dpr=' + dpr + ') ---\n'
+      + 'canvas.width/height (buffer): ' + canvas.width + ' / ' + canvas.height + '\n'
+      + 'canvas.style.width/height (css): ' + canvas.style.width + ' / ' + canvas.style.height + '\n'
+      + 'canvasWrap rect: ' + (wrapRect ? Math.round(wrapRect.width) + ' / ' + Math.round(wrapRect.height) : 'n/a')
+      + ' (top:' + (wrapRect ? Math.round(wrapRect.top) : 'n/a') + ')\n'
+      + 'canvasWrap.style.height: ' + (canvasWrap ? canvasWrap.style.height : 'n/a');
+  }
+  updateDebugBox();
+  window.addEventListener('resize', updateDebugBox);
+  window.addEventListener('orientationchange', updateDebugBox);
+  window.addEventListener('scroll', updateDebugBox);
+  // Cheap enough to just run continuously while this debug flag is on --
+  // also the only way the toggle log's own entries (pushed from
+  // updateCtaPin(), not tied to any event this listens for directly) show
+  // up promptly rather than waiting for the next scroll/resize.
+  setInterval(updateDebugBox, 300);
 }
