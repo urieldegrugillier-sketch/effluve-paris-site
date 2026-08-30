@@ -28,36 +28,22 @@
 
   const GUEST_KEY = 'monark_guest_email';
   const MOCK_CARD_KEY_PREFIX = 'monark_mock_card_';
-  // sessionStorage (survives a refresh of this tab, unlike the in-memory
-  // passwordRecoveryActive flag below -- but still cleared once the tab
-  // itself closes, unlike localStorage, which would wrongly carry a
-  // recovery-pending marker into a totally unrelated later visit) -- see
-  // passwordRecoveryActive's own comment for exactly what this closes.
-  const RECOVERY_PENDING_KEY = 'monark_recovery_pending';
-  // The account a pending recovery is FOR -- lets onAuthStateChange's
-  // SIGNED_IN branch tell a genuine new login (a DIFFERENT account, which
-  // should win over a stale recovery) apart from supabase-js's own internal
-  // re-notification of the SAME recovery session, which real Chrome testing
-  // confirmed DOES happen: switching back to this tab fires a real
-  // visibilitychange, which supabase-js's _onVisibilityChanged() ->
-  // _recoverAndRefresh() (confirmed via its own source) answers by
-  // unconditionally re-firing SIGNED_IN for whatever valid session is
-  // already in shared storage -- nothing to do with any actual new login.
-  const RECOVERY_PENDING_EMAIL_KEY = 'monark_recovery_pending_email';
-  // When the pending recovery was established (Date.now(), sessionStorage --
-  // same survive-a-refresh/don't-survive-the-tab-closing reasoning as
-  // RECOVERY_PENDING_KEY itself). Lets isPasswordRecovery() below treat a
-  // marker older than RECOVERY_MAX_AGE_MS as stale and clear it, rather than
-  // gating this tab on the recovery step indefinitely for a link whose own
-  // Supabase-side token has already expired regardless -- with no cross-tab
-  // broadcast left to ever supersede it (the customer never returned to
-  // finish it), it would otherwise persist for the rest of this browser tab's
-  // life, including onto completely unrelated later page navigations.
-  const RECOVERY_PENDING_SET_AT_KEY = 'monark_recovery_pending_set_at';
-  // Matches Supabase Auth's own default password-recovery token expiry (1
-  // hour) -- a recovery marker older than this is for a token that's already
-  // dead either way, so there's nothing left here worth protecting.
-  const RECOVERY_MAX_AGE_MS = 60 * 60 * 1000;
+  // REVISED (recovery-pending state used to survive a refresh via
+  // sessionStorage -- it no longer does, at all, see passwordRecoveryActive's
+  // own comment below for why). RECOVERY_UNCONFIRMED_KEY is the one thing
+  // that still persists, and it's deliberately NOT the same thing: it never
+  // drives the recovery form (isPasswordRecovery() below never reads it --
+  // that's now purely in-memory), it only exists so a FRESH page load (a
+  // refresh, a new tab, or this same tab navigating elsewhere) can tell
+  // "was there an unconfirmed recovery session left behind" and sign out of
+  // it silently, rather than ever risk exposing it as a normal logged-in
+  // session -- see onAuthStateChange's own INITIAL_SESSION handling below
+  // for exactly where that happens. localStorage (not sessionStorage): the
+  // whole point is to be visible to ANY tab/page/reload, not just the one
+  // that set it. No email/timestamp alongside it any more (see this file's
+  // own git history for the previous, more elaborate version) -- nothing
+  // downstream needs either any more, see setRecoveryPending()'s own comment.
+  const RECOVERY_UNCONFIRMED_KEY = 'monark_recovery_unconfirmed';
 
   // The real production domain (matches README.md's own
   // "https://effluve-paris.fr" note -- canonical links, robots.txt,
@@ -112,59 +98,69 @@
   // forged by clicking "Forgot password" alone (confirmed separately: that
   // click alone, with no token ever verified anywhere, changes nothing).
   // Removing the duplicate and making the broadcast-driven path the ONE,
-  // deliberate, hardened way to reach this form (RECOVERY_PENDING_KEY below
-  // still gates it exactly the same way across a refresh) closes that
-  // rather than patching around it a second time.
+  // deliberate, hardened way to reach this form closes that rather than
+  // patching around it a second time.
+  //
+  // REVISED AGAIN: that broadcast-driven form used to also gate itself
+  // across a refresh via sessionStorage (RECOVERY_PENDING_KEY), so
+  // refreshing mid-recovery, or navigating to a different page in the same
+  // tab, kept showing the recovery form there too -- including on a
+  // completely unrelated page the customer never asked to see it on. Now it
+  // doesn't: passwordRecoveryActive below is purely in-memory, so the
+  // recovery form only ever appears as a direct, live reaction to actually
+  // receiving a PASSWORD_RECOVERY broadcast while a page is already open and
+  // running, never reconstructed from anything stored. A refresh or
+  // navigation while still mid-recovery is instead treated exactly like
+  // clicking the form's own Cancel button -- see the pagehide listener and
+  // RECOVERY_UNCONFIRMED_KEY's own comments just below for the two
+  // complementary mechanisms that make that hold even when the customer
+  // never clicks Cancel themselves.
   const AUTH_PASSWORD_RESET_REDIRECT_URL = 'https://effluve-paris.fr/reset-password.html';
 
   let currentAuthUser = null; // { id, email } | null -- kept in sync below
   let currentProfile = null; // last-fetched public.profiles row for currentAuthUser, cleared on any auth change
-  // true between a PASSWORD_RECOVERY auth event and a successful
-  // setNewPassword() -- kept alongside RECOVERY_PENDING_KEY (not replaced by
-  // it) purely as a same-tick-fast-path; RECOVERY_PENDING_KEY is the one
-  // that actually has to survive a reload, see setRecoveryPending() below.
+  // True between a PASSWORD_RECOVERY auth event and a successful
+  // setNewPassword() (or an explicit Cancel/logOut()) -- deliberately PURE
+  // in-memory now, not backed by sessionStorage at all: a refresh or
+  // navigation should never be able to reconstruct the recovery form, only
+  // a live broadcast received while this exact page is already running
+  // should (see AUTH_PASSWORD_RESET_REDIRECT_URL's own comment above for
+  // the full reasoning). isPasswordRecovery() below reads ONLY this.
   let passwordRecoveryActive = false;
-  // The email the pending recovery is FOR -- same in-memory/sessionStorage
-  // pairing as passwordRecoveryActive/RECOVERY_PENDING_KEY, see
-  // RECOVERY_PENDING_EMAIL_KEY's own comment for why onAuthStateChange's
-  // SIGNED_IN branch needs this.
+  // The email the pending recovery is FOR -- same in-memory-only scope as
+  // passwordRecoveryActive, kept for the exact same reason it always was:
+  // letting onAuthStateChange's SIGNED_IN branch tell a genuine new login
+  // (a DIFFERENT account, which should win over a stale recovery) apart
+  // from supabase-js's own internal re-notification of the SAME recovery
+  // session, which real Chrome testing confirmed DOES happen live, with no
+  // refresh involved at all: switching back to this tab fires a real
+  // visibilitychange, which supabase-js's _onVisibilityChanged() ->
+  // _recoverAndRefresh() (confirmed via its own source) answers by
+  // unconditionally re-firing SIGNED_IN for whatever valid session is
+  // already in shared storage. Still relevant here regardless of today's
+  // refresh/navigation changes, since this specific case never involved a
+  // refresh to begin with.
   let recoveryPendingEmail = null;
 
-  // The only place either half of "is a password recovery still pending in
-  // this tab" ever gets written -- keeps passwordRecoveryActive (fast,
-  // in-memory) and RECOVERY_PENDING_KEY (sessionStorage, survives a refresh
-  // of this same tab) always in sync, so nothing can set one without the
-  // other and drift out of agreement. email is only meaningful when pending
-  // is true (see RECOVERY_PENDING_EMAIL_KEY's own comment).
+  // The only place passwordRecoveryActive/recoveryPendingEmail (in-memory,
+  // this page's own lifetime only) OR RECOVERY_UNCONFIRMED_KEY (localStorage,
+  // survives everything -- see its own comment above) ever get written --
+  // keeps all three in sync so nothing can set one without the others and
+  // drift out of agreement. email is only meaningful when pending is true.
   function setRecoveryPending(pending, email) {
     passwordRecoveryActive = pending;
     recoveryPendingEmail = pending ? (email || null) : null;
     if (pending) {
-      sessionStorage.setItem(RECOVERY_PENDING_KEY, '1');
-      // Stamped fresh on every call, not just the first -- a later
-      // PASSWORD_RECOVERY for the same tab only ever means a genuinely new
-      // link was just processed (see AUTH_PASSWORD_RESET_REDIRECT_URL's own
-      // comment on how this gets reached at all), which correctly deserves
-      // its own fresh RECOVERY_MAX_AGE_MS window rather than inheriting
-      // whatever was left of an earlier one.
-      sessionStorage.setItem(RECOVERY_PENDING_SET_AT_KEY, String(Date.now()));
-      if (email) sessionStorage.setItem(RECOVERY_PENDING_EMAIL_KEY, email);
-      else sessionStorage.removeItem(RECOVERY_PENDING_EMAIL_KEY);
+      localStorage.setItem(RECOVERY_UNCONFIRMED_KEY, '1');
     } else {
-      sessionStorage.removeItem(RECOVERY_PENDING_KEY);
-      sessionStorage.removeItem(RECOVERY_PENDING_EMAIL_KEY);
-      sessionStorage.removeItem(RECOVERY_PENDING_SET_AT_KEY);
+      localStorage.removeItem(RECOVERY_UNCONFIRMED_KEY);
     }
   }
 
-  // Same dual in-memory/sessionStorage read as isPasswordRecovery() below --
-  // null when nothing's pending, or when it never got an email (shouldn't
-  // happen in practice, see the PASSWORD_RECOVERY branch below, but a
-  // missing email should never itself grant the "trust this SIGNED_IN"
-  // exception, hence isPasswordRecovery() being the caller's own required
-  // gate, not this alone).
+  // Purely in-memory now -- see passwordRecoveryActive's own comment for why
+  // this deliberately never reads any persisted storage.
   function getRecoveryPendingEmail() {
-    return recoveryPendingEmail || sessionStorage.getItem(RECOVERY_PENDING_EMAIL_KEY);
+    return recoveryPendingEmail;
   }
 
   // Set for the duration of any auth.updateUser() call made BY THIS TAB
@@ -214,6 +210,44 @@
     // password-recovery. This is the single source of truth currentAuthUser
     // is ever written from.
     client().auth.onAuthStateChange((event, session) => {
+      // Backstop against a lingering, never-confirmed recovery session
+      // surviving into a fresh page load -- a refresh, a brand-new tab, or
+      // this same tab navigating to a different page. passwordRecoveryActive
+      // itself is pure in-memory now (see its own comment) and a page's
+      // pagehide listener below already tries to sign out proactively before
+      // that happens, but pagehide-triggered signOut() is best-effort only:
+      // supabase-js's own _signOut() awaits the server-side revocation
+      // BEFORE clearing the local session (confirmed by reading its source),
+      // and browsers don't guarantee an in-flight request survives the page
+      // actually unloading -- so the session can still be sitting in
+      // localStorage, untouched, by the time a fresh page loads. THIS check
+      // is what actually guarantees correctness: INITIAL_SESSION is the one
+      // event that only ever reports "whatever was already in storage when
+      // this page loaded" (confirmed empirically: a pre-seeded session fires
+      // exactly one INITIAL_SESSION event and nothing else) -- never
+      // anything live/active, so gating on it specifically means this can
+      // never fire for the legitimate cases (a real PASSWORD_RECOVERY
+      // broadcast, a real SIGNED_IN, setNewPassword()'s own USER_UPDATED).
+      // Returning before currentAuthUser is ever touched for THIS event
+      // means the session can't flash into "logged in" even for a moment;
+      // the resulting SIGNED_OUT event once the revocation completes is what
+      // actually updates currentAuthUser/the UI, through the exact same path
+      // a real sign-out always takes.
+      //
+      // Calls client().auth.signOut() directly here, NOT the logOut()
+      // wrapper -- logOut() early-returns without calling signOut() at all
+      // when currentAuthUser is already null (a real optimization for its
+      // OTHER callers, e.g. account-page.js's guestLoginBtn logging out of a
+      // guest session that was never really logged in server-side to begin
+      // with) -- which is EXACTLY the state currentAuthUser is deliberately
+      // still in here, on this very first event of a fresh page load. That
+      // guard would silently skip the real signOut() call entirely, leaving
+      // both the session and RECOVERY_UNCONFIRMED_KEY untouched -- confirmed
+      // as a real bug via a failing cold-load test before this was fixed.
+      if (event === 'INITIAL_SESSION' && localStorage.getItem(RECOVERY_UNCONFIRMED_KEY) === '1') {
+        client().auth.signOut();
+        return;
+      }
       const incomingEmail = session && session.user ? session.user.email : null;
       if (event === 'PASSWORD_RECOVERY') {
         setRecoveryPending(true, incomingEmail);
@@ -274,11 +308,9 @@
         // changes, on ANY page, including while a customer is genuinely
         // mid-recovery -- switching FR/EN while typing a new password would
         // have cleared this the same way. INITIAL_SESSION was already
-        // correctly excluded before this rewrite (that's just this same
-        // event re-firing on a plain refresh, re-hydrating whatever session
-        // was already in storage -- exactly the case RECOVERY_PENDING_KEY
-        // exists to survive, not clear) and still is here, simply by not
-        // being in the allow-list.
+        // correctly excluded before this rewrite and still is here, simply
+        // by not being in the allow-list -- it gets its own dedicated
+        // handling above instead now (see this callback's very first check).
         setRecoveryPending(false);
       }
       currentAuthUser = session && session.user ? { id: session.user.id, email: session.user.email } : null;
@@ -302,6 +334,21 @@
           detail: { email: currentAuthUser ? currentAuthUser.email : null }
         }));
       }
+    });
+
+    // Best-effort half of "refresh/navigate away mid-recovery behaves like
+    // Cancel" -- the actual guarantee is the INITIAL_SESSION check above,
+    // which works regardless of whether this ever fires or finishes (see its
+    // own comment on why signOut() can't be relied on to complete before a
+    // page actually unloads). Still worth attempting: pagehide fires for
+    // both a refresh and a real navigation (unlike beforeunload, which is
+    // being restricted in several browsers and only reliably covers a
+    // subset of this anyway), and when the browser DOES give it enough time
+    // -- a normal same-tab link click, most refreshes -- this revokes the
+    // session server-side right away instead of leaving that to whichever
+    // page happens to load next.
+    window.addEventListener('pagehide', () => {
+      if (passwordRecoveryActive) logOut();
     });
   } else {
     console.error('MonarkAccount: Supabase client unavailable -- account features will fail until js/supabase-client.js has real SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY values.');
@@ -403,28 +450,23 @@
     return currentAuthUser ? currentAuthUser.id : null;
   }
 
-  // Checks BOTH halves -- passwordRecoveryActive alone would miss exactly
-  // the case this exists for: a refresh, which loses the in-memory flag but
-  // not the sessionStorage marker (see setRecoveryPending() above and its
-  // own comment on why sessionStorage specifically).
-  //
-  // Also enforces RECOVERY_PENDING_SET_AT_KEY's own age limit here, not just
-  // on read-after-refresh -- a tab left open past RECOVERY_MAX_AGE_MS with no
-  // navigation at all would otherwise stay gated on the recovery step
-  // indefinitely purely because passwordRecoveryActive itself never expires
-  // on its own. Clearing it as a side effect of this check (not just
-  // reporting false) is deliberate: every caller already treats a false
-  // result as "nothing pending," so this is the one place that guarantees a
-  // stale marker actually gets swept up rather than silently lingering in
-  // sessionStorage until something else happens to clear it.
+  // REVISED: used to also check a sessionStorage marker so a refresh didn't
+  // lose recovery-pending state -- deliberately doesn't any more.
+  // passwordRecoveryActive alone, purely in-memory, is now the whole
+  // definition of "show the recovery form": true only between a live
+  // PASSWORD_RECOVERY event and that same page leaving recovery mode one way
+  // or another, never reconstructed on a fresh load. The 1-hour-expiry logic
+  // this function used to also enforce is gone too -- it existed only to
+  // eventually clear a sessionStorage marker that no longer exists; an
+  // in-memory flag already "expires" the instant the page unloads, which is
+  // both simpler and stricter than any timer could be. (Distrusting a
+  // lingering, never-confirmed recovery SESSION on a fresh load is still
+  // handled -- see RECOVERY_UNCONFIRMED_KEY and onAuthStateChange's own
+  // INITIAL_SESSION handling -- just not by this function, since that's a
+  // "was a real session left behind" concern, not a "should the recovery
+  // FORM be showing" one.)
   function isPasswordRecovery() {
-    if (!passwordRecoveryActive && sessionStorage.getItem(RECOVERY_PENDING_KEY) !== '1') return false;
-    const setAt = Number(sessionStorage.getItem(RECOVERY_PENDING_SET_AT_KEY));
-    if (!setAt || Date.now() - setAt > RECOVERY_MAX_AGE_MS) {
-      setRecoveryPending(false);
-      return false;
-    }
-    return true;
+    return passwordRecoveryActive;
   }
 
   // Only ever resolves for the CURRENTLY authenticated user's own email --
@@ -1532,21 +1574,13 @@
           updateRecoverySubmitState();
         }
         // Independent of recoveryRendered's own one-time guard above --
-        // keeps correcting itself across the async session-hydration gap
-        // (see below) or a later TOKEN_REFRESHED without re-touching
-        // anything the customer may have already typed. getSession() (not a
-        // separate lookup) -- a recovery session is a real session,
-        // currentAuthUser is already set from it by the time resolveSession()
-        // runs (same onAuthStateChange callback, always synchronously
-        // before notifySessionChange()'s own 'account:updated' reaches this
-        // listener). Still checked every time regardless: on the very first
-        // synchronous resolveSession() call at mount, isPasswordRecovery()
-        // can already be true from RECOVERY_PENDING_KEY (a refresh) while
-        // Supabase's own async session hydration hasn't landed yet -- this
-        // line just no-ops that one tick, and the follow-up resolveSession()
-        // from 'account:updated' (already wired below) fills it in correctly
-        // moments later, same "briefly stale until hydration lands" pattern
-        // already documented at this file's own top.
+        // keeps correcting itself across a later TOKEN_REFRESHED without
+        // re-touching anything the customer may have already typed.
+        // getSession() (not a separate lookup) -- a recovery session is a
+        // real session, currentAuthUser is already set from it by the time
+        // resolveSession() runs (same onAuthStateChange callback, always
+        // synchronously before notifySessionChange()'s own 'account:updated'
+        // reaches this listener).
         const recoverySession = getSession();
         if (recoverySession && !recoverySession.isGuest) {
           // One combined sentence ("Choisissez un nouveau mot de passe pour
@@ -1985,10 +2019,13 @@
     // it, so merely clearing the pending marker here would silently grant
     // full account access with no new password ever set, exactly the bug
     // this whole flow exists to prevent. logOut()'s own SIGNED_OUT event
-    // already clears RECOVERY_PENDING_KEY/RECOVERY_PENDING_EMAIL_KEY (see
+    // already clears passwordRecoveryActive/RECOVERY_UNCONFIRMED_KEY (see
     // onAuthStateChange's SIGNED_OUT branch above) -- nothing else needed
     // here beyond that and re-resolving, same "logOut() then resolveSession()"
     // pattern account-page.js's own guestLoginBtn/guestCreateBtn already use.
+    // (This is now also exactly what a refresh or navigation does on its own
+    // -- see the pagehide listener and INITIAL_SESSION handling near the top
+    // of this file -- Cancel is just the explicit, immediate version of it.)
     recoveryCancelBtn.addEventListener('click', async () => {
       recoverySubmitBtn.disabled = true;
       recoveryPasswordInput.disabled = true;
