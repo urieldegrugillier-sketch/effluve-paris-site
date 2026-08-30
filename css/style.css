@@ -2243,6 +2243,38 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   .cta-text-col .section-note { margin-top: 0.9rem; }
 }
 
+/* BUG FIX (real scroll lockup + 4+ rounds of pin/unpin timing patches on
+   landscape/short-viewport specifically -- footer partially hidden,
+   scroll-up blocked, genuinely inconsistent behavior across repeated
+   passes through the same area): bypasses js/app.js's entire
+   updateCtaPin()/updateCtaVisibility() pin/unpin/stitch mechanism for
+   landscape/short-viewport, the same "stop patching pin/unpin timing, just
+   don't pin at all" fix already proven for .section-pyramid's own pin two
+   rounds ago (see syncPyramidPin()'s own isDesktop gate) -- .section-cta
+   just sits in normal static document flow here, exactly like every other
+   section already does under the short-viewport fallback (see
+   positionSections()'s own !isDesktop branch), always visible, nothing
+   computed from a live viewport height at all. MUST come after the
+   combined (max-width:768px), (max-height:500px) block above (same
+   specificity -- source order decides the winner) -- that block's own
+   .section-cta rule (height/padding/internal flex layout) is left
+   completely alone, portrait mobile keeps using the existing pin
+   mechanism unchanged; only max-height:500px specifically needs the
+   position override here. js/app.js's syncCtaShortViewportState() adds/
+   removes this same .cta-static-flow class as isShortViewport changes,
+   and does the one-time DOM move into #cta-spacer's own slot (or back)
+   that this position change alone can't do on its own -- CSS can't move
+   an element to a different point in the document. */
+@media (max-height: 500px) {
+  .section-cta.cta-static-flow {
+    position: static;
+    bottom: auto;
+    left: auto;
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 /* ================= LEGAL / STATIC CONTENT PAGES ================= */
 
 .legal-content {

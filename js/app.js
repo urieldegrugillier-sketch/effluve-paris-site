@@ -319,6 +319,7 @@ window.addEventListener('resize', () => {
   isShortViewport = window.matchMedia('(max-height: 500px)').matches;
   DARK_OVERLAY_MAX_OPACITY = isMobileOrTablet ? 0.6 : 0.9;
   syncPyramidPin();
+  syncCtaShortViewportState();
   applyShortViewportCanvasState();
   // Same immediate-reset reasoning as the orientationchange handler's own
   // call further down this file -- a genuine WIDTH resize (e.g. a desktop
@@ -582,10 +583,29 @@ async function preloadFrames() {
 
 let currentFrame = 1;
 
-function resizeCanvas() {
+// TEMP DEBUG -- the canvas is STILL reported cropped despite the settle-
+// delay correction (see its own comment near the Init section further
+// down). Before guessing again: logs resizeCanvas()'s own computed h at
+// every call site, labeled by WHERE it was called from, so the
+// ?debug=landscape overlay can show definitively whether the settle-delay
+// call actually computes a DIFFERENT (correct) h than the initial call, or
+// the exact same wrong number every time -- the first would mean the
+// correction just isn't reaching the canvas somehow (a different bug from
+// the one that fix targeted); the second would mean
+// document.documentElement.clientHeight itself is wrong even 400ms later,
+// not a timing issue at all. Logged unconditionally (cheap), remove
+// alongside the rest of the ?debug=landscape overlay once confirmed.
+const resizeCanvasLog = [];
+function logResizeCanvas(source, h) {
+  resizeCanvasLog.push({ t: new Date().toISOString().slice(11, 23), source, h });
+  if (resizeCanvasLog.length > 8) resizeCanvasLog.shift();
+}
+
+function resizeCanvas(source) {
   const dpr = window.devicePixelRatio || 1;
   const w = document.documentElement.clientWidth;
   const h = document.documentElement.clientHeight;
+  logResizeCanvas(source || '(unlabeled)', h);
   canvas.width = w * dpr;
   canvas.height = h * dpr;
   canvas.style.width = w + 'px';
@@ -658,7 +678,7 @@ window.addEventListener('resize', () => {
   const h = document.documentElement.clientHeight;
   if (!resizeIsGenuine && h === lastCanvasHeight) return;
   lastCanvasHeight = h;
-  resizeCanvas();
+  resizeCanvas('resize-event');
 });
 
 /* ---------------- Hero circle-wipe reveal ---------------- */
@@ -997,8 +1017,9 @@ window.addEventListener('orientationchange', () => {
     isShortViewport = window.matchMedia('(max-height: 500px)').matches;
     DARK_OVERLAY_MAX_OPACITY = isMobileOrTablet ? 0.6 : 0.9;
     syncPyramidPin();
+    syncCtaShortViewportState();
     positionSections();
-    resizeCanvas();
+    resizeCanvas('orientationchange-settle');
     recalcDarkOverlayEnter();
     recalcCtaFadeThresholds();
     applyShortViewportCanvasState();
@@ -1015,6 +1036,13 @@ window.addEventListener('orientationchange', () => {
 
 function updateCtaVisibility(p) {
   if (!ctaSection) return;
+  // Bypassed entirely for short viewports -- see updateCtaPin()'s own
+  // comment. .cta-static-flow's CSS already sets opacity:1/pointer-
+  // events:auto unconditionally; leaving this INLINE style untouched here
+  // (never setting it, not even once) is what lets that CSS actually win --
+  // an inline style set from here would always beat it regardless of the
+  // CSS rule's own specificity/source order.
+  if (isShortViewport) return;
   const opacity = Math.max(0, Math.min(1, (p - ctaFadeEnterEffective) / (ctaFadeVisibleEffective - ctaFadeEnterEffective)));
   ctaSection.style.opacity = opacity;
   ctaSection.style.pointerEvents = p >= ctaFadeEnterEffective ? 'auto' : 'none';
@@ -1089,6 +1117,25 @@ function logCtaPinToggle(action, scrollY, shouldUnpin) {
 
 function updateCtaPin() {
   if (!ctaSection || !ctaSpacer) return;
+  // BUG FIX (4+ rounds of pin/unpin timing patches on landscape/short-
+  // viewport, each fixing one symptom -- footer partially hidden, scroll-up
+  // blocked -- while leaving or introducing another, genuinely inconsistent
+  // across repeated real-device passes through the same area): bypasses
+  // this ENTIRE pin/unpin/stitch mechanism for short viewports, rather than
+  // continuing to chase live-viewport-height-dependent timing bugs in it.
+  // Same proven fix as .section-pyramid's own pin two rounds ago (see
+  // syncPyramidPin()'s own isDesktop gate) -- .section-cta just sits in
+  // normal static document flow here, exactly like every other section
+  // already does under the short-viewport fallback (positionSections()'s
+  // own !isDesktop branch): no position:fixed, no ctaSpacer swap tied to
+  // scroll position, no negative margin-top stitching, no scroll-triggered
+  // pin state, nothing computed from a live viewport height. The actual
+  // one-time DOM move into #cta-spacer's own slot (and the .cta-static-flow
+  // class this relies on, css/style.css) happens in
+  // syncCtaShortViewportState() instead -- called once at init and again
+  // whenever isShortViewport itself changes (resize/orientationchange),
+  // never from here on every scroll tick like the rest of this function.
+  if (isShortViewport) return;
   const { viewportHeight, scrollable } = containerScrollRange(true);
   const containerBottomY = scrollContainer.offsetTop + scrollContainer.offsetHeight;
   const fadeCompleteY = scrollContainer.offsetTop + ctaFadeVisibleEffective * scrollable;
@@ -1124,7 +1171,54 @@ function updateCtaPin() {
     ctaSection.style.marginTop = `-${shiftPx}px`;
   }
 }
+
+// The one-time DOM move updateCtaPin()'s own short-viewport bypass (see its
+// comment) can't do on its own -- CSS alone can reposition .section-cta
+// (the .cta-static-flow rule, css/style.css) but can't relocate it to a
+// different point in the document. Idempotent and safe to call regardless
+// of current state (same pattern as syncPyramidPin() just below), so it
+// can run once at init AND again every time isShortViewport itself changes
+// (resize/orientationchange) without needing to track what the PREVIOUS
+// call already did beyond the .cta-static-flow class itself, which doubles
+// as this function's own "did I already do this" marker.
+function syncCtaShortViewportState() {
+  if (!ctaSection || !ctaSpacer) return;
+  const alreadyStatic = ctaSection.classList.contains('cta-static-flow');
+  if (isShortViewport && !alreadyStatic) {
+    ctaSection.classList.add('cta-static-flow');
+    // The desktop/portrait pin mechanism's own class/inline styles are
+    // meaningless once .cta-static-flow's CSS is what's actually
+    // controlling position/opacity -- cleared so nothing stale lingers
+    // (e.g. a customer who scrolled past the unpin point in portrait,
+    // then rotated to landscape mid-session).
+    ctaSection.classList.remove('cta-unpinned');
+    ctaSection.style.marginTop = '';
+    ctaSection.style.opacity = '';
+    ctaSection.style.pointerEvents = '';
+    // Only actually needs moving if it was still living inside
+    // scrollContainer (position:fixed, pinned) -- if the desktop/portrait
+    // mechanism had ALREADY unpinned it before this ran, it's sitting in
+    // ctaSpacer's own slot already, exactly where it needs to be, and
+    // ctaSpacer itself is correctly not in the document any more.
+    if (ctaSpacer.isConnected) ctaSpacer.replaceWith(ctaSection);
+    ctaUnpinned = false; // neutral -- that flag belongs to the OTHER (now bypassed) mechanism
+  } else if (!isShortViewport && alreadyStatic) {
+    ctaSection.classList.remove('cta-static-flow');
+    // Restore to the SAME starting point updateCtaPin()'s own pin
+    // mechanism always assumes at init (pinned, living inside
+    // scrollContainer) -- gives it a clean, known state to re-evaluate
+    // shouldUnpin from on the very next scroll tick, rather than leaving it
+    // sitting in ctaSpacer's slot with position:fixed CSS that no longer
+    // applies (the .cta-static-flow override is gone) but no un-pinned
+    // styling applied either.
+    ctaSection.replaceWith(ctaSpacer);
+    scrollContainer.appendChild(ctaSection);
+    ctaUnpinned = false;
+  }
+}
+
 updateCtaPin(); // set the correct initial state before the first scroll event fires
+syncCtaShortViewportState();
 
 /* ---------------- Pyramid tier crossfade (pinned pin, desktop only) ---------------- */
 
@@ -1535,7 +1629,7 @@ document.querySelectorAll('[data-nav-link]').forEach((link) => {
 
 /* ---------------- Init ---------------- */
 
-resizeCanvas();
+resizeCanvas('init');
 preloadFrames();
 
 // BUG FIX (canvas still cropped even after resizeCanvas() gained its own
@@ -1559,7 +1653,7 @@ preloadFrames();
 // transient value at the same moment for the same reason, so left alone it
 // would understate whether a LATER real resize actually changed anything.
 setTimeout(() => {
-  resizeCanvas();
+  resizeCanvas('load-settle-400ms');
   lastCanvasHeight = document.documentElement.clientHeight;
 }, 400);
 
@@ -1573,26 +1667,19 @@ if (initialHash) {
   scrollToSection(document.querySelector(initialHash));
 }
 
-/* TEMP DEBUG -- two remaining landscape issues that already had one wrong
-   fix attempt each, so this reads real values instead of guessing again:
-   (1) scroll-up intermittently stalls near the CTA/006 boundary, and the
-   footer/CTA overlap regressed back intermittently too -- suspect
-   updateCtaPin()'s shouldUnpin boundary flapping (Lenis's own easing can
-   overshoot/correct right at a threshold, re-triggering the
-   ctaSpacer.replaceWith()/scrollContainer.appendChild() DOM swap on small
-   deltas) -- ctaPinToggleLog (declared alongside updateCtaPin() above,
-   logged unconditionally, cheap) captures the last 5 actual pin/unpin
-   transitions with a timestamp, scrollY, and shouldUnpin, so real flapping
-   -- several toggles in quick succession, timestamps close together -- is
-   directly visible instead of inferred. (2) the canvas is still reported
-   cropped despite positionCanvasHeight() (last round) matching the
-   already-proven clientHeight-based width-fix pattern -- showing the
-   canvas's actual pixel buffer (canvas.width/height) next to its CSS size
-   (canvas.style.width/height) next to canvasWrap's own live rendered rect
-   (getBoundingClientRect) all at once, since these three could each be
-   right on their own and still disagree with each other (a DPR mismatch
-   between the buffer and CSS size, or canvasWrap itself not actually
-   picking up positionCanvasHeight()'s write for some reason). Visible only
+/* TEMP DEBUG -- CTA pin/unpin timing is no longer the concern it was: that
+   entire mechanism is now bypassed for short viewports (see
+   updateCtaPin()'s own comment) rather than patched again, so the old
+   pin-toggle log is gone -- it would only ever show "(none yet)" now,
+   nothing left to debug there. Replaced with a quick sanity check that the
+   new .cta-static-flow bypass is actually applying (ctaSection's own
+   current class/position), and resizeCanvasLog (declared alongside
+   resizeCanvas() above) -- the canvas is STILL reported cropped despite
+   the settle-delay correction, so before guessing again this shows the
+   last several resizeCanvas() calls with WHERE each was called from and
+   the h it computed, to see definitively whether the settle-delay call
+   computes a genuinely different (correct) h than the initial call, or
+   the exact same wrong number regardless of when it runs. Visible only
    with ?debug=landscape in the URL. Remove once confirmed either way. */
 if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
   const debugBox = document.createElement('div');
@@ -1605,13 +1692,15 @@ if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
   function updateDebugBox() {
     const dpr = window.devicePixelRatio || 1;
     const wrapRect = canvasWrap ? canvasWrap.getBoundingClientRect() : null;
-    const toggleLines = ctaPinToggleLog.length
-      ? ctaPinToggleLog.map((e) => '  ' + e.t + '  ' + e.action + '  y=' + e.scrollY + '  shouldUnpin=' + e.shouldUnpin).join('\n')
+    const resizeLines = resizeCanvasLog.length
+      ? resizeCanvasLog.map((e) => '  ' + e.t + '  ' + e.source + '  h=' + e.h).join('\n')
       : '  (none yet)';
     debugBox.textContent =
-      'scrollY: ' + Math.round(window.scrollY) + '  ctaUnpinned: ' + ctaUnpinned + '\n'
-      + '--- last 5 cta pin/unpin toggles ---\n'
-      + toggleLines + '\n'
+      'scrollY: ' + Math.round(window.scrollY) + '\n'
+      + 'cta static-flow: ' + (ctaSection ? ctaSection.classList.contains('cta-static-flow') : 'n/a')
+      + '  computed position: ' + (ctaSection ? getComputedStyle(ctaSection).position : 'n/a') + '\n'
+      + '--- resizeCanvas() calls (last 8, labeled by source) ---\n'
+      + resizeLines + '\n'
       + '--- canvas sizing (dpr=' + dpr + ') ---\n'
       + 'canvas.width/height (buffer): ' + canvas.width + ' / ' + canvas.height + '\n'
       + 'canvas.style.width/height (css): ' + canvas.style.width + ' / ' + canvas.style.height + '\n'
