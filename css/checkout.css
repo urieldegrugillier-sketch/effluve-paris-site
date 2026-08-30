@@ -755,6 +755,12 @@
 .checkout-account-email-actions { display: flex; align-items: center; gap: 1.2rem; margin-top: 1rem; }
 .checkout-account-email-actions .checkout-account-btn-sm { margin-top: 0; }
 
+/* Cancel + Set Password (recovery form, js/account.js's recoveryCancelBtn/
+   recoverySubmitBtn) -- same pairing/order/spacing as
+   .checkout-account-email-actions just above. */
+.checkout-account-recovery-actions { display: flex; align-items: center; gap: 1.2rem; margin-top: 1rem; }
+.checkout-account-recovery-actions .checkout-account-btn-sm { margin-top: 0; }
+
 /* Now holds the echoed email plus an inline "Modify Email"/"Cancel" action
    group (see js/account.js's authModifyEmailBtn/authCancelBtn) -- flex row,
    same space-between/gap treatment as .checkout-account-status above, so the

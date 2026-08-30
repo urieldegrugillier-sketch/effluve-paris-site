@@ -44,6 +44,20 @@
   // unconditionally re-firing SIGNED_IN for whatever valid session is
   // already in shared storage -- nothing to do with any actual new login.
   const RECOVERY_PENDING_EMAIL_KEY = 'monark_recovery_pending_email';
+  // When the pending recovery was established (Date.now(), sessionStorage --
+  // same survive-a-refresh/don't-survive-the-tab-closing reasoning as
+  // RECOVERY_PENDING_KEY itself). Lets isPasswordRecovery() below treat a
+  // marker older than RECOVERY_MAX_AGE_MS as stale and clear it, rather than
+  // gating this tab on the recovery step indefinitely for a link whose own
+  // Supabase-side token has already expired regardless -- with no cross-tab
+  // broadcast left to ever supersede it (the customer never returned to
+  // finish it), it would otherwise persist for the rest of this browser tab's
+  // life, including onto completely unrelated later page navigations.
+  const RECOVERY_PENDING_SET_AT_KEY = 'monark_recovery_pending_set_at';
+  // Matches Supabase Auth's own default password-recovery token expiry (1
+  // hour) -- a recovery marker older than this is for a token that's already
+  // dead either way, so there's nothing left here worth protecting.
+  const RECOVERY_MAX_AGE_MS = 60 * 60 * 1000;
 
   // The real production domain (matches README.md's own
   // "https://effluve-paris.fr" note -- canonical links, robots.txt,
@@ -127,11 +141,19 @@
     recoveryPendingEmail = pending ? (email || null) : null;
     if (pending) {
       sessionStorage.setItem(RECOVERY_PENDING_KEY, '1');
+      // Stamped fresh on every call, not just the first -- a later
+      // PASSWORD_RECOVERY for the same tab only ever means a genuinely new
+      // link was just processed (see AUTH_PASSWORD_RESET_REDIRECT_URL's own
+      // comment on how this gets reached at all), which correctly deserves
+      // its own fresh RECOVERY_MAX_AGE_MS window rather than inheriting
+      // whatever was left of an earlier one.
+      sessionStorage.setItem(RECOVERY_PENDING_SET_AT_KEY, String(Date.now()));
       if (email) sessionStorage.setItem(RECOVERY_PENDING_EMAIL_KEY, email);
       else sessionStorage.removeItem(RECOVERY_PENDING_EMAIL_KEY);
     } else {
       sessionStorage.removeItem(RECOVERY_PENDING_KEY);
       sessionStorage.removeItem(RECOVERY_PENDING_EMAIL_KEY);
+      sessionStorage.removeItem(RECOVERY_PENDING_SET_AT_KEY);
     }
   }
 
@@ -385,8 +407,24 @@
   // the case this exists for: a refresh, which loses the in-memory flag but
   // not the sessionStorage marker (see setRecoveryPending() above and its
   // own comment on why sessionStorage specifically).
+  //
+  // Also enforces RECOVERY_PENDING_SET_AT_KEY's own age limit here, not just
+  // on read-after-refresh -- a tab left open past RECOVERY_MAX_AGE_MS with no
+  // navigation at all would otherwise stay gated on the recovery step
+  // indefinitely purely because passwordRecoveryActive itself never expires
+  // on its own. Clearing it as a side effect of this check (not just
+  // reporting false) is deliberate: every caller already treats a false
+  // result as "nothing pending," so this is the one place that guarantees a
+  // stale marker actually gets swept up rather than silently lingering in
+  // sessionStorage until something else happens to clear it.
   function isPasswordRecovery() {
-    return passwordRecoveryActive || sessionStorage.getItem(RECOVERY_PENDING_KEY) === '1';
+    if (!passwordRecoveryActive && sessionStorage.getItem(RECOVERY_PENDING_KEY) !== '1') return false;
+    const setAt = Number(sessionStorage.getItem(RECOVERY_PENDING_SET_AT_KEY));
+    if (!setAt || Date.now() - setAt > RECOVERY_MAX_AGE_MS) {
+      setRecoveryPending(false);
+      return false;
+    }
+    return true;
   }
 
   // Only ever resolves for the CURRENTLY authenticated user's own email --
@@ -963,7 +1001,7 @@
               <li class="password-requirement" data-requirement="length"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqLength">8+ characters</span></li>
               <li class="password-requirement" data-requirement="letter"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqLetter">One letter</span></li>
               <li class="password-requirement" data-requirement="number"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqNumber">One number</span></li>
-              <li class="password-requirement" data-requirement="special"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqSpecial">One special character (! @ # $ % &amp; *)</span></li>
+              <li class="password-requirement" data-requirement="special"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqSpecial">One special character (e.g. ! @ # $ % -)</span></li>
             </ul>
           </label>
           <label class="checkout-field">
@@ -1012,7 +1050,7 @@
               <li class="password-requirement" data-requirement="length"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqLength">8+ characters</span></li>
               <li class="password-requirement" data-requirement="letter"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqLetter">One letter</span></li>
               <li class="password-requirement" data-requirement="number"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqNumber">One number</span></li>
-              <li class="password-requirement" data-requirement="special"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqSpecial">One special character (! @ # $ % &amp; *)</span></li>
+              <li class="password-requirement" data-requirement="special"><span class="password-requirement-icon" aria-hidden="true">○</span><span data-i18n="accountGate.passwordReqSpecial">One special character (e.g. ! @ # $ % -)</span></li>
             </ul>
           </label>
           <label class="checkout-field">
@@ -1025,7 +1063,17 @@
             <p class="promo-message promo-message-error" id="checkout-account-recovery-confirm-error" aria-live="polite" hidden></p>
           </label>
           <p class="promo-message promo-message-error" id="checkout-account-recovery-error" aria-live="polite" hidden></p>
-          <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-recovery-submit-btn" data-i18n="accountGate.setNewPasswordBtn" disabled>Set Password</button>
+          <span class="checkout-account-recovery-actions">
+            <!-- Signs out of the temporary recovery session entirely (not
+                 just a UI step-back) -- see recoveryCancelBtn's own click
+                 handler below for why: a password-recovery link grants a
+                 real, temporary Supabase session, so merely hiding this step
+                 without also logging out would leave the account fully
+                 accessible with no new password ever set, exactly the bug
+                 this whole flow exists to prevent. -->
+            <button type="button" class="checkout-account-link-btn" id="checkout-account-recovery-cancel-btn" data-i18n="accountGate.cancelRecovery">Continue without changing your password</button>
+            <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-recovery-submit-btn" data-i18n="accountGate.setNewPasswordBtn" disabled>Set Password</button>
+          </span>
         </form>
       </div>
     `;
@@ -1199,6 +1247,7 @@
     const recoveryConfirmError = container.querySelector('#checkout-account-recovery-confirm-error');
     const recoverySubmitBtn = container.querySelector('#checkout-account-recovery-submit-btn');
     const recoveryError = container.querySelector('#checkout-account-recovery-error');
+    const recoveryCancelBtn = container.querySelector('#checkout-account-recovery-cancel-btn');
 
     // Show/hide toggle on every password field this gate renders -- see
     // js/password-toggle.js's own comment for why it wraps the input in
@@ -1509,6 +1558,11 @@
         }
         return;
       }
+      // Captured before clearing, so a resolve that's JUST NOW leaving the
+      // recovery step (recoveryCancelBtn's logOut(), or completing
+      // setNewPassword()) can force its way past resolvedKey's own dedup
+      // check just below.
+      const leavingRecovery = recoveryRendered;
       recoveryRendered = false;
       const session = getSession();
       const resolvedKey = session ? session.email + '|' + session.isGuest : null;
@@ -1520,7 +1574,19 @@
       // whole gate back to the email step out from under them. Skipping a
       // resolve that finds no actual change from last time preserves
       // whatever step the user is actively in.
-      if (resolvedKey === lastResolvedKey) return;
+      //
+      // BUG FIX: that same dedup silently no-op'd the recovery step's OWN
+      // exit, specifically when it resolves back to the exact same
+      // resolvedKey it had going IN (both "null" -- no session either
+      // side -- is the common case: recoveryCancelBtn's logOut() lands here
+      // with no session, same as the very first mount before any recovery
+      // ever started). lastResolvedKey has no memory of "recovery was the
+      // visible step a moment ago," so it saw no change and left the
+      // recovery form on screen despite the session/markers underneath it
+      // already being fully cleared -- confirmed via a real Cancel-button
+      // test. leavingRecovery forces exactly one re-render through in that
+      // case, without touching the dedup for any other resolve.
+      if (!leavingRecovery && resolvedKey === lastResolvedKey) return;
       lastResolvedKey = resolvedKey;
       if (!session) {
         statusEl.hidden = true;
@@ -1893,6 +1959,7 @@
       recoverySubmitBtn.disabled = true;
       recoveryPasswordInput.disabled = true;
       recoveryConfirmInput.disabled = true;
+      recoveryCancelBtn.disabled = true;
       try {
         const result = await setNewPassword(recoveryPasswordInput.value);
         if (result.ok) {
@@ -1904,6 +1971,37 @@
         recoverySubmitBtn.disabled = false;
         recoveryPasswordInput.disabled = false;
         recoveryConfirmInput.disabled = false;
+        recoveryCancelBtn.disabled = false;
+      }
+    });
+
+    // Backs all the way out of the pending recovery WITHOUT setting a new
+    // password -- e.g. the customer clicked the email link out of curiosity,
+    // or on the wrong device, and just wants to keep browsing normally.
+    // Signs out of the temporary recovery session entirely (logOut(), not
+    // just setRecoveryPending(false) on its own): a password-recovery link
+    // grants a REAL, temporary Supabase session -- getSession() can't tell
+    // it apart from a genuine login once isPasswordRecovery() stops gating
+    // it, so merely clearing the pending marker here would silently grant
+    // full account access with no new password ever set, exactly the bug
+    // this whole flow exists to prevent. logOut()'s own SIGNED_OUT event
+    // already clears RECOVERY_PENDING_KEY/RECOVERY_PENDING_EMAIL_KEY (see
+    // onAuthStateChange's SIGNED_OUT branch above) -- nothing else needed
+    // here beyond that and re-resolving, same "logOut() then resolveSession()"
+    // pattern account-page.js's own guestLoginBtn/guestCreateBtn already use.
+    recoveryCancelBtn.addEventListener('click', async () => {
+      recoverySubmitBtn.disabled = true;
+      recoveryPasswordInput.disabled = true;
+      recoveryConfirmInput.disabled = true;
+      recoveryCancelBtn.disabled = true;
+      try {
+        await logOut();
+        resolveSession();
+      } finally {
+        recoverySubmitBtn.disabled = false;
+        recoveryPasswordInput.disabled = false;
+        recoveryConfirmInput.disabled = false;
+        recoveryCancelBtn.disabled = false;
       }
     });
 

@@ -434,6 +434,7 @@
         setNewPasswordIntro: 'Choose a new password for your account: {email}.',
         newPasswordLabel: 'New Password',
         setNewPasswordBtn: 'Set Password',
+        cancelRecovery: 'Continue without changing your password',
         phoneLabel: 'Phone Number (optional)',
         marketingLabel: 'I\'d like to receive product updates, promotions, and the MONARK newsletter by email. You can change this anytime from your Account page, see our <a href="confidentialite.html" target="_blank" rel="noopener">Privacy Policy</a> for details.'
       },
@@ -981,6 +982,7 @@
         setNewPasswordIntro: 'Choisissez un nouveau mot de passe pour votre compte : {email}.',
         newPasswordLabel: 'Nouveau Mot de Passe',
         setNewPasswordBtn: 'Définir le Mot de Passe',
+        cancelRecovery: 'Continuer sans changer le mot de passe',
         phoneLabel: 'Numéro de Téléphone (facultatif)',
         marketingLabel: 'Je souhaite recevoir par e-mail les actualités produits, les promotions et la newsletter MONARK. Vous pouvez modifier ce choix à tout moment depuis votre page Compte, consultez notre <a href="confidentialite.html" target="_blank" rel="noopener">Politique de Confidentialité</a> pour en savoir plus.'
       },
