@@ -1295,3 +1295,43 @@ preloadFrames();
 if (initialHash) {
   scrollToSection(document.querySelector(initialHash));
 }
+
+/* TEMP DEBUG -- diagnosing a real-iPhone-only landscape bug: the isDesktop
+   min-height:501px gate + isShortViewport short-viewport handling (see their
+   own comments near the top of this file) is confirmed committed AND live
+   in production, yet a real physical iPhone (private browsing, fully closed
+   and reopened Safari -- ruling out any stale cache) shows zero change from
+   before the fix existed. Can't reproduce via Chromium/Playwright, which
+   uses a fixed, static viewport with no simulated dynamic toolbar chrome --
+   so this reads the real values directly off the real device instead of
+   guessing. Visible only with ?debug=landscape in the URL. Remove once the
+   real device's values have been captured and reported back. */
+if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
+  const debugBox = document.createElement('div');
+  debugBox.id = 'monark-debug-landscape';
+  debugBox.style.cssText = 'position:fixed;top:0;left:0;z-index:2147483647;'
+    + 'background:rgba(0,0,0,0.85);color:#0f0;font:11px/1.4 monospace;'
+    + 'padding:8px 10px;max-width:100vw;white-space:pre;pointer-events:none;';
+  document.body.appendChild(debugBox);
+  function updateDebugBox() {
+    debugBox.textContent =
+      'innerWidth: ' + window.innerWidth + '\n'
+      + 'innerHeight: ' + window.innerHeight + '\n'
+      + "mq(min-width:769px): " + window.matchMedia('(min-width:769px)').matches + '\n'
+      + "mq(min-height:501px): " + window.matchMedia('(min-height:501px)').matches + '\n'
+      + "mq(max-height:500px): " + window.matchMedia('(max-height:500px)').matches + '\n'
+      + 'isDesktop: ' + isDesktop + '\n'
+      + 'isShortViewport: ' + isShortViewport + '\n'
+      + 'time: ' + new Date().toISOString().slice(11, 23);
+  }
+  updateDebugBox();
+  window.addEventListener('resize', updateDebugBox);
+  window.addEventListener('orientationchange', updateDebugBox);
+  // Supplementary to the two listeners above -- isDesktop/isShortViewport
+  // only update after orientationchange's own SETTLE DELAY (see that
+  // handler's own comment further up this file), not synchronously with the
+  // event itself, so a resize/orientationchange-only refresh could miss
+  // exactly the transient window this overlay exists to catch. Cheap enough
+  // to just run continuously while this debug flag is on.
+  setInterval(updateDebugBox, 300);
+}
