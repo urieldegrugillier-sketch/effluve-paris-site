@@ -978,6 +978,11 @@ function updatePyramidTiers(p) {
 
 /* ---------------- Master scroll-bound ScrollTrigger ---------------- */
 
+// TEMP DEBUG -- captured read-only for the ?debug=landscape overlay further
+// down this file (self isn't otherwise reachable from outside this
+// callback). Remove alongside the rest of that overlay.
+let masterScrollTriggerDebug = { progress: null, start: null, end: null };
+
 ScrollTrigger.create({
   trigger: scrollContainer,
   start: 'top top',
@@ -985,6 +990,7 @@ ScrollTrigger.create({
   scrub: true,
   onUpdate: (self) => {
     const p = self.progress;
+    masterScrollTriggerDebug = { progress: self.progress, start: self.start, end: self.end };
     updateCtaVisibility(p);
     if (isDesktop) updatePyramidTiers(p);
   }
@@ -1319,8 +1325,29 @@ if (initialHash) {
    that could show up as the CTA/dark-overlay firing at the wrong real
    scroll position, i.e. "overlapping elements, blocked scroll". This
    round adds the actual numbers so the real device can confirm or rule
-   this out directly, rather than staying theoretical. Visible only with
-   ?debug=landscape in the URL. Remove once confirmed either way. */
+   this out directly, rather than staying theoretical.
+
+   ROUND 3 (after the real device confirmed thresholds frozen at the wrong
+   value, then a full scroll lockup that survives even without rotating):
+   traced every consumer of the same wrong #scroll-container height and
+   found two more, neither gated by isDesktop at all -- both always active,
+   every device: the master ScrollTrigger (trigger: scrollContainer,
+   end:'bottom bottom') resolves its own end against the too-short CSS
+   height, so self.progress hits 1.0 well before the real page end; and
+   updateCtaPin()'s containerBottomY (= scrollContainer.offsetTop +
+   offsetHeight, same wrong number) drives stitchY, the scrollY where it
+   swaps .section-cta from position:fixed to normal flow with a NEGATIVE
+   margin-top that shrinks the document's own total height. If that swap
+   fires at the wrong (too-early) real scrollY, it can shrink the page to a
+   height at or below the user's current scroll position -- which the
+   browser then force-clamps -- and updateCtaPin() re-applies that same
+   margin on every subsequent scroll event once unpinned, so the page can
+   never grow back. That would explain a lockup that persists with no
+   further rotation needed. stitchY/shiftPx/containerBottomY are local to
+   updateCtaPin() -- recomputed read-only here with the exact same formula
+   (not calling it, just mirroring the math) rather than changing that
+   function to expose them. Visible only with ?debug=landscape in the URL.
+   Remove once confirmed either way. */
 if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
   const debugBox = document.createElement('div');
   debugBox.id = 'monark-debug-landscape';
@@ -1335,6 +1362,18 @@ if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
     const realMaxScroll = realScrollHeight - window.innerHeight;
     const ctaRect = ctaSection ? ctaSection.getBoundingClientRect() : null;
     const ctaStyle = ctaSection ? getComputedStyle(ctaSection) : null;
+    // Mirrors updateCtaPin()'s own formula exactly, read-only -- see this
+    // block's own top-of-file comment for why it's duplicated here instead
+    // of exposed from that function.
+    const containerBottomY = scrollContainer.offsetTop + scrollContainer.offsetHeight;
+    const fadeCompleteY = scrollContainer.offsetTop + ctaFadeVisibleEffective * scrollable;
+    const gapPx = CTA_GAP_VH * viewportHeight;
+    const desiredStitchY = fadeCompleteY + gapPx;
+    const footerHeight = siteFooter ? siteFooter.offsetHeight : 0;
+    const noDeadZoneFloor = containerBottomY - viewportHeight - footerHeight;
+    const stitchY = Math.max(desiredStitchY, noDeadZoneFloor);
+    const shiftPx = containerBottomY - stitchY;
+    const shouldUnpin = window.scrollY >= stitchY;
     debugBox.textContent =
       'innerWidth: ' + window.innerWidth + '\n'
       + 'innerHeight: ' + window.innerHeight + '\n'
@@ -1367,6 +1406,16 @@ if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
       + 'cta pointerEvents: ' + (ctaStyle ? ctaStyle.pointerEvents : 'n/a') + '\n'
       + 'cta rect top/bottom: ' + (ctaRect ? Math.round(ctaRect.top) + ' / ' + Math.round(ctaRect.bottom) : 'n/a') + '\n'
       + 'cta unpinned class: ' + (ctaSection ? ctaSection.classList.contains('cta-unpinned') : 'n/a') + '\n'
+      + 'ctaUnpinned (JS var): ' + ctaUnpinned + '\n'
+      + '--- updateCtaPin() unpin math (recomputed, read-only) ---\n'
+      + 'containerBottomY: ' + Math.round(containerBottomY) + '\n'
+      + 'stitchY: ' + Math.round(stitchY) + '\n'
+      + 'shiftPx: ' + Math.round(shiftPx) + '\n'
+      + 'shouldUnpin (scrollY>=stitchY): ' + shouldUnpin + '\n'
+      + '--- master ScrollTrigger (trigger:#scroll-container) ---\n'
+      + 'progress: ' + (masterScrollTriggerDebug.progress != null ? masterScrollTriggerDebug.progress.toFixed(3) : 'n/a') + '\n'
+      + 'start: ' + (masterScrollTriggerDebug.start != null ? Math.round(masterScrollTriggerDebug.start) : 'n/a') + '\n'
+      + 'end: ' + (masterScrollTriggerDebug.end != null ? Math.round(masterScrollTriggerDebug.end) : 'n/a') + '\n'
       + 'time: ' + new Date().toISOString().slice(11, 23);
   }
   updateDebugBox();
