@@ -329,9 +329,30 @@ window.addEventListener('resize', () => {
   updateHeaderVisibility();
 });
 
-function containerScrollRange() {
+// live=true bypasses cachedViewportHeight in favor of a fresh
+// window.innerHeight read -- see updateCtaPin()'s own call for why it needs
+// this and cachedViewportHeight's own comment (just above its declaration)
+// for why every OTHER caller here must keep using the cached value: that
+// caching exists specifically to stop positionSections() from reacting to a
+// pure address-bar-collapse resize (no width change) and re-cascading
+// section positions mid-scroll, which GSAP's own ScrollTrigger then
+// re-measures against, snapping progress backward -- a real, confirmed
+// "double zoom" regression, not a hypothetical one. updateCtaPin() doesn't
+// reposition any OTHER section and re-applies its own result on every
+// single scroll tick regardless (see its own "keep reapplying" comment), so
+// it was never protected BY that caching to begin with -- only hurt by it,
+// via a real, confirmed bug of its own: cachedViewportHeight going stale
+// after a toolbar toggle that isn't a genuine (width) resize left its own
+// stitchY/shiftPx computed against the WRONG viewport height until the next
+// genuine resize or orientationchange happened to come along, which could
+// be much later or never in the same scroll session -- confirmed live via a
+// real device showing correct behavior on a first pass through the CTA
+// boundary and wrong (footer/CTA order swapped, scroll-up stuck) on a
+// second pass through the exact same scrollY after the toolbar had toggled
+// in between.
+function containerScrollRange(live) {
   const containerHeight = scrollContainer.offsetHeight;
-  const viewportHeight = cachedViewportHeight;
+  const viewportHeight = live ? window.innerHeight : cachedViewportHeight;
   return { containerHeight, viewportHeight, scrollable: containerHeight - viewportHeight };
 }
 
@@ -566,7 +587,29 @@ function drawFrame(index) {
   ctx.drawImage(img, dx, dy, dw, dh);
 }
 
-window.addEventListener('resize', () => { if (resizeIsGenuine) resizeCanvas(); });
+// BUG FIX (canvas visibly stuck cropped at a stale, too-short size --
+// confirmed live: canvas.style.height frozen at 265px against a real 375px
+// viewport): resizeIsGenuine only tracks WIDTH (address-bar-collapse
+// resizes never change clientWidth -- see its own comment above), which is
+// exactly right for positionSections()/ScrollTrigger (a real, confirmed
+// "double zoom" bug otherwise -- see cachedViewportHeight's own comment).
+// resizeCanvas() has none of that risk -- redrawing the SAME already-
+// computed frame at a corrected size touches no section position and
+// triggers no GSAP re-measurement, so it doesn't need that protection, and
+// gating it the same way just meant a pure height-only resize (a toolbar
+// toggle with no rotation, which never fires orientationchange either) could
+// leave it stuck at whatever height happened to be current the last time a
+// genuine/width resize or orientationchange settled -- which could be much
+// later in the session or never. Own dedicated height check, independent of
+// resizeIsGenuine, so a real height change is never missed regardless of
+// whether width also changed.
+let lastCanvasHeight = document.documentElement.clientHeight;
+window.addEventListener('resize', () => {
+  const h = document.documentElement.clientHeight;
+  if (!resizeIsGenuine && h === lastCanvasHeight) return;
+  lastCanvasHeight = h;
+  resizeCanvas();
+});
 
 /* ---------------- Hero circle-wipe reveal ---------------- */
 
@@ -996,7 +1039,7 @@ function logCtaPinToggle(action, scrollY, shouldUnpin) {
 
 function updateCtaPin() {
   if (!ctaSection || !ctaSpacer) return;
-  const { viewportHeight, scrollable } = containerScrollRange();
+  const { viewportHeight, scrollable } = containerScrollRange(true);
   const containerBottomY = scrollContainer.offsetTop + scrollContainer.offsetHeight;
   const fadeCompleteY = scrollContainer.offsetTop + ctaFadeVisibleEffective * scrollable;
   const gapPx = CTA_GAP_VH * viewportHeight;
