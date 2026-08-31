@@ -1786,6 +1786,44 @@ preloadFrames();
 // without changing how long the poll itself is allowed to take once started.
 settleViewportModeRecompute();
 
+// BUG FIX (dark-overlay seam partway down the page, inconsistent CTA
+// spacing, and "scroll twice to reach the footer" -- all reported as
+// non-deterministic across otherwise-identical page loads on the same real
+// device, no code change between attempts): positionSections()'s mobile/
+// short-viewport cascade (see its own comment) measures each section's
+// REAL offsetHeight to build mobileLastSectionBottomPx, which
+// scrollContainer's own inline height, recalcCtaFadeThresholds() (the dark
+// overlay's own fade-out point), and recalcDarkOverlayEnter() all derive
+// from -- but positionSections()'s very first run, right below, happens
+// synchronously at script parse, before the page's own display:swap
+// webfonts (Bodoni Moda/Manrope/IBM Plex Mono -- index.html) have
+// necessarily finished loading. Fallback-font metrics can measure
+// meaningfully shorter or taller than the real font once it swaps in, and
+// nothing previously re-ran this cascade once that swap happened -- only a
+// genuine resize/orientationchange did, which a landscape phone loaded
+// directly (no rotation) may never fire. Whichever metrics happened to be
+// current at that one synchronous moment -- a race against network/cache
+// timing, matching the reported randomness exactly -- silently became
+// permanent for the rest of that page load: a too-short cascade leaves the
+// dark overlay fading out (recalcCtaFadeThresholds()) before really
+// reaching the end of the content, and leaves scrollContainer's own height
+// (and therefore the real scrollable range Lenis/the browser see) out of
+// sync with GSAP's cached ScrollTrigger measurements, the same "scroll
+// twice" signature this whole saga's very first round was about.
+// document.fonts.ready resolves once every requested font has actually
+// loaded (well-supported everywhere this site targets) -- re-running the
+// exact same correction pass resize/orientationchange already do, once,
+// catches this without needing a live font-loading heuristic of its own.
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => {
+    positionSections();
+    syncCtaShortViewportState();
+    recalcDarkOverlayEnter();
+    recalcCtaFadeThresholds();
+    ScrollTrigger.refresh();
+  });
+}
+
 // BUG FIX (canvas still cropped even after resizeCanvas() gained its own
 // height-change resize listener -- confirmed live: canvas.style.height
 // still stuck wrong on a FRESH load, no resize event involved at all): this
