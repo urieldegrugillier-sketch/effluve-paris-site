@@ -143,6 +143,7 @@ gsap.ticker.lagSmoothing(0);
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvas-wrap');
+const landscapeFrozenFrame = document.getElementById('landscape-frozen-frame');
 const heroSection = document.getElementById('hero');
 const scrollContainer = document.getElementById('scroll-container');
 const darkOverlay = document.getElementById('dark-overlay');
@@ -633,12 +634,13 @@ async function preloadFrames() {
   const firstBatch = [];
   for (let i = 1; i <= FIRST_BATCH; i++) firstBatch.push(loadFrame(i));
   await Promise.all(firstBatch);
-  // SHORT_VIEWPORT_FRAME (12) is FIRST_BATCH's own last frame, deliberately
-  // -- see that constant's own comment for why: guarantees it's already
-  // loaded right here, no separate load-order handling needed.
-  currentFrame = isShortViewport ? SHORT_VIEWPORT_FRAME : 1;
+  // Short viewports no longer touch the canvas at all -- see
+  // applyShortViewportCanvasState()'s own comment -- so this only ever
+  // needs to set up frame 1 for the scroll-scrubbed canvas animation,
+  // regardless of isShortViewport. Harmless (just unused) if the canvas is
+  // currently hidden.
+  currentFrame = 1;
   drawFrame(currentFrame);
-  if (isShortViewport) canvasWrap.style.clipPath = 'circle(75% at 50% 50%)';
 
   const rest = [];
   for (let i = FIRST_BATCH + 1; i <= FRAME_COUNT; i++) rest.push(loadFrame(i));
@@ -768,6 +770,14 @@ const settleCanvasResize = makeHeightSettleWaiter((h, source) => {
   resizeCanvas(source);
 });
 window.addEventListener('resize', () => {
+  // Canvas is hidden entirely and never drawn to while isShortViewport is
+  // true (see applyShortViewportCanvasState()) -- nothing for resizeCanvas()
+  // to do, so skip the settle-poll/reflow work outright rather than just
+  // letting it run invisibly. Uses whatever isShortViewport was BEFORE this
+  // same resize event (settleViewportModeRecompute()'s own recompute for
+  // this same event is async/polled, not synchronous) -- harmless if stale,
+  // self-corrects on the very next resize once that poll resolves.
+  if (isShortViewport) return;
   const h = document.documentElement.clientHeight;
   if (!resizeIsGenuine && h === lastCanvasHeight) return;
   settleCanvasResize('resize-event');
@@ -790,38 +800,54 @@ function updateHeroReveal(p) {
   canvasWrap.style.clipPath = `circle(${radius}% at 50% 50%)`;
 }
 
-/* Freezes the canvas to a single static frame for short viewports (see
-   isShortViewport's own comment near the top of this file) instead of
-   continuing the scroll-scrubbed frame-by-frame animation and circle-wipe
-   reveal -- both are exactly the mechanics most entangled with the fragile
-   height/timeline math this whole round of fixes is trying to get away
-   from, and the source frames' own 1.79:1 aspect ratio was never a good
-   match for a very wide, very short viewport's own shape anyway. Called on
-   init and every time isShortViewport might have changed (the same
-   resize/orientationchange handlers that already recompute it) -- safe to
-   call any time, not just on a genuine transition. */
+/* BUG FIX (canvas still not reliably centering/sizing correctly on real iOS
+   Safari, despite passing every simulated test, after many rounds of
+   resizeCanvas()/settle-poll fixes -- makeHeightSettleWaiter() and friends):
+   replaces the canvas ENTIRELY for short viewports (see isShortViewport's
+   own comment near the top of this file) with a plain <img>
+   (#landscape-frozen-frame, index.html/css/style.css) showing frame 12's
+   actual file. width/height:100% + object-fit:cover on a position:fixed
+   element is plain CSS the browser's own layout engine resolves correctly
+   on its own -- none of the clientHeight/vh-quirk territory a JS-computed
+   canvas.style.height read kept running into. The canvas itself is left
+   completely untouched (hidden, never drawn to, never resized) while
+   isShortViewport is true -- see resizeCanvas()'s own call sites
+   (resize-event listener, orientationchange-settle, init) for the matching
+   isShortViewport guards that stop it from running at all in this mode, not
+   just visually. Called on init and every time isShortViewport might have
+   changed (the same resize/orientationchange handlers that already
+   recompute it) -- safe to call any time, not just on a genuine
+   transition. */
 function applyShortViewportCanvasState() {
   if (isShortViewport) {
-    currentFrame = SHORT_VIEWPORT_FRAME;
-    drawFrame(currentFrame);
-    // Matches updateHeroReveal()'s own fully-open target (radius:75%) --
-    // shown fully revealed from the start instead of animating open, since
-    // the lenis 'scroll' handler below skips calling updateHeroReveal()
-    // entirely while isShortViewport is true, so nothing else will open it.
-    canvasWrap.style.clipPath = 'circle(75% at 50% 50%)';
+    if (landscapeFrozenFrame && !landscapeFrozenFrame.src) {
+      landscapeFrozenFrame.src = framePath(SHORT_VIEWPORT_FRAME);
+    }
+    if (landscapeFrozenFrame) landscapeFrozenFrame.style.display = 'block';
+    if (canvasWrap) canvasWrap.style.display = 'none';
     // Cleared, not left at whatever a PRIOR (non-short) scroll position set
-    // them to -- same reasoning, nothing else will correct a stale inline
-    // value left over from before a rotation into landscape.
+    // them to -- nothing else will correct a stale inline value left over
+    // from before a rotation into landscape.
     heroSection.style.opacity = '';
     heroSection.style.pointerEvents = '';
     return;
   }
-  // Transitioning OUT of short: recompute the real frame/reveal state for
-  // the CURRENT scroll position immediately, rather than leaving the frozen
-  // frame showing until the next scroll event happens to fire (which might
-  // be a while -- e.g. rotating back to portrait without immediately
-  // scrolling again). Mirrors the exact math the lenis 'scroll' handler
-  // below uses for the same two lines.
+  // Transitioning OUT of short: hide the static image, restore the canvas,
+  // and recompute the real frame/reveal state for the CURRENT scroll
+  // position immediately, rather than leaving stale content showing until
+  // the next scroll event happens to fire (which might be a while -- e.g.
+  // rotating back to portrait without immediately scrolling again). Mirrors
+  // the exact math the lenis 'scroll' handler below uses for the same two
+  // lines. wasHidden distinguishes an actual transition (canvas needs a
+  // forced, fresh resizeCanvas() -- resizeCanvas() never ran at all while
+  // isShortViewport was true, so its buffer/style could be stale from
+  // whenever it was last genuinely sized) from every other ordinary call
+  // with isShortViewport already false, which the resize/orientationchange
+  // listeners' own settleCanvasResize() calls already keep current.
+  const wasHidden = canvasWrap && canvasWrap.style.display === 'none';
+  if (landscapeFrozenFrame) landscapeFrozenFrame.style.display = 'none';
+  if (canvasWrap) canvasWrap.style.display = '';
+  if (wasHidden) resizeCanvas('landscape-exit-resync');
   const maxScroll = document.documentElement.scrollHeight - cachedViewportHeight;
   const pageP = maxScroll > 0 ? Math.min(1, Math.max(0, window.scrollY / maxScroll)) : 0;
   const accelerated = Math.min(pageP * FRAME_SPEED, 1);
@@ -1111,7 +1137,12 @@ window.addEventListener('orientationchange', () => {
     syncPyramidPin();
     syncCtaShortViewportState();
     positionSections();
-    settleCanvasResize('orientationchange-settle');
+    // Canvas is hidden/untouched entirely while isShortViewport is true --
+    // see settleCanvasResize's own resize-listener comment above. isShortViewport
+    // was just freshly recomputed two lines up, so this check is current for
+    // this exact event (unlike the raw resize listener's own, necessarily
+    // stale check).
+    if (!isShortViewport) settleCanvasResize('orientationchange-settle');
     recalcDarkOverlayEnter();
     recalcCtaFadeThresholds();
     applyShortViewportCanvasState();
@@ -1731,7 +1762,13 @@ document.querySelectorAll('[data-nav-link]').forEach((link) => {
 
 /* ---------------- Init ---------------- */
 
-resizeCanvas('init');
+// Canvas is hidden/untouched entirely while isShortViewport is true -- see
+// applyShortViewportCanvasState()'s own comment. Uses isShortViewport's
+// very first, parse-time value (not yet settle-verified) -- harmless if
+// wrong: applyShortViewportCanvasState()'s wasHidden check (triggered by
+// settleViewportModeRecompute() just below) forces a fresh resizeCanvas()
+// the moment isShortViewport is actually confirmed false.
+if (!isShortViewport) resizeCanvas('init');
 preloadFrames();
 
 // BUG FIX (CTA randomly still in its old fixed/pinned appearance instead of
@@ -1782,7 +1819,7 @@ settleViewportModeRecompute();
 // "two consecutive reads" wait from scratch, making the correction window
 // LONGER, not shorter.)
 setTimeout(() => {
-  settleCanvasResize('load-settle-400ms');
+  if (!isShortViewport) settleCanvasResize('load-settle-400ms');
 }, 400);
 
 /* Honor a hash that was present on load (captured and stripped from the URL
@@ -1820,16 +1857,23 @@ if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
   function updateDebugBox() {
     const dpr = window.devicePixelRatio || 1;
     const wrapRect = canvasWrap ? canvasWrap.getBoundingClientRect() : null;
+    const imgRect = landscapeFrozenFrame ? landscapeFrozenFrame.getBoundingClientRect() : null;
     const resizeLines = resizeCanvasLog.length
       ? resizeCanvasLog.map((e) => '  ' + e.t + '  ' + e.source + '  h=' + e.h).join('\n')
-      : '  (none yet)';
+      : '  (none -- expected while isShortViewport is true, canvas is skipped entirely)';
     debugBox.textContent =
       'scrollY: ' + Math.round(window.scrollY) + '\n'
+      + 'isShortViewport: ' + isShortViewport + '\n'
       + 'cta static-flow: ' + (ctaSection ? ctaSection.classList.contains('cta-static-flow') : 'n/a')
       + '  computed position: ' + (ctaSection ? getComputedStyle(ctaSection).position : 'n/a') + '\n'
+      + '--- landscape-frozen-frame (<img>, short-viewport only) ---\n'
+      + 'display: ' + (landscapeFrozenFrame ? getComputedStyle(landscapeFrozenFrame).display : 'n/a')
+      + '  src: ' + (landscapeFrozenFrame ? landscapeFrozenFrame.currentSrc || landscapeFrozenFrame.src || '(none set)' : 'n/a') + '\n'
+      + 'img rect: ' + (imgRect ? Math.round(imgRect.width) + ' / ' + Math.round(imgRect.height) : 'n/a')
+      + '  canvasWrap display: ' + (canvasWrap ? getComputedStyle(canvasWrap).display : 'n/a') + '\n'
       + '--- resizeCanvas() calls (last 8, labeled by source) ---\n'
       + resizeLines + '\n'
-      + '--- canvas sizing (dpr=' + dpr + ') ---\n'
+      + '--- canvas sizing (dpr=' + dpr + ', desktop/portrait only) ---\n'
       + 'canvas.width/height (buffer): ' + canvas.width + ' / ' + canvas.height + '\n'
       + 'canvas.style.width/height (css): ' + canvas.style.width + ' / ' + canvas.style.height + '\n'
       + 'canvasWrap rect: ' + (wrapRect ? Math.round(wrapRect.width) + ' / ' + Math.round(wrapRect.height) : 'n/a')

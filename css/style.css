@@ -1502,6 +1502,30 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 
 #canvas { width: 100%; height: 100%; }
 
+/* BUG FIX (canvas still not reliably centering/sizing correctly on real
+   iOS Safari after many rounds of resizeCanvas()/settle-poll fixes, despite
+   passing every simulated test -- js/app.js's applyShortViewportCanvasState()
+   swaps to this plain <img> entirely for short viewports instead of trying
+   to keep chasing the canvas fix further). Same position:fixed/z-index as
+   .canvas-wrap above so it sits in exactly the same spot in the stack, but
+   sized purely in CSS -- width/height:100% + object-fit:cover on a
+   fixed-position element is plain, well-supported layout the browser's own
+   engine resolves correctly on its own, none of the clientHeight/vh-quirk
+   territory canvas.style.height reads (JS-computed, one iOS generation at a
+   time) kept running into. display toggled by JS alongside .canvas-wrap's
+   own display (see applyShortViewportCanvasState()); starts hidden so it
+   never flashes visible before JS has decided which one to show. */
+#landscape-frozen-frame {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 5;
+  object-fit: cover;
+  object-position: center;
+  background: var(--bg-void);
+}
+
 /* ================= DARK OVERLAY ================= */
 
 #dark-overlay {
