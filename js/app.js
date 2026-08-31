@@ -975,8 +975,25 @@ function updateDarkOverlay(p) {
   // sub-pixel-wide overshoot, imperceptible) but would have been a visible
   // discontinuity at the new, lower mobile value.
   if (p >= enter - fadeRange && p <= enter) opacity = DARK_OVERLAY_MAX_OPACITY * (p - (enter - fadeRange)) / fadeRange;
-  else if (p > enter && p < leave) opacity = DARK_OVERLAY_MAX_OPACITY;
-  else if (p >= leave && p <= leave + fadeRange) opacity = DARK_OVERLAY_MAX_OPACITY * (1 - (p - leave) / fadeRange);
+  // BUG FIX (undarkened seam/gap partway down the page, landscape/short-
+  // viewport, right before the last content section -- confirmed via
+  // real-device screenshot): the `leave`/fade-out branch below exists to
+  // hand darkening duty off to the CTA's OWN opaque background right as it
+  // takes over the screen -- true on desktop/portrait, where updateCtaPin()
+  // pins the CTA fullscreen exactly at this same ctaFadeEnterEffective
+  // threshold. For isShortViewport, updateCtaPin()/updateCtaVisibility()
+  // are bypassed entirely (syncCtaShortViewportState()) -- the CTA just
+  // sits in normal document flow AFTER #scroll-container, not taking over
+  // anything until scrollY physically passes the container's own end, well
+  // past this threshold. Fading the overlay out here left the LAST
+  // stretch of ordinary content (still on screen, CTA not reached yet)
+  // visible against the undarkened background image. Keeping it at max for
+  // the rest of the container's own range instead -- once scroll actually
+  // reaches the CTA, its own opaque background covers the fixed image/
+  // overlay regardless of the overlay's opacity, so nothing left to hand
+  // off to.
+  else if (isShortViewport ? p > enter : (p > enter && p < leave)) opacity = DARK_OVERLAY_MAX_OPACITY;
+  else if (!isShortViewport && p >= leave && p <= leave + fadeRange) opacity = DARK_OVERLAY_MAX_OPACITY * (1 - (p - leave) / fadeRange);
   darkOverlay.style.opacity = opacity;
 }
 
@@ -1316,6 +1333,28 @@ function updateCtaPin() {
 // as this function's own "did I already do this" marker.
 function syncCtaShortViewportState() {
   if (!ctaSection || !ctaSpacer) return;
+  // BUG FIX (CTA content sizing inconsistent across otherwise-identical
+  // page loads -- product photo "cropped more/less" than before, footer
+  // overlapping the Acquerir button and needing an extra scroll to reveal
+  // it: confirmed via real-device screenshots): .section-cta's own
+  // height:100vh (css/style.css, the combined short-viewport media query)
+  // is a raw vh unit -- exactly the iOS Safari "large vs small viewport"
+  // ambiguity this file already migrated every OTHER landscape-relevant
+  // height off of (canvas/dark-overlay's own clientHeight-based fixes) --
+  // just never applied to the CTA itself. An inconsistently-resolved
+  // 100vh changes .cta-image-col/.cta-product-image's own percentage-
+  // height chain (rooted in this element's height), and can leave the
+  // CTA's real content taller than its own box, silently falling back to
+  // its own overflow-y:auto internal scroll instead of just fitting --
+  // exactly the "extra scroll to reveal the button, footer overlapping"
+  // symptom. Overridden via inline style (wins over the CSS on
+  // specificity), using the same clientHeight source already established
+  // as reliable everywhere else in this file. Deliberately OUTSIDE the
+  // alreadyStatic idempotence check below -- unlike the class/DOM-move
+  // logic (a real one-time transition), this needs to re-assert on EVERY
+  // call, since an early call's clientHeight read can still be the
+  // transient one a later settle-verified call corrects.
+  ctaSection.style.height = isShortViewport ? document.documentElement.clientHeight + 'px' : '';
   const alreadyStatic = ctaSection.classList.contains('cta-static-flow');
   if (isShortViewport && !alreadyStatic) {
     ctaSection.classList.add('cta-static-flow');

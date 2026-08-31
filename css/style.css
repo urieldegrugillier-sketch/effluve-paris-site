@@ -2323,6 +2323,27 @@ body.shop-page .site-header { mix-blend-mode: normal; }
     opacity: 1;
     pointer-events: auto;
   }
+
+  /* BUG FIX (CTA product photo appearing more/less cropped across
+     otherwise-identical page loads -- confirmed via real-device
+     screenshots): the shared (max-width:768px),(max-height:500px) rule's
+     own .cta-image-col max-height:38vh is a raw viewport unit, the same
+     iOS Safari "large vs small viewport" ambiguity js/app.js's
+     syncCtaShortViewportState() now fixes for .section-cta's own height
+     (see its comment) -- but that JS fix only overrides .section-cta
+     itself, not this max-height, which independently varies with the same
+     ambiguity regardless of how reliable its parent now is. Scoped to
+     .cta-static-flow (only present once isShortViewport is confirmed)
+     instead of touching the shared rule directly, so portrait mobile's
+     identical 38vh (untouched by the JS fix, never reported as broken)
+     keeps its exact original value -- this only ever wins here, in the
+     landscape-only media query, for the landscape-only class. 38% instead
+     of a new vh reference: .section-cta's own height is JS-reliable now,
+     so a percentage of it is exactly the same "same ambiguity, twice"
+     problem, not a new one. */
+  .cta-static-flow .cta-image-col {
+    max-height: 38%;
+  }
 }
 
 /* ================= LEGAL / STATIC CONTENT PAGES ================= */
