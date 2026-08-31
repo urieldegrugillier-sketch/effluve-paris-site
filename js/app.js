@@ -231,14 +231,29 @@ function positionCanvasHeight() {
   canvasWrap.style.height = document.documentElement.clientHeight + 'px';
 }
 positionCanvasHeight();
-window.addEventListener('resize', positionCanvasHeight);
 
 function positionDarkOverlayHeight() {
   if (!darkOverlay) return;
   darkOverlay.style.height = document.documentElement.clientHeight + 'px';
 }
 positionDarkOverlayHeight();
-window.addEventListener('resize', positionDarkOverlayHeight);
+
+// BUG FIX (canvas STILL cropped/not centered despite resizeCanvas()'s own
+// settle-poll fix -- real device retest): these two used to also carry
+// their own IMMEDIATE, ungated 'resize' listeners (unlike resizeCanvas(),
+// which is now settle-verified -- see makeHeightSettleWaiter()'s own
+// comment above). That meant canvasWrap/darkOverlay's own height snapped to
+// WHATEVER clientHeight was at each raw resize tick -- including the wrong,
+// oscillating intermediate values (537 -> 670 -> 265) -- while the canvas
+// element's own buffer/style lagged behind, waiting out the settle-poll.
+// The two could disagree for the entire settle window: canvasWrap (and its
+// clip-path circle, whose center/radius are computed against ITS OWN box)
+// sized to one height, the actual drawn canvas sized to a different one --
+// cropping/off-center is exactly what a wrapper/content size mismatch looks
+// like. Folded into resizeCanvas() below instead (single settled height,
+// applied to canvas + canvasWrap + darkOverlay together, atomically) so
+// they can no longer disagree at any point, not just once both happen to
+// have separately settled.
 
 /* ---------------- Progress <-> pixel mapping ----------------
    ScrollTrigger's "top top"/"bottom bottom" progress maps 0..1 to
@@ -661,6 +676,13 @@ function resizeCanvas(source) {
   canvas.height = h * dpr;
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
+  // Same settled h applied to the wrapper/overlay too (see
+  // positionCanvasHeight()/positionDarkOverlayHeight()'s own comment above
+  // for why they no longer have their own separate, unsettled resize
+  // listeners) -- keeps canvas/canvasWrap/darkOverlay always agreeing on
+  // exactly the same height, never just each independently correct.
+  if (canvasWrap) canvasWrap.style.height = h + 'px';
+  if (darkOverlay) darkOverlay.style.height = h + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   drawFrame(currentFrame);
 }
@@ -1712,6 +1734,21 @@ document.querySelectorAll('[data-nav-link]').forEach((link) => {
 resizeCanvas('init');
 preloadFrames();
 
+// BUG FIX (CTA randomly still in its old fixed/pinned appearance instead of
+// static-flow -- confirmed "aleatoire", varying a few seconds apart on
+// repeated loads): isShortViewport's very FIRST value (read at script parse
+// time, top of this file) is exactly as vulnerable to a transient wrong
+// clientHeight as everything else in this saga -- and syncCtaShortViewportState()'s
+// own init call further below runs synchronously against that first,
+// unverified value, with nothing to correct a wrong result until
+// settleViewportModeRecompute() eventually got triggered from the 400ms
+// canvas settle timer below. That's up to ~2.4s of the CTA possibly sitting
+// in the wrong state, long enough for a quick look right after load to
+// catch it. Triggered here instead -- starts polling ~200ms in rather than
+// waiting on the canvas-specific 400ms delay first, shrinking that window
+// without changing how long the poll itself is allowed to take once started.
+settleViewportModeRecompute();
+
 // BUG FIX (canvas still cropped even after resizeCanvas() gained its own
 // height-change resize listener -- confirmed live: canvas.style.height
 // still stuck wrong on a FRESH load, no resize event involved at all): this
@@ -1736,19 +1773,16 @@ preloadFrames();
 // still wrong -- init h=537, load-settle-400ms h=537 -- identical readings,
 // meaning clientHeight hadn't even started moving toward its real ~375px
 // value yet at that point): routed through settleCanvasResize() (see its
-// own comment above, alongside settleViewportModeRecompute for the matching
-// isShortViewport/frozen-frame race) instead of a single fixed-delay
-// correction -- polls until two consecutive reads agree rather than trusting
-// whichever value happens to be current 400ms in. Also triggers
-// settleViewportModeRecompute() so a short-viewport device that loaded
-// straight into landscape (no rotation event to ever fire the resize/
-// orientationchange settle paths) still gets its frozen frame-12 state
-// re-verified against the genuinely settled height, not just whatever
-// isShortViewport happened to read at the very first, pre-settle instant
-// preloadFrames() used.
+// own comment above) instead of a single fixed-delay correction -- polls
+// until two consecutive reads agree rather than trusting whichever value
+// happens to be current 400ms in. (isShortViewport/the CTA/frozen-frame
+// state has its own settleViewportModeRecompute() trigger now, called
+// immediately above rather than nested in here -- re-arming it again from
+// this later 400ms timer would cancel that earlier poll and restart the
+// "two consecutive reads" wait from scratch, making the correction window
+// LONGER, not shorter.)
 setTimeout(() => {
   settleCanvasResize('load-settle-400ms');
-  settleViewportModeRecompute();
 }, 400);
 
 /* Honor a hash that was present on load (captured and stripped from the URL

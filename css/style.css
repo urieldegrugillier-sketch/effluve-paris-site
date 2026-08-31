@@ -1841,6 +1841,19 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   display: flex;
   align-items: stretch;
   background: var(--bg-void);
+  /* BUG FIX (new ~0.5s scroll stick right at the CTA title, landscape/short-
+     viewport, appearing only after syncCtaShortViewportState() gained a
+     settle-delay -- see makeHeightSettleWaiter()'s own comment): when that
+     poll finally resolves and does its one-time replaceWith() DOM move
+     (js/app.js), if the user is already actively scrolling near this
+     element at that exact moment, the browser's default scroll anchoring
+     tries to keep on-screen content visually stable by nudging scroll
+     position to compensate for the layout change -- fighting Lenis's own
+     scroll handling for a frame or two reads as exactly this kind of brief
+     stick-then-resolve. Opting this element (and its #cta-spacer stand-in
+     below) out of anchoring removes the trigger outright, regardless of
+     when the swap happens to land relative to the user's scroll. */
+  overflow-anchor: none;
 }
 
 /* Applied by js/app.js's updateCtaPin() right at the true page end: un-pins
@@ -1870,6 +1883,9 @@ body.shop-page .site-header { mix-blend-mode: normal; }
    height swap would be. */
 #cta-spacer {
   height: 20vh;
+  /* See .section-cta's own overflow-anchor comment above -- this is the
+     other half of the same replaceWith() swap, needs the same opt-out. */
+  overflow-anchor: none;
 }
 
 .cta-image-col {
