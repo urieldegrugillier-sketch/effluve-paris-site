@@ -411,16 +411,23 @@ window.addEventListener('resize', () => {
 // resize events collapses into one final pass against the truly-settled
 // height, mirroring orientationSettleTimer's own "clear pending, reschedule"
 // pattern elsewhere in this file.
-function makeHeightSettleWaiter(onSettled) {
+// readFn defaults to document.documentElement.clientHeight (every existing
+// caller's own use case) -- optional second param lets a caller poll a
+// DIFFERENT "has this actually settled yet" signal instead (see
+// positionSections()'s own fonts.ready correction further down, which polls
+// its real cascade OUTPUT directly rather than assuming a fixed number of
+// ticks after some other async signal is enough).
+function makeHeightSettleWaiter(onSettled, readFn) {
+  const read = readFn || (() => document.documentElement.clientHeight);
   const CHECK_MS = 200;
   const MAX_WAIT_MS = 2000;
   let pollTimer = null;
   return function trigger(arg) {
     if (pollTimer) clearTimeout(pollTimer);
     const startedAt = Date.now();
-    let lastReading = document.documentElement.clientHeight;
+    let lastReading = read();
     const poll = () => {
-      const h = document.documentElement.clientHeight;
+      const h = read();
       if (h === lastReading || Date.now() - startedAt >= MAX_WAIT_MS) {
         pollTimer = null;
         onSettled(h, arg);
@@ -1409,34 +1416,48 @@ function updateCtaPin() {
 // (resize/orientationchange) without needing to track what the PREVIOUS
 // call already did beyond the .cta-static-flow class itself, which doubles
 // as this function's own "did I already do this" marker.
-function syncCtaShortViewportState() {
-  if (!ctaSection || !ctaSpacer) return;
-  // BUG FIX (CTA content sizing inconsistent across otherwise-identical
-  // page loads -- product photo "cropped more/less" than before, footer
-  // overlapping the Acquerir button and needing an extra scroll to reveal
-  // it: confirmed via real-device screenshots): .section-cta's own
-  // height:100vh (css/style.css, the combined short-viewport media query)
-  // is a raw vh unit -- exactly the iOS Safari "large vs small viewport"
-  // ambiguity this file already migrated every OTHER landscape-relevant
-  // height off of (canvas/dark-overlay's own clientHeight-based fixes) --
-  // just never applied to the CTA itself. An inconsistently-resolved
-  // 100vh changes .cta-image-col/.cta-product-image's own percentage-
-  // height chain (rooted in this element's height), and can leave the
-  // CTA's real content taller than its own box, silently falling back to
-  // its own overflow-y:auto internal scroll instead of just fitting --
-  // exactly the "extra scroll to reveal the button, footer overlapping"
-  // symptom. Overridden via inline style (wins over the CSS on
-  // specificity), using the same clientHeight source already established
-  // as reliable everywhere else in this file. Deliberately OUTSIDE the
-  // alreadyStatic idempotence check below -- unlike the class/DOM-move
-  // logic (a real one-time transition), this needs to re-assert on EVERY
-  // call, since an early call's clientHeight read can still be the
-  // transient one a later settle-verified call corrects.
-  ctaSection.style.height = isShortViewport ? document.documentElement.clientHeight + 'px' : '';
+// BUG FIX ROUND 2 (product photo still cropped inconsistently, footer still
+// occasionally overlapping the CTA -- confirmed via real-device debug
+// overlay: cta-height-fix fired TWICE in a single page load, despite this
+// looking like a single "set the real height" operation): the ORIGINAL fix
+// below did a raw, unverified document.documentElement.clientHeight read,
+// with its own comment naively assuming "a later settle-verified call
+// corrects" any early bad read -- true ONLY for the settleViewportModeRecompute()
+// call path (its own makeHeightSettleWaiter() poll already confirmed 2
+// consecutive stable reads before invoking syncCtaShortViewportState() at
+// all). syncCtaShortViewportState() has OTHER call sites with no such
+// guarantee: document.fonts.ready's callback specifically -- fonts finishing
+// load has nothing to do with clientHeight settling, Safari's chrome can
+// still be mid-transition for unrelated reasons (scroll, a separate
+// rotation) at that exact moment. Two independent, uncoordinated async
+// triggers (the settle-poll and fonts.ready) each committing their OWN
+// possibly-different clientHeight reading, with no ordering guarantee
+// between them, is exactly "the height varies depending on which one
+// happens to run last" -- non-deterministic by construction, not a subtle
+// timing edge case. Routed through its own makeHeightSettleWaiter() (same
+// mechanism resizeCanvas() already uses) instead: re-armable, so whichever
+// trigger fires last cancels any in-progress poll from an earlier one and
+// they collapse into a single pass that only commits once clientHeight has
+// genuinely stopped changing -- not whichever raw value happened to be
+// current when some unrelated signal (fonts, a settle-poll, an
+// orientationchange timer) fired.
+const settleCtaHeight = makeHeightSettleWaiter((h) => {
+  if (!ctaSection) return;
+  ctaSection.style.height = isShortViewport ? h + 'px' : '';
   // TEMP DEBUG -- see the error/reached-marker catcher at the very top of
   // this file. Only marked when actually setting the real (isShortViewport)
   // value, not when clearing it back to '' for desktop/portrait.
   if (isShortViewport && window.__landscapeDebugMark) window.__landscapeDebugMark('cta-height-fix');
+});
+
+function syncCtaShortViewportState() {
+  if (!ctaSection || !ctaSpacer) return;
+  // See settleCtaHeight's own comment above -- deliberately OUTSIDE the
+  // alreadyStatic idempotence check below -- unlike the class/DOM-move
+  // logic (a real one-time transition), this needs to re-assert on EVERY
+  // call, since an earlier commit can still be the transient one a later,
+  // properly-settled call corrects.
+  settleCtaHeight();
   const alreadyStatic = ctaSection.classList.contains('cta-static-flow');
   if (isShortViewport && !alreadyStatic) {
     ctaSection.classList.add('cta-static-flow');
@@ -1941,16 +1962,38 @@ settleViewportModeRecompute();
 // exact same correction pass resize/orientationchange already do, once,
 // catches this without needing a live font-loading heuristic of its own.
 if (document.fonts && document.fonts.ready) {
-  document.fonts.ready.then(() => {
+  // BUG FIX ROUND 2 (scrollContainer's own measured height -- and
+  // everything derived from it, including the CTA/footer position --
+  // still landing ~6px short on a genuine fraction of otherwise-identical
+  // loads, confirmed via repeated automated runs even with a generous
+  // multi-second wait, AND even after trying a fixed double-
+  // requestAnimationFrame delay, which reduced but didn't eliminate it):
+  // document.fonts.ready resolving guarantees every requested FontFace has
+  // finished loading, but not that the browser has already reflowed with
+  // it by any FIXED number of ticks later -- assuming "2 rAFs is always
+  // enough" turned out to be exactly the same class of mistake as trusting
+  // a single fixed-delay timer for clientHeight elsewhere in this file.
+  // Routed through makeHeightSettleWaiter() instead, polling
+  // positionSections()'s own real cascade OUTPUT (mobileLastSectionBottomPx)
+  // directly rather than a fixed number of ticks after some other async
+  // signal -- only commits (running the rest of the correction pass) once
+  // two consecutive re-measurements genuinely agree, regardless of how many
+  // ticks that takes.
+  const settleFontsReadyCorrection = makeHeightSettleWaiter(() => {
     // TEMP DEBUG -- see the error/reached-marker catcher at the very top
     // of this file. Confirms this callback actually fires on the real
     // device, not just that document.fonts.ready exists.
     if (window.__landscapeDebugMark) window.__landscapeDebugMark('fonts-ready-callback');
-    positionSections();
     syncCtaShortViewportState();
     recalcDarkOverlayEnter();
     recalcCtaFadeThresholds();
     ScrollTrigger.refresh();
+  }, () => {
+    positionSections();
+    return mobileLastSectionBottomPx;
+  });
+  document.fonts.ready.then(() => {
+    settleFontsReadyCorrection();
   });
 }
 
