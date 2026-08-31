@@ -1,5 +1,77 @@
 /* MONARK — Eau de Parfum — scroll-driven site logic */
 
+/* ---------------- TEMP DEBUG -- in-page error/reached-marker catcher ----------------
+   BUG FIX INVESTIGATION (many rounds of fixes confirmed byte-for-byte
+   present in the live production bundle, yet reportedly producing ZERO
+   observed change on real devices -- reproduced cross-platform on both iOS
+   Safari and Android Chrome, ruling out caching/CDN/browser-specific
+   quirks entirely): this file has no try/catch anywhere -- a single
+   uncaught error ANYWHERE in its top-level execution silently halts
+   everything after it, with no visible symptom other than "the fix code
+   never ran." Headless Chromium's simulated environment has never
+   reproduced this, meaning whatever throws (if anything does) is real-
+   touch-device-specific -- some API/timing/quirk headless testing can't
+   trigger. Registered as the ABSOLUTE FIRST statement in this file, before
+   anything else that could possibly throw, so it's guaranteed to catch
+   every subsequent error regardless of where it occurs -- 'error'/
+   'unhandledrejection' listeners fire on any uncaught exception in this
+   script once attached, independent of whether the script itself keeps
+   running afterward. Gated behind ?debug=landscape (same flag as the
+   overlay further down this file) so it's inert for real visitors.
+   Renders directly onto the page (bottom band, red) -- no cable or desktop
+   tooling needed, works identically on any device/browser. window.__landscapeDebugMark(key)
+   is called at a handful of key points further down (Init section start,
+   the document.fonts.ready callback, updateDarkOverlay()'s isShortViewport
+   branch, syncCtaShortViewportState()'s CTA-height fix, and the very last
+   line of the file) so the render shows exactly how far execution actually
+   got, not just whether an error was thrown -- an infinite loop/hang would
+   show no error AND a missing 'script-end' marker, distinguishable from a
+   clean run. Every downstream call site guards with
+   `if (window.__landscapeDebugMark)` so this is a true no-op (not even a
+   function-existence check failure) when the flag is off. Remove once the
+   underlying issue (if any) is found and fixed. */
+if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
+  window.__landscapeDebug = { errors: [], reached: {} };
+  window.__landscapeDebugMark = (key) => {
+    window.__landscapeDebug.reached[key] = (window.__landscapeDebug.reached[key] || 0) + 1;
+  };
+  const renderLandscapeDebugStatus = () => {
+    let box = document.getElementById('monark-debug-errors');
+    if (!box) {
+      if (!document.body) return; // too early -- DOMContentLoaded/the interval below will catch up
+      box = document.createElement('div');
+      box.id = 'monark-debug-errors';
+      box.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:2147483647;'
+        + 'background:rgba(120,0,0,0.92);color:#fff;font:11px/1.4 monospace;'
+        + 'padding:8px 10px;max-height:45vh;overflow:auto;white-space:pre-wrap;'
+        + 'pointer-events:none;';
+      document.body.appendChild(box);
+    }
+    const d = window.__landscapeDebug;
+    const keys = Object.keys(d.reached);
+    const reachedLines = keys.length ? keys.map((k) => '  ' + k + ': ' + d.reached[k]).join('\n') : '  (none yet)';
+    box.textContent = '--- reached markers ---\n' + reachedLines + '\n'
+      + '--- errors (' + d.errors.length + ') ---\n'
+      + (d.errors.length ? d.errors.join('\n\n') : '  (none caught)');
+  };
+  window.addEventListener('error', (e) => {
+    window.__landscapeDebug.errors.push(
+      '[error] ' + e.message + '\n  at ' + (e.filename || '?') + ':' + (e.lineno || '?') + ':' + (e.colno || '?')
+      + (e.error && e.error.stack ? '\n' + e.error.stack : '')
+    );
+    renderLandscapeDebugStatus();
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    const reason = e.reason;
+    window.__landscapeDebug.errors.push('[unhandledrejection] ' + (reason && reason.stack ? reason.stack : String(reason)));
+    renderLandscapeDebugStatus();
+  });
+  document.addEventListener('DOMContentLoaded', renderLandscapeDebugStatus);
+  renderLandscapeDebugStatus();
+  setInterval(renderLandscapeDebugStatus, 500);
+  window.__landscapeDebugMark('script-start');
+}
+
 /* If the page loads/reloads with a URL hash (index.html#genesis, etc.), the
    browser's native "jump to #id" fires before Lenis/ScrollTrigger exist —
    landing on a raw, unscrubbed scroll position that the custom scroll system
@@ -992,7 +1064,13 @@ function updateDarkOverlay(p) {
   // reaches the CTA, its own opaque background covers the fixed image/
   // overlay regardless of the overlay's opacity, so nothing left to hand
   // off to.
-  else if (isShortViewport ? p > enter : (p > enter && p < leave)) opacity = DARK_OVERLAY_MAX_OPACITY;
+  else if (isShortViewport ? p > enter : (p > enter && p < leave)) {
+    // TEMP DEBUG -- see the error/reached-marker catcher at the very top
+    // of this file. Only marked for the isShortViewport branch specifically
+    // (the round-15 fix), not the shared desktop/portrait path.
+    if (isShortViewport && window.__landscapeDebugMark) window.__landscapeDebugMark('dark-overlay-short-viewport-branch');
+    opacity = DARK_OVERLAY_MAX_OPACITY;
+  }
   else if (!isShortViewport && p >= leave && p <= leave + fadeRange) opacity = DARK_OVERLAY_MAX_OPACITY * (1 - (p - leave) / fadeRange);
   darkOverlay.style.opacity = opacity;
 }
@@ -1355,6 +1433,10 @@ function syncCtaShortViewportState() {
   // call, since an early call's clientHeight read can still be the
   // transient one a later settle-verified call corrects.
   ctaSection.style.height = isShortViewport ? document.documentElement.clientHeight + 'px' : '';
+  // TEMP DEBUG -- see the error/reached-marker catcher at the very top of
+  // this file. Only marked when actually setting the real (isShortViewport)
+  // value, not when clearing it back to '' for desktop/portrait.
+  if (isShortViewport && window.__landscapeDebugMark) window.__landscapeDebugMark('cta-height-fix');
   const alreadyStatic = ctaSection.classList.contains('cta-static-flow');
   if (isShortViewport && !alreadyStatic) {
     ctaSection.classList.add('cta-static-flow');
@@ -1801,6 +1883,11 @@ document.querySelectorAll('[data-nav-link]').forEach((link) => {
 
 /* ---------------- Init ---------------- */
 
+// TEMP DEBUG -- see the error/reached-marker catcher at the very top of
+// this file. Confirms execution reached this point without an earlier
+// uncaught error halting the script.
+if (window.__landscapeDebugMark) window.__landscapeDebugMark('init-reached');
+
 // Canvas is hidden/untouched entirely while isShortViewport is true -- see
 // applyShortViewportCanvasState()'s own comment. Uses isShortViewport's
 // very first, parse-time value (not yet settle-verified) -- harmless if
@@ -1855,6 +1942,10 @@ settleViewportModeRecompute();
 // catches this without needing a live font-loading heuristic of its own.
 if (document.fonts && document.fonts.ready) {
   document.fonts.ready.then(() => {
+    // TEMP DEBUG -- see the error/reached-marker catcher at the very top
+    // of this file. Confirms this callback actually fires on the real
+    // device, not just that document.fonts.ready exists.
+    if (window.__landscapeDebugMark) window.__landscapeDebugMark('fonts-ready-callback');
     positionSections();
     syncCtaShortViewportState();
     recalcDarkOverlayEnter();
@@ -1967,3 +2058,8 @@ if (new URLSearchParams(window.location.search).get('debug') === 'landscape') {
   // up promptly rather than waiting for the next scroll/resize.
   setInterval(updateDebugBox, 300);
 }
+
+// TEMP DEBUG -- see the error/reached-marker catcher at the very top of
+// this file. The true last statement in the file -- confirms the ENTIRE
+// script executed to completion with no uncaught error halting it anywhere.
+if (window.__landscapeDebugMark) window.__landscapeDebugMark('script-end');
