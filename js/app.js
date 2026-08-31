@@ -471,8 +471,31 @@ const settleViewportModeRecompute = makeHeightSettleWaiter(() => {
   // source order.
   updateHeaderVisibility();
 });
+// BUG FIX (CTA photo cropped/wrong height inconsistently, dark-overlay
+// coverage off, tracked down while investigating a header-hide-vs-height
+// theory: the header itself is position:fixed + transform, never touches
+// clientHeight -- but a PURE HEIGHT-ONLY resize, e.g. Safari's toolbar
+// auto-collapsing mid-scroll with zero width change, is genuinely
+// correlated with the SAME scroll gesture that hides the header
+// (updateHeaderVisibility()'s own scroll-direction trigger), just not
+// causally linked to it). This listener used to be gated purely on
+// resizeIsGenuine (width-only) -- copied from positionSections()'s own
+// gating, which genuinely needs that (the "double zoom" GSAP re-measure
+// bug, see cachedViewportHeight's own comment), but
+// settleViewportModeRecompute()'s callback does NOT call positionSections()
+// at all -- syncCtaShortViewportState()/applyShortViewportCanvasState()/
+// syncPyramidPin() have none of that risk, same reasoning resizeCanvas()'s
+// own listener already established for itself. Purely-width gating meant a
+// pure-height resize (toolbar collapse) never got a chance to re-verify the
+// CTA's height, isShortViewport's own value, or the frozen-frame state at
+// all -- stuck at whatever was last computed before the toolbar moved.
+// Same "resizeIsGenuine OR height changed" escape hatch resizeCanvas()
+// already uses.
+let lastViewportModeHeight = document.documentElement.clientHeight;
 window.addEventListener('resize', () => {
-  if (!resizeIsGenuine) return;
+  const h = document.documentElement.clientHeight;
+  if (!resizeIsGenuine && h === lastViewportModeHeight) return;
+  lastViewportModeHeight = h;
   settleViewportModeRecompute();
 });
 
@@ -757,16 +780,33 @@ function resizeCanvas(source) {
   canvas.height = h * dpr;
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
-  // Same settled h applied to the wrapper/overlay too (see
-  // positionCanvasHeight()/positionDarkOverlayHeight()'s own comment above
-  // for why they no longer have their own separate, unsettled resize
-  // listeners) -- keeps canvas/canvasWrap/darkOverlay always agreeing on
-  // exactly the same height, never just each independently correct.
-  if (canvasWrap) canvasWrap.style.height = h + 'px';
-  if (darkOverlay) darkOverlay.style.height = h + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   drawFrame(currentFrame);
 }
+
+// BUG FIX (dark-overlay height stuck at whatever clientHeight read at the
+// very first synchronous script tick, for the ENTIRE rest of a short-
+// viewport page session -- confirmed via real-device screenshot: a visible
+// seam where the overlay stops being dark, well before the CTA/end of
+// content). canvasWrap/darkOverlay's own height used to be folded into
+// resizeCanvas() (see positionCanvasHeight()/positionDarkOverlayHeight()'s
+// own comment above), which was correct at the time -- but resizeCanvas()
+// itself later gained an `if (isShortViewport) return;` guard at every one
+// of its trigger sites (the canvas is genuinely hidden/untouched for short
+// viewports, see applyShortViewportCanvasState()) without re-checking that
+// dependency: darkOverlay is NOT hidden for short viewports -- it's the
+// dark scrim over the still-visible background image, used throughout the
+// entire scroll -- so folding its height update into a function that's now
+// skipped entirely for exactly that case left it permanently stuck at
+// positionDarkOverlayHeight()'s own one-time initial read. Split back out
+// into its own always-on settle-waiter (canvasWrap included too, harmless
+// even though hidden -- keeps it correctly sized for whenever it becomes
+// visible again), triggered from the exact same points as resizeCanvas()
+// itself but WITHOUT the isShortViewport gate.
+const settleOverlayHeight = makeHeightSettleWaiter((h) => {
+  if (canvasWrap) canvasWrap.style.height = h + 'px';
+  if (darkOverlay) darkOverlay.style.height = h + 'px';
+});
 
 /* Source frames are landscape (1600x895, ~1.79:1). Plain "cover" (crop to fill
    both dimensions, Math.max) looks right on any viewport whose own aspect
@@ -849,6 +889,11 @@ const settleCanvasResize = makeHeightSettleWaiter((h, source) => {
   resizeCanvas(source);
 });
 window.addEventListener('resize', () => {
+  // settleOverlayHeight() is NOT gated on isShortViewport -- darkOverlay
+  // needs re-syncing regardless (see its own comment above); only the
+  // canvas-specific resizeCanvas() work below is skippable for short
+  // viewports.
+  settleOverlayHeight();
   // Canvas is hidden entirely and never drawn to while isShortViewport is
   // true (see applyShortViewportCanvasState()) -- nothing for resizeCanvas()
   // to do, so skip the settle-poll/reflow work outright rather than just
@@ -1239,6 +1284,9 @@ window.addEventListener('orientationchange', () => {
     syncPyramidPin();
     syncCtaShortViewportState();
     positionSections();
+    // settleOverlayHeight() is NOT gated on isShortViewport -- see its own
+    // comment above.
+    settleOverlayHeight();
     // Canvas is hidden/untouched entirely while isShortViewport is true --
     // see settleCanvasResize's own resize-listener comment above. isShortViewport
     // was just freshly recomputed two lines up, so this check is current for
@@ -1916,6 +1964,12 @@ if (window.__landscapeDebugMark) window.__landscapeDebugMark('init-reached');
 // settleViewportModeRecompute() just below) forces a fresh resizeCanvas()
 // the moment isShortViewport is actually confirmed false.
 if (!isShortViewport) resizeCanvas('init');
+// settleOverlayHeight() is NOT gated on isShortViewport -- darkOverlay is
+// visible/active regardless (see its own comment above). positionCanvasHeight()/
+// positionDarkOverlayHeight()'s own earlier synchronous calls (above) give
+// it a value immediately at parse time; this settle-verifies it shortly
+// after, same as everything else height-related in this file.
+settleOverlayHeight();
 preloadFrames();
 
 // BUG FIX (CTA randomly still in its old fixed/pinned appearance instead of
