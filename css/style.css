@@ -1519,7 +1519,21 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   display: none;
   position: fixed;
   top: 0; left: 0;
-  width: 100%; height: 100%;
+  width: 100%;
+  /* BUG FIX (undarkened/uncovered band at the bottom of the screen when
+     scrolling DOWN specifically -- toolbar collapses, visible viewport
+     grows, but height:100% here is the exact same large-vs-small-viewport
+     ambiguity 100vh has always had on mobile Safari, just spelled
+     differently): height:100lvh is a CONSTANT equal to the largest the
+     viewport can ever be (toolbar fully collapsed) -- always at least as
+     tall as whatever's currently visible regardless of toolbar state, no
+     JS measurement or settle-poll timing race possible. height:100vh first
+     as a fallback for browsers without lvh support (this rule only ever
+     applies to this short-viewport-only element in the first place, so no
+     media-query scoping needed here the way #dark-overlay's own version of
+     this fix, further down this file, needs). */
+  height: 100vh;
+  height: 100lvh;
   z-index: 5;
   object-fit: cover;
   object-position: center;
@@ -2399,6 +2413,35 @@ body.shop-page .site-header { mix-blend-mode: normal; }
   }
   .cta-static-flow .cta-product-image {
     max-height: clamp(140px, 45vh, 380px);
+  }
+
+  /* BUG FIX (undarkened band at the bottom of the screen when scrolling
+     DOWN specifically, not up -- confirmed real-device: the overlay covers
+     the full screen while scrolling up, toolbar + our own header visible
+     i.e. the smaller viewport, but not down, toolbar collapses and the
+     header hides, viewport grows). #dark-overlay's base rule (above) falls
+     back to height:100% -- the exact same large-vs-small-viewport ambiguity
+     100vh has always had on mobile Safari -- normally overridden by
+     js/app.js's settleOverlayHeight() with a measured clientHeight px
+     value, but even settle-VERIFIED, that measurement is a snapshot from
+     some already-past moment: during an active, continuous scroll-down
+     gesture the toolbar can finish collapsing faster than any settle-poll's
+     own 200ms-2000ms window catches up, leaving a real, if transient, gap
+     between the overlay's stale (smaller) height and the NOW-larger actual
+     viewport. Same "stop measuring an unreliable viewport at all"
+     philosophy as the canvas-to-image swap and the CTA content-sizing fix
+     above: height:100lvh is a CONSTANT equal to the largest the viewport
+     can ever be (toolbar fully collapsed), so the element is always at
+     least as tall as whatever's currently visible, no JS or timing race
+     involved at all. js/app.js's settleOverlayHeight() now skips (and
+     actively clears any stale inline value on) darkOverlay entirely for
+     isShortViewport -- see its own comment -- so this is the ONLY thing
+     governing darkOverlay's height in this mode, same as .section-cta's
+     own height:auto just above. height:100vh first as a fallback for
+     browsers without lvh support. */
+  #dark-overlay {
+    height: 100vh;
+    height: 100lvh;
   }
 }
 

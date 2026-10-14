@@ -803,7 +803,41 @@ function resizeCanvas(source) {
 // even though hidden -- keeps it correctly sized for whenever it becomes
 // visible again), triggered from the exact same points as resizeCanvas()
 // itself but WITHOUT the isShortViewport gate.
+//
+// BUG FIX ROUND 2 (undarkened band at the bottom of the screen when
+// scrolling DOWN specifically, not up -- confirmed real-device: the overlay
+// covers the full screen while scrolling up (toolbar + our own header
+// visible, smaller viewport) but not down (toolbar collapses, viewport
+// grows, header hides)). Even settle-VERIFIED, a JS-measured clientHeight
+// is a snapshot from some already-past moment -- during an active,
+// continuous scroll-down gesture the toolbar can finish collapsing (and the
+// visible viewport finish growing) faster than any settle-poll's own
+// 200ms-2000ms window gets a chance to catch up, leaving a real, if
+// transient, gap between the overlay's stale (smaller) height and the
+// NOW-larger actual viewport. Same "stop measuring an unreliable viewport
+// at all" philosophy as the canvas-to-image swap and the CTA content-sizing
+// fix: for isShortViewport, darkOverlay's height is now owned entirely by
+// CSS (height:100lvh, the landscape-only override further down this file
+// in css/style.css -- a CONSTANT equal to the largest the viewport can ever
+// be, so the element is always at least as tall as whatever's currently
+// visible, toolbar state notwithstanding, no JS measurement or timing
+// race possible at all) -- skipped here so this settle-poll's own
+// (necessarily laggier) value never fights it via a higher-specificity
+// inline style. canvasWrap is skipped alongside it for the identical
+// reason, though harmlessly so: it's display:none (hidden) for the entire
+// time isShortViewport is true anyway.
 const settleOverlayHeight = makeHeightSettleWaiter((h) => {
+  if (isShortViewport) {
+    // Actively CLEARS, not just skips setting -- a stale inline height left
+    // over from a PRIOR !isShortViewport session (e.g. rotating INTO
+    // landscape mid-session) would otherwise still be sitting on the
+    // element, and inline styles always win over CSS regardless of
+    // specificity -- silently blocking the lvh-based CSS rule below from
+    // ever applying.
+    if (canvasWrap) canvasWrap.style.height = '';
+    if (darkOverlay) darkOverlay.style.height = '';
+    return;
+  }
   if (canvasWrap) canvasWrap.style.height = h + 'px';
   if (darkOverlay) darkOverlay.style.height = h + 'px';
 });
