@@ -124,7 +124,7 @@
         heading: 'The Reign Is Bottled. Claim Yours.',
         body: 'A scent built for men who rule rooms without entering them.',
         badge: 'Limited-Time Offer : −21% Off',
-        button: 'Acquire MONARK | 100ml',
+        button: 'Buy now',
         note: 'Ships in a matte black box, wrapped in protective plastic.'
       },
       footer: {
@@ -729,7 +729,7 @@
         heading: 'Le Règne Est Mis en Flacon. Réclamez le Vôtre.',
         body: "Un parfum conçu pour les hommes qui règnent sur une pièce sans jamais y entrer.",
         badge: 'Offre Limitée : −21%',
-        button: 'Acquérir MONARK | 100ml',
+        button: 'Buy now',
         note: 'Expédié dans une boîte noire mate, enveloppée d\'un film plastique protecteur.'
       },
       footer: {

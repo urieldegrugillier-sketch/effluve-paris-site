@@ -2094,6 +2094,26 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 }
 .cta-button:active { background: var(--accent-bronze-light); color: var(--bg-void); }
 
+/* Gold/filled variant (index.html's "Buy now" CTA, section 006) -- same
+   shape/sizing as the base outline .cta-button above (shares the class,
+   just adds this one), but filled with --accent-bronze-light from the
+   start instead of on hover, dark text throughout for contrast on the
+   light gold fill. Hover/active deepen to the darker --accent-bronze
+   (the reverse direction of the base button's transparent->bronze-light
+   hover) so there's still a visible state change on a button that's
+   already filled, rather than hovering to the exact same fill it already
+   has. Same touch-vs-mouse :hover split as the base button just above
+   (see its own comment) for the same "stuck hover on tap" reason. */
+.cta-button-gold {
+  background: var(--accent-bronze-light);
+  border-color: var(--accent-bronze-light);
+  color: var(--bg-void);
+}
+@media (hover: hover) and (pointer: fine) {
+  .cta-button-gold:hover { background: var(--accent-bronze); border-color: var(--accent-bronze); color: var(--bg-void); }
+}
+.cta-button-gold:active { background: var(--accent-bronze); border-color: var(--accent-bronze); color: var(--bg-void); }
+
 /* Same bronze/mono/uppercase treatment as product.html's .shop-price-note
    (css/shop.css) -- the site's existing convention for calling out a
    discount, kept plain-text rather than a bordered/filled badge to match. */
