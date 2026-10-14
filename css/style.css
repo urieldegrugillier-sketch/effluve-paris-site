@@ -2322,27 +2322,83 @@ body.shop-page .site-header { mix-blend-mode: normal; }
     left: auto;
     opacity: 1;
     pointer-events: auto;
+    /* BUG FIX ROUND 2 (product photo still cropped/never fully visible,
+       footer still occasionally clipping the CTA -- confirmed via real-
+       device data: the background <img> correctly measured the true
+       visible viewport at 804x356, while document.documentElement.clientHeight
+       logged 283 DURING scrolling -- a ~73px gap from Safari's toolbar
+       animating mid-gesture. Pinning .section-cta's own height to that
+       same unreliable metric (the previous round's fix, right below in
+       js/app.js) was always going to inherit whatever that metric's own
+       instability was, no matter how well-settled the read -- the shared
+       (max-width:768px),(max-height:500px) rule's height:100vh +
+       overflow-y:auto had the identical problem one layer up, confirmed
+       separately: scrolling over the CTA scrolled its OWN internal
+       overflow to the end before the page continued, because its content
+       didn't reliably fit whatever height either metric produced. Same
+       philosophy as the pin-bypass/canvas-to-image fixes elsewhere in this
+       file: stop measuring the viewport at all for this -- let the CTA
+       simply size itself to its own content (photo + title + subtext +
+       button + note), then the footer follows in normal flow right after
+       it, however tall that turns out to be. overflow:visible removes the
+       internal-scroll trap entirely; min-height:0 is defensive (no
+       inherited min-height stopping it from being exactly content-sized).
+       js/app.js's syncCtaShortViewportState() no longer sets an inline
+       height here at all for isShortViewport (see settleCtaHeight's own
+       removal there) -- this is now the ONLY thing governing CTA height
+       in this mode. */
+    height: auto;
+    min-height: 0;
+    overflow: visible;
   }
 
-  /* BUG FIX (CTA product photo appearing more/less cropped across
-     otherwise-identical page loads -- confirmed via real-device
-     screenshots): the shared (max-width:768px),(max-height:500px) rule's
-     own .cta-image-col max-height:38vh is a raw viewport unit, the same
-     iOS Safari "large vs small viewport" ambiguity js/app.js's
-     syncCtaShortViewportState() now fixes for .section-cta's own height
-     (see its comment) -- but that JS fix only overrides .section-cta
-     itself, not this max-height, which independently varies with the same
-     ambiguity regardless of how reliable its parent now is. Scoped to
-     .cta-static-flow (only present once isShortViewport is confirmed)
-     instead of touching the shared rule directly, so portrait mobile's
-     identical 38vh (untouched by the JS fix, never reported as broken)
-     keeps its exact original value -- this only ever wins here, in the
-     landscape-only media query, for the landscape-only class. 38% instead
-     of a new vh reference: .section-cta's own height is JS-reliable now,
-     so a percentage of it is exactly the same "same ambiguity, twice"
-     problem, not a new one. */
+  /* BUG FIX ROUND 2 (see .section-cta.cta-static-flow's own comment above
+     for the full story): the shared rule's .cta-image-col max-height:38vh,
+     and this file's own earlier max-height:38% override, both assumed
+     .section-cta had some determinate (if unreliable) height to be a
+     fraction OF -- percentages/vh units measuring a moving target. Now
+     that .section-cta is height:auto, a PERCENTAGE max-height here
+     wouldn't even resolve the way a reader might expect (CSS spec:
+     percentage height against an auto-height containing block computes to
+     none/ignored, not "100% of auto"), so the previous 38% value would
+     have silently stopped capping anything, letting the 1024x1024 product
+     photo grow to its full intrinsic size. clamp() caps the IMAGE
+     COLUMN'S OWN size directly instead, independent of the parent's
+     height entirely: a sensible photo size on a very cramped landscape
+     phone, scaling up to a comfortable size on a larger one, without ever
+     depending on a viewport-height read at all.
+
+     VERIFIED VIA DIRECT MEASUREMENT this needs to cap .cta-product-image
+     directly, NOT .cta-image-col -- an earlier version of this rule capped
+     the column instead, assuming .cta-product-image's own max-height:100%
+     (css above) would then resolve against it. It doesn't: a box whose
+     height comes only from max-height (not an explicit height) isn't
+     reliably treated as "definite" for a child's percentage-height
+     resolution, so the image's max-height:100% computed against nothing
+     and was ignored -- getBoundingClientRect() showed the column correctly
+     clamped while the image inside it still rendered at its full 521x521
+     intrinsic size, overflowing the column by ~190px. Capping the column
+     ALSO (tried next) traded that for a different overflow: align-items:center
+     centers the (now separately, correctly clamped) image within the
+     column's PADDED content box, but the column's own clamp didn't account
+     for its own padding (7vh top -- mobile override below), squeezing the
+     content box smaller than the image's clamped size and overflowing by
+     that difference instead. Capping ONLY the image and leaving the column
+     itself auto/content-sized (just wrapping image + its own padding,
+     nothing forcing it smaller) removes both failure modes at once -- the
+     column can never be smaller than what it actually contains. The
+     shared rule's own .cta-image-col max-height:38vh (just above) is
+     ALSO cancelled here (back to none) for the identical reason -- simply
+     removing an earlier override of it left that original rule itself
+     still active, squeezing the column smaller than the now-separately-
+     clamped image by roughly the column's own top padding, reproducing
+     the same overflow one layer up (confirmed via direct measurement,
+     same as the above). */
   .cta-static-flow .cta-image-col {
-    max-height: 38%;
+    max-height: none;
+  }
+  .cta-static-flow .cta-product-image {
+    max-height: clamp(140px, 45vh, 380px);
   }
 }
 

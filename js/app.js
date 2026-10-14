@@ -1489,23 +1489,32 @@ function updateCtaPin() {
 // genuinely stopped changing -- not whichever raw value happened to be
 // current when some unrelated signal (fonts, a settle-poll, an
 // orientationchange timer) fired.
-const settleCtaHeight = makeHeightSettleWaiter((h) => {
-  if (!ctaSection) return;
-  ctaSection.style.height = isShortViewport ? h + 'px' : '';
-  // TEMP DEBUG -- see the error/reached-marker catcher at the very top of
-  // this file. Only marked when actually setting the real (isShortViewport)
-  // value, not when clearing it back to '' for desktop/portrait.
-  if (isShortViewport && window.__landscapeDebugMark) window.__landscapeDebugMark('cta-height-fix');
-});
-
+// BUG FIX ROUND 3 (product photo still cropped/never fully visible, footer
+// still occasionally clipping the CTA, even with the settle-verified
+// clientHeight read from the previous round -- real-device data: the
+// background <img> correctly measured the true visible viewport at
+// 804x356, while document.documentElement.clientHeight logged 283 DURING
+// scrolling, a ~73px gap from Safari's toolbar still animating mid-
+// gesture; separately, scrolling over the CTA scrolled its own internal
+// overflow-y:auto to the end before the page continued, confirming its
+// content didn't reliably fit whatever height either metric produced).
+// Settle-verifying the READ wasn't enough -- clientHeight is fundamentally
+// not a reliable description of "how tall should the CTA be" the way it is
+// for a position:fixed, full-bleed element like the canvas/dark-overlay;
+// the CTA's actual content (photo + title + subtext + button + note) is
+// the only thing that should determine its height. Pinning it to a
+// measured viewport height (this whole settleCtaHeight mechanism) is
+// removed entirely for short viewports -- see .section-cta.cta-static-flow's
+// own height:auto/overflow:visible in css/style.css, which now fully
+// governs CTA sizing in this mode; .cta-image-col's own clamp()-based max-
+// height (same CSS rule block) caps the photo without depending on this
+// measurement either. Desktop/portrait's pin mechanism never needed an
+// inline height in the first place (always cleared to '' here), so this
+// now just does that unconditional clearing -- no settle-poll needed since
+// there's nothing left to measure.
 function syncCtaShortViewportState() {
   if (!ctaSection || !ctaSpacer) return;
-  // See settleCtaHeight's own comment above -- deliberately OUTSIDE the
-  // alreadyStatic idempotence check below -- unlike the class/DOM-move
-  // logic (a real one-time transition), this needs to re-assert on EVERY
-  // call, since an earlier commit can still be the transient one a later,
-  // properly-settled call corrects.
-  settleCtaHeight();
+  if (ctaSection.style.height) ctaSection.style.height = '';
   const alreadyStatic = ctaSection.classList.contains('cta-static-flow');
   if (isShortViewport && !alreadyStatic) {
     ctaSection.classList.add('cta-static-flow');
