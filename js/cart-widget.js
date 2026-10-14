@@ -387,9 +387,48 @@
     return `<p class="cart-preview-stock-message" aria-live="polite">${t('cartWidget.quantityClamped', { max: stockClampNotice.max }) || `Only ${stockClampNotice.max} in stock — quantity adjusted.`}</p>`;
   }
 
+  // If a qty/remove/add-another button inside previewBody is focused when a
+  // cart mutation re-renders it, replacing previewBody.innerHTML removes that
+  // still-focused node from the DOM -- which makes the browser synchronously
+  // fire a native focusout on .preview (focus falls back to <body>), which
+  // the focusout listener above reads as "focus left the preview" and
+  // schedules it closed via scheduleClose(), same as a genuine tab-away.
+  // That's the exact regression this was reported as: clicking any button
+  // inside the (already-open) preview closed it ~150ms later even though
+  // the click itself never bubbled past previewBody (see those buttons' own
+  // e.stopPropagation() above) -- the close was coming from focus loss, not
+  // from the outside-click listener. restoreFocusAfterRender() below
+  // refocuses the equivalent control once the new markup is in, which fires
+  // its own focusin -> openPreview() -> clearTimeout(closeTimer), cancelling
+  // that bogus scheduled close the same way any other focusin would.
+  function focusDescriptor(el) {
+    if (!el) return null;
+    if (el.dataset && el.dataset.action) return `[data-action="${el.dataset.action}"]`;
+    if (el.classList && el.classList.contains('cart-qty-input')) return '.cart-qty-input';
+    return null;
+  }
+
+  function restoreFocusAfterRender(hadFocusInPreviewBody, focusedSelector) {
+    if (!hadFocusInPreviewBody) return;
+    const bySelector = focusedSelector ? previewBody.querySelector(focusedSelector) : null;
+    if (bySelector && !bySelector.disabled) { bySelector.focus(); return; }
+    // Same control is gone or got disabled by this render (e.g. "+" hitting
+    // the stock ceiling, or the trash button clearing the cart entirely) --
+    // prefer another still-focusable control within previewBody itself
+    // (keeps focus on the actual cart content) before falling back to the
+    // close button, which getFocusablePreviewElements() would otherwise
+    // return first since it comes before previewBody in the preview's DOM.
+    const withinBody = Array.from(previewBody.querySelectorAll('button, a[href], input'))
+      .find((el) => el.offsetParent !== null && !el.disabled);
+    const next = withinBody || getFocusablePreviewElements()[0] || null;
+    if (next) next.focus();
+  }
+
   function render() {
     const items = cart.getCart();
     const count = cart.getCartCount();
+    const hadFocusInPreviewBody = previewBody.contains(document.activeElement);
+    const focusedSelector = hadFocusInPreviewBody ? focusDescriptor(document.activeElement) : null;
 
     badge.textContent = String(count);
     badge.hidden = count === 0;
@@ -399,6 +438,7 @@
 
     if (!items.length) {
       previewBody.innerHTML = `<p class="cart-preview-empty">${t('cartWidget.empty') || 'Your cart is empty.'}</p>${stockClampMessageHtml()}`;
+      restoreFocusAfterRender(hadFocusInPreviewBody, focusedSelector);
       return;
     }
 
@@ -463,6 +503,8 @@
       e.stopPropagation();
       cart.removeFromCart();
     });
+
+    restoreFocusAfterRender(hadFocusInPreviewBody, focusedSelector);
   }
 
   document.addEventListener('cart:updated', render);
