@@ -238,7 +238,7 @@
         // renderStock()) -- deliberately doesn't show the {total} ceiling
         // (odd to tell a customer "out of 500"), just the remaining count.
         stockLabel: 'Only {count} left in stock',
-        addToCart: 'Add to Cart — 100ML',
+        addToCart: 'Add to Cart | 100ML',
         // Sticky mobile buy bar only (product.html) -- shorter than the main
         // page's own addToCart above since the bar is a compact, persistent
         // strip, not the hero's spacious CTA row. Separate key so this
@@ -823,7 +823,7 @@
         kicker: 'Eau de Parfum | 100ml',
         scentNotes: 'Bergamote · Encens · Ambre',
         stockLabel: 'Plus que {count} en stock',
-        addToCart: 'Ajouter au Panier — 100ML',
+        addToCart: 'Ajouter au Panier | 100ML',
         stickyAddToCart: 'Ajouter au Panier',
         paymentRequestFallback: 'Payer avec Apple Pay, Google Pay ou Link',
         returnPolicy: {
