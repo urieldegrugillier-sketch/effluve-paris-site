@@ -1,20 +1,20 @@
 /* MONARK — header "Acquire" CTA, page-aware. Every page carries the exact
    same .nav-cta-acquire markup (Acquire -> product.html, same as
-   index.html's own) rather than product.html getting its own differently-
-   worded copy hand-maintained in parallel -- product.html is the one page
-   where that link would point at itself, so it's swapped here to
-   Home -> index.html instead. Same "detect the current page via
-   location.pathname, don't duplicate per-page markup" approach as
-   js/footer-active-page.js's own "you are here" indicator, just applied to
-   the header CTA instead of the footer links.
+   index.html's own) rather than product.html getting a hand-maintained
+   exception written directly into that one page's own markup -- product.html
+   is the one page where the button doesn't belong at all (it IS the
+   Acquire destination; there's nowhere useful left for it to point). Same
+   "detect the current page via location.pathname, don't duplicate per-page
+   markup" approach as js/footer-active-page.js's own "you are here"
+   indicator, just applied to the header CTA instead of the footer links.
    Include via <script src="js/nav-cta-page-aware.js"></script> AFTER
    js/i18n.js (every page's own script tag order already loads i18n.js
-   early) -- i18n.js's own apply() already ran once by the time this
-   executes, translating the button's original data-i18n="nav.acquire" into
-   its displayed text; updating the attribute to nav.home here keeps any
-   LATER language switch (js/i18n.js's setLang() re-applies every
-   [data-i18n] element) correctly re-translating this button too, not just
-   the one-time text set directly below. */
+   early) -- not that this specific version depends on load order itself
+   (no i18n re-translation involved once the element is just removed), kept
+   consistent with where the script previously needed to sit, for an
+   earlier version of this file that swapped the button to a
+   Home -> index.html link instead of removing it outright -- reverted in
+   favor of removing it entirely once asked for that instead. */
 (function () {
   const btn = document.querySelector('.nav-cta-acquire');
   if (!btn) return;
@@ -24,7 +24,5 @@
   const currentPage = location.pathname.split('/').pop();
   if (currentPage !== 'product.html') return;
 
-  btn.setAttribute('href', 'index.html');
-  btn.setAttribute('data-i18n', 'nav.home');
-  if (window.MonarkI18n) btn.textContent = window.MonarkI18n.t('nav.home');
+  btn.remove();
 })();

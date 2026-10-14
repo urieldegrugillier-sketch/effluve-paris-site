@@ -26,12 +26,7 @@
       },
       nav: {
         experience: 'The Experience',
-        acquire: 'Acquire',
-        // Header CTA's product.html-only swap (js/nav-cta-page-aware.js) --
-        // Acquire->product.html everywhere else, Home->index.html here
-        // instead, since an Acquire button pointing at the page it's
-        // already on would be a dead link to itself.
-        home: 'Home'
+        acquire: 'Acquire'
       },
       hero: {
         label: 'Eau de Parfum',
@@ -655,8 +650,7 @@
       },
       nav: {
         experience: "L'Expérience",
-        acquire: 'Acquérir',
-        home: 'Accueil'
+        acquire: 'Acquérir'
       },
       hero: {
         label: 'Eau de Parfum',

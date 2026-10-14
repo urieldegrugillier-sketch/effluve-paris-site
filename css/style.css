@@ -2094,25 +2094,26 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 }
 .cta-button:active { background: var(--accent-bronze-light); color: var(--bg-void); }
 
-/* Gold/filled variant (index.html's "Buy now" CTA, section 006) -- same
-   shape/sizing as the base outline .cta-button above (shares the class,
-   just adds this one), but filled with --accent-bronze-light from the
-   start instead of on hover, dark text throughout for contrast on the
-   light gold fill. Hover/active deepen to the darker --accent-bronze
-   (the reverse direction of the base button's transparent->bronze-light
-   hover) so there's still a visible state change on a button that's
-   already filled, rather than hovering to the exact same fill it already
-   has. Same touch-vs-mouse :hover split as the base button just above
-   (see its own comment) for the same "stuck hover on tap" reason. */
+/* BUG FIX: Gold/filled variant (index.html's "Buy now" CTA, section 006)
+   originally had its default/hover colors backwards relative to every
+   other filled-gold button on the site (.checkout-submit, css/checkout.css;
+   .notfound-acquire-btn/.email-popup-submit, both just below in this file)
+   -- light gold by default, darkening to the "normal" gold on hover, the
+   opposite of their shared convention: default fill is the darker
+   --accent-bronze with plain black text, and hover/active DON'T need a
+   dedicated rule of their own at all -- they're plain .cta-button elements
+   (same class, this just adds a second one), so the base .cta-button:hover/
+   :active rules just above (already --accent-bronze-light bg + --bg-void
+   text, already correctly split for touch-vs-mouse via the same (hover:
+   hover) and (pointer:fine) query) win on hover/active purely on
+   specificity (two selector parts vs this rule's one) -- exactly how
+   .checkout-submit already gets its own hover state for free, reused here
+   rather than re-declared. */
 .cta-button-gold {
-  background: var(--accent-bronze-light);
-  border-color: var(--accent-bronze-light);
-  color: var(--bg-void);
+  background: var(--accent-bronze);
+  border-color: var(--accent-bronze);
+  color: #000;
 }
-@media (hover: hover) and (pointer: fine) {
-  .cta-button-gold:hover { background: var(--accent-bronze); border-color: var(--accent-bronze); color: var(--bg-void); }
-}
-.cta-button-gold:active { background: var(--accent-bronze); border-color: var(--accent-bronze); color: var(--bg-void); }
 
 /* Same bronze/mono/uppercase treatment as product.html's .shop-price-note
    (css/shop.css) -- the site's existing convention for calling out a
