@@ -685,6 +685,22 @@ body.shop-page .site-header { mix-blend-mode: normal; }
 }
 .nav-links a.nav-cta-acquire::after { display: none; }
 
+/* BUG FIX (header "Acquérir" button still visible on the product page in
+   production, despite js/nav-cta-page-aware.js removing it): that script
+   runs after this element has already painted, and was ALSO detecting
+   "am I on product.html" purely from location.pathname -- which on
+   Cloudflare (serving clean URLs, redirecting any .html-suffixed request
+   to its extension-less equivalent) is "/product" in production, never
+   literally "product.html" the way every internal link's own href in this
+   codebase's markup reads, even though local dev (a plain static file
+   server with no such rewriting) never surfaced the mismatch. Hidden here
+   via CSS -- keyed off data-page="product" on product.html's own <body>
+   (see js/nav-cta-page-aware.js's own comment for why that attribute, not
+   the URL, is this fix's primary signal too) -- so the button never paints
+   at all even for the brief window before that script's own
+   removal runs, regardless of the URL rewriting question entirely. */
+body[data-page="product"] .nav-cta-acquire { display: none; }
+
 /* ---- hamburger menu (js/nav-menu.js) ----
    Left side of the header, opposite the cart icon -- replaced the old
    "Acquire" CTA link, which only index.html ever had. Opens a wide left-side
