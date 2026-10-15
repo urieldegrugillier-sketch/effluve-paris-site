@@ -530,17 +530,24 @@
     // to interact with except answering it. Reuses .cart-preview-empty
     // (same muted centered body copy as the empty-cart message) and
     // .cart-preview-actions/.cart-preview-buy/.cart-preview-add-another
-    // (same flex row, same gold-filled/outlined treatment the Buy Now/Add
-    // Another pair already uses right below this in the normal item view)
-    // rather than introducing a second set of button styles for what's
-    // visually the same pairing -- a primary gold action beside a plain
-    // outlined one.
+    // (same flex row this file's other two-button pairs already use), but
+    // with Cancel -- not Remove -- taking the gold-filled/prominent
+    // treatment: this is a destructive confirmation, so the safe default
+    // (not the one that removes the item) is the one that should read as
+    // the obvious action and catch an accidental Enter/Space. Cancel is
+    // also first in the DOM for that same reason -- restoreFocusAfterRender()
+    // below falls back to the first focusable control in previewBody
+    // whenever the control that originally had focus (decrement/trash/the
+    // qty input) no longer exists in this new markup, which on first
+    // showing this prompt is always the case, so putting Cancel first here
+    // is what actually lands initial focus on it, no separate focus() call
+    // needed.
     if (pendingRemoveConfirm) {
       previewBody.innerHTML = `
         <p class="cart-preview-empty" aria-live="polite">${t('cartWidget.confirmRemoveText') || 'Remove MONARK from your cart?'}</p>
         <div class="cart-preview-actions">
-          <button type="button" class="cart-preview-buy" data-action="confirm-remove">${t('cartWidget.confirmRemoveBtn') || 'Remove'}</button>
-          <button type="button" class="cart-preview-add-another" data-action="confirm-cancel">${t('cartWidget.confirmCancelBtn') || 'Cancel'}</button>
+          <button type="button" class="cart-preview-buy" data-action="confirm-cancel">${t('cartWidget.confirmCancelBtn') || 'Cancel'}</button>
+          <button type="button" class="cart-preview-add-another" data-action="confirm-remove">${t('cartWidget.confirmRemoveBtn') || 'Remove'}</button>
         </div>
       `;
       // Same stopPropagation reasoning as every other button in this file
