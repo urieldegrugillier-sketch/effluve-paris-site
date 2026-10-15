@@ -136,12 +136,14 @@
   // do. Reset alongside the CSS class everywhere that class comes off, so a
   // closed-then-reopened preview always needs a fresh first tap again.
   let mobileTapOpened = false;
+  // Funnels into closePreview() (below) rather than duplicating its body --
+  // only the debounce differs, and that now matters even more than it used
+  // to: closePreview() is also where a still-open remove-confirmation prompt
+  // (see requestRemoveConfirm(), defined further below) gets cleared, and
+  // every close path needs that same cleanup, not just the immediate ones.
   function scheduleClose() {
     clearTimeout(closeTimer);
-    closeTimer = setTimeout(() => {
-      preview.classList.remove('cart-preview-open');
-      mobileTapOpened = false;
-    }, 150);
+    closeTimer = setTimeout(closePreview, 150);
   }
   // Immediate, not debounced like scheduleClose() -- used by explicit user
   // dismissal (the × button, tap-to-toggle, outside tap/scroll), where a
@@ -151,6 +153,15 @@
     clearTimeout(closeTimer);
     preview.classList.remove('cart-preview-open');
     mobileTapOpened = false;
+    // A pending "remove MONARK from your cart?" prompt (see
+    // requestRemoveConfirm()) never got an explicit answer -- the panel
+    // closing itself (× button, outside tap/click, scroll, or hover-leave
+    // via scheduleClose() just above) reads as implicit cancellation, same
+    // as Escape's own explicit one. Without this, previewBody would still
+    // be showing that prompt's markup the next time the panel opens (open
+    // paths don't re-render on their own), even though the cart itself was
+    // never actually touched.
+    if (pendingRemoveConfirm) { pendingRemoveConfirm = false; render(); }
   }
 
   /* ---------------- Modal focus trap ----------------
@@ -261,7 +272,14 @@
 
   document.addEventListener('keydown', (e) => {
     if (!isPreviewEngaged()) return;
-    if (e.key === 'Escape') { closePreviewAndReturnFocus(); return; }
+    if (e.key === 'Escape') {
+      // Cancels the prompt first, same as a real dialog's own Escape
+      // behavior -- a second, separate Escape (now that pendingRemoveConfirm
+      // is false again) falls through to the normal close.
+      if (pendingRemoveConfirm) { cancelRemoveConfirm(); return; }
+      closePreviewAndReturnFocus();
+      return;
+    }
     trapTab(e);
   });
   window.addEventListener('resize', () => {
@@ -382,6 +400,33 @@
   let stockClampNotice = null;
   let stockClampTimer = null;
 
+  // Set by requestRemoveConfirm() (decrement at qty 1, the trash button, or
+  // typing 0 into the quantity input -- see their own click/change handlers
+  // further below), read by render()'s items branch to swap the normal
+  // item row out for an inline Remove/Cancel prompt instead of mutating the
+  // cart immediately. Deliberately NOT window.confirm(): that's a native
+  // modal, which both steals focus in a way this panel's own focusin/
+  // focusout-driven open/close tracking (see restoreFocusAfterRender()'s own
+  // comment) can't account for, and -- worse -- blocks JS execution for its
+  // own duration, so the focus it steals reads to this panel as "focus left
+  // the preview" the instant it opens, scheduling the very close this
+  // confirmation exists to prevent before the user ever gets to answer it.
+  let pendingRemoveConfirm = false;
+
+  function requestRemoveConfirm() {
+    pendingRemoveConfirm = true;
+    render();
+  }
+
+  // Cancel path only -- the confirm path clears the flag itself right next
+  // to the removeFromCart() call it guards (see [data-action="confirm-remove"]
+  // below), rather than funneling both through one shared function for a
+  // one-line body.
+  function cancelRemoveConfirm() {
+    pendingRemoveConfirm = false;
+    render();
+  }
+
   function stockClampMessageHtml() {
     if (!stockClampNotice) return '';
     return `<p class="cart-preview-stock-message" aria-live="polite">${t('cartWidget.quantityClamped', { max: stockClampNotice.max }) || `Only ${stockClampNotice.max} in stock — quantity adjusted.`}</p>`;
@@ -477,6 +522,48 @@
     }
 
     const item = items[0]; // single product for now
+
+    // Confirming would take the cart to 0 -- see requestRemoveConfirm()'s
+    // own comment on why this is inline markup rather than window.confirm().
+    // Swaps the entire item row out for the prompt rather than showing it
+    // alongside the still-live qty/trash controls, so there's nothing left
+    // to interact with except answering it. Reuses .cart-preview-empty
+    // (same muted centered body copy as the empty-cart message) and
+    // .cart-preview-actions/.cart-preview-buy/.cart-preview-add-another
+    // (same flex row, same gold-filled/outlined treatment the Buy Now/Add
+    // Another pair already uses right below this in the normal item view)
+    // rather than introducing a second set of button styles for what's
+    // visually the same pairing -- a primary gold action beside a plain
+    // outlined one.
+    if (pendingRemoveConfirm) {
+      previewBody.innerHTML = `
+        <p class="cart-preview-empty" aria-live="polite">${t('cartWidget.confirmRemoveText') || 'Remove MONARK from your cart?'}</p>
+        <div class="cart-preview-actions">
+          <button type="button" class="cart-preview-buy" data-action="confirm-remove">${t('cartWidget.confirmRemoveBtn') || 'Remove'}</button>
+          <button type="button" class="cart-preview-add-another" data-action="confirm-cancel">${t('cartWidget.confirmCancelBtn') || 'Cancel'}</button>
+        </div>
+      `;
+      // Same stopPropagation reasoning as every other button in this file
+      // that replaces previewBody.innerHTML from inside its own click
+      // handler (see the comment on the decrement/increment/etc. listeners
+      // below) -- confirm-remove mutates the cart synchronously via
+      // removeFromCart(), confirm-cancel calls render() directly; either
+      // way this exact button is gone from the DOM before its own click
+      // finishes bubbling, which the outside-click listener would otherwise
+      // misread as "landed outside the preview".
+      previewBody.querySelector('[data-action="confirm-remove"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        pendingRemoveConfirm = false;
+        cart.removeFromCart();
+      });
+      previewBody.querySelector('[data-action="confirm-cancel"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        cancelRemoveConfirm();
+      });
+      restoreFocusAfterRender(hadFocusInPreviewBody, focusedSelector);
+      return;
+    }
+
     const subtotal = item.quantity * cart.PRODUCT.price;
     // Infinity (stock not loaded yet, see js/cart.js's getStockCeiling())
     // renders as no max attribute at all -- an empty string is how you omit
@@ -518,8 +605,14 @@
        closes the preview it was never meant to close. These buttons have no
        other reason to bubble, so stopping it here is a clean cut rather than
        a workaround in the document listener. */
+    // Decrementing from 1 (or typing 0 below) would take this single-item
+    // cart's total to 0 -- same "would this zero the cart" condition the
+    // task scoped the confirmation to, so only this exact edge routes
+    // through requestRemoveConfirm() instead of updateQuantity(); 3 -> 2
+    // and every other decrement stays immediate.
     previewBody.querySelector('[data-action="decrement"]').addEventListener('click', (e) => {
       e.stopPropagation();
+      if (item.quantity - 1 <= 0) { requestRemoveConfirm(); return; }
       cart.updateQuantity(item.quantity - 1);
     });
     previewBody.querySelector('[data-action="increment"]').addEventListener('click', (e) => {
@@ -527,15 +620,27 @@
       cart.updateQuantity(item.quantity + 1);
     });
     previewBody.querySelector('.cart-qty-input').addEventListener('change', (e) => {
-      cart.updateQuantity(parseInt(e.target.value, 10) || 1);
+      // parseInt('0', 10) is 0, which is falsy -- the pre-existing `|| 1`
+      // fallback below (kept for an empty/invalid value, e.g. clearing the
+      // field entirely) would otherwise silently coerce a deliberately
+      // typed "0" back up to 1 before this ever reaches the same
+      // would-zero-the-cart check the other two triggers use. Checked
+      // separately, against the raw parse, so that fallback still only
+      // ever fires for NaN.
+      const parsed = parseInt(e.target.value, 10);
+      if (parsed === 0) { requestRemoveConfirm(); return; }
+      cart.updateQuantity(parsed || 1);
     });
     previewBody.querySelector('[data-action="add-another"]').addEventListener('click', (e) => {
       e.stopPropagation();
       cart.updateQuantity(item.quantity + 1);
     });
+    // Removing the item line always zeroes this single-item cart's total,
+    // regardless of its current quantity -- unlike decrement/the qty input,
+    // there's no "stays immediate" case for this button to preserve.
     previewBody.querySelector('[data-action="clear-cart"]').addEventListener('click', (e) => {
       e.stopPropagation();
-      cart.removeFromCart();
+      requestRemoveConfirm();
     });
 
     restoreFocusAfterRender(hadFocusInPreviewBody, focusedSelector);

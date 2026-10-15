@@ -209,7 +209,10 @@
         // same convention as index.html's own homepage CTA (s6.button,
         // js/cta-buy-now.js), which this empty-cart button mirrors exactly
         // (same sessionStorage flag, same label, untranslated there too).
-        emptyCartBuyNow: 'Buy now'
+        emptyCartBuyNow: 'Buy now',
+        confirmRemoveText: 'Remove MONARK from your cart?',
+        confirmRemoveBtn: 'Remove',
+        confirmCancelBtn: 'Cancel'
       },
       common: {
         backToShop: '← Back to Shop',
@@ -804,7 +807,10 @@
         addAnother: 'Ajouter un Autre',
         buyNow: 'Acheter',
         quantityClamped: "Seulement {max} en stock — quantité ajustée.",
-        emptyCartBuyNow: 'Buy now'
+        emptyCartBuyNow: 'Buy now',
+        confirmRemoveText: 'Retirer MONARK du panier ?',
+        confirmRemoveBtn: 'Retirer',
+        confirmCancelBtn: 'Annuler'
       },
       common: {
         backToShop: '← Retour à la Boutique',
