@@ -205,8 +205,11 @@
         addAnother: 'Add Another',
         buyNow: 'Buy Now',
         quantityClamped: 'Only {max} in stock — quantity adjusted.',
-        discoverMonark: 'Discover MONARK',
-        addMonarkToCart: 'Add MONARK to cart'
+        // Deliberately literal "Buy now" in both locales, not translated --
+        // same convention as index.html's own homepage CTA (s6.button,
+        // js/cta-buy-now.js), which this empty-cart button mirrors exactly
+        // (same sessionStorage flag, same label, untranslated there too).
+        emptyCartBuyNow: 'Buy now'
       },
       common: {
         backToShop: '← Back to Shop',
@@ -801,8 +804,7 @@
         addAnother: 'Ajouter un Autre',
         buyNow: 'Acheter',
         quantityClamped: "Seulement {max} en stock — quantité ajustée.",
-        discoverMonark: 'Découvrir MONARK',
-        addMonarkToCart: 'Ajouter MONARK au panier'
+        emptyCartBuyNow: 'Buy now'
       },
       common: {
         backToShop: '← Retour à la Boutique',

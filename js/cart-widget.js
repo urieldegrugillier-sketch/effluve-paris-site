@@ -437,17 +437,17 @@
       : (t('cartWidget.viewCart') || 'View cart'));
 
     if (!items.length) {
-      // product.html IS the discover destination, so the empty-cart CTA
-      // becomes "add the one thing this page sells" instead of a link back
-      // to itself. Detected off body[data-page="product"] (see
-      // js/nav-cta-page-aware.js's own comment on why: Cloudflare's clean
-      // URLs mean location.pathname is never literally "product.html" in
-      // production), never off the URL.
+      // product.html IS the "Buy now" destination, so clicking this adds
+      // directly instead of navigating there. Detected off
+      // body[data-page="product"] (see js/nav-cta-page-aware.js's own
+      // comment on why: Cloudflare's clean URLs mean location.pathname is
+      // never literally "product.html" in production), never off the URL.
       const isProductPage = document.body.dataset.page === 'product';
-      const discoverHtml = isProductPage
-        ? `<button type="button" class="cart-preview-buy cart-preview-discover-btn" data-action="discover-monark">${t('cartWidget.addMonarkToCart') || 'Add MONARK to cart'}</button>`
-        : `<a href="product.html" class="cart-preview-buy cart-preview-discover-btn" data-action="discover-monark">${t('cartWidget.discoverMonark') || 'Discover MONARK'}</a>`;
-      previewBody.innerHTML = `<p class="cart-preview-empty">${t('cartWidget.empty') || 'Your cart is empty.'}</p>${stockClampMessageHtml()}${discoverHtml}`;
+      const label = t('cartWidget.emptyCartBuyNow') || 'Buy now';
+      const buyNowHtml = isProductPage
+        ? `<button type="button" class="cart-preview-buy cart-preview-discover-btn" data-action="buy-now-empty">${label}</button>`
+        : `<a href="product.html" class="cart-preview-buy cart-preview-discover-btn" data-action="buy-now-empty">${label}</a>`;
+      previewBody.innerHTML = `<p class="cart-preview-empty">${t('cartWidget.empty') || 'Your cart is empty.'}</p>${stockClampMessageHtml()}${buyNowHtml}`;
       if (isProductPage) {
         // Same addToCart(1) call (and the stock-ceiling checks already
         // inside it) as product.html's own Add to Cart/sticky-bar buttons
@@ -457,9 +457,19 @@
         // synchronously, re-running render() and replacing this very button
         // out from under its own still-bubbling click before it reaches
         // document's outside-click listener.
-        previewBody.querySelector('[data-action="discover-monark"]').addEventListener('click', (e) => {
+        previewBody.querySelector('[data-action="buy-now-empty"]').addEventListener('click', (e) => {
           e.stopPropagation();
           cart.addToCart(1);
+        });
+      } else {
+        // Same one-shot sessionStorage flag js/cta-buy-now.js's homepage CTA
+        // sets, consumed by the SAME existing code in js/product-page.js
+        // (adds 1 unit, flashes the cart preview open) -- not duplicated
+        // here. Plain anchor, not intercepted: setItem() is synchronous, so
+        // it's already written before the browser's own default navigation
+        // to product.html proceeds.
+        previewBody.querySelector('[data-action="buy-now-empty"]').addEventListener('click', () => {
+          sessionStorage.setItem('autoBuyNow', '1');
         });
       }
       restoreFocusAfterRender(hadFocusInPreviewBody, focusedSelector);
