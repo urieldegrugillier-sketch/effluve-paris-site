@@ -3273,6 +3273,26 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   text-align: center;
 }
 
+/* Empty-cart CTA (js/cart-widget.js) -- same filled-gold treatment as
+   .cart-preview-buy (bg/border/color/shine/hover all reused via that shared
+   class, put on the same element alongside this one), just block-level and
+   centered under the empty message instead of living inside
+   .cart-preview-actions' flex row, since it's the only control shown in this
+   state (that row's own two-button layout doesn't apply). */
+.cart-preview-discover-btn {
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.65rem 0.8rem;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+}
+
 .cart-preview-item { display: flex; align-items: flex-start; gap: 1.1rem; }
 
 .cart-preview-thumb {

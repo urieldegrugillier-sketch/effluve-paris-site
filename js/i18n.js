@@ -204,7 +204,9 @@
         removeItem: 'Remove item from cart',
         addAnother: 'Add Another',
         buyNow: 'Buy Now',
-        quantityClamped: 'Only {max} in stock — quantity adjusted.'
+        quantityClamped: 'Only {max} in stock — quantity adjusted.',
+        discoverMonark: 'Discover MONARK',
+        addMonarkToCart: 'Add MONARK to cart'
       },
       common: {
         backToShop: '← Back to Shop',
@@ -798,7 +800,9 @@
         removeItem: "Retirer l'article du panier",
         addAnother: 'Ajouter un Autre',
         buyNow: 'Acheter',
-        quantityClamped: "Seulement {max} en stock — quantité ajustée."
+        quantityClamped: "Seulement {max} en stock — quantité ajustée.",
+        discoverMonark: 'Découvrir MONARK',
+        addMonarkToCart: 'Ajouter MONARK au panier'
       },
       common: {
         backToShop: '← Retour à la Boutique',

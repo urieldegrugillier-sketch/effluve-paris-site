@@ -437,7 +437,31 @@
       : (t('cartWidget.viewCart') || 'View cart'));
 
     if (!items.length) {
-      previewBody.innerHTML = `<p class="cart-preview-empty">${t('cartWidget.empty') || 'Your cart is empty.'}</p>${stockClampMessageHtml()}`;
+      // product.html IS the discover destination, so the empty-cart CTA
+      // becomes "add the one thing this page sells" instead of a link back
+      // to itself. Detected off body[data-page="product"] (see
+      // js/nav-cta-page-aware.js's own comment on why: Cloudflare's clean
+      // URLs mean location.pathname is never literally "product.html" in
+      // production), never off the URL.
+      const isProductPage = document.body.dataset.page === 'product';
+      const discoverHtml = isProductPage
+        ? `<button type="button" class="cart-preview-buy cart-preview-discover-btn" data-action="discover-monark">${t('cartWidget.addMonarkToCart') || 'Add MONARK to cart'}</button>`
+        : `<a href="product.html" class="cart-preview-buy cart-preview-discover-btn" data-action="discover-monark">${t('cartWidget.discoverMonark') || 'Discover MONARK'}</a>`;
+      previewBody.innerHTML = `<p class="cart-preview-empty">${t('cartWidget.empty') || 'Your cart is empty.'}</p>${stockClampMessageHtml()}${discoverHtml}`;
+      if (isProductPage) {
+        // Same addToCart(1) call (and the stock-ceiling checks already
+        // inside it) as product.html's own Add to Cart/sticky-bar buttons
+        // (js/product-page.js) -- no separate stock logic duplicated here.
+        // stopPropagation for the same reason every other cart-mutating
+        // button in this file has it: writeCart() fires 'cart:updated'
+        // synchronously, re-running render() and replacing this very button
+        // out from under its own still-bubbling click before it reaches
+        // document's outside-click listener.
+        previewBody.querySelector('[data-action="discover-monark"]').addEventListener('click', (e) => {
+          e.stopPropagation();
+          cart.addToCart(1);
+        });
+      }
       restoreFocusAfterRender(hadFocusInPreviewBody, focusedSelector);
       return;
     }
