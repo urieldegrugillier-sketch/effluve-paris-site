@@ -2543,19 +2543,32 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
 
 /* ---- cookies.html (cookie preferences page) ---- */
 
+/* Centered -- unlike the rest of .legal-content (headings/paragraphs stay
+   left-aligned, untouched), the action rows, the confirmation message, and
+   the "Back to homepage" link below them read better as a centered block,
+   same reasoning as .notfound-content's own centered CTA row. */
 .cookie-prefs-actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 1rem;
   margin-top: 1.4rem;
 }
 
 .cookie-prefs-actions .cta-button { margin-top: 0; }
 
+/* Accept/Reject reuse the cookie consent banner's own button classes
+   (.cookie-banner-btn/.cookie-banner-accept/.cookie-banner-reject, this
+   file's own COOKIE CONSENT BANNER section) rather than .cta-button, so
+   "Accepter" here is pixel-identical to the banner's own gold-filled Accept
+   button (same font/size/padding/hover) per explicit request, and stays
+   that way automatically if the banner's own styling ever changes. Delete
+   keeps its own distinct .cta-button-based danger look below. */
+
 /* Same muted-rust tone already used for account.html's own destructive
    action (.account-delete-btn/.account-delete-confirm-btn, css/checkout.css)
    so this reads as distinct from the plain bronze Accept/Reject buttons
-   beside it -- defined here rather than there since this page doesn't load
+   above it -- defined here rather than there since this page doesn't load
    checkout.css. */
 .cookie-prefs-delete-btn { border-color: #b5675c; color: #b5675c; }
 @media (hover: hover) and (pointer: fine) {
@@ -2573,6 +2586,22 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   font-size: 0.68rem;
   letter-spacing: 0.05em;
   color: var(--accent-bronze-light);
+  text-align: center;
+}
+
+.cookie-prefs-back { text-align: center; }
+
+@media (max-width: 480px) {
+  /* Full-width, equal-size, stacked -- a side-by-side Accept/Reject pair
+     (plus Delete right under it) got visually cramped at this width;
+     stacking reads cleaner than shrinking text/padding further, and keeps
+     every button the same width instead of each sized to its own label. */
+  .cookie-prefs-actions { flex-direction: column; align-items: stretch; }
+  .cookie-prefs-actions .cookie-banner-btn,
+  .cookie-prefs-actions .cta-button {
+    width: 100%;
+    text-align: center;
+  }
 }
 
 /* ---- 404 page ---- */
