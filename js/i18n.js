@@ -133,7 +133,10 @@
         contact: 'Contact',
         legalNotice: 'Legal Notice',
         termsOfSale: 'Terms of Sale',
-        privacyPolicy: 'Privacy Policy'
+        shippingPolicy: 'Shipping Policy',
+        refundPolicy: 'Refund Policy',
+        privacyPolicy: 'Privacy Policy',
+        cookiePrefs: 'Cookie Preferences'
       },
       navMenu: {
         openMenu: 'Open menu',
@@ -153,7 +156,7 @@
       },
       cookie: {
         ariaLabel: 'Cookie consent',
-        text: 'We use cookies to improve your experience and analyze site traffic. Read our <a href="confidentialite.html">privacy policy</a> to learn more.',
+        text: 'We use cookies to improve your experience and analyze site traffic. Read our <a href="confidentialite.html">privacy policy</a> to learn more, or manage your <a href="cookies.html">cookie preferences</a>.',
         reject: 'Reject',
         accept: 'Accept'
       },
@@ -650,11 +653,31 @@
         transfersItem4: 'Fonts (Google Fonts): company based in the United States.',
         transfersSafeguards: 'These transfers are governed by the European Commission\'s Standard Contractual Clauses, ensuring an adequate level of protection for your personal data.',
         s7Heading: '8. Cookies',
-        s7Body: 'This site uses cookies to improve your browsing experience, measure site traffic, and, subject to your consent, for personalization purposes. You can accept or reject non-essential cookies via the consent banner shown on your first visit. You can also change your preferences at any time by clearing the browsing data stored by your browser for this site.',
+        s7Body: 'This site uses cookies to improve your browsing experience, measure site traffic, and, subject to your consent, for personalization purposes. You can accept or reject non-essential cookies via the consent banner shown on your first visit. You can also change your preferences at any time by clearing the browsing data stored by your browser for this site. You can also manage or delete them at any time on our <a href="cookies.html">cookie preferences page</a>.',
         s8Heading: '9. Contact',
         s8Body: 'For any questions regarding your personal data or to exercise your rights, you may contact our Data Protection Officer (DPO) at the following address: <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>',
         s9Heading: '10. Delete My Data',
         s9Body: 'You may delete your account and all associated personal data at any time from your <a href="account.html">Account page</a> (Account &rarr; Delete Account), or by emailing us at <a href="mailto:contact@effluve-paris.fr?subject=Data%20deletion">contact@effluve-paris.fr</a> with the subject line "Data deletion". This deletes your account and profile data; past orders are kept, disassociated from your account, for the legal retention period described in Section 4 above, and then deleted or otherwise handled as described there.'
+      },
+      cookiePolicy: {
+        pageTitle: 'Cookie Preferences',
+        intro: 'This page shows your current cookie choice for this site, lets you change it, and lets you permanently delete the cookies and preference we\'ve stored if you\'d rather start over.',
+        whatWeUseHeading: 'What We Use',
+        essentialHeading: 'Strictly Necessary',
+        essentialBody: 'Used to keep your cart and your sign-in session working as you browse. These are set regardless of the choice below and are never affected by it.',
+        analyticsHeading: 'Analytics',
+        analyticsBody: 'Google Analytics 4, used to measure site traffic. Loaded only once you accept below, and never before.',
+        currentChoiceHeading: 'Your Current Choice',
+        statusAccepted: 'You have accepted analytics cookies.',
+        statusRejected: 'You have rejected analytics cookies.',
+        statusUnset: 'You haven\'t made a choice yet — the banner will ask again the next time you load a page.',
+        actionsHeading: 'Change Your Choice',
+        deleteHeading: 'Start Over',
+        deleteBody: 'Removes the analytics cookies and the stored choice above, so the consent banner asks again on your next page. This never touches your cart or your sign-in session — see "Strictly Necessary" above.',
+        deleteBtn: 'Delete My Cookies & Preferences',
+        confirmSaved: 'Your preferences have been saved.',
+        confirmDeleted: 'Your cookies and preferences have been deleted.',
+        backHome: '← Back to homepage'
       }
     },
     fr: {
@@ -753,7 +776,10 @@
         contact: 'Contact',
         legalNotice: 'Mentions Légales',
         termsOfSale: 'Conditions de Vente',
-        privacyPolicy: 'Politique de Confidentialité'
+        shippingPolicy: "Politique d'Expédition",
+        refundPolicy: 'Politique de Remboursement',
+        privacyPolicy: 'Politique de Confidentialité',
+        cookiePrefs: 'Gérer mes Cookies'
       },
       navMenu: {
         openMenu: 'Ouvrir le menu',
@@ -773,7 +799,7 @@
       },
       cookie: {
         ariaLabel: 'Consentement aux cookies',
-        text: 'Nous utilisons des cookies pour améliorer votre expérience et analyser le trafic du site. Consultez notre <a href="confidentialite.html">politique de confidentialité</a> pour en savoir plus.',
+        text: 'Nous utilisons des cookies pour améliorer votre expérience et analyser le trafic du site. Consultez notre <a href="confidentialite.html">politique de confidentialité</a> pour en savoir plus, ou gérez vos <a href="cookies.html">préférences de cookies</a>.',
         reject: 'Refuser',
         accept: 'Accepter'
       },
@@ -1207,11 +1233,31 @@
         transfersItem4: 'Polices de caractères (Google Fonts) : société basée aux États-Unis.',
         transfersSafeguards: 'Ces transferts sont encadrés par les Clauses Contractuelles Types de la Commission européenne, garantissant un niveau de protection adéquat pour vos données personnelles.',
         s7Heading: '8. Cookies',
-        s7Body: 'Ce site utilise des cookies pour améliorer votre expérience de navigation, mesurer l\'audience du site et, sous réserve de votre consentement, à des fins de personnalisation. Vous pouvez accepter ou refuser les cookies non essentiels via la bannière de consentement affichée lors de votre première visite. Vous pouvez également modifier vos préférences à tout moment en supprimant les données de navigation stockées par votre navigateur pour ce site.',
+        s7Body: 'Ce site utilise des cookies pour améliorer votre expérience de navigation, mesurer l\'audience du site et, sous réserve de votre consentement, à des fins de personnalisation. Vous pouvez accepter ou refuser les cookies non essentiels via la bannière de consentement affichée lors de votre première visite. Vous pouvez également modifier vos préférences à tout moment en supprimant les données de navigation stockées par votre navigateur pour ce site. Vous pouvez également les gérer ou les supprimer à tout moment sur notre <a href="cookies.html">page de gestion des cookies</a>.',
         s8Heading: '9. Contact',
         s8Body: 'Pour toute question relative à vos données personnelles ou pour exercer vos droits, vous pouvez contacter notre Délégué à la Protection des Données (DPO) à l\'adresse suivante : <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>',
         s9Heading: '10. Suppression de mes données',
         s9Body: 'Vous pouvez supprimer votre compte et l\'ensemble des données personnelles associées à tout moment depuis votre <a href="account.html">page Compte</a> (Compte &rarr; Supprimer le Compte), ou en nous écrivant à <a href="mailto:contact@effluve-paris.fr?subject=Suppression%20de%20donn%C3%A9es">contact@effluve-paris.fr</a> avec pour objet « Suppression de données ». Cela supprime votre compte et vos données de profil ; les commandes passées sont conservées, dissociées de votre compte, pendant la durée de conservation légale décrite à la section 4 ci-dessus, puis supprimées ou traitées comme décrit à cette section.'
+      },
+      cookiePolicy: {
+        pageTitle: 'Gestion des Cookies',
+        intro: 'Cette page affiche votre choix actuel de cookies pour ce site, vous permet de le modifier, et de supprimer définitivement les cookies et la préférence que nous avons enregistrés si vous préférez repartir de zéro.',
+        whatWeUseHeading: 'Ce que Nous Utilisons',
+        essentialHeading: 'Strictement Nécessaires',
+        essentialBody: "Utilisés pour garder votre panier et votre session de connexion actifs pendant votre navigation. Ils sont toujours déposés, quel que soit le choix ci-dessous, et ne sont jamais affectés par celui-ci.",
+        analyticsHeading: "Analyse d'Audience",
+        analyticsBody: "Google Analytics 4, utilisé pour mesurer le trafic du site. Chargé uniquement si vous l'acceptez ci-dessous, jamais avant.",
+        currentChoiceHeading: 'Votre Choix Actuel',
+        statusAccepted: "Vous avez accepté les cookies d'analyse.",
+        statusRejected: "Vous avez refusé les cookies d'analyse.",
+        statusUnset: "Vous n'avez pas encore fait de choix — la bannière vous le redemandera à votre prochaine page.",
+        actionsHeading: 'Modifier votre Choix',
+        deleteHeading: 'Repartir de Zéro',
+        deleteBody: 'Supprime les cookies d\'analyse et le choix enregistré ci-dessus, afin que la bannière de consentement vous le redemande à votre prochaine page. Cela ne touche jamais à votre panier ni à votre session de connexion — voir « Strictement Nécessaires » ci-dessus.',
+        deleteBtn: 'Supprimer mes Cookies et mes Préférences',
+        confirmSaved: 'Vos préférences ont été enregistrées.',
+        confirmDeleted: 'Vos cookies et vos préférences ont été supprimés.',
+        backHome: "← Retour à l'accueil"
       }
     }
   };

@@ -1,7 +1,57 @@
 /* MONARK — site-wide cookie consent banner (RGPD). Shared across every page;
-   include via <script src="js/cookie-consent.js"></script>. */
+   include via <script src="js/cookie-consent.js"></script>.
+
+   Also exposes window.MonarkCookieConsent (setChoice/deleteAnalyticsAndReset)
+   so cookies.html's own page controls (js/cookie-prefs.js) can record
+   exactly the same choice, through exactly the same code path, as this
+   banner's own Accept/Reject buttons -- rather than duplicating the
+   localStorage key + event contract a second place that could drift. Set up
+   unconditionally, before the existingChoice early-return below, so it's
+   always available regardless of whether this particular page load shows
+   the banner or not. */
 (function () {
   const STORAGE_KEY = 'monark_cookie_consent';
+
+  function setChoice(choice) {
+    localStorage.setItem(STORAGE_KEY, choice);
+    document.dispatchEvent(new CustomEvent('monark:cookieconsent', { detail: { choice } }));
+  }
+
+  // Deletes every cookie GA/gtag.js may have set (_ga, _ga_<container-id>,
+  // and any other _ga*-prefixed cookie it adds in the future) across the
+  // domain/path variants it could plausibly have used it under, resets the
+  // stored consent choice (so the existingChoice check below asks again on
+  // the NEXT page load), and stops analytics for the REST OF THIS pageview
+  // too via js/analytics.js's own disable(). Deliberately narrow (the /^_ga/
+  // test) -- the cart (js/cart.js) and the login session (Supabase's own
+  // storage) use entirely different, differently-named storage, so this
+  // never touches either one; see cookies.html's own "Strictly Necessary"
+  // explanation for why that's a deliberate boundary, not an oversight.
+  function deleteAnalyticsAndReset() {
+    const host = location.hostname;
+    const labels = host.split('.');
+    // "effluve-paris.fr" from "www.effluve-paris.fr" -- covers a cookie GA
+    // set on the registrable parent domain rather than the exact host.
+    const parentDomain = labels.length > 2 ? labels.slice(-2).join('.') : host;
+    const domains = [host, '.' + host, parentDomain, '.' + parentDomain, ''];
+    const paths = ['/', location.pathname];
+
+    document.cookie.split(';').forEach((pair) => {
+      const name = pair.split('=')[0].trim();
+      if (!/^_ga/.test(name)) return;
+      domains.forEach((domain) => {
+        paths.forEach((path) => {
+          document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=' + path + (domain ? '; domain=' + domain : '');
+        });
+      });
+    });
+
+    localStorage.removeItem(STORAGE_KEY);
+    if (window.MonarkAnalytics && window.MonarkAnalytics.disable) window.MonarkAnalytics.disable();
+  }
+
+  window.MonarkCookieConsent = { STORAGE_KEY, setChoice, deleteAnalyticsAndReset };
+
   const existingChoice = localStorage.getItem(STORAGE_KEY);
   if (existingChoice) {
     // Reported here too (not just from dismiss() below) so anything gated on
@@ -30,8 +80,7 @@
   if (window.MonarkI18n) window.MonarkI18n.apply(banner);
 
   function dismiss(choice) {
-    localStorage.setItem(STORAGE_KEY, choice);
-    document.dispatchEvent(new CustomEvent('monark:cookieconsent', { detail: { choice } }));
+    setChoice(choice);
     banner.remove();
     // Relaxes any page's own bottom padding (see --cookie-banner-h in
     // css/style.css's :root) straight back to normal once the banner's

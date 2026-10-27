@@ -50,4 +50,11 @@
     <priority>0.1</priority>
   </url>
 
+  <url>
+    <loc>https://effluve-paris.fr/cookies.html</loc>
+    <lastmod>2026-10-27</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.1</priority>
+  </url>
+
 </urlset>

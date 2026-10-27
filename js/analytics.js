@@ -80,6 +80,19 @@
     // so every trackX() below stays a no-op for the rest of this pageview.
   });
 
+  // Called from js/cookie-consent.js's own deleteAnalyticsAndReset()
+  // (cookies.html's "Delete My Cookies & Preferences" button) -- flips
+  // gaLoaded back off so every trackX() below goes back to a no-op for the
+  // rest of THIS pageview too, not just future ones, and sets gtag.js's own
+  // documented opt-out flag (window['ga-disable-<id>']), which gtag.js
+  // itself checks before sending a hit -- belt-and-suspenders in case the
+  // gtag.js script tag this file already injected is still sitting in the
+  // page (removing a <script> tag doesn't undo what it already ran).
+  function disable() {
+    global['ga-disable-' + GA4_MEASUREMENT_ID] = true;
+    gaLoaded = false;
+  }
+
   // ---------------- E-commerce event helpers ----------------
   // Every one of these is a silent no-op until loadGA4() has actually run --
   // never queued for later replay on a subsequent consent grant (a
@@ -157,5 +170,5 @@
     });
   }
 
-  global.MonarkAnalytics = { trackViewItem, trackAddToCart, trackBeginCheckout, trackPurchase };
+  global.MonarkAnalytics = { trackViewItem, trackAddToCart, trackBeginCheckout, trackPurchase, disable };
 })(window);

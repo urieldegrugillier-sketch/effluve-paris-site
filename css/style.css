@@ -2541,6 +2541,40 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
 
 .legal-content h1 + p { color: var(--text-muted); }
 
+/* ---- cookies.html (cookie preferences page) ---- */
+
+.cookie-prefs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1.4rem;
+}
+
+.cookie-prefs-actions .cta-button { margin-top: 0; }
+
+/* Same muted-rust tone already used for account.html's own destructive
+   action (.account-delete-btn/.account-delete-confirm-btn, css/checkout.css)
+   so this reads as distinct from the plain bronze Accept/Reject buttons
+   beside it -- defined here rather than there since this page doesn't load
+   checkout.css. */
+.cookie-prefs-delete-btn { border-color: #b5675c; color: #b5675c; }
+@media (hover: hover) and (pointer: fine) {
+  .cookie-prefs-delete-btn:hover { background: #b5675c; color: var(--bg-void); }
+}
+.cookie-prefs-delete-btn:active { background: #b5675c; color: var(--bg-void); }
+
+/* js/cookie-prefs.js sets this element's text after Accept/Reject/Delete --
+   empty (and so invisible, nothing to lay out) until then. Reuses the same
+   bronze "success" tone as .promo-message-success elsewhere on the site
+   rather than inventing a second confirmation style. */
+#cookie-prefs-confirm {
+  margin-top: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  color: var(--accent-bronze-light);
+}
+
 /* ---- 404 page ---- */
 
 .notfound-content { text-align: center; }
