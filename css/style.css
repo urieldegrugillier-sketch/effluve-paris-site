@@ -2589,8 +2589,6 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   text-align: center;
 }
 
-.cookie-prefs-back { text-align: center; }
-
 @media (max-width: 480px) {
   /* Full-width, equal-size, stacked -- a side-by-side Accept/Reject pair
      (plus Delete right under it) got visually cramped at this width;
@@ -2603,6 +2601,23 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
     text-align: center;
   }
 }
+
+/* ---- "Back to homepage" link, end of every footer-reachable legal/content
+   page (faq/contact/mentions-legales/cgv/confidentialite/cookies) -- shared
+   class (not cookies.html-specific despite its old .cookie-prefs-back name)
+   so every one of these pages renders it identically. */
+.legal-back-home { text-align: center; }
+
+/* ---- faq.html: "Didn't find your answer?" closing CTA ---- */
+
+.faq-not-found {
+  text-align: center;
+  margin-top: 2.6rem;
+  padding-top: 2.2rem;
+  border-top: 1px solid var(--line);
+}
+
+.faq-not-found p { margin: 0; }
 
 /* ---- 404 page ---- */
 

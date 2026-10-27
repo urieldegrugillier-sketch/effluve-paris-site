@@ -219,6 +219,7 @@
       },
       common: {
         backToShop: '← Back to Shop',
+        backToHome: '← Back to homepage',
         account: 'Account',
         showPassword: 'Show password',
         hidePassword: 'Hide password',
@@ -546,7 +547,9 @@
         promoCode: {
           heading: 'How do I use a promo code?',
           body: 'Enter your code in the Promo Code field on the checkout page and select "Apply", the discount is calculated automatically and reflected in your order total before you place your order. Only one code can be applied per order.'
-        }
+        },
+        notFoundText: "Didn't find your answer?",
+        notFoundCta: 'Contact Us'
       },
       contact: {
         pageTitle: 'Contact',
@@ -676,8 +679,7 @@
         deleteBody: 'Removes the analytics cookies and the stored choice above, so the consent banner asks again on your next page. This never touches your cart or your sign-in session.',
         deleteBtn: 'Delete My Cookies & Preferences',
         confirmSaved: 'Your preferences have been saved.',
-        confirmDeleted: 'Your cookies and preferences have been deleted.',
-        backHome: '← Back to homepage'
+        confirmDeleted: 'Your cookies and preferences have been deleted.'
       }
     },
     fr: {
@@ -847,6 +849,7 @@
       },
       common: {
         backToShop: '← Retour à la Boutique',
+        backToHome: "← Retour à l'accueil",
         account: 'Compte',
         showPassword: 'Afficher le mot de passe',
         hidePassword: 'Masquer le mot de passe',
@@ -1126,7 +1129,9 @@
         promoCode: {
           heading: 'Comment utiliser un code promo ?',
           body: 'Saisissez votre code dans le champ Code Promo de la page de commande, puis sélectionnez « Appliquer », la réduction est calculée automatiquement et répercutée sur le total de votre commande avant que vous ne la validiez. Un seul code peut être appliqué par commande.'
-        }
+        },
+        notFoundText: "Vous n'avez pas trouvé votre réponse ?",
+        notFoundCta: 'Contactez-nous'
       },
       contact: {
         pageTitle: 'Contact',
@@ -1256,8 +1261,7 @@
         deleteBody: "Supprime les cookies d'analyse et le choix enregistré ci-dessus, afin que la bannière de consentement vous le redemande à votre prochaine page. Cela ne touche jamais à votre panier ni à votre session de connexion.",
         deleteBtn: 'Supprimer mes Cookies et mes Préférences',
         confirmSaved: 'Vos préférences ont été enregistrées.',
-        confirmDeleted: 'Vos cookies et vos préférences ont été supprimés.',
-        backHome: "← Retour à l'accueil"
+        confirmDeleted: 'Vos cookies et vos préférences ont été supprimés.'
       }
     }
   };
