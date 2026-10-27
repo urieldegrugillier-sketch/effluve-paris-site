@@ -602,6 +602,73 @@
     return { ok: true };
   }
 
+  // Google sign-in -- supabase.auth.signInWithOAuth() with no custom `scopes`
+  // option, so Supabase requests its own default Google scopes (email +
+  // profile), exactly as asked. redirectTo is always THIS page, as it stands
+  // right now (origin + pathname + search, hash dropped -- neither
+  // checkout.html nor account.html ever puts anything meaningful there) --
+  // not a fixed constant like AUTH_EMAIL_REDIRECT_URL/
+  // AUTH_PASSWORD_RESET_REDIRECT_URL above, because unlike those two
+  // (always-the-same email-link destinations), this has to return the
+  // customer to wherever they actually started: checkout.html mid-checkout
+  // (cart state is cart.js's own localStorage, untouched by this navigation)
+  // or account.html. Same server-side allow-list caveat as those two
+  // constants -- this exact URL (or a wildcard covering it) must also be on
+  // Supabase Dashboard -> Authentication -> URL Configuration -> Redirect
+  // URLs, or Supabase silently falls back to the project's Site URL instead.
+  // By default this is a full top-level browser redirect (signInWithOAuth()
+  // calls window.location.assign() on the authorize URL itself) -- a
+  // synchronous `error` back from this call means the redirect never even
+  // started (e.g. the Google provider isn't enabled/configured yet on the
+  // Supabase side), not that the customer did anything wrong on Google's own
+  // screen; a cancellation/denial THERE instead comes back as error params on
+  // this same redirectTo URL once Google/Supabase redirect back here -- see
+  // consumeOAuthErrorFromUrl() below for that half.
+  async function signInWithGoogle() {
+    const redirectTo = window.location.origin + window.location.pathname + window.location.search;
+    const { error } = await client().auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo }
+    });
+    if (error) {
+      console.error('MonarkAccount.signInWithGoogle:', error.message);
+      return { ok: false };
+    }
+    return { ok: true };
+  }
+
+  // Reads (and then strips, via history.replaceState -- so a refresh or the
+  // back button can't re-trigger the same message) the `error`/`error_code`/
+  // `error_description` params Supabase's OAuth callback appends to
+  // redirectTo when the provider step itself failed -- most commonly the
+  // customer clicking Cancel/Deny on Google's own consent screen
+  // (error=access_denied), but also any other provider-side failure.
+  // supabase-js's own URL handling only ever looks for a SUCCESSFUL
+  // access_token/code in the URL; it silently ignores an `error` param
+  // entirely, which is exactly why this has to be read by hand instead of
+  // reacting to some onAuthStateChange event that will never fire for this
+  // case. Checks both the query string and the hash fragment -- different
+  // Supabase/GoTrue versions have used either for this, and checking both
+  // costs nothing. Only the three OAuth-specific keys are removed from
+  // whichever one(s) had them -- any other param already on the page (e.g.
+  // checkout.html's own expressSuccess/total/email express-checkout params)
+  // is left exactly as it was.
+  function consumeOAuthErrorFromUrl() {
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const errorCode = searchParams.get('error') || hashParams.get('error');
+    if (!errorCode) return null;
+    const errorDescription = searchParams.get('error_description') || hashParams.get('error_description');
+    ['error', 'error_code', 'error_description'].forEach((key) => {
+      searchParams.delete(key);
+      hashParams.delete(key);
+    });
+    const newSearch = searchParams.toString();
+    const newHash = hashParams.toString();
+    history.replaceState(null, '', window.location.pathname + (newSearch ? '?' + newSearch : '') + (newHash ? '#' + newHash : ''));
+    return { errorCode, errorDescription };
+  }
+
   // No Supabase involvement of its own -- a guest session is still just an
   // email attached to this browser, not a registered account, exactly as
   // before. BUG FIX: now async -- mountAccountGate()'s changeBtn/
@@ -953,6 +1020,27 @@
         </span>
       </form>
 
+      <!-- Google sign-in bypasses the email/password form entirely -- see
+           signInWithGoogle() below for the actual supabase.auth.signInWithOAuth()
+           call. Shown/hidden together with checkout-account-email-form itself
+           (see showStep()), never during the auth/create/recovery steps,
+           where the customer has already committed to the email/password
+           path. googleError surfaces both a failed signInWithOAuth() call
+           (network/config issue, caught synchronously) and a cancelled/failed
+           Google consent screen reported back via URL error params on this
+           same page load (see consumeOAuthErrorFromUrl()). -->
+      <p class="checkout-account-divider" id="checkout-account-google-divider"><span data-i18n="accountGate.orDivider">or</span></p>
+      <button type="button" class="cta-button checkout-account-btn-sm checkout-account-btn-secondary checkout-account-google-btn" id="checkout-account-google-btn">
+        <svg class="checkout-account-google-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+          <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
+          <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path>
+          <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path>
+          <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path>
+        </svg>
+        <span data-i18n="accountGate.continueWithGoogle">Continue with Google</span>
+      </button>
+      <p class="promo-message promo-message-error" id="checkout-account-google-error" aria-live="polite" hidden></p>
+
       <div id="checkout-account-auth" hidden>
         <p class="checkout-account-email-echo">
           <span id="checkout-account-auth-email"></span>
@@ -1234,6 +1322,18 @@
     const emailSubmitBtn = container.querySelector('#checkout-account-email-submit-btn');
     const emailCancelBtn = container.querySelector('#checkout-account-email-cancel-btn');
 
+    const googleDivider = container.querySelector('#checkout-account-google-divider');
+    const googleBtn = container.querySelector('#checkout-account-google-btn');
+    const googleError = container.querySelector('#checkout-account-google-error');
+    // Read (and consumed/cleared) once, right here at mount -- a Google
+    // consent-screen cancellation/failure lands back on a fresh load of this
+    // same page, so mount time is the one point this page ever needs to look
+    // for it. Shown further below, the first time resolveSession() finds no
+    // session (the gate's normal starting point anyway for anyone coming
+    // back from a failed/cancelled Google redirect) -- then nulled out so a
+    // LATER, unrelated resolve (e.g. an explicit logout) never resurfaces it.
+    let oauthError = consumeOAuthErrorFromUrl();
+
     const authBlock = container.querySelector('#checkout-account-auth');
     const authEmailEcho = container.querySelector('#checkout-account-auth-email');
     const authModifyEmailBtn = container.querySelector('#checkout-account-auth-modify-email-btn');
@@ -1513,6 +1613,15 @@
     // stays open/visible if the user comes back through.
     function showStep(step) {
       emailForm.hidden = step !== 'email';
+      googleDivider.hidden = step !== 'email';
+      googleBtn.hidden = step !== 'email';
+      // googleError sits outside emailForm itself (so it stays visible
+      // underneath the "Continue with Google" button even while the email
+      // form above it is mid-edit), so leaving this step is the one thing
+      // that has to hide it explicitly -- otherwise a message raised here
+      // would keep showing, orphaned, once the auth/recovery step or a fully
+      // resolved session took over below it.
+      if (step !== 'email') googleError.hidden = true;
       authBlock.hidden = step !== 'auth';
       recoveryBlock.hidden = step !== 'recovery';
       if (step !== 'auth') {
@@ -1632,6 +1741,15 @@
         previousSession = null;
         emailCancelBtn.hidden = true;
         authCancelBtn.hidden = true;
+        if (oauthError) {
+          googleError.textContent = t(oauthError.errorCode === 'access_denied'
+            ? 'accountGate.errorGoogleCancelled'
+            : 'accountGate.errorGoogleSignIn');
+          googleError.hidden = false;
+          oauthError = null;
+        } else {
+          googleError.hidden = true;
+        }
         if (options.onUnresolved) options.onUnresolved();
         return;
       }
@@ -1759,6 +1877,26 @@
         requestAnimationFrame(() => loginPasswordInput.focus());
       } else if (!createForm.hidden) {
         requestAnimationFrame(() => createFirstNameInput.focus());
+      }
+    });
+
+    // Bypasses the email form above entirely -- signInWithGoogle() is a full
+    // top-level redirect (window.location.assign() inside supabase-js
+    // itself) on success, so disabling the button is only ever visible for
+    // the brief gap before that navigation actually happens; re-enabled in
+    // the `finally` purely for the synchronous-error case (provider not
+    // configured yet, network failure) where no navigation ever starts.
+    googleBtn.addEventListener('click', async () => {
+      googleError.hidden = true;
+      googleBtn.disabled = true;
+      try {
+        const result = await signInWithGoogle();
+        if (!result.ok) {
+          googleError.textContent = t('accountGate.errorGoogleSignIn');
+          googleError.hidden = false;
+        }
+      } finally {
+        googleBtn.disabled = false;
       }
     });
 

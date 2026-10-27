@@ -755,6 +755,49 @@
 .checkout-account-email-actions { display: flex; align-items: center; gap: 1.2rem; margin-top: 1rem; }
 .checkout-account-email-actions .checkout-account-btn-sm { margin-top: 0; }
 
+/* "or" divider between the email form and the Google sign-in button below
+   it (js/account.js's accountGateMarkup()) -- same hairline-line-either-side
+   construction as .checkout-payment-request-divider above (checkout.html's
+   Apple Pay/Google Pay divider), kept as its own class rather than reused
+   directly since this one lives in a markup shared with account.html, which
+   never loads a Payment Request Button of its own. */
+.checkout-account-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 1.2rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.checkout-account-divider::before,
+.checkout-account-divider::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--line);
+}
+.checkout-account-divider[hidden] { display: none; }
+
+/* Continue with Google -- .checkout-account-btn-secondary's muted/outlined
+   treatment (not the bronze-bordered default .cta-button) so the official,
+   multicolor "G" mark stays the only color accent on the button, same
+   reasoning as every other non-primary action in this flow. Full-width
+   (block, not inline-block) since it stands alone on its own line, unlike
+   the half-width Guest/Create Account pair below it. */
+.checkout-account-google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+.checkout-account-google-icon { width: 1.1rem; height: 1.1rem; flex: 0 0 auto; }
+.checkout-account-google-btn[hidden] { display: none; }
+
 /* Cancel + Set Password (recovery form, js/account.js's recoveryCancelBtn/
    recoverySubmitBtn) -- same pairing/order/spacing as
    .checkout-account-email-actions just above. */
