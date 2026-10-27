@@ -619,12 +619,13 @@
         s1Item3: 'Order data: purchase history, products viewed',
         s1Item4: 'Payment data: processed directly by our payment provider; Effluve Paris does not have access to full banking details',
         s1Item5: 'Browsing data: IP address, cookies (see section 8)',
+        s1Social: 'If you sign in using Google or Facebook, we receive only the name and email address associated with your account on those services; we do not store any password for these logins.',
         s2Heading: '2. Purposes of Processing',
         s2Body: 'This data is collected for the following purposes: processing and tracking orders, managing the customer relationship, fraud prevention, improving the site and user experience, and, subject to your consent, sending marketing communications.',
         s3Heading: '3. Legal Basis for Processing',
         s3Body: "The processing of your data is based, depending on the case, on: performance of the sales contract (for order processing), consent (for the newsletter and non-essential cookies), Effluve Paris's legitimate interest (service improvement, security), and compliance with legal obligations (invoicing, accounting).",
         s4Heading: '4. Data Retention Period',
-        s4Body: 'Your data is retained for the period necessary to fulfill the purposes for which it was collected, and in particular: order-related data is retained for the period required by accounting and tax obligations (10 years); prospect data is retained for 3 years from the last contact.',
+        s4Body: 'Your data is retained for the period necessary to fulfill the purposes for which it was collected, and in particular: order-related data is retained for the period required by accounting and tax obligations (10 years); prospect data is retained for 3 years from the last contact. Where an account is deleted before this period has elapsed, the account and its profile data are deleted, but data relating to past orders — including the shipping name, address, and email used for those orders — is kept, disassociated from the account, for the remainder of that retention period, and then deleted or otherwise handled as described above.',
         s5Heading: '5. Your Rights',
         s5Intro: 'In accordance with Articles 15 to 22 of the GDPR, you have the following rights over your personal data:',
         s5Right1: '<strong>Right of access</strong>: to obtain confirmation that your data is being processed and to obtain a copy of it;',
@@ -647,7 +648,9 @@
         s7Heading: '8. Cookies',
         s7Body: 'This site uses cookies to improve your browsing experience, measure site traffic, and, subject to your consent, for personalization purposes. You can accept or reject non-essential cookies via the consent banner shown on your first visit. You can also change your preferences at any time by clearing the browsing data stored by your browser for this site.',
         s8Heading: '9. Contact',
-        s8Body: 'For any questions regarding your personal data or to exercise your rights, you may contact our Data Protection Officer (DPO) at the following address: <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>'
+        s8Body: 'For any questions regarding your personal data or to exercise your rights, you may contact our Data Protection Officer (DPO) at the following address: <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>',
+        s9Heading: '10. Delete My Data',
+        s9Body: 'You may delete your account and all associated personal data at any time from your <a href="account.html">Account page</a> (Account &rarr; Delete Account), or by emailing us at <a href="mailto:contact@effluve-paris.fr?subject=Data%20deletion">contact@effluve-paris.fr</a> with the subject line "Data deletion". This deletes your account and profile data; past orders are kept, disassociated from your account, for the legal retention period described in Section 4 above, and then deleted or otherwise handled as described there.'
       }
     },
     fr: {
@@ -1169,12 +1172,13 @@
         s1Item3: "Données de commande : historique d'achats, produits consultés",
         s1Item4: "Données de paiement : traitées directement par notre prestataire de paiement ; Effluve Paris n'a pas accès aux coordonnées bancaires complètes",
         s1Item5: 'Données de navigation : adresse IP, cookies (voir section 8)',
+        s1Social: 'Si vous vous connectez via Google ou Facebook, nous recevons uniquement le nom et l\'adresse e-mail associés à votre compte sur ces services ; nous ne stockons aucun mot de passe pour ces connexions.',
         s2Heading: '2. Finalités du Traitement',
         s2Body: 'Ces données sont collectées pour les finalités suivantes : traitement et suivi des commandes, gestion de la relation client, prévention de la fraude, amélioration du site et de l\'expérience utilisateur, et, sous réserve de votre consentement, envoi de communications marketing.',
         s3Heading: '3. Base Légale du Traitement',
         s3Body: 'Le traitement de vos données repose, selon les cas, sur : l\'exécution du contrat de vente (pour le traitement des commandes), le consentement (pour la newsletter et les cookies non essentiels), l\'intérêt légitime d\'Effluve Paris (amélioration du service, sécurité), et le respect d\'obligations légales (facturation, comptabilité).',
         s4Heading: '4. Durée de Conservation des Données',
-        s4Body: 'Vos données sont conservées pendant la durée nécessaire à la réalisation des finalités pour lesquelles elles ont été collectées, et notamment : les données liées aux commandes sont conservées pendant la durée imposée par les obligations comptables et fiscales (10 ans) ; les données prospects sont conservées 3 ans à compter du dernier contact.',
+        s4Body: 'Vos données sont conservées pendant la durée nécessaire à la réalisation des finalités pour lesquelles elles ont été collectées, et notamment : les données liées aux commandes sont conservées pendant la durée imposée par les obligations comptables et fiscales (10 ans) ; les données prospects sont conservées 3 ans à compter du dernier contact. Lorsqu\'un compte est supprimé avant l\'expiration de cette durée, le compte et les données de profil sont supprimés, mais les données relatives aux commandes passées — dont le nom, l\'adresse de livraison et l\'e-mail utilisés pour ces commandes — sont conservées, dissociées du compte, pendant le reste de cette durée de conservation, puis supprimées ou traitées comme décrit ci-dessus.',
         s5Heading: '5. Vos Droits',
         s5Intro: 'Conformément aux articles 15 à 22 du RGPD, vous disposez des droits suivants sur vos données personnelles :',
         s5Right1: '<strong>Droit d\'accès</strong> : obtenir la confirmation que vos données sont traitées et en obtenir une copie ;',
@@ -1197,7 +1201,9 @@
         s7Heading: '8. Cookies',
         s7Body: 'Ce site utilise des cookies pour améliorer votre expérience de navigation, mesurer l\'audience du site et, sous réserve de votre consentement, à des fins de personnalisation. Vous pouvez accepter ou refuser les cookies non essentiels via la bannière de consentement affichée lors de votre première visite. Vous pouvez également modifier vos préférences à tout moment en supprimant les données de navigation stockées par votre navigateur pour ce site.',
         s8Heading: '9. Contact',
-        s8Body: 'Pour toute question relative à vos données personnelles ou pour exercer vos droits, vous pouvez contacter notre Délégué à la Protection des Données (DPO) à l\'adresse suivante : <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>'
+        s8Body: 'Pour toute question relative à vos données personnelles ou pour exercer vos droits, vous pouvez contacter notre Délégué à la Protection des Données (DPO) à l\'adresse suivante : <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>',
+        s9Heading: '10. Suppression de mes données',
+        s9Body: 'Vous pouvez supprimer votre compte et l\'ensemble des données personnelles associées à tout moment depuis votre <a href="account.html">page Compte</a> (Compte &rarr; Supprimer le Compte), ou en nous écrivant à <a href="mailto:contact@effluve-paris.fr?subject=Suppression%20de%20donn%C3%A9es">contact@effluve-paris.fr</a> avec pour objet « Suppression de données ». Cela supprime votre compte et vos données de profil ; les commandes passées sont conservées, dissociées de votre compte, pendant la durée de conservation légale décrite à la section 4 ci-dessus, puis supprimées ou traitées comme décrit à cette section.'
       }
     }
   };

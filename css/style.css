@@ -2507,6 +2507,14 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   font-size: clamp(1.3rem, 2.2vw, 1.7rem);
   color: var(--accent-bronze-light);
   margin: 2.6rem 0 1rem;
+  /* In-page anchors (e.g. confidentialite.html#suppression-donnees) land via
+     the browser's native hash jump, which has no notion of .site-header's
+     own fixed position -- without this the target heading lands flush
+     against the viewport top, tucked behind the header. Same
+     6.5rem-measured-header-height + --promo-banner-h constant as
+     .nav-menu's own header-clearance padding (see that rule's comment for
+     where 6.5rem comes from). */
+  scroll-margin-top: calc(var(--promo-banner-h) + 6.5rem);
 }
 
 .legal-content p,
