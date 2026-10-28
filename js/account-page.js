@@ -182,16 +182,32 @@
     return 1;
   }
 
-  // 3-dot "Commandée / Expédiée / Livrée" tracker -- gold dot+connecting
-  // line up through the current step, grey (unstyled) beyond it. Replaces
-  // the old shippedLine/deliveredLine plain-text paragraphs, which this
-  // visually supersedes rather than duplicates.
+  // Hand-drawn (not pulled from an icon library -- site has none loaded),
+  // one per tracker step -- thin (1.5px) stroke, no fill, stroke="currentColor"
+  // so css/checkout.css's .account-order-tracker-dot/-step.is-active rules
+  // are the only thing that ever colors them (gold once reached, inherited
+  // muted grey otherwise). aria-hidden since the adjacent text label (set by
+  // orderTrackerHtml() below) already says the same thing to a screen reader.
+  const ORDER_TRACKER_ICONS = {
+    // Receipt: zigzag-bottomed slip with three content lines.
+    trackerOrdered: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2v19l2-1.3 2 1.3 2-1.3 2 1.3 2-1.3 2 1.3V2z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/></svg>',
+    // Truck: cab + box body on two wheels.
+    trackerShipped: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="7" width="13" height="10"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="6" cy="19" r="1.6"/><circle cx="17" cy="19" r="1.6"/></svg>',
+    // House: pitched roof over a simple walled base with a door.
+    trackerDelivered: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>'
+  };
+
+  // 3-step "Commandée / Expédiée / Livrée" tracker -- icon-in-circle+label
+  // steps joined by a connecting line, gold up through the current step,
+  // grey (unstyled) beyond it. Replaces the old shippedLine/deliveredLine
+  // plain-text paragraphs, which this visually supersedes rather than
+  // duplicates.
   function orderTrackerHtml(step) {
     const steps = ['trackerOrdered', 'trackerShipped', 'trackerDelivered'];
     return '<div class="account-order-tracker">' + steps.map((key, i) => {
       const n = i + 1;
       const dot = '<div class="account-order-tracker-step' + (step >= n ? ' is-active' : '') + '">'
-        + '<span class="account-order-tracker-dot"></span>'
+        + '<span class="account-order-tracker-dot">' + ORDER_TRACKER_ICONS[key] + '</span>'
         + '<span class="account-order-tracker-label">' + t('account.' + key) + '</span>'
         + '</div>';
       if (i === steps.length - 1) return dot;

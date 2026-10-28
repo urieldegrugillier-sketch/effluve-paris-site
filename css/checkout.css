@@ -1307,22 +1307,40 @@
   margin: 1.3rem 0 1.5rem;
 }
 
+/* min-width: 0 + flex-shrink: 1 (the "1" in "0 1 auto") -- NOT the old
+   "0 0 auto" -- is what lets a step's label wrap onto a second line instead
+   of forcing the whole tracker wider than its container at narrow widths
+   (confirmed at 375px: 3 steps + 2 connecting lines fit one row with no
+   horizontal scroll once labels are allowed to shrink/wrap like this). */
 .account-order-tracker-step {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  flex: 0 0 auto;
+  gap: 0.4rem;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
+/* Icon-in-circle, not a plain filled dot -- thin circle border (not a solid
+   fill) so an unreached step reads as an outline, same "not there yet"
+   restraint the rest of the site uses (e.g. .checkout-accordion-step-num's
+   own numbered circle, css/checkout.css). color is set here (not on the
+   svg itself) so the icon's stroke="currentColor" (js/account-page.js's own
+   orderTrackerHtml()) and the circle's border always move together. */
 .account-order-tracker-dot {
-  width: 10px;
-  height: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
   border-radius: 50%;
-  background: var(--line);
-  transition: background 0.3s ease;
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  transition: border-color 0.3s ease, color 0.3s ease;
 }
-.account-order-tracker-step.is-active .account-order-tracker-dot { background: var(--accent-bronze-light); }
+.account-order-tracker-dot svg { width: 20px; height: 20px; display: block; }
+.account-order-tracker-step.is-active .account-order-tracker-dot { border-color: var(--accent-bronze-light); color: var(--accent-bronze-light); }
 
 .account-order-tracker-label {
   font-family: var(--font-mono);
@@ -1330,18 +1348,23 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
-  white-space: nowrap;
+  /* Wraps (not nowrap) for the same narrow-width reason as the step's own
+     flex-shrink above -- a 2-line label beats forcing the row wider than
+     the viewport. text-align keeps a wrapped 2nd line centered under the
+     icon instead of sitting flush left. */
+  text-align: center;
 }
 .account-order-tracker-step.is-active .account-order-tracker-label { color: var(--accent-bronze-light); }
 
-/* Vertically centered on the dots above it, not the taller step column as a
-   whole (which also includes the label underneath) -- margin-top offsets it
-   down by half the dot's own height, minus half its own 1px thickness. */
+/* Vertically centered on the circles above it, not the taller step column
+   as a whole (which also includes the label underneath) -- margin-top
+   offsets it down by half the circle's own height, minus half its own 1px
+   thickness. */
 .account-order-tracker-line {
-  flex: 1 1 auto;
-  min-width: 1.2rem;
+  flex: 1 1 0;
+  min-width: 0.6rem;
   height: 1px;
-  margin: 4.5px 0.5rem 0;
+  margin: 17.5px 0.4rem 0;
   background: var(--line);
   transition: background 0.3s ease;
 }
