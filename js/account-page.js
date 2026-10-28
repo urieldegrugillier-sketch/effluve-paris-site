@@ -193,8 +193,10 @@
     trackerOrdered: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2v19l2-1.3 2 1.3 2-1.3 2 1.3 2-1.3 2 1.3V2z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/></svg>',
     // Truck: cab + box body on two wheels.
     trackerShipped: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="7" width="13" height="10"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="6" cy="19" r="1.6"/><circle cx="17" cy="19" r="1.6"/></svg>',
-    // House: pitched roof over a simple walled base with a door.
-    trackerDelivered: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>'
+    // Check mark: single confirming stroke, same minimal line style as the
+    // two icons above (no circle/badge around it -- .account-order-tracker-
+    // dot's own border already provides that frame).
+    trackerDelivered: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg>'
   };
 
   // 3-step "Commandée / Expédiée / Livrée" tracker -- icon-in-circle+label
