@@ -882,7 +882,16 @@
       // structure and 20260829000000_order_shipped_delivered_timestamps.sql).
       shippingStatus: row.shipping_status,
       shippedAt: row.shipped_at,
-      deliveredAt: row.delivered_at
+      deliveredAt: row.delivered_at,
+      // Already selected via this query's own `select('*')` above -- these
+      // three are just newly exposed on the returned object (same columns
+      // supabase/functions/mark-order-shipped itself writes), not a new DB
+      // column, so js/account-page.js's "Suivre mon colis" link can build
+      // the same carrier tracking URL that file's own carrierTrackingUrl()
+      // already builds for the shipping email.
+      trackingNumber: row.tracking_number,
+      carrier: row.carrier,
+      shippingPostalCode: row.shipping_postal_code
     }));
   }
 

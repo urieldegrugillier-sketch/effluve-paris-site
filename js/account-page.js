@@ -104,6 +104,21 @@
   const noOrdersNote = document.getElementById('account-no-orders');
   const orderList = document.getElementById('account-order-list');
 
+  // Delegated once on the list itself rather than re-bound per order on
+  // every renderOrders() re-render -- same "add 1, flash the preview" pair
+  // as the real Add to Cart button's own click handler (js/product-page.js),
+  // just reached from here instead of product.html. Single product on this
+  // site (see js/cart.js's own PRODUCT comment), so there's no per-order
+  // product id to pass through -- every order's "Racheter" button adds the
+  // exact same unit.
+  if (window.MonarkCart) {
+    orderList.addEventListener('click', (e) => {
+      if (!e.target.closest('.account-order-rebuy-btn')) return;
+      window.MonarkCart.addToCart(1);
+      if (window.MonarkCartWidget) window.MonarkCartWidget.flashPreview();
+    });
+  }
+
   const dangerSection = document.getElementById('account-danger');
   const deleteBtn = document.getElementById('account-delete-btn');
   const deleteConfirmBlock = document.getElementById('account-delete-confirm');
@@ -129,6 +144,62 @@
     deleteConfirmBtn.disabled = !(session && !session.isGuest && typed === session.email.toLowerCase());
   });
 
+  // Mirrors supabase/functions/mark-order-shipped's own carrierTrackingUrl()
+  // wholesale (same carrier cases, same URL patterns) -- carrier/
+  // trackingNumber/shippingPostalCode are the exact same public.orders
+  // columns that function already writes, just newly exposed on
+  // account.getOrders()'s own returned object (see that function's comment),
+  // not a new DB column. Returns null for an unrecognized carrier
+  // (admin-typed "autre", no known tracking-page URL to build) or a Mondial
+  // Relay shipment missing the postal code its own tracking page requires --
+  // "Suivre mon colis" simply doesn't render in either case (see
+  // renderOrders() below), same as the shipping email itself falling back to
+  // plain, unlinked text instead of a link that's guaranteed to fail.
+  function carrierTrackingUrl(carrier, trackingNumber, postalCode) {
+    const encoded = encodeURIComponent(trackingNumber);
+    switch (carrier) {
+      case 'colissimo':
+        return 'https://www.laposte.fr/outils/suivre-vos-envois?code=' + encoded;
+      case 'chronopost':
+        return 'https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=' + encoded;
+      case 'mondial_relay':
+        if (!postalCode) return null;
+        return 'https://www.mondialrelay.fr/suivi-de-colis/?parcelNumber=' + encoded + '&zipCode=' + encodeURIComponent(postalCode);
+      default:
+        return null;
+    }
+  }
+
+  // 1 = ordered (true the moment a row exists -- recordOrder()'s own insert,
+  // js/account.js), 2 = shipped, 3 = delivered -- derived purely from the
+  // shippingStatus/shippedAt/deliveredAt fields account.getOrders() already
+  // exposes, same "absent means not there yet, not an error" fields the old
+  // plain-text lines used to read directly. No new column, and nothing here
+  // ever guesses a step the data doesn't actually confirm yet.
+  function orderTrackerStep(order) {
+    if (order.deliveredAt) return 3;
+    if (order.shippingStatus === 'shipped' && order.shippedAt) return 2;
+    return 1;
+  }
+
+  // 3-dot "Commandée / Expédiée / Livrée" tracker -- gold dot+connecting
+  // line up through the current step, grey (unstyled) beyond it. Replaces
+  // the old shippedLine/deliveredLine plain-text paragraphs, which this
+  // visually supersedes rather than duplicates.
+  function orderTrackerHtml(step) {
+    const steps = ['trackerOrdered', 'trackerShipped', 'trackerDelivered'];
+    return '<div class="account-order-tracker">' + steps.map((key, i) => {
+      const n = i + 1;
+      const dot = '<div class="account-order-tracker-step' + (step >= n ? ' is-active' : '') + '">'
+        + '<span class="account-order-tracker-dot"></span>'
+        + '<span class="account-order-tracker-label">' + t('account.' + key) + '</span>'
+        + '</div>';
+      if (i === steps.length - 1) return dot;
+      const line = '<span class="account-order-tracker-line' + (step >= n + 1 ? ' is-active' : '') + '"></span>';
+      return dot + line;
+    }).join('') + '</div>';
+  }
+
   // Order History is shown for every resolved session, but guests see a
   // dedicated prompt instead of the real list (see showExtras() below) --
   // this only ever runs for a non-guest session now.
@@ -143,6 +214,11 @@
     noOrdersNote.hidden = true;
     orderList.hidden = false;
     const locale = window.MonarkI18n && window.MonarkI18n.getLang() === 'fr' ? 'fr-FR' : 'en-US';
+    // Same bottle image already used on product.html's own studio shot
+    // (js/cart.js's PRODUCT.image -- the one real product this site sells),
+    // not a second hardcoded copy of that path.
+    const thumbSrc = (window.MonarkCart && window.MonarkCart.PRODUCT && window.MonarkCart.PRODUCT.image) || 'assets/images/02_fully_edited.webp';
+    const thumbAlt = t('product.imgAltStudio');
     // Most-recent-first is already account.getOrders()'s own contract (see
     // that function's comment) -- this just renders in the order it's given.
     orderList.innerHTML = orders.map((order) => {
@@ -155,31 +231,29 @@
       const referenceLine = order.referenceNumber
         ? `<p class="account-order-reference">${t('account.orderReference', { reference: order.referenceNumber })}</p>`
         : '';
-      // Same "absent means not there yet, not an error" reasoning as
-      // referenceLine above -- shippedAt is only ever set once
-      // supabase/functions/mark-order-shipped fires (see js/account.js's
-      // getOrders() own comment), so an order still 'processing'/'pending'
-      // simply shows neither line yet. deliveredAt is scaffolding for a
-      // planned automated delivery-detection feature -- always null today
-      // (nothing writes it yet), so this line never actually renders yet,
-      // but the display is ready the moment something does.
-      const shippedLine = order.shippingStatus === 'shipped' && order.shippedAt
-        ? `<p class="account-order-shipping">${t('account.orderShipped', { date: new Date(order.shippedAt).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' }) })}</p>`
-        : '';
-      const deliveredLine = order.deliveredAt
-        ? `<p class="account-order-shipping account-order-delivered">${t('account.orderDelivered', { date: new Date(order.deliveredAt).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' }) })}</p>`
+      const trackingUrl = order.trackingNumber
+        ? carrierTrackingUrl(order.carrier, order.trackingNumber, order.shippingPostalCode)
+        : null;
+      const trackBtn = trackingUrl
+        ? `<a class="cta-button checkout-account-btn-sm checkout-account-btn-secondary account-order-track-btn" href="${trackingUrl}" target="_blank" rel="noopener noreferrer">${t('account.trackPackageBtn')}</a>`
         : '';
       return `
-        <li class="account-order-item">
-          <p class="account-order-date">${t('account.orderDate', { date: dateStr })}</p>
-          ${referenceLine}
-          <p class="account-order-product">${order.productName}</p>
-          <p class="account-order-meta">
-            <span>${t('account.orderQty', { qty: order.quantity })}</span>
-            <span>${t('account.orderTotalLine', { total: money(order.total) })}</span>
-          </p>
-          ${shippedLine}
-          ${deliveredLine}
+        <li class="account-order-card">
+          <img class="account-order-thumb" src="${thumbSrc}" alt="${thumbAlt}" width="200" height="200" loading="lazy">
+          <div class="account-order-card-body">
+            ${referenceLine}
+            <p class="account-order-date">${t('account.orderDate', { date: dateStr })}</p>
+            <p class="account-order-product">${order.productName}</p>
+            <p class="account-order-meta">
+              <span>${t('account.orderQty', { qty: order.quantity })}</span>
+              <span>${t('account.orderTotalLine', { total: money(order.total) })}</span>
+            </p>
+            ${orderTrackerHtml(orderTrackerStep(order))}
+            <div class="account-order-card-actions">
+              <button type="button" class="cta-button cta-button-gold checkout-account-btn-sm account-order-rebuy-btn">${t('account.rebuyBtn')}</button>
+              ${trackBtn}
+            </div>
+          </div>
         </li>
       `;
     }).join('');

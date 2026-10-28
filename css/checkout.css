@@ -1219,11 +1219,42 @@
   color: var(--text-muted);
 }
 
-.account-order-list { list-style: none; margin: 0; padding: 0; }
+.account-order-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+}
 
-.account-order-item { padding: 1.4rem 0; border-bottom: 1px solid var(--line); }
-.account-order-item:first-child { padding-top: 0; }
-.account-order-item:last-child { border-bottom: none; }
+/* Boxed card, not the old border-bottom-divided plain list -- hairline
+   border + the same dark-ink fill as the nav-menu dropdown panel (css/
+   style.css), so each order reads as its own distinct block rather than one
+   long scrolling list of text. */
+.account-order-card {
+  display: flex;
+  gap: 1.6rem;
+  padding: 1.6rem;
+  border: 1px solid var(--line);
+  background: var(--bg-ink);
+}
+
+/* Fixed size, never stretched by a wide product name/long tracking link
+   next to it -- object-fit: contain keeps the bottle's own aspect ratio
+   intact inside that fixed box. Thin gold border per spec, distinct from
+   the card's own neutral hairline border above. */
+.account-order-thumb {
+  flex: 0 0 auto;
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  padding: 0.5rem;
+  background: var(--bg-void);
+  border: 1px solid var(--accent-bronze-light);
+}
+
+.account-order-card-body { flex: 1 1 auto; min-width: 0; }
 
 .account-order-date {
   margin: 0 0 0.5rem;
@@ -1264,23 +1295,83 @@
   color: var(--accent-bronze-light);
 }
 
-/* Same bronze "confirmed status" tone as .account-order-reference above --
-   only ever rendered once shipping_status has actually flipped to 'shipped'
-   (see account-page.js's own renderOrders() comment), so this reads as a
-   real update, not a guess/placeholder. */
-.account-order-shipping {
-  margin: 0.5rem 0 0;
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent-bronze-light);
+/* ---- 3-step "Commandée / Expédiée / Livrée" tracker (replaces the old
+   shippedLine/deliveredLine plain-text paragraphs) -- row of dot+label
+   steps joined by connecting lines, gold up through the current step, grey
+   (the shared --line hairline tone) beyond it. See js/account-page.js's own
+   orderTrackerStep()/orderTrackerHtml() for how the step number and markup
+   are derived. ---- */
+.account-order-tracker {
+  display: flex;
+  align-items: flex-start;
+  margin: 1.3rem 0 1.5rem;
 }
-/* Delivered is the more final of the two states -- same tone as Shipped
-   just above it, bolder so the two remain visually distinguishable when
-   both show at once (currently never happens live -- see
-   account.deliveredAt's own "scaffolding, nothing writes it yet" comment). */
-.account-order-delivered { font-weight: 700; }
+
+.account-order-tracker-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.account-order-tracker-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--line);
+  transition: background 0.3s ease;
+}
+.account-order-tracker-step.is-active .account-order-tracker-dot { background: var(--accent-bronze-light); }
+
+.account-order-tracker-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.account-order-tracker-step.is-active .account-order-tracker-label { color: var(--accent-bronze-light); }
+
+/* Vertically centered on the dots above it, not the taller step column as a
+   whole (which also includes the label underneath) -- margin-top offsets it
+   down by half the dot's own height, minus half its own 1px thickness. */
+.account-order-tracker-line {
+  flex: 1 1 auto;
+  min-width: 1.2rem;
+  height: 1px;
+  margin: 4.5px 0.5rem 0;
+  background: var(--line);
+  transition: background 0.3s ease;
+}
+.account-order-tracker-line.is-active { background: var(--accent-bronze-light); }
+
+.account-order-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+/* Both buttons sit at the bottom of the card, same row -- neither needs
+   .cta-button's own default 2.2rem top margin (meant for a button standing
+   alone further down a page section). */
+.account-order-card-actions .cta-button { margin-top: 0; }
+
+/* Mobile: thumbnail moves above the info column (smaller, centered) instead
+   of sitting beside it -- same 768px breakpoint as every other mobile/
+   desktop split in this file. Tracker and action buttons go full-width and
+   stack so neither the dot row nor "Suivre mon colis" (longer label than
+   "Racheter") ever forces horizontal scroll on a narrow viewport. */
+@media (max-width: 768px) {
+  .account-order-card { flex-direction: column; align-items: center; text-align: center; }
+  .account-order-thumb { width: 72px; height: 72px; }
+  .account-order-card-body { width: 100%; }
+  .account-order-meta { justify-content: center; }
+  .account-order-tracker { justify-content: center; }
+  .account-order-tracker-line { max-width: 2.4rem; }
+  .account-order-card-actions { flex-direction: column; align-items: stretch; }
+  .account-order-card-actions .cta-button { width: 100%; text-align: center; }
+}
 
 /* "Delete Account" reuses .checkout-account-link-btn's underlined-mono
    treatment (same element type/role as "Modify"/"Create an account instead"
