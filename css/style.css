@@ -2608,6 +2608,27 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
    so every one of these pages renders it identically. */
 .legal-back-home { text-align: center; }
 
+/* BUG FIX: margin-top above was silently losing to .legal-content p's own
+   margin: 0 0 1rem -- this element IS a <p> inside .legal-content, so that
+   shared rule's higher specificity (class+element beats a single class)
+   applied regardless of source order, zeroing this margin-top back out
+   (confirmed live: the gap above this link was 0 on faq.html/cookies.html,
+   and exactly the preceding paragraph's own 1rem on the others, meaning
+   this rule's margin-top was never actually taking effect anywhere).
+   Qualifying with .legal-content p (class+element+class) outranks it.
+   margin-top, not a margin-bottom on whatever precedes it, so this is one
+   shared value regardless of what that is on a given page -- was
+   effectively unset before (just whatever the preceding element's own
+   margin-bottom happened to be: 1rem on mentions-legales.html/cgv.html/
+   confidentialite.html/cookies.html's plain paragraphs, 0 on faq.html's
+   .faq-not-found and contact.html's .contact-form, neither of which sets
+   its own margin-bottom), which read as cramped on those last two (button
+   touching the link right under it). Collapses with a preceding
+   paragraph's 1rem margin-bottom to this larger value elsewhere -- a
+   modest increase there, not a new gap out of nowhere -- confirmed still
+   reads fine on all four. */
+.legal-content p.legal-back-home { margin-top: 2.2rem; }
+
 /* ---- faq.html: "Didn't find your answer?" closing CTA ---- */
 
 .faq-not-found {
