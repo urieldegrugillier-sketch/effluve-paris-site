@@ -1663,6 +1663,23 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   .trust-bar-track { transition: none; }
 }
 
+/* BUG FIX (confirmed live, headless Chromium screenshots before/after:
+   the trust bar + newsletter rendered completely invisible on index.html,
+   hidden behind the always-on, full-viewport position:fixed canvas):
+   index.html's #home-reassurance (trust bar + newsletter, see that page's
+   own markup comment) is a plain position:static wrapper, same as
+   .shop-footer's own base case -- and a position:static element always
+   paints BEHIND any position:fixed element on the page (the canvas,
+   z-index:5; the CTA, z-index:20) regardless of z-index or DOM order,
+   exactly the issue .shop-footer's own comment just below already
+   documents and already solves for itself. #home-reassurance needed the
+   identical treatment -- it didn't inherit .shop-footer's fix just by
+   sitting next to it in the document, since stacking is per-element, not
+   inherited from a sibling. Same z-index as .shop-footer (25, comfortably
+   above the CTA's 20) since this sits in the same visual "after the pinned
+   experience" layer, immediately before it. */
+#home-reassurance { position: relative; z-index: 25; background: var(--bg-void); }
+
 /* ================= NEWSLETTER SIGNUP (shared) ================= */
 /* Moved here from css/shop.css -- originally product.html-only, now also
    reused verbatim by index.html's own "Restez Informé" section (just
