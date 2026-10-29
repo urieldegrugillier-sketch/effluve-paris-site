@@ -5,8 +5,25 @@
 {
   "name": "monark-site",
   "compatibility_date": "2026-07-24",
+  // src/worker.js -- near-match URL redirect logic (typos/punctuation/
+  // accents in an unknown path get 301/302'd to the closest known route).
+  // Bundled by Wrangler separately from the assets.directory below (Worker
+  // code vs. static files are two different deployment artifacts); see
+  // that file's own header comment and scripts/build.js's
+  // buildRoutesManifest() for where its route list comes from.
+  "main": "src/worker.js",
   "assets": {
     "directory": "./dist",
+    // Required once a `main` Worker exists -- without an explicit binding
+    // name, the Worker would have no way to reach the static assets at all
+    // (no implicit env.ASSETS). Also what makes Cloudflare's default
+    // routing (assets.run_worker_first left unset, i.e. false) serve any
+    // request that matches a real file in dist/ directly, WITHOUT ever
+    // invoking src/worker.js -- that Worker only runs for requests that
+    // already missed every static asset, which is exactly what its own
+    // near-match logic needs (see that file's header comment) and means
+    // this change can't affect any already-working page/asset request.
+    "binding": "ASSETS",
     // Without this, an unmatched route falls through to Cloudflare's own
     // generic "HTTP ERROR 404" page instead of our branded dist/404.html --
     // confirmed live (effluve-paris.fr/une-page-qui-nexiste-pas showed
@@ -15,6 +32,10 @@
     // and serve it with a genuine 404 status -- not "single-page-application"
     // (that serves index.html with 200, which is wrong for a real 404 and
     // would also conflict with 404.html's own noindex tag never being seen).
+    // Unchanged by src/worker.js -- that file's own fallback path
+    // (env.ASSETS.fetch()) is exactly what applies this same setting for
+    // paths it doesn't redirect, so a genuinely unknown path still ends up
+    // at this exact same branded 404 either way.
     "not_found_handling": "404-page"
   }
 }
