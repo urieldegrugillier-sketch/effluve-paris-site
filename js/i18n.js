@@ -235,24 +235,25 @@
         addressSelectNudge: 'Please select an address from the list, or <button type="button" class="checkout-address-manual-link">click here</button> if yours doesn\'t appear.'
       },
       // Reassurance icon row placed directly above the newsletter signup
-      // (product.html) -- its own labels (kept in sync with
-      // checkout.trustShipping/trustReturns/trustPayment's wording, just
-      // under a separate key namespace since this row also carries a
-      // one-line description under each label that checkout's row doesn't
-      // have). Description copy is deliberately conservative: only facts
-      // already stated on cgv.html (shipping zones/delay, the 14-day
-      // withdrawal right) or already true of the live Stripe/Payment
-      // Request Button integration (product.js's own canMakePayment()
-      // setup) -- nothing invented here.
+      // (product.html, also reused label-only -- no desc -- for the
+      // .product-reassurance row above "Add to Cart" on that same page) --
+      // its own labels (kept in sync with checkout.trustShipping/
+      // trustReturns/trustPayment's wording, just under a separate key
+      // namespace since this row also carries a one-line description under
+      // each label that checkout's row doesn't have). Description copy is
+      // deliberately short (luxury-brand "less said" tone, per explicit
+      // instruction) -- still only facts already stated on cgv.html
+      // (shipping zones, the 14-day withdrawal right) or already true of
+      // the live Stripe integration, nothing invented.
       trustBar: {
         shipping: 'Free shipping',
-        shippingDesc: 'Free throughout France and Belgium, in 5 to 7 business days.',
+        shippingDesc: 'France and Belgium',
         returns: 'Free returns',
-        returnsDesc: '14 days to change your mind.',
+        returnsDesc: 'Within 14 days',
         service: 'Customer service',
-        serviceDesc: 'Questions? Our team replies 24/7 on WhatsApp.',
+        serviceDesc: 'Here for you, 24/7',
         payment: 'Secure payment',
-        paymentDesc: 'Encrypted payment via Stripe. Apple Pay and Google Pay accepted.'
+        paymentDesc: 'Encrypted by Stripe'
       },
       product: {
         carouselAriaLabel: 'MONARK bottle image carousel',
@@ -885,13 +886,13 @@
       },
       trustBar: {
         shipping: 'Livraison gratuite',
-        shippingDesc: 'Offerte en France et en Belgique, sous 5 à 7 jours ouvrés.',
+        shippingDesc: 'France et Belgique',
         returns: 'Retours gratuits',
-        returnsDesc: '14 jours pour changer d\'avis.',
+        returnsDesc: 'Sous 14 jours',
         service: 'Service client',
-        serviceDesc: 'Une question ? Notre équipe vous répond 24/7 sur WhatsApp.',
+        serviceDesc: 'À votre écoute 24/7',
         payment: 'Paiement sécurisé',
-        paymentDesc: 'Paiement crypté via Stripe. Apple Pay et Google Pay acceptés.'
+        paymentDesc: 'Crypté via Stripe'
       },
       product: {
         carouselAriaLabel: "Carrousel d'images du flacon MONARK",

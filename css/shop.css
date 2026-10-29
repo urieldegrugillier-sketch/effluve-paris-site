@@ -265,7 +265,13 @@ body.shop-page { background: var(--bg-void); }
    layouts, where a full-width sliver would look disproportionately long
    next to the compact price/label text above it; it still shrinks to fit
    naturally on narrow phones via the column's own width. */
-.shop-stock { margin: 0 0 1.8rem; max-width: 260px; }
+/* margin-bottom tightened from 1.8rem -- collapsed against .shop-cta-row's
+   own margin-top just below (adjacent-sibling margins collapse to the
+   LARGER of the two, not the sum) into a 2.2rem gap above "Add to Cart",
+   confirmed live as noticeably more than the price/stock block's own
+   internal rhythm. Both margins now agree on 1.4rem so there's nothing left
+   to collapse up to a bigger number. */
+.shop-stock { margin: 0 0 1.4rem; max-width: 260px; }
 .shop-stock-label {
   margin: 0 0 0.5rem;
   font-family: var(--font-mono);
@@ -290,7 +296,11 @@ body.shop-page { background: var(--bg-void); }
   display: flex;
   align-items: stretch;
   gap: 1rem;
-  margin-top: 2.2rem;
+  /* See .shop-stock's own comment just above -- margin-top matches that
+     rule's margin-bottom so the collapsed gap above this row lands at
+     1.4rem, not 2.2rem. margin-bottom is this row's own gap down to
+     .product-reassurance right below it. */
+  margin-top: 1.4rem;
   margin-bottom: 1.4rem;
 }
 
@@ -419,15 +429,56 @@ body.shop-page { background: var(--bg-void); }
   outline-offset: 2px;
 }
 
-/* Wraps the checkout-style WhatsApp note + 3-icon trust-badge row reused
-   verbatim from checkout.html (see product.html's own markup comment and
-   css/style.css's "CHECKOUT-STYLE SUPPORT NOTE / TRUST BADGES" section) --
-   purely for this spot's own spacing. .checkout-support-note's own
-   margin-top (1rem) collapses with this wrapper's, so the real gap above is
-   whichever is larger (this wrapper's 1.5rem); .checkout-trust-badges has no
-   margin-bottom of its own, so the gap below is this wrapper's bottom margin
-   alone, keeping the first accordion below from sitting flush against it. */
-.product-buy-box-reassurance { margin: 1.5rem 0 2rem; }
+/* Icon+title reassurance row between "Add to Cart" and the accordions --
+   same gold/mono treatment as the bottom .trust-bar (css/style.css), not
+   checkout.html's own white-icon .checkout-trust-badge (that page keeps its
+   own markup/classes untouched). Same hairline-divider-via-::before
+   mechanism as .checkout-trust-badge (css/style.css) for the thin vertical
+   separators, reimplemented here rather than imported since the color
+   differs (gold here, white there) and this version also needs to work as
+   an <a> for the Service Client item. */
+.product-reassurance {
+  --product-reassurance-pad: 0.9rem;
+  display: flex;
+  margin: 0 0 1.5rem;
+}
+.product-reassurance-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 var(--product-reassurance-pad);
+  text-align: center;
+  text-decoration: none;
+}
+.product-reassurance-item:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+}
+.product-reassurance-item svg { flex-shrink: 0; color: var(--accent-bronze-light); }
+.product-reassurance-item span {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.35;
+  color: var(--text-on-dark);
+}
+/* Subtle "gold text brightening" on the one clickable item (Service
+   Client) -- hover-capable pointers only, same guard every other plain
+   color :hover on this site uses, so a tap doesn't leave it stuck lit on
+   touch devices. */
+@media (hover: hover) and (pointer: fine) {
+  a.product-reassurance-item:hover span { color: var(--accent-bronze-light); }
+}
 
 .shop-refund-note {
   margin: 0 0 0.9rem;
@@ -444,9 +495,38 @@ body.shop-page { background: var(--bg-void); }
   list-style: none;
 }
 
+/* BUG FIX: "+ " and the minus sign "\2212 " are two different glyphs --
+   IBM Plex Mono doesn't carry U+2212, so the browser silently substitutes a
+   fallback-font glyph for the open state only, at a different advance width
+   than "+" (and the trailing space inside `content` collapsed inconsistently
+   between the two besides). Net effect: "+ RETOURS" (closed) had a visible
+   gap, "−LISTE COMPLÈTE" (open) didn't. A fixed-width inline-block box
+   around the glyph, with the gap as a real margin instead of a space
+   character inside `content`, makes both states occupy identical space
+   regardless of which glyph a given browser/font actually renders. */
 .shop-refund-note summary::-webkit-details-marker { display: none; }
-.shop-refund-note summary::before { content: "+ "; }
-.shop-refund-note[open] summary::before { content: "\2212 "; }
+.shop-refund-note summary::before {
+  display: inline-block;
+  width: 0.8em;
+  margin-right: 0.4em;
+  text-align: center;
+  content: "+";
+}
+.shop-refund-note[open] summary::before { content: "\2212"; }
+
+/* :focus-visible, not :focus -- same sitewide "keyboard/AT only" rule as
+   css/style.css's own :focus-visible (see that rule's comment), reasserted
+   here because <summary> is one of the handful of elements where some
+   browsers' own :focus-visible heuristic still shows a ring after a plain
+   mouse click/tap (confirmed live: Chrome lit the sitewide bronze outline
+   on tap, not just on Tab). Suppressing plain :focus here and re-adding the
+   same outline only on :focus-visible restores keyboard-only behavior
+   without touching the sitewide rule itself. */
+.shop-refund-note summary:focus { outline: none; }
+.shop-refund-note summary:focus-visible {
+  outline: 2px solid var(--accent-bronze-light);
+  outline-offset: 2px;
+}
 
 .shop-refund-note p {
   margin: 1rem 0 0;

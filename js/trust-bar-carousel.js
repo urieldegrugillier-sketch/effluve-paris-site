@@ -4,14 +4,26 @@
    becomes a harmless no-op transform there); at <=768px .trust-bar-track
    turns into a one-item-per-slide, swipeable, auto-advancing carousel.
 
-   Swipe/transform mechanics are the same translateX(-n*100%) track +
-   SWIPE_MIN_DISTANCE/SWIPE_MAX_DURATION/SWIPE_AXIS_DEADZONE thresholds as
-   js/product-gallery.js's own photo carousel, reused rather than
-   reinvented, for a consistent feel between the two. This file adds what
-   that one doesn't need: autoplay (3.5s, looping), pausing while the user
-   is actually touching the track and resuming after 5s of inactivity,
-   skipping autoplay entirely under prefers-reduced-motion, and only running
-   the timer while the bar is actually on screen (IntersectionObserver). */
+   Swipe mechanics are the same SWIPE_MIN_DISTANCE/SWIPE_MAX_DURATION/
+   SWIPE_AXIS_DEADZONE thresholds as js/product-gallery.js's own photo
+   carousel, reused rather than reinvented, for a consistent feel between
+   the two -- but the TRANSLATE itself is deliberately NOT that carousel's
+   translateX(-n*100%): this track inherits .trust-bar-track's own desktop
+   `gap` (2.4rem row / 1.5rem column, for the 4-up grid), and gap applies to
+   flex containers too, so a pure percentage offset drifted further off by
+   one gap-width per slide (slide 2 off by 1.5rem, slide 3 by 3rem, slide 4
+   nearly a full gap-and-a-half right of center -- confirmed live at 375px).
+   render() instead measures the viewport's actual rendered width every
+   time and multiplies by `current` in real pixels, so it's correct
+   regardless of any gap/padding -- CSS still zeroes that gap at the mobile
+   breakpoint too (belt and suspenders, see css/style.css), but this no
+   longer depends on CSS and JS agreeing on a hidden assumption.
+
+   This file adds what product-gallery.js doesn't need: autoplay (3.5s,
+   looping), pausing while the user is actually touching the track and
+   resuming after 5s of inactivity, skipping autoplay entirely under
+   prefers-reduced-motion, and only running the timer while the bar is
+   actually on screen (IntersectionObserver). */
 (function () {
   const bar = document.getElementById('trust-bar');
   if (!bar) return;
@@ -26,9 +38,13 @@
   const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   // Desktop: no transform at all (the grid shows every item already) --
-  // only mobile actually slides the track.
+  // only mobile actually slides the track, by the viewport's own freshly
+  // measured width (see this file's own header comment on why this is
+  // pixels-from-measurement, not a percentage).
   function render() {
-    track.style.transform = mobileQuery.matches ? `translateX(-${current * 100}%)` : '';
+    track.style.transform = mobileQuery.matches
+      ? `translateX(-${current * viewport.getBoundingClientRect().width}px)`
+      : '';
     dots.forEach((dot, i) => dot.classList.toggle('active', i === current));
   }
 
@@ -43,6 +59,12 @@
       pauseThenResume();
     });
   });
+
+  // A width change while already in mobile mode (rotation, a resized
+  // browser window dragged across widths without crossing 768px, a late
+  // webfont swap reflowing the row) needs the SAME slide re-measured, or
+  // the next transform would use a stale width and land off-center again.
+  window.addEventListener('resize', () => { if (mobileQuery.matches) render(); });
 
   // ---------------- Autoplay ----------------
   const AUTOPLAY_INTERVAL_MS = 3500;

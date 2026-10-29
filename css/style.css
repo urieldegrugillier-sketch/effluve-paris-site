@@ -1534,6 +1534,9 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   gap: 0.7rem;
   min-width: 0;
   text-align: center;
+  /* Service Client is a real <a> (see product.html's markup); every other
+     item is a plain <div> this has no effect on. */
+  text-decoration: none;
 }
 
 /* 36-44px range (icons were a flat 22px before adding per-item descriptions
@@ -1551,6 +1554,14 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   color: var(--text-on-dark);
 }
 
+/* Subtle "gold text brightening" on the one clickable item (Service
+   Client, an <a>) -- hover-capable pointers only, matching every other
+   plain color :hover on this site (so a tap doesn't leave it stuck lit on
+   touch devices). */
+@media (hover: hover) and (pointer: fine) {
+  a.trust-bar-item:hover .trust-bar-label { color: var(--accent-bronze-light); }
+}
+
 .trust-bar-desc {
   margin: 0;
   font-family: var(--font-body);
@@ -1564,10 +1575,20 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
 /* Hidden on desktop (nothing to paginate, all 4 items show at once) --
    reuses .carousel-dots/.carousel-dot as-is (css/shop.css), just repositioned
    from that rule's own absolute-over-the-image placement to a plain static
-   row underneath the slide, via this second class rather than overriding
-   .carousel-dots itself and risking the product photo carousel's own
-   positioning. */
-.trust-bar-dots { display: none; }
+   row underneath the slide.
+
+   BUG FIX: a single-class `.trust-bar-dots { display: none; }` has the same
+   (0,1,0) specificity as css/shop.css's own `.carousel-dots` base rule
+   (display:flex, position:absolute, bottom:1.2rem, ...) -- since shop.css
+   loads AFTER this file on product.html, ITS rule was winning the tie on
+   source order alone, so the dots rendered display:flex/position:absolute
+   on desktop too, floating wherever the nearest positioned ancestor up the
+   tree happened to put them (not "the bottom of this bar" -- .trust-bar
+   itself has no position:relative to anchor against). Matching both classes
+   in the selector (0,2,0) -- the exact same fix, and the exact same reason
+   for it, as checkout.css's own .checkout-trust-badges.checkout-trust-badges-mobile
+   -- makes this win regardless of stylesheet order. */
+.trust-bar-dots.carousel-dots { display: none; }
 
 /* Thin gold separator between this row and the newsletter block below --
    the same fade-at-both-ends bronze gradient already used for
@@ -1588,13 +1609,31 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   .trust-bar-viewport { overflow: hidden; }
   .trust-bar-track {
     display: flex;
+    /* BUG FIX: the desktop rule above sets `gap: 2.4rem 1.5rem` for the
+       4-column grid -- `gap` also applies to flex containers, so without
+       resetting it here that same 1.5rem column-gap was still landing
+       between every 100%-width slide. js/trust-bar-carousel.js's translate
+       math assumes slides sit back-to-back with zero gap between them (it
+       measures the viewport's own width, not a CSS percentage, precisely so
+       a stray gap/padding can't silently throw it off); this reset is what
+       makes that assumption actually true. Each extra slide was drifting
+       further right by exactly this gap (slide 2 off by 1.5rem, slide 3 by
+       3rem, slide 4 by 4.5rem) -- which is exactly the "content drifts
+       right, slide 4 nearly against the edge" bug this fixes. */
+    gap: 0;
     transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
   }
   .trust-bar-item { flex: 0 0 100%; width: 100%; }
-  .trust-bar-dots {
+  /* Same specificity fix as the desktop rule above, so this reliably wins
+     (display:flex, repositioned below the slides, centered) regardless of
+     stylesheet source order. */
+  .trust-bar-dots.carousel-dots {
     display: flex;
     position: static;
+    bottom: auto;
+    left: auto;
     transform: none;
+    justify-content: center;
     margin-top: 1.4rem;
   }
   .trust-bar-divider { margin-bottom: 2rem; }
