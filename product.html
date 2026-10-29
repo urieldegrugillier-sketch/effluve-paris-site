@@ -78,8 +78,8 @@
      copy of this comment for why (avoids a fallback-font flash). -->
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=block" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20261029">
-<link rel="stylesheet" href="css/shop.css?v=20261029">
+<link rel="stylesheet" href="css/style.css?v=20261029b">
+<link rel="stylesheet" href="css/shop.css?v=20261029b">
 </head>
 <body class="shop-page" data-page="product">
 
@@ -173,6 +173,45 @@
            Cart's own flex sizing already accounts for that). -->
       <div id="main-payment-request-button" class="shop-payment-request-button" hidden></div>
     </div>
+
+    <!-- REASSURANCE -- same WhatsApp support line + 3-icon trust-badge row as
+         checkout.html's own Order Summary column (css/style.css's "CHECKOUT-
+         STYLE SUPPORT NOTE / TRUST BADGES" section, factored out of
+         checkout.css precisely so this could reuse it verbatim): exact same
+         markup, SVGs, CSS classes, and i18n keys (checkout.whatsapp*/
+         checkout.trust*). Only the wrapping .product-buy-box-reassurance
+         div is new, purely for this spot's own above/below spacing (see
+         css/shop.css). -->
+    <div class="product-buy-box-reassurance">
+      <p class="checkout-support-note"><span data-i18n="checkout.whatsappSupportLabel">24/7 customer service</span> <a href="https://api.whatsapp.com/send?phone=33605893897&text=Hello%2C%20I%20have%20a%20question." class="checkout-support-link" data-i18n-attr="href:checkout.whatsappHref">WhatsApp</a></p>
+      <div class="checkout-trust-badges">
+        <div class="checkout-trust-badge">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 6.5h11v9H3z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M14 9.5h4l3 3v3h-7z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="7" cy="17.5" r="1.6" stroke="currentColor" stroke-width="1.3"/>
+            <circle cx="17.5" cy="17.5" r="1.6" stroke="currentColor" stroke-width="1.3"/>
+          </svg>
+          <span data-i18n="checkout.trustShipping">Free shipping</span>
+        </div>
+        <div class="checkout-trust-badge">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 8H18M18 8L14 4M18 8L14 12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M21 16H6M6 16L10 12M6 16L10 20" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span data-i18n="checkout.trustReturns">Free returns</span>
+        </div>
+        <div class="checkout-trust-badge">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M7 10V7a5 5 0 0 1 10 0v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="4.5" y="10" width="15" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9 15.5l2 2 4-4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span data-i18n="checkout.trustPayment">Secure payment</span>
+        </div>
+      </div>
+    </div>
+
     <details class="shop-refund-note">
       <summary data-i18n="product.returnPolicy.summary">14-Day Return Policy</summary>
       <p data-i18n-html="product.returnPolicy.body">You may return your unopened MONARK bottle within 14 days of delivery for a full
@@ -219,7 +258,7 @@
       <p>Alcool Denat, Aqua (Water), CI 42090, CI 19140, Parfum (Fragrance).</p>
       <p data-i18n="product.ingredients.allergensNote">May contain allergens regulated under EU cosmetic regulation (full list available on request).</p>
     </details>
-    <a href="faq.html" class="shop-back-link" data-i18n="product.shippingFaqLink">Shipping, returns &amp; more &mdash; FAQ</a>
+    <a href="faq.html" class="shop-back-link" data-i18n="product.shippingFaqLink">Shipping, returns &amp; more | FAQ</a>
   </div>
 </section>
 
@@ -348,41 +387,60 @@
      there verbatim; "Customer service" has no checkout equivalent, so it's a
      new headset icon drawn in the same style. Shared .trust-bar rules live
      in css/style.css (sitewide), not shop.css, so any other page that later
-     adds the newsletter block can reuse this unchanged. -->
-<div class="trust-bar">
-  <div class="trust-bar-item">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M3 6.5h11v9H3z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M14 9.5h4l3 3v3h-7z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="7" cy="17.5" r="1.6" stroke="currentColor" stroke-width="1.3"/>
-      <circle cx="17.5" cy="17.5" r="1.6" stroke="currentColor" stroke-width="1.3"/>
-    </svg>
-    <span data-i18n="trustBar.shipping">Free shipping</span>
+     adds the newsletter block can reuse this unchanged.
+     Desktop: plain 4-up grid (.trust-bar-track). Mobile (<=768px):
+     js/trust-bar-carousel.js turns the same track into a one-item-per-slide,
+     swipeable, auto-advancing carousel -- see that file and this section's
+     own CSS comment for the full mechanics. -->
+<div class="trust-bar" id="trust-bar">
+  <div class="trust-bar-viewport">
+    <div class="trust-bar-track" id="trust-bar-track">
+      <div class="trust-bar-item">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3 6.5h11v9H3z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14 9.5h4l3 3v3h-7z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="7" cy="17.5" r="1.6" stroke="currentColor" stroke-width="1.3"/>
+          <circle cx="17.5" cy="17.5" r="1.6" stroke="currentColor" stroke-width="1.3"/>
+        </svg>
+        <span class="trust-bar-label" data-i18n="trustBar.shipping">Free shipping</span>
+        <p class="trust-bar-desc" data-i18n="trustBar.shippingDesc">Free throughout France and Belgium, in 5 to 7 business days.</p>
+      </div>
+      <div class="trust-bar-item">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3 8H18M18 8L14 4M18 8L14 12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 16H6M6 16L10 12M6 16L10 20" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="trust-bar-label" data-i18n="trustBar.returns">Free returns</span>
+        <p class="trust-bar-desc" data-i18n="trustBar.returnsDesc">14 days to change your mind.</p>
+      </div>
+      <div class="trust-bar-item">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 13.5v-2a8 8 0 0 1 16 0v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="3" y="13" width="4.5" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="16.5" y="13" width="4.5" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M19.5 19v1a3 3 0 0 1-3 3h-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="trust-bar-label" data-i18n="trustBar.service">Customer service</span>
+        <p class="trust-bar-desc" data-i18n="trustBar.serviceDesc">Questions? Our team replies 24/7 on WhatsApp.</p>
+      </div>
+      <div class="trust-bar-item">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M7 10V7a5 5 0 0 1 10 0v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="4.5" y="10" width="15" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M9 15.5l2 2 4-4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="trust-bar-label" data-i18n="trustBar.payment">Secure payment</span>
+        <p class="trust-bar-desc" data-i18n="trustBar.paymentDesc">Encrypted payment via Stripe. Apple Pay and Google Pay accepted.</p>
+      </div>
+    </div>
   </div>
-  <div class="trust-bar-item">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M3 8H18M18 8L14 4M18 8L14 12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M21 16H6M6 16L10 12M6 16L10 20" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <span data-i18n="trustBar.returns">Returns</span>
+  <div class="carousel-dots trust-bar-dots" id="trust-bar-dots">
+    <button class="carousel-dot active" type="button" data-slide="0" aria-label="Free shipping" data-i18n-attr="aria-label:trustBar.shipping"></button>
+    <button class="carousel-dot" type="button" data-slide="1" aria-label="Free returns" data-i18n-attr="aria-label:trustBar.returns"></button>
+    <button class="carousel-dot" type="button" data-slide="2" aria-label="Customer service" data-i18n-attr="aria-label:trustBar.service"></button>
+    <button class="carousel-dot" type="button" data-slide="3" aria-label="Secure payment" data-i18n-attr="aria-label:trustBar.payment"></button>
   </div>
-  <div class="trust-bar-item">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M4 13.5v-2a8 8 0 0 1 16 0v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-      <rect x="3" y="13" width="4.5" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-      <rect x="16.5" y="13" width="4.5" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M19.5 19v1a3 3 0 0 1-3 3h-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <span data-i18n="trustBar.service">Customer service</span>
-  </div>
-  <div class="trust-bar-item">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M7 10V7a5 5 0 0 1 10 0v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-      <rect x="4.5" y="10" width="15" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M9 15.5l2 2 4-4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <span data-i18n="trustBar.payment">Secure payment</span>
-  </div>
+  <div class="trust-bar-divider"></div>
 </div>
 
 <!-- NEWSLETTER SIGNUP -- reuses the exact same submission logic (validation,
@@ -439,7 +497,7 @@
 <script src="js/analytics.js?v=20261027"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js?v=20260822"></script>
-<script src="js/i18n.js?v=20261029"></script>
+<script src="js/i18n.js?v=20261029b"></script>
 <script src="js/nav-cta-page-aware.js?v=20261014c"></script>
 <script src="js/header-position-fix.js?v=20260822"></script>
 <script src="js/footer-active-page.js?v=20261014"></script>
@@ -450,6 +508,7 @@
 <script src="https://js.stripe.com/v3/"></script>
 <script src="js/stripe-client.js?v=20260822"></script>
 <script src="js/product-gallery.js?v=20260823"></script>
+<script src="js/trust-bar-carousel.js?v=20261029"></script>
 <script src="js/product-page.js?v=20261014"></script>
 <script src="js/promo-countdown.js?v=20260822"></script>
 <script src="js/product-countdown-note.js?v=20260823"></script>

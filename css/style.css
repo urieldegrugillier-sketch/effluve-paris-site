@@ -1503,12 +1503,25 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
    adds the newsletter block can reuse this unchanged. Same icon/label
    convention as .why-effluve-item above and the checkout page's own trust
    badges (css/checkout.css): thin round-cap/round-join strokes, fill:none,
-   bronze-light icon color. Grid (not flex) so the 4-across-desktop /
-   2x2-mobile swap below is a single grid-template-columns change. */
+   bronze-light icon color.
+
+   Desktop: .trust-bar-track is a plain 4-column grid, nothing slides.
+   Mobile (<=768px): the exact same product-photo-carousel mechanics
+   (js/product-gallery.js's translateX(-n*100%) track + .carousel-dots/
+   .carousel-dot, reused verbatim rather than restyled) take over --
+   .trust-bar-track becomes the sliding flex track, .trust-bar-viewport
+   clips it, and js/trust-bar-carousel.js (which drives both this and the
+   autoplay/IntersectionObserver/reduced-motion behavior) targets these
+   same class names. */
 .trust-bar {
   max-width: 1080px;
   margin: 0 auto;
   padding: 5vh 6vw 0;
+}
+
+.trust-bar-viewport { overflow: visible; }
+
+.trust-bar-track {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 2.4rem 1.5rem;
@@ -1518,14 +1531,19 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.7rem;
   min-width: 0;
   text-align: center;
 }
 
+/* 36-44px range (icons were a flat 22px before adding per-item descriptions
+   below made the row read top-heavy relative to its own text) -- size comes
+   from the svg's own width/height attributes in the markup, not a CSS
+   override, same "intrinsic size is the source of truth" convention every
+   other inline icon on this site already follows. */
 .trust-bar-item svg { flex-shrink: 0; color: var(--accent-bronze-light); }
 
-.trust-bar-item span {
+.trust-bar-label {
   font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.1em;
@@ -1533,20 +1551,156 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   color: var(--text-on-dark);
 }
 
+.trust-bar-desc {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: 24ch;
+}
+
+/* Hidden on desktop (nothing to paginate, all 4 items show at once) --
+   reuses .carousel-dots/.carousel-dot as-is (css/shop.css), just repositioned
+   from that rule's own absolute-over-the-image placement to a plain static
+   row underneath the slide, via this second class rather than overriding
+   .carousel-dots itself and risking the product photo carousel's own
+   positioning. */
+.trust-bar-dots { display: none; }
+
 /* Thin gold separator between this row and the newsletter block below --
    the same fade-at-both-ends bronze gradient already used for
    .cta-divider, not a flat border, so it doesn't read as a harsh rule on a
-   dark background. */
-.trust-bar::after {
-  content: '';
-  grid-column: 1 / -1;
+   dark background. margin-top gives it breathing room from the icons/dots
+   above; margin-bottom is the gap from the newsletter block below (that
+   block's own top padding is 0, see css/shop.css's .shop-newsletter -- this
+   is the only thing keeping "Restez Informé" from sitting flush against the
+   line). */
+.trust-bar-divider {
   height: 1px;
-  margin-top: 2.4rem;
+  margin: 2.4rem 0 3rem;
   background: linear-gradient(to right, transparent, rgba(156, 107, 46, 0.4) 15%, rgba(156, 107, 46, 0.4) 85%, transparent);
 }
 
 @media (max-width: 768px) {
-  .trust-bar { grid-template-columns: repeat(2, 1fr); padding: 6vh 8vw 0; gap: 3rem 6vw; }
+  .trust-bar { padding: 6vh 8vw 0; }
+  .trust-bar-viewport { overflow: hidden; }
+  .trust-bar-track {
+    display: flex;
+    transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  .trust-bar-item { flex: 0 0 100%; width: 100%; }
+  .trust-bar-dots {
+    display: flex;
+    position: static;
+    transform: none;
+    margin-top: 1.4rem;
+  }
+  .trust-bar-divider { margin-bottom: 2rem; }
+}
+
+/* prefers-reduced-motion itself only disables js/trust-bar-carousel.js's
+   autoplay timer (see that file) -- swipe/dot navigation stay available
+   either way, so this is purely about the transform TRANSITION feeling
+   abrupt rather than smooth for a user who's asked for less motion, same
+   scope as every other reduced-motion override being about animation, not
+   functionality. */
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+  .trust-bar-track { transition: none; }
+}
+
+/* ================= CHECKOUT-STYLE SUPPORT NOTE / TRUST BADGES (shared) ================= */
+/* Moved here from css/checkout.css, factored out so product.html's own
+   reassurance block (above its "Add to Cart" button -- see that page's own
+   markup comment) can reuse these exact classes/SVGs instead of a second,
+   copy-pasted set of rules. checkout.html/account.html already load
+   css/style.css sitewide, so moving these here changes nothing for them;
+   checkout.css itself keeps only what's actually page-specific (its own
+   desktop/mobile dual-copy show/hide rule). */
+
+/* Understated WhatsApp support line -- deliberately NOT a .cta-button (that
+   reads as a primary action, competing with the real purchase button below
+   it); only the "WhatsApp" word itself styled as a link (bronze, real
+   underline -- text-decoration, not the mono/uppercase/border-bottom
+   "button-ish" treatment .checkout-back-link uses elsewhere, since this
+   reads as a plain inline sentence, not a nav control). */
+.checkout-support-note {
+  margin: 1rem 0 0;
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.checkout-support-link {
+  color: var(--accent-bronze-light);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .checkout-support-link:hover { color: var(--text-on-dark); }
+}
+
+/* Hermès-style trust-badge row -- three quiet icon+label pairs, no
+   borders/boxes around any one of them, just a hairline var(--line) divider
+   between each pair instead of around them.
+
+   BUG FIX: the divider used to be a `border-left` on the 2nd/3rd badge
+   itself, with the container's own `gap` as the ONLY other spacing --
+   confirmed live via getBoundingClientRect() that this put the divider
+   1.8rem from the badge to its LEFT but only 0.8rem from the badge to its
+   RIGHT (gap + that badge's own left padding stack on one side of the
+   border, only the next badge's left padding sits on the other), nowhere
+   near equidistant. Fixed by dropping the container `gap` and each badge's
+   own left/right padding entirely, and instead drawing the divider as an
+   absolutely-positioned ::before exactly at each non-first badge's own left
+   edge (left: 0, not inset by any padding) -- with badges laid out via
+   flex:1 1 0/min-width:0 (equal widths regardless of content, same
+   shrink-to-fit reasoning as .checkout-field, see that rule's own comment)
+   and no gap between them at all, that left edge IS the exact midpoint
+   between two equal-width neighbors, without needing to hand-tune any
+   padding/gap combination to land there. --checkout-trust-badge-pad (equal
+   on every badge, both sides) is the only thing controlling how far each
+   icon/label sits from that shared boundary now, so it's trivially
+   symmetric by construction rather than by coincidence. */
+.checkout-trust-badges {
+  --checkout-trust-badge-pad: 1.3rem;
+  display: flex;
+  margin-top: 2rem;
+}
+.checkout-trust-badge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 var(--checkout-trust-badge-pad);
+  text-align: center;
+}
+.checkout-trust-badge:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+}
+/* White (--text-on-dark, the same near-white used for hero/body text
+   elsewhere -- not a raw #fff) rather than the muted tone every other small
+   mono label on this page uses (chevrons, "Qty", etc.) -- these three are
+   meant to read as confident reassurances, not quiet metadata. */
+.checkout-trust-badge svg { flex-shrink: 0; color: var(--text-on-dark); }
+.checkout-trust-badge span {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.35;
+  color: var(--text-on-dark);
 }
 
 /* ================= CANVAS ================= */

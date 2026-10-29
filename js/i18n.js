@@ -235,14 +235,24 @@
         addressSelectNudge: 'Please select an address from the list, or <button type="button" class="checkout-address-manual-link">click here</button> if yours doesn\'t appear.'
       },
       // Reassurance icon row placed directly above the newsletter signup
-      // (product.html) -- deliberately its own short labels, not a reuse of
-      // checkout.trustShipping/trustReturns/trustPayment (those read "Returns
-      // & exchanges", longer than this row's single-word design calls for).
+      // (product.html) -- its own labels (kept in sync with
+      // checkout.trustShipping/trustReturns/trustPayment's wording, just
+      // under a separate key namespace since this row also carries a
+      // one-line description under each label that checkout's row doesn't
+      // have). Description copy is deliberately conservative: only facts
+      // already stated on cgv.html (shipping zones/delay, the 14-day
+      // withdrawal right) or already true of the live Stripe/Payment
+      // Request Button integration (product.js's own canMakePayment()
+      // setup) -- nothing invented here.
       trustBar: {
         shipping: 'Free shipping',
-        returns: 'Returns',
+        shippingDesc: 'Free throughout France and Belgium, in 5 to 7 business days.',
+        returns: 'Free returns',
+        returnsDesc: '14 days to change your mind.',
         service: 'Customer service',
-        payment: 'Secure payment'
+        serviceDesc: 'Questions? Our team replies 24/7 on WhatsApp.',
+        payment: 'Secure payment',
+        paymentDesc: 'Encrypted payment via Stripe. Apple Pay and Google Pay accepted.'
       },
       product: {
         carouselAriaLabel: 'MONARK bottle image carousel',
@@ -289,7 +299,7 @@
           summary: 'Full Ingredients List (INCI)',
           allergensNote: 'May contain allergens regulated under EU cosmetic regulation (full list available on request).'
         },
-        shippingFaqLink: 'Shipping, returns & more — FAQ',
+        shippingFaqLink: 'Shipping, returns & more | FAQ',
         notesKicker: 'The Composition',
         topNotes: 'Top Notes',
         topNotesNames: '<span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-bergamot">Bergamot</span><span class="note-desc" id="note-desc-bergamot">Bright, citrus opening</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-lemon">Lemon</span><span class="note-desc" id="note-desc-lemon">Sharp, sunlit zest</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-pinkpepper">Pink Pepper</span><span class="note-desc" id="note-desc-pinkpepper">Dry, peppered heat</span></span>',
@@ -407,7 +417,7 @@
         // comment) -- three short labels, one per icon, never longer than a
         // couple of words since they wrap under a small fixed-width icon.
         trustShipping: 'Free shipping',
-        trustReturns: 'Returns & exchanges',
+        trustReturns: 'Free returns',
         trustPayment: 'Secure payment'
       },
       accountGate: {
@@ -875,9 +885,13 @@
       },
       trustBar: {
         shipping: 'Livraison gratuite',
-        returns: 'Retours',
+        shippingDesc: 'Offerte en France et en Belgique, sous 5 à 7 jours ouvrés.',
+        returns: 'Retours gratuits',
+        returnsDesc: '14 jours pour changer d\'avis.',
         service: 'Service client',
-        payment: 'Paiement sécurisé'
+        serviceDesc: 'Une question ? Notre équipe vous répond 24/7 sur WhatsApp.',
+        payment: 'Paiement sécurisé',
+        paymentDesc: 'Paiement crypté via Stripe. Apple Pay et Google Pay acceptés.'
       },
       product: {
         carouselAriaLabel: "Carrousel d'images du flacon MONARK",
@@ -910,7 +924,7 @@
           summary: 'Liste Complète des Ingrédients (INCI)',
           allergensNote: 'Peut contenir des allergènes réglementés selon la réglementation cosmétique UE (liste complète disponible sur demande).'
         },
-        shippingFaqLink: 'Livraison, retours et plus — FAQ',
+        shippingFaqLink: 'Livraison, retours et plus | FAQ',
         notesKicker: 'La Composition',
         topNotes: 'Notes de Tête',
         topNotesNames: '<span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-bergamot">Bergamote</span><span class="note-desc" id="note-desc-bergamot">Ouverture agrume, lumineuse</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-lemon">Citron</span><span class="note-desc" id="note-desc-lemon">Zeste vif, ensoleillé</span></span> &middot; <span class="note-word-wrap"><span class="note-word" tabindex="0" aria-describedby="note-desc-pinkpepper">Poivre Rose</span><span class="note-desc" id="note-desc-pinkpepper">Chaleur sèche, poivrée</span></span>',
@@ -1002,7 +1016,7 @@
         mobileOrderSummaryHeading: 'Paiement',
         cartHeading: 'Panier',
         trustShipping: 'Livraison gratuite',
-        trustReturns: 'Retours & échanges',
+        trustReturns: 'Retours gratuits',
         trustPayment: 'Paiement sécurisé'
       },
       accountGate: {

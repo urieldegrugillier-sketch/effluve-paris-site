@@ -605,29 +605,10 @@
    css/style.css (shared with js/email-popup.js, which runs on every page,
    not just this one) -- see the comment there. */
 
-/* Understated WhatsApp support line under the order summary -- deliberately
-   NOT a .cta-button (that reads as a primary action, competing with Place
-   Order below); same font-body/text-muted fine-print weight as
-   .checkout-empty-note above, with only the "WhatsApp" word itself styled as
-   a link (bronze, real underline -- text-decoration, not the mono/uppercase/
-   border-bottom "button-ish" treatment .checkout-back-link uses elsewhere,
-   since this reads as a plain inline sentence, not a nav control). */
-.checkout-support-note {
-  margin: 1rem 0 0;
-  font-family: var(--font-body);
-  font-weight: 300;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-}
-
-.checkout-support-link {
-  color: var(--accent-bronze-light);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .checkout-support-link:hover { color: var(--text-on-dark); }
-}
+/* .checkout-support-note/.checkout-support-link now live in css/style.css
+   (shared -- product.html's own reassurance block above its "Add to Cart"
+   button reuses these exact same classes, see that page's own markup
+   comment) -- see the comment there. */
 
 /* Embedded mid-sentence inside common.addressSelectNudge (js/i18n.js, via
    data-i18n-html -- see checkout.html's/account.html's own markup), same
@@ -1578,74 +1559,13 @@
 .checkout-terms-row span { text-transform: none; letter-spacing: 0.02em; font-size: 0.78rem; font-family: var(--font-body); font-weight: 300; }
 .checkout-terms-row a { color: var(--accent-bronze-light); }
 
-/* Hermès-style trust-badge row (see checkout.html's own markup comments on
-   its two copies -- desktop at the bottom of the Order Summary column,
-   mobile-only copy at the bottom of the Payment column) -- three quiet
-   icon+label pairs, no borders/boxes around any one of them, just the same
-   hairline var(--line) divider convention already used for
-   .checkout-accordion-section's own border-bottom above, between each pair
-   instead of around them. No border-top on the row itself (removed -- it
-   read as a stray extra rule bracketing the row on both copies: directly
-   below the WhatsApp line on desktop, directly above the row on mobile);
-   margin-top alone still gives it breathing room from whatever precedes it
-   in each column.
-
-   BUG FIX: the divider used to be a `border-left` on the 2nd/3rd badge
-   itself, with the container's own `gap` as the ONLY other spacing --
-   confirmed live via getBoundingClientRect() that this put the divider
-   1.8rem from the badge to its LEFT but only 0.8rem from the badge to its
-   RIGHT (gap + that badge's own left padding stack on one side of the
-   border, only the next badge's left padding sits on the other), nowhere
-   near equidistant. Fixed by dropping the container `gap` and each badge's
-   own left/right padding entirely, and instead drawing the divider as an
-   absolutely-positioned ::before exactly at each non-first badge's own left
-   edge (left: 0, not inset by any padding) -- with badges laid out via
-   flex:1 1 0/min-width:0 (equal widths regardless of content, same
-   shrink-to-fit reasoning as .checkout-field, see that rule's own comment)
-   and no gap between them at all, that left edge IS the exact midpoint
-   between two equal-width neighbors, without needing to hand-tune any
-   padding/gap combination to land there. --checkout-trust-badge-pad (equal
-   on every badge, both sides) is the only thing controlling how far each
-   icon/label sits from that shared boundary now, so it's trivially
-   symmetric by construction rather than by coincidence. */
-.checkout-trust-badges {
-  --checkout-trust-badge-pad: 1.3rem;
-  display: flex;
-  margin-top: 2rem;
-}
-.checkout-trust-badge {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
-  flex: 1 1 0;
-  min-width: 0;
-  padding: 0 var(--checkout-trust-badge-pad);
-  text-align: center;
-}
-.checkout-trust-badge:not(:first-child)::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--line);
-}
-/* White (--text-on-dark, the same near-white used for hero/body text
-   elsewhere -- not a raw #fff) rather than the muted tone every other small
-   mono label on this page uses (chevrons, "Qty", etc.) -- these three are
-   meant to read as confident reassurances, not quiet metadata. */
-.checkout-trust-badge svg { flex-shrink: 0; color: var(--text-on-dark); }
-.checkout-trust-badge span {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  line-height: 1.35;
-  color: var(--text-on-dark);
-}
+/* .checkout-trust-badges/.checkout-trust-badge (+ svg/span) now live in
+   css/style.css (shared -- product.html's own reassurance block reuses
+   these exact same classes/SVGs, see that page's own markup comment) -- see
+   the comment there. The dual-copy show/hide rule just above
+   (@media (min-width: 769px) { .checkout-trust-badges.checkout-trust-badges-mobile ... })
+   stays here -- it's specific to THIS page's two-copy (desktop/mobile)
+   layout, not something product.html's single copy needs. */
 
 /* Marketing-consent checkbox at account creation (js/account.js's
    accountGateMarkup()) -- same "full sentence, not a short label" case as

@@ -419,6 +419,16 @@ body.shop-page { background: var(--bg-void); }
   outline-offset: 2px;
 }
 
+/* Wraps the checkout-style WhatsApp note + 3-icon trust-badge row reused
+   verbatim from checkout.html (see product.html's own markup comment and
+   css/style.css's "CHECKOUT-STYLE SUPPORT NOTE / TRUST BADGES" section) --
+   purely for this spot's own spacing. .checkout-support-note's own
+   margin-top (1rem) collapses with this wrapper's, so the real gap above is
+   whichever is larger (this wrapper's 1.5rem); .checkout-trust-badges has no
+   margin-bottom of its own, so the gap below is this wrapper's bottom margin
+   alone, keeping the first accordion below from sitting flush against it. */
+.product-buy-box-reassurance { margin: 1.5rem 0 2rem; }
+
 .shop-refund-note {
   margin: 0 0 0.9rem;
   font-family: var(--font-mono);
@@ -439,7 +449,7 @@ body.shop-page { background: var(--bg-void); }
 .shop-refund-note[open] summary::before { content: "\2212 "; }
 
 .shop-refund-note p {
-  margin: 0.8rem 0 0;
+  margin: 1rem 0 0;
   font-family: var(--font-body);
   font-weight: 300;
   font-size: 0.82rem;
@@ -774,8 +784,12 @@ body.shop-page { background: var(--bg-void); }
    title in its own right, not quiet metadata, so it needed to stand out
    more than the plain kicker treatment gave it. Scaled down to +22% (0.88rem)
    on mobile, see this file's own @media block below, rather than carrying
-   the full desktop bump onto a narrow column. */
-.shop-newsletter-kicker { display: block; margin-bottom: 1rem; font-size: 1rem; color: var(--accent-bronze-light); }
+   the full desktop bump onto a narrow column. font-weight: 700 is a real
+   loaded weight (product.html's own IBM Plex Mono Google Fonts request
+   includes 700, see that page's <head>), not a synthetic/faux bold, so this
+   doesn't shift glyph width or cause layout shift the way browser-faked
+   bold on a missing weight would. */
+.shop-newsletter-kicker { display: block; margin-bottom: 1rem; font-size: 1rem; font-weight: 700; color: var(--accent-bronze-light); }
 
 .shop-newsletter-body {
   margin: 0 0 2rem;
@@ -807,7 +821,7 @@ body.shop-page { background: var(--bg-void); }
 
 .shop-howto-list {
   list-style: none;
-  margin: 0.8rem 0 0;
+  margin: 1rem 0 0;
   padding: 0;
   max-width: 40ch;
 }
