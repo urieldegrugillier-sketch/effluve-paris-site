@@ -159,11 +159,22 @@ clean URL, and asset request (`/product`, `/cgv.html`, `/assets/foo.webp`,
 `robots.txt`, `sitemap.xml`, the Supabase/Stripe-backed pages, etc.) is
 completely untouched by this change — none of them ever reach this file.
 
+**`assets.not_found_handling` must be `"none"`, not `"404-page"`.** This
+was the one bug that made the Worker never run at all in the first live
+deploy: `"404-page"`/`"single-page-application"` make Cloudflare's own
+asset-serving layer handle a non-matching path directly, BEFORE this Worker
+is ever invoked (confirmed live — `/prduit` served the plain 404 page
+straight from the asset layer, `src/worker.js` never ran). `"none"` is the
+one value that defers a non-match to the Worker's own `fetch()` handler
+instead. This only changes what happens on a non-match — a request that
+DOES match a real file is still served directly either way (that's
+`assets.run_worker_first`, untouched, left at its default).
+
 For a path that *doesn't* match anything, `src/worker.js`:
 
-1. Leaves alone (passes straight through to `env.ASSETS.fetch()`, i.e.
-   today's unchanged 404 behavior) anything under `/assets/` or that looks
-   like a non-HTML static file request (an extension other than `.html`).
+1. Leaves alone (serves the branded 404 below, no redirect attempt)
+   anything under `/assets/` or that looks like a non-HTML static file
+   request (an extension other than `.html`).
 2. Otherwise normalizes the path — lowercases it, decodes percent-escapes,
    drops a trailing slash and a trailing `.html`, strips accents, and drops
    everything that isn't a letter, digit, or hyphen (so `)`, `(`, `!`, `,`,
@@ -173,17 +184,23 @@ For a path that *doesn't* match anything, `src/worker.js`:
    within 2 edits *and* that route's name is at least 4 characters long,
    **302**s to it (a guess, not a certainty, hence not permanent) — the
    query string is preserved either way.
-5. Otherwise falls through to `env.ASSETS.fetch()`, which resolves via
-   `assets.not_found_handling: "404-page"` to the exact same branded
-   `dist/404.html` with a real 404 status this site already serves today.
+5. Otherwise serves the exact same branded `dist/404.html` with a real 404
+   status this site already served before this Worker existed — now done
+   explicitly, by the Worker's own `serve404()`, since `not_found_handling`
+   no longer does it automatically (see above). It fetches `/404.html`
+   through `env.ASSETS` and returns that body/content-type/headers with the
+   status forced to 404 (following one redirect first if Cloudflare's own
+   `.html` → extensionless canonicalization applies to that fetch too, so
+   the real page content is always what gets returned, never a redirect's
+   own near-empty body).
 
 The route list itself (`src/routes.generated.js`, gitignored) is **not**
 hand-maintained — `scripts/build.js`'s `buildRoutesManifest()` regenerates
 it on every `npm run build` from whichever top-level `*.html` files
 actually exist in the project root (same list `copyHtml()` already reads),
 so it can't silently drift out of sync with the real pages. `404.html`
-itself is excluded (it's the fallback, not a redirect target); `index.html`
-maps to `/` rather than `/index`.
+itself is excluded from that list (it's the fallback, not a redirect
+target); `index.html` maps to `/` rather than `/index`.
 
 Deploy flow is unchanged: `npm run build` (now also regenerates
 `src/routes.generated.js`) then `npx wrangler deploy` — Wrangler bundles

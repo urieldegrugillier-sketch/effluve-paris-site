@@ -12,15 +12,27 @@
    still resolve exactly as they did before this Worker existed, the same
    way they always have, with zero code here involved.
 
-   For everything that DOES fall through to here: normalize the path (case,
+   BUG FIX (confirmed live post-deploy): `assets.not_found_handling` was
+   originally "404-page", on the assumption that it only controlled what
+   env.ASSETS.fetch() itself returns for a non-matching path WHEN CALLED
+   FROM THIS WORKER. It doesn't -- "404-page"/"single-page-application"
+   make Cloudflare's own asset-serving layer handle a non-match directly,
+   before this Worker is ever invoked at all (confirmed: /prduit served the
+   plain 404 page straight from the asset layer, this file never ran).
+   wrangler.jsonc now sets it to "none", the one value that defers a
+   non-match to this file's own fetch() handler -- which means this file is
+   now responsible for reproducing the old branded-404-with-a-real-404-
+   status behavior itself, for every path it doesn't redirect (see
+   serve404() below), rather than being able to lean on that config to do
+   it after the fact.
+
+   For everything that falls through to here: normalize the path (case,
    trailing slash, .html suffix, accents, stray punctuation), and either
    redirect it to the one known route it now exactly matches (301 -- same
    canonical resource, just a different spelling of the URL), redirect it
    to the nearest known route if it's a close-enough typo (302 -- a guess,
-   not a certainty, so not cached as permanent), or fall through to
-   env.ASSETS.fetch() for the exact same branded dist/404.html + real 404
-   status this site already serves today (assets.not_found_handling:
-   "404-page", unchanged by this file).
+   not a certainty, so not cached as permanent), or serve the branded
+   dist/404.html with a real 404 status via serve404() below.
 
    ROUTES comes from src/routes.generated.js, rebuilt by
    scripts/build.js's buildRoutesManifest() on every `npm run build` from
@@ -143,6 +155,39 @@ export function resolvePath(pathname) {
   return { action: 'notfound' };
 }
 
+// Reproduces what assets.not_found_handling: "404-page" used to do
+// automatically (before it was switched to "none" so non-matches would
+// reach this Worker at all -- see this file's own header comment): fetch
+// the real dist/404.html asset by its OWN literal path (not the original
+// request's path -- that's the one that didn't match anything), then
+// return its exact body/content-type/headers with the status forced to a
+// real 404, same as a browser or crawler would have seen before this
+// Worker existed. Used for both 'bypass' (asset-like paths -- images, js,
+// css, xml, txt, .../assets/...) and 'notfound' (no close enough route) --
+// both get the plain branded-404 treatment, never a redirect attempt.
+//
+// Defensive one-hop redirect-follow: Cloudflare's own default html_handling
+// ("auto-trailing-slash") 308-redirects a literal "/404.html" request to
+// its canonical extensionless "/404" at the top-level routing layer -- it's
+// not fully documented whether env.ASSETS.fetch() applies that same
+// redirect internally when asked for "/404.html" directly, so this handles
+// either answer: if the first fetch comes back a redirect instead of the
+// real page (which would otherwise leave `asset.body` as that redirect's
+// own near-empty body, not the actual 404 page content), follow it once
+// more to get the real content before returning anything.
+async function serve404(env, origin) {
+  let asset = await env.ASSETS.fetch(new Request(new URL('/404.html', origin)));
+  const location = asset.headers.get('location');
+  if (asset.status >= 300 && asset.status < 400 && location) {
+    asset = await env.ASSETS.fetch(new Request(new URL(location, origin)));
+  }
+  return new Response(asset.body, {
+    status: 404,
+    statusText: 'Not Found',
+    headers: asset.headers
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -157,11 +202,9 @@ export default {
       return Response.redirect(target.toString(), decision.status);
     }
 
-    // 'bypass' and 'notfound' both land here: env.ASSETS.fetch() is the
-    // same lookup Cloudflare already ran before invoking this Worker at
-    // all, which for a genuinely missing path resolves via
-    // assets.not_found_handling ("404-page") to dist/404.html with a real
-    // 404 status -- identical to today's behavior, untouched.
-    return env.ASSETS.fetch(request);
+    // 'bypass' (asset-like paths -- never redirect-worthy) and 'notfound'
+    // (no close enough route) both land on the exact same branded 404,
+    // never on each other's behavior and never on a redirect attempt.
+    return serve404(env, url.origin);
   }
 };

@@ -24,18 +24,24 @@
     // near-match logic needs (see that file's header comment) and means
     // this change can't affect any already-working page/asset request.
     "binding": "ASSETS",
-    // Without this, an unmatched route falls through to Cloudflare's own
-    // generic "HTTP ERROR 404" page instead of our branded dist/404.html --
-    // confirmed live (effluve-paris.fr/une-page-qui-nexiste-pas showed
-    // Cloudflare's default page, not ours). "404-page" makes Workers Static
-    // Assets look for a 404.html at the asset root (or nearest parent dir)
-    // and serve it with a genuine 404 status -- not "single-page-application"
-    // (that serves index.html with 200, which is wrong for a real 404 and
-    // would also conflict with 404.html's own noindex tag never being seen).
-    // Unchanged by src/worker.js -- that file's own fallback path
-    // (env.ASSETS.fetch()) is exactly what applies this same setting for
-    // paths it doesn't redirect, so a genuinely unknown path still ends up
-    // at this exact same branded 404 either way.
-    "not_found_handling": "404-page"
+    // "none", NOT "404-page" -- this is the one line that actually controls
+    // whether an unmatched request reaches src/worker.js at all.
+    // "404-page"/"single-page-application" make Cloudflare's OWN asset
+    // layer handle a non-matching path directly (serving the configured
+    // page) WITHOUT ever invoking the Worker -- confirmed live: with
+    // "404-page" set, /prduit (a near-miss this Worker is supposed to
+    // 302-redirect) served the plain 404 page straight from the asset
+    // layer, src/worker.js never ran. "none" is the one value that defers
+    // a non-match to the Worker's own fetch() handler instead, which is
+    // required for near-match redirects to ever run at all. Real
+    // pages/assets are unaffected either way -- this setting only governs
+    // what happens on a non-match, not whether a MATCHING request still
+    // bypasses the Worker (that's assets.run_worker_first, left at its
+    // default/false, unchanged). src/worker.js now reproduces the old
+    // "404-page" behavior itself for every path it doesn't redirect (both
+    // the fuzzy-no-match case and the asset-like-bypass case) by explicitly
+    // fetching /404.html through env.ASSETS and forcing a real 404 status
+    // on the response -- see that file's serve404().
+    "not_found_handling": "none"
   }
 }
