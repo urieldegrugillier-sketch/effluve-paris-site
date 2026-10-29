@@ -1621,9 +1621,23 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
        3rem, slide 4 by 4.5rem) -- which is exactly the "content drifts
        right, slide 4 nearly against the edge" bug this fixes. */
     gap: 0;
+    /* Explicit, not relying on the flex default -- see .trust-bar-item's
+       own height:100% just below for why these two go together. */
+    align-items: stretch;
     transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
   }
-  .trust-bar-item { flex: 0 0 100%; width: 100%; }
+  /* BUG FIX: all 4 items/descriptions are different lengths (some labels
+     wrap to two lines at this width, e.g. "Livraison gratuite"/"Paiement
+     sécurisé"), so each one's own natural content height differs --
+     confirmed live at 375px that advancing slides shifted everything below
+     the bar up/down by a few px as the row's rendered height changed with
+     whichever slide was current. height:100% (resolved against the flex
+     line's own stretched cross-size, which flexbox explicitly allows even
+     though the line's size is itself "auto"/content-derived) pins every
+     item to the SAME height -- the tallest one's -- regardless of which is
+     currently scrolled into view, so the track's own height, and therefore
+     everything below it, never moves when the carousel advances. */
+  .trust-bar-item { flex: 0 0 100%; width: 100%; height: 100%; }
   /* Same specificity fix as the desktop rule above, so this reliably wins
      (display:flex, repositioned below the slides, centered) regardless of
      stylesheet source order. */

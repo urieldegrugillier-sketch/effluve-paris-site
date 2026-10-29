@@ -177,6 +177,13 @@ body.shop-page { background: var(--bg-void); }
 .carousel-dot:focus-visible { transition-property: width, height, background, opacity; }
 
 .shop-hero-details {
+  /* Single source of truth for the "Add to Cart" -> .product-reassurance
+     gap AND the .product-reassurance -> first accordion gap just below it
+     (see .shop-cta-row's own margin-bottom and .product-reassurance's own
+     margin, further down this file) -- both reference this one variable so
+     they're guaranteed identical rather than two hand-matched rem values
+     that could drift apart on a future edit. */
+  --buybox-gap: 1.8rem;
   flex: 1 1 50%;
   max-width: 50%;
   display: flex;
@@ -265,13 +272,12 @@ body.shop-page { background: var(--bg-void); }
    layouts, where a full-width sliver would look disproportionately long
    next to the compact price/label text above it; it still shrinks to fit
    naturally on narrow phones via the column's own width. */
-/* margin-bottom tightened from 1.8rem -- collapsed against .shop-cta-row's
-   own margin-top just below (adjacent-sibling margins collapse to the
-   LARGER of the two, not the sum) into a 2.2rem gap above "Add to Cart",
-   confirmed live as noticeably more than the price/stock block's own
-   internal rhythm. Both margins now agree on 1.4rem so there's nothing left
-   to collapse up to a bigger number. */
-.shop-stock { margin: 0 0 1.4rem; max-width: 260px; }
+/* margin-bottom tightened progressively (1.8rem -> 1.4rem -> 1.1rem) --
+   collapsed against .shop-cta-row's own margin-top just below it (adjacent-
+   sibling margins collapse to the LARGER of the two, not the sum), so both
+   margins stay matched at 1.1rem rather than leaving a bigger one of the
+   two free to win the collapse. */
+.shop-stock { margin: 0 0 1.1rem; max-width: 260px; }
 .shop-stock-label {
   margin: 0 0 0.5rem;
   font-family: var(--font-mono);
@@ -298,10 +304,13 @@ body.shop-page { background: var(--bg-void); }
   gap: 1rem;
   /* See .shop-stock's own comment just above -- margin-top matches that
      rule's margin-bottom so the collapsed gap above this row lands at
-     1.4rem, not 2.2rem. margin-bottom is this row's own gap down to
-     .product-reassurance right below it. */
-  margin-top: 1.4rem;
-  margin-bottom: 1.4rem;
+     1.1rem, not a bigger one of the two winning the collapse.
+     margin-bottom uses the shared --buybox-gap (.shop-hero-details) instead
+     of its own value, so the gap down to .product-reassurance right below
+     is guaranteed identical to that row's own gap down to the first
+     accordion (see .product-reassurance's margin, further down). */
+  margin-top: 1.1rem;
+  margin-bottom: var(--buybox-gap);
 }
 
 /* BUG FIX (the real remaining-width bug, confirmed via live box-model
@@ -440,7 +449,11 @@ body.shop-page { background: var(--bg-void); }
 .product-reassurance {
   --product-reassurance-pad: 0.9rem;
   display: flex;
-  margin: 0 0 1.5rem;
+  /* --buybox-gap (.shop-hero-details) -- same value as .shop-cta-row's own
+     margin-bottom above, so the gap down to the first accordion exactly
+     matches the gap up to "Add to Cart" rather than two independently
+     tuned numbers. */
+  margin: 0 0 var(--buybox-gap);
 }
 .product-reassurance-item {
   position: relative;
@@ -733,10 +746,15 @@ body.shop-page { background: var(--bg-void); }
    .shop-notes's own edge spacing alone (like .shop-notes-kicker already
    does with the section above IT, see that rule's own comment) keeps this
    consistent with how the rest of the page paces section transitions. */
+/* bottom padding trimmed 9vh -> 6vh -- combined with .trust-bar's own
+   top padding (css/style.css, a real padding-top on the NEXT section, not
+   a collapsible margin, so the two always ADD rather than collapse to the
+   larger one), reviews-to-trust-bar read as a noticeably longer pause than
+   any other section transition on this page. */
 .shop-reviews {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 0 6vw 9vh;
+  padding: 0 6vw 6vh;
 }
 
 .shop-reviews-kicker { display: block; text-align: center; margin-bottom: 3rem; }
@@ -811,7 +829,7 @@ body.shop-page { background: var(--bg-void); }
    tablet layout at (.shop-notes-row, .why-effluve, etc. -- see css/style.css
    for that shared section's own mobile breakpoints). */
 @media (max-width: 768px) {
-  .shop-reviews { padding: 0 8vw 6vh; }
+  .shop-reviews { padding: 0 8vw 4vh; }
   .shop-reviews-kicker { margin-bottom: 2.2rem; }
   .shop-reviews-grid { grid-template-columns: 1fr; gap: 1.4rem; }
 }
