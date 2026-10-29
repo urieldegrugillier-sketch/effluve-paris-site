@@ -1496,6 +1496,59 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   .why-effluve-item-body { max-width: 32ch; }
 }
 
+/* ================= TRUST BAR ================= */
+/* Reassurance icon row sitting directly above the newsletter signup
+   (product.html, see css/shop.css's .shop-newsletter) -- kept here in the
+   sitewide stylesheet rather than shop.css so any other page that later
+   adds the newsletter block can reuse this unchanged. Same icon/label
+   convention as .why-effluve-item above and the checkout page's own trust
+   badges (css/checkout.css): thin round-cap/round-join strokes, fill:none,
+   bronze-light icon color. Grid (not flex) so the 4-across-desktop /
+   2x2-mobile swap below is a single grid-template-columns change. */
+.trust-bar {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 5vh 6vw 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2.4rem 1.5rem;
+}
+
+.trust-bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  text-align: center;
+}
+
+.trust-bar-item svg { flex-shrink: 0; color: var(--accent-bronze-light); }
+
+.trust-bar-item span {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-on-dark);
+}
+
+/* Thin gold separator between this row and the newsletter block below --
+   the same fade-at-both-ends bronze gradient already used for
+   .cta-divider, not a flat border, so it doesn't read as a harsh rule on a
+   dark background. */
+.trust-bar::after {
+  content: '';
+  grid-column: 1 / -1;
+  height: 1px;
+  margin-top: 2.4rem;
+  background: linear-gradient(to right, transparent, rgba(156, 107, 46, 0.4) 15%, rgba(156, 107, 46, 0.4) 85%, transparent);
+}
+
+@media (max-width: 768px) {
+  .trust-bar { grid-template-columns: repeat(2, 1fr); padding: 6vh 8vw 0; gap: 3rem 6vw; }
+}
+
 /* ================= CANVAS ================= */
 
 .canvas-wrap {
