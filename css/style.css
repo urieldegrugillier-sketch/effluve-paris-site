@@ -1663,6 +1663,88 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   .trust-bar-track { transition: none; }
 }
 
+/* ================= NEWSLETTER SIGNUP (shared) ================= */
+/* Moved here from css/shop.css -- originally product.html-only, now also
+   reused verbatim by index.html's own "Restez Informé" section (just
+   before its footer, after section 06/Buy Now -- see that page's own
+   markup comment and js/product-newsletter.js, which both pages load and
+   which wires up by fixed element IDs rather than anything page-specific).
+   Reuses .email-popup-form/-input/-consent/-submit as-is (see this file's
+   own EMAIL CAPTURE POPUP section) for the form itself, so this and the
+   popup can never visually drift apart -- only this wrapper/kicker/body
+   text are unique to this section.
+   BUG FIX: was a single narrow (440px) centered column at every width --
+   confirmed via screenshot this left most of a wide desktop viewport empty
+   and read as disproportionately small. Desktop now splits into two columns
+   (text left, form right) inside the same 1080px max-width product.html's
+   own .shop-reviews uses just above it on that page, for consistency with
+   how that section already uses the available width; mobile is restored to
+   the original narrow centered block via this rule's own @media override
+   below, unchanged from before. */
+.shop-newsletter {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 6vw 9vh;
+}
+
+.shop-newsletter-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5vw;
+  align-items: center;
+  text-align: left;
+}
+
+/* The post-submit confirmation state (see js/product-newsletter.js) swaps
+   this container's content for flat kicker/heading/copy/consent markup --
+   that doesn't split into two meaningful columns, so it opts back into a
+   single narrow centered block instead, the same shape the pre-submission
+   mobile layout already uses. */
+.shop-newsletter-inner.shop-newsletter-confirmed {
+  display: block;
+  text-align: center;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+/* Bronze-light, not the muted default .section-label inherits -- same color
+   .shop-notes-label ("NOTES DE TÊTE" etc., product.html) already uses for
+   this kind of small kicker-style label, reused here for consistency
+   rather than leaving this one the odd, unaccented one out.
+   font-size override: +39% over .section-label's own 0.72rem base (to
+   1rem) -- this is the one kicker meant to read as a section title in its
+   own right, not quiet metadata, so it needed to stand out more than the
+   plain kicker treatment gave it. Scaled down to +22% (0.88rem) on mobile,
+   see this file's own @media block below, rather than carrying the full
+   desktop bump onto a narrow column. font-weight: 700 is a real loaded
+   weight on every page this section appears on (product.html's and
+   index.html's own IBM Plex Mono Google Fonts request both include 700),
+   not a synthetic/faux bold, so this doesn't shift glyph width or cause
+   layout shift the way browser-faked bold on a missing weight would. */
+.shop-newsletter-kicker { display: block; margin-bottom: 1rem; font-size: 1rem; font-weight: 700; color: var(--accent-bronze-light); }
+
+.shop-newsletter-body {
+  margin: 0 0 2rem;
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  max-width: 34ch;
+}
+
+@media (max-width: 768px) {
+  .shop-newsletter { padding: 0 8vw 6vh; }
+  .shop-newsletter-inner {
+    display: block;
+    text-align: center;
+    max-width: 440px;
+    margin: 0 auto;
+  }
+  .shop-newsletter-body { max-width: none; }
+  .shop-newsletter-kicker { font-size: 0.88rem; }
+}
+
 /* ================= CHECKOUT-STYLE SUPPORT NOTE / TRUST BADGES (shared) ================= */
 /* Moved here from css/checkout.css, factored out so product.html's own
    reassurance block (above its "Add to Cart" button -- see that page's own

@@ -42,7 +42,7 @@
      copy of this comment for why (avoids a fallback-font flash). -->
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=block" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20261029d">
+<link rel="stylesheet" href="css/style.css?v=20261029e">
 <!-- checkout.css: reused here only for its generic .checkout-field input
      styling (Name/Email/Message below) -- this page's own exclusive rules
      (honeypot, char counter, the custom "Reason" dropdown) live in
@@ -175,6 +175,65 @@
 
 <script src="js/contact.js?v=20260823"></script>
 
+<!-- TRUST BAR -- reused verbatim from product.html (exact same markup/ids/
+     classes/i18n keys, see that page's own comments for the full
+     mechanics): css/style.css's shared TRUST BAR section styles it,
+     js/trust-bar-carousel.js (loaded below, no-ops without #trust-bar so
+     it's safe to load on any page) drives the mobile carousel. No
+     newsletter section on this page, per explicit instruction. Service
+     Client stays a normal link here (same /contact target as elsewhere --
+     this IS that page, so it's a harmless self-link, not special-cased). -->
+<div class="trust-bar" id="trust-bar">
+  <div class="trust-bar-viewport">
+    <div class="trust-bar-track" id="trust-bar-track">
+      <a class="trust-bar-item" href="/contact">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 13.5v-2a8 8 0 0 1 16 0v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="3" y="13" width="4.5" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="16.5" y="13" width="4.5" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M19.5 19v1a3 3 0 0 1-3 3h-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="trust-bar-label" data-i18n="trustBar.service">Customer service</span>
+        <p class="trust-bar-desc" data-i18n="trustBar.serviceDesc">Here for you, 24/7</p>
+      </a>
+      <div class="trust-bar-item">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3 6.5h11v9H3z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14 9.5h4l3 3v3h-7z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="7" cy="17.5" r="1.6" stroke="currentColor" stroke-width="1.3"/>
+          <circle cx="17.5" cy="17.5" r="1.6" stroke="currentColor" stroke-width="1.3"/>
+        </svg>
+        <span class="trust-bar-label" data-i18n="trustBar.shipping">Free shipping</span>
+        <p class="trust-bar-desc" data-i18n="trustBar.shippingDesc">France and Belgium</p>
+      </div>
+      <div class="trust-bar-item">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3 8H18M18 8L14 4M18 8L14 12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 16H6M6 16L10 12M6 16L10 20" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="trust-bar-label" data-i18n="trustBar.returns">Free returns</span>
+        <p class="trust-bar-desc" data-i18n="trustBar.returnsDesc">Within 14 days</p>
+      </div>
+      <div class="trust-bar-item">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M7 10V7a5 5 0 0 1 10 0v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="4.5" y="10" width="15" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M9 15.5l2 2 4-4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="trust-bar-label" data-i18n="trustBar.payment">Secure payment</span>
+        <p class="trust-bar-desc" data-i18n="trustBar.paymentDesc">Encrypted by Stripe</p>
+      </div>
+    </div>
+  </div>
+  <div class="carousel-dots trust-bar-dots" id="trust-bar-dots">
+    <button class="carousel-dot active" type="button" data-slide="0" aria-label="Customer service" data-i18n-attr="aria-label:trustBar.service"></button>
+    <button class="carousel-dot" type="button" data-slide="1" aria-label="Free shipping" data-i18n-attr="aria-label:trustBar.shipping"></button>
+    <button class="carousel-dot" type="button" data-slide="2" aria-label="Free returns" data-i18n-attr="aria-label:trustBar.returns"></button>
+    <button class="carousel-dot" type="button" data-slide="3" aria-label="Secure payment" data-i18n-attr="aria-label:trustBar.payment"></button>
+  </div>
+  <div class="trust-bar-divider"></div>
+</div>
+
 <!-- FOOTER -->
 <footer class="shop-footer">
   <a href="index.html" class="shop-footer-wordmark">Effluve Paris</a>
@@ -205,5 +264,6 @@
 <script src="js/promo-banner.js?v=20260822"></script>
 <script src="js/cookie-consent.js?v=20261027"></script>
 <script src="js/email-popup.js?v=20260822"></script>
+<script src="js/trust-bar-carousel.js?v=20261029b"></script>
 </body>
 </html>

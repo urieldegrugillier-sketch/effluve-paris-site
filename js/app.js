@@ -224,6 +224,31 @@ const loaderBar = document.getElementById('loader-bar');
 const loaderPercent = document.getElementById('loader-percent');
 const navLogo = document.querySelector('.nav-logo');
 const siteHeader = document.querySelector('.site-header');
+// Trust bar + newsletter, now sitting between the CTA's resting slot and
+// the footer (see index.html's own markup comment) -- null on every other
+// page. Declared this early (not down near ctaSpacer/siteFooter, where it
+// conceptually belongs) because recalcDarkOverlayEnter() below calls
+// getPageMaxScroll() synchronously at script top level (line ~1105,
+// BEFORE ctaSpacer/siteFooter's own declaration point) -- referencing a
+// `const` declared later than that first synchronous call would throw a
+// "before initialization" error the moment this script ran at all.
+const homeReassurance = document.getElementById('home-reassurance');
+
+// Shared by every pageP computation below (applyShortViewportCanvasState(),
+// recalcDarkOverlayEnter(), the main lenis 'scroll' handler) -- all three
+// used to inline `document.documentElement.scrollHeight - cachedViewportHeight`
+// directly. Subtracting homeReassurance's own height keeps pageP's scale
+// exactly what it was before that section existed on index.html: pageP (and
+// everything timed off it -- canvas frame-stepping, the hero circle-wipe
+// reveal) is meant to track progress through the 900vh scroll-container,
+// not "the whole document including whatever now sits between the CTA and
+// the footer" -- a section that large (confirmed live: several hundred px)
+// measurably shifted that denominator and would have stretched out the
+// opening hero animation and frame-stepping to start a few percent later.
+function getPageMaxScroll() {
+  const reassuranceHeight = homeReassurance ? homeReassurance.offsetHeight : 0;
+  return document.documentElement.scrollHeight - cachedViewportHeight - reassuranceHeight;
+}
 
 /* ---------------- Nav logo centering (px-based, not CSS left:50%) ----------------
    Real touch/momentum-scroll testing (CDP-synthesized fast flicks, throttled
@@ -1006,7 +1031,7 @@ function applyShortViewportCanvasState() {
   if (landscapeFrozenFrame) landscapeFrozenFrame.style.display = 'none';
   if (canvasWrap) canvasWrap.style.display = '';
   if (wasHidden) resizeCanvas('landscape-exit-resync');
-  const maxScroll = document.documentElement.scrollHeight - cachedViewportHeight;
+  const maxScroll = getPageMaxScroll();
   const pageP = maxScroll > 0 ? Math.min(1, Math.max(0, window.scrollY / maxScroll)) : 0;
   const accelerated = Math.min(pageP * FRAME_SPEED, 1);
   currentFrame = Math.max(1, Math.min(Math.floor(accelerated * FRAME_COUNT) + 1, FRAME_COUNT));
@@ -1094,7 +1119,7 @@ function recalcDarkOverlayEnter() {
   // Requiring the whole ramp to start only once the wipe is done keeps the
   // two as a clean, non-overlapping sequence: wipe finishes, *then* the
   // overlay begins.
-  const maxScroll = document.documentElement.scrollHeight - cachedViewportHeight;
+  const maxScroll = getPageMaxScroll();
   const wipeCompletePageP = HERO_WIPE_START_P + HERO_WIPE_DURATION_P;
   const wipeCompleteScrollY = wipeCompletePageP * maxScroll;
   const wipeCompleteContainerP = (wipeCompleteScrollY - scrollContainer.offsetTop) / scrollable;
@@ -1416,6 +1441,13 @@ function updateCtaVisibility(p) {
    threshold. */
 const ctaSpacer = document.getElementById('cta-spacer');
 const siteFooter = document.querySelector('footer.shop-footer');
+// homeReassurance/getPageMaxScroll() are declared much earlier (this
+// file's own "DOM refs" section) -- see that declaration's own comment for
+// why. noDeadZoneFloor below folds homeReassurance's height in too, same
+// reasoning as footerHeight: that formula's whole job is "how much stuff
+// still has to fit between the stitch point and containerBottomY without
+// reopening a dead-scroll gap", and this section is now part of that
+// stuff, not just the footer alone.
 const CTA_GAP_VH = 0.20; // 20vh: a deliberate pause after the fade-in completes, not a snap —
                          // short enough that the footer still feels like "the next thing"
 let ctaUnpinned = false;
@@ -1459,7 +1491,8 @@ function updateCtaPin() {
   const gapPx = CTA_GAP_VH * viewportHeight;
   const desiredStitchY = fadeCompleteY + gapPx;
   const footerHeight = siteFooter ? siteFooter.offsetHeight : 0;
-  const noDeadZoneFloor = containerBottomY - viewportHeight - footerHeight;
+  const reassuranceHeight = homeReassurance ? homeReassurance.offsetHeight : 0;
+  const noDeadZoneFloor = containerBottomY - viewportHeight - footerHeight - reassuranceHeight;
   const stitchY = Math.max(desiredStitchY, noDeadZoneFloor);
   const shiftPx = containerBottomY - stitchY;
   const shouldUnpin = window.scrollY >= stitchY;
@@ -1723,7 +1756,7 @@ function updateHeaderVisibility() {
 
 lenis.on('scroll', () => {
   updateHeaderVisibility();
-  const maxScroll = document.documentElement.scrollHeight - cachedViewportHeight;
+  const maxScroll = getPageMaxScroll();
   const pageP = maxScroll > 0 ? Math.min(1, Math.max(0, window.scrollY / maxScroll)) : 0;
 
   // Frame-stepping and the circle-wipe reveal are both frozen for short
