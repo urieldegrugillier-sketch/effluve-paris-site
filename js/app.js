@@ -1727,7 +1727,16 @@ ScrollTrigger.create({
   onUpdate: (self) => {
     const p = self.progress;
     updateCtaVisibility(p);
-    if (isDesktop) updatePyramidTiers(p);
+    if (isDesktop) {
+      updatePyramidTiers(p);
+      // reconcileSections (declared later, in "Section entrance
+      // choreography") is a plain function declaration -- hoisted, and in
+      // any case only ever actually called once a real scroll/refresh/
+      // visibilitychange event fires, always after the whole script has
+      // finished its initial synchronous run. See that function's own
+      // comment for what it does and why it exists.
+      reconcileSections(p);
+    }
   }
 });
 
@@ -1868,6 +1877,85 @@ const SCRUB_STAGGER = { 'fade-up': 0.12, 'slide-left': 0.14, 'slide-right': 0.14
 const SCRUB_EASE_OUT = { 'fade-up': 'power3.out', 'slide-left': 'power3.out', 'slide-right': 'power3.out', 'scale-up': 'power2.out', 'rotate-in': 'power3.out', 'stagger-up': 'power3.out', 'clip-reveal': 'power4.inOut' };
 const SCRUB_EASE_IN = { 'fade-up': 'power3.in', 'slide-left': 'power3.in', 'slide-right': 'power3.in', 'scale-up': 'power2.in', 'rotate-in': 'power3.in', 'stagger-up': 'power3.in', 'clip-reveal': 'power4.inOut' };
 
+/* BUG FIX (confirmed live in production, and reproduced locally on scroll-
+   back-up: #genesis (002) and the pyramid's own kicker+heading (003) both
+   visible at once -- genesis opacity 0.86 with composition 0.14, then 0.60
+   with 0.61, over ~500px of scroll): desktop's reveal/hide below is built
+   on discrete play()/reverse() timelines, fired from onEnter/onLeave/
+   onEnterBack/onLeaveBack callbacks on a PER-SECTION ScrollTrigger. Those
+   callbacks fire once, at the instant their boundary is crossed -- fast
+   scrolling, Lenis momentum, a backgrounded tab throttling the rAF ticker,
+   a resize/zoom mid-scroll, or a reloaded page restoring a mid-scroll
+   position can all skip, delay, or desync one of those instants from the
+   real scroll position, leaving a section's tl stuck mid-reveal (or never
+   reversed) regardless of where the user has actually scrolled to. The
+   pyramid TIER crossfade had this same class of bug and was already fixed
+   by making tier opacity a pure function of scroll progress (see
+   updatePyramidTiers() above) -- this does the equivalent for every
+   OTHER section's text: a cheap, idempotent safety net that runs on every
+   master-ScrollTrigger tick (see reconcileSections() below) and forcibly
+   corrects any section whose current opacity state doesn't match what its
+   own [data-enter, data-leave] range says it should be, regardless of
+   whether its own onEnter/onLeave ever fired correctly. The existing
+   onEnter/onLeave callbacks are left completely in place for the normal,
+   nicely-animated case -- this only ever takes action when it detects a
+   genuine mismatch.
+
+   discreteSections (populated by setupSectionAnimation() below, one entry
+   per desktop/persist/fade-in section -- never for a mobile scrub-based
+   section, which returns early above before reaching that point) is the
+   registry reconcileSections() walks. Desktop-only by construction (every
+   entry already comes from the discrete, non-scrub branch), so this can
+   never touch mobile's scrubbed timelines. */
+const discreteSections = [];
+const SECTION_RECONCILE_MARGIN = 0.02; // container-progress units (~160px on this page's own ~8100px-tall container at 1440x900) -- just enough slack that this never fights a normal, still-in-flight onEnter/onLeave animation; small enough to still catch a genuinely stale one well before the next section's own territory.
+
+function reconcileSections(p) {
+  if (!isDesktop) return;
+  discreteSections.forEach((entry) => {
+    const inRange = p >= entry.enter - SECTION_RECONCILE_MARGIN && p <= entry.leave + SECTION_RECONCILE_MARGIN;
+    if (inRange) {
+      if (entry.revealed) return; // already correct -- idempotent, no-op
+      entry.revealed = true;
+      // Mirrors setupSectionAnimation()'s own onEnter handler exactly (see
+      // isFadeIn's own comment there): a .to()-based fade-in timeline's own
+      // progress=0 isn't "hidden" on its own, that's this manual pre-step.
+      if (entry.isFadeIn) gsap.set(entry.children, { opacity: 0, visibility: 'hidden', immediateRender: true });
+      entry.tl.play();
+    } else {
+      // persist sections (the CTA) are never hidden again once revealed,
+      // by design -- same intent as onEnter's own `if (persist) st.kill()`,
+      // which already stops the normal onLeave/onLeaveBack path from ever
+      // reversing one. leave=100 for the CTA also makes p > leave+margin
+      // structurally unreachable (p caps at 1), so this is mostly belt and
+      // suspenders, kept for clarity and for any future persist section
+      // whose own leave isn't 100.
+      if (entry.persist || !entry.revealed) return; // already correct
+      entry.revealed = false;
+      // pause(0), not reverse() -- this is a correctness snap, not a
+      // repeat of the pretty animated hide (that still happens normally,
+      // from onLeave/onLeaveBack, for the common case this never needs to
+      // touch). For a .from()-based timeline, time 0 IS the hidden state;
+      // fade-in needs the same explicit vars reverse()/onLeave already
+      // apply via tl's own reversed .to(), replicated here directly since
+      // we're bypassing the tween entirely.
+      entry.tl.pause(0);
+      if (entry.isFadeIn) gsap.set(entry.children, { opacity: 0, visibility: 'hidden' });
+    }
+  });
+}
+
+// Mirrors the master ScrollTrigger's own progress formula (trigger:
+// scrollContainer, start:'top top', end:'bottom bottom') so a reconciliation
+// requested from OUTSIDE that trigger's own onUpdate (visibilitychange, a
+// ScrollTrigger 'refresh', the one-time initial pass below) reads the exact
+// same progress value onUpdate would have supplied for the current scrollY.
+function currentContainerProgress() {
+  const { scrollable } = containerScrollRange(true);
+  if (scrollable <= 0) return 0;
+  return Math.min(1, Math.max(0, (window.scrollY - scrollContainer.offsetTop) / scrollable));
+}
+
 function setupSectionAnimation(section) {
   const type = section.dataset.animation;
   if (type === 'none') return;
@@ -1975,6 +2063,14 @@ function setupSectionAnimation(section) {
       break;
   }
 
+  // Registered with reconcileSections() (see that function's own header
+  // comment, above SCRUB_EASE_IN) -- the entry object is shared by
+  // reference with the callbacks just below, so `revealed` always reflects
+  // whichever of the two (the normal trigger or the safety net) last
+  // actually corrected this section's state.
+  const entry = { section, tl, children, isFadeIn, persist, enter: enter / 100, leave: leave / 100, revealed: false };
+  discreteSections.push(entry);
+
   let st;
   st = ScrollTrigger.create({
     trigger: scrollContainer,
@@ -1983,15 +2079,46 @@ function setupSectionAnimation(section) {
     onEnter: () => {
       if (isFadeIn) gsap.set(children, { opacity: 0, visibility: 'hidden', immediateRender: true });
       tl.play();
+      entry.revealed = true;
       if (persist) st.kill(); // never let a persisted section be reversed again, even by boundary/rubber-band jitter
     },
-    onEnterBack: () => tl.play(),
-    onLeave: () => { if (!persist) tl.reverse(); },
-    onLeaveBack: () => { if (!persist) tl.reverse(); }
+    onEnterBack: () => { tl.play(); entry.revealed = true; },
+    onLeave: () => { if (!persist) { tl.reverse(); entry.revealed = false; } },
+    onLeaveBack: () => { if (!persist) { tl.reverse(); entry.revealed = false; } }
   });
 }
 
 document.querySelectorAll('.scroll-section[data-animation]').forEach(setupSectionAnimation);
+
+// Initial pass -- corrects state before the first scroll/refresh event
+// fires, same "set correct initial state up front" reasoning as
+// updateCtaPin()'s own explicit call near the top of this file. Covers a
+// page load that restores a mid-scroll position (bfcache, scroll
+// restoration), where the per-section onEnter/onEnterBack triggers may
+// never fire at all for sections already "behind" that restored position.
+reconcileSections(currentContainerProgress());
+
+/* Requirement coverage beyond the per-tick call already wired into the
+   master ScrollTrigger's own onUpdate above:
+   - ScrollTrigger's global 'refresh' event already fires after every
+     ScrollTrigger.refresh() call already in this file (the resize listener
+     a few hundred lines up, and the orientationchange-settle handler
+     further down), AND after the auto-refresh events this file's own
+     ScrollTrigger.config() already lists ('visibilitychange', 'load',
+     'DOMContentLoaded') -- one hook here covers resize, orientationchange,
+     and a visibility change that happens to come through that path, all at
+     once, reusing refresh logic this file already runs rather than
+     duplicating it.
+   - The explicit visibilitychange listener below is kept anyway, calling
+     reconcileSections() directly rather than relying on that transitively:
+     a backgrounded tab throttles rAF (GSAP's own ticker included), which is
+     exactly the scenario this whole safety net exists for, so this path is
+     deliberately direct and immediate rather than resting on ScrollTrigger's
+     own auto-refresh timing. */
+ScrollTrigger.addEventListener('refresh', () => reconcileSections(currentContainerProgress()));
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) reconcileSections(currentContainerProgress());
+});
 
 /* ---------------- Counter animations ---------------- */
 
