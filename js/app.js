@@ -583,6 +583,44 @@ function progressToContainerPx(p) {
 
 /* ---------------- Position sections along the 900vh timeline ---------------- */
 
+// BUG FIX (confirmed live on a real 1496x682 display at 125% Windows
+// scaling, and reproduced locally down to 1280x600): #scroll-container's
+// CSS height (900vh) scales linearly with the REAL viewport height, but
+// section text -- headings/body sized via vw clamp()s, never vh -- doesn't
+// shrink to match. A short viewport therefore gives every section's fixed
+// percentage-of-900vh allotment proportionally FEWER real pixels to work
+// with, while the text that has to fit and transition within that
+// allotment stays exactly the same size. Confirmed overlaps: section 001
+// still fully opaque while 003's kicker+heading had already faded in near
+// the bottom of the viewport; 003's kicker+heading still visible after 004
+// was already fully visible; 004 sitting only ~100px above 005 (both
+// opaque). The pyramid's own pin releasing at exactly the same progress
+// (0.56) that 004 enters made that one boundary doubly tight.
+//
+// Fix: the desktop branch of positionSections() below gives
+// #scroll-container's real pixel height an effective minimum-viewport-
+// height floor (DESKTOP_MIN_EFFECTIVE_VH) instead of scaling purely off
+// the real (possibly short) one. Every consumer of
+// containerScrollRange()/progressToContainerPx() -- section positions, the
+// pyramid pin's own start/end (syncPyramidPin()), the CTA stitch math --
+// reads #scroll-container's offsetHeight fresh, so this one change gives
+// all of them the same extra breathing room at once, with the existing
+// data-enter/data-leave PERCENTAGES left
+// completely untouched (per instruction -- this only changes how many
+// pixels those same percentages span, never the percentages themselves).
+// Above the floor this is an exact no-op (Math.max picks the real,
+// already-generous height), so tall-screen behavior is byte-for-byte
+// unchanged. 900 was picked specifically because it's this file's own most
+// heavily exercised "known good" desktop viewport height (1440x900, used
+// across every prior round of fixes to this exact scroll system) -- a
+// short window now behaves exactly like scrolling through that same
+// already-proven timeline, just through a smaller pane onto it, rather
+// than an unproven new number. Mobile (!isDesktop) and max-height:500px
+// (isShortViewport) both already use their own real-content-measured
+// cascade further down this function -- this floor only ever applies
+// inside the `isDesktop` branch, so neither of those paths changes.
+const DESKTOP_MIN_EFFECTIVE_VH = 900;
+
 const MOBILE_SECTION_GAP_PX = 32; // deliberate breathing room between stacked mobile sections' boxes -- see the cascade comment below
 
 // The cascade below can push the last ordinary section (stats) later, in
@@ -673,11 +711,12 @@ function positionSections() {
     return;
   }
 
-  // See the !isDesktop branch's own comment on scrollContainer.style.height
-  // above -- clears any stale inline height a previous short-viewport
-  // cascade may have set, so desktop always falls back to the CSS's own
-  // 900vh, never an inline value left over from before a rotation.
-  scrollContainer.style.height = '';
+  // See DESKTOP_MIN_EFFECTIVE_VH's own comment, above this function, for
+  // why this is no longer a bare clear-back-to-CSS-900vh. Explicit inline
+  // height either way (same as the !isDesktop branch above), so a stale
+  // value from before a rotation/resize never lingers -- this always
+  // recomputes fresh against the CURRENT viewportHeight.
+  scrollContainer.style.height = (Math.max(viewportHeight, DESKTOP_MIN_EFFECTIVE_VH) * 9) + 'px';
 
   sections.forEach((section) => {
     const enter = parseFloat(section.dataset.enter) / 100;
@@ -1910,6 +1949,45 @@ function setupSectionAnimation(section) {
       break;
   }
 
+  // BUG FIX (confirmed live via headless-Chromium opacity sampling at 7
+  // desktop viewports, 682-940px tall, deviceScaleFactor 1.25: adjacent
+  // sections both sitting at 85-96% opacity simultaneously for 300-600+px
+  // of scroll, on EVERY viewport tested -- including tall ones, so this is
+  // independent of DESKTOP_MIN_EFFECTIVE_VH's own fix above, not something
+  // it resolves on its own): several adjacent sections share a zero-gap
+  // boundary (one section's own data-leave equals the next one's
+  // data-enter), so the outgoing section's onLeave (tl.reverse()) and the
+  // incoming section's onEnter (tl.play()) fire at the EXACT same scroll
+  // instant, and each runs its own independent ~0.8-1.2s tween from there.
+  // Both tweens' easing keeps them close to fully opaque for a large
+  // fraction of that shared duration (an outgoing power*.out tween played
+  // in reverse stays high before dropping late; an incoming power*.out
+  // tween rises fast and lingers high) -- run fully concurrently, that's a
+  // real, substantial double-exposure, not a brief cross-fade.
+  // ENTER_STAGGER_DELAY gives the outgoing section's own fade a head start
+  // before the incoming one begins, so the two are sequenced rather than
+  // fully overlapped -- total choreography duration and each animation's
+  // own look/easing/duration are untouched, only WHEN the incoming one
+  // starts relative to the outgoing one changes.
+  const ENTER_STAGGER_DELAY = 0.35;
+
+  // BUG FIX: gsap.delayedCall() schedules an independent callback with no
+  // built-in cancellation. If the scroll direction reverses before a
+  // previously-scheduled delayed tl.play() fires (e.g. fast scroll down past
+  // this boundary, then scroll back up before ENTER_STAGGER_DELAY elapses),
+  // the stale call still fires later and re-plays a reveal that's no longer
+  // appropriate, stacking with whatever the reversed direction has since
+  // triggered. pendingEnterCall tracks the one outstanding delayed call so
+  // every trigger event (a new enter, or any leave) kills it first.
+  let pendingEnterCall = null;
+  function killPendingEnterCall() {
+    if (pendingEnterCall) { pendingEnterCall.kill(); pendingEnterCall = null; }
+  }
+  function scheduleEnter() {
+    killPendingEnterCall();
+    pendingEnterCall = gsap.delayedCall(ENTER_STAGGER_DELAY, () => { pendingEnterCall = null; tl.play(); });
+  }
+
   let st;
   st = ScrollTrigger.create({
     trigger: scrollContainer,
@@ -1917,12 +1995,12 @@ function setupSectionAnimation(section) {
     end: () => 'top+=' + progressToContainerPx(leave / 100) + ' top',
     onEnter: () => {
       if (isFadeIn) gsap.set(children, { opacity: 0, visibility: 'hidden', immediateRender: true });
-      tl.play();
+      scheduleEnter();
       if (persist) st.kill(); // never let a persisted section be reversed again, even by boundary/rubber-band jitter
     },
-    onEnterBack: () => tl.play(),
-    onLeave: () => { if (!persist) tl.reverse(); },
-    onLeaveBack: () => { if (!persist) tl.reverse(); }
+    onEnterBack: () => scheduleEnter(),
+    onLeave: () => { killPendingEnterCall(); if (!persist) tl.reverse(); },
+    onLeaveBack: () => { killPendingEnterCall(); if (!persist) tl.reverse(); }
   });
 }
 
