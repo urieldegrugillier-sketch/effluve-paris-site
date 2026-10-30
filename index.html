@@ -255,6 +255,89 @@
      the user scrolls far enough, and swaps it back out when scrolling back up. -->
 <div id="cta-spacer" aria-hidden="true"></div>
 
+<!-- TRUST BAR + NEWSLETTER -- reused verbatim from product.html (exact same
+     markup/ids/classes/i18n keys, see that page's own comments for the full
+     mechanics of each): css/style.css's shared TRUST BAR and NEWSLETTER
+     SIGNUP sections style both, js/trust-bar-carousel.js (no-ops without
+     #trust-bar, so safe to load on any page) drives the mobile carousel,
+     js/product-newsletter.js (wired by these exact element IDs, not
+     anything page-specific) drives the form -- same Supabase submission,
+     honeypot, marketing-consent text, and success/error states as
+     product.html's own copy, no second implementation.
+     Wrapped in #home-reassurance so js/app.js's CTA/footer un-pin stitch
+     math (updateCtaPin(), see that file's own comment) can measure its
+     height and keep the zero-dead-scroll-space guarantee correct now that
+     something sits between the CTA and the footer here -- see that
+     function's own comment on why. -->
+<div id="home-reassurance">
+  <div class="trust-bar" id="trust-bar">
+    <div class="trust-bar-viewport">
+      <div class="trust-bar-track" id="trust-bar-track">
+        <a class="trust-bar-item" href="/contact">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 13.5v-2a8 8 0 0 1 16 0v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="3" y="13" width="4.5" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="16.5" y="13" width="4.5" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M19.5 19v1a3 3 0 0 1-3 3h-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="trust-bar-label" data-i18n="trustBar.service">Customer service</span>
+          <p class="trust-bar-desc" data-i18n="trustBar.serviceDesc">Here for you, 24/7</p>
+        </a>
+        <div class="trust-bar-item">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 6.5h11v9H3z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M14 9.5h4l3 3v3h-7z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="7" cy="17.5" r="1.6" stroke="currentColor" stroke-width="1.3"/>
+            <circle cx="17.5" cy="17.5" r="1.6" stroke="currentColor" stroke-width="1.3"/>
+          </svg>
+          <span class="trust-bar-label" data-i18n="trustBar.shipping">Free shipping</span>
+          <p class="trust-bar-desc" data-i18n="trustBar.shippingDesc">France and Belgium</p>
+        </div>
+        <div class="trust-bar-item">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 8H18M18 8L14 4M18 8L14 12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M21 16H6M6 16L10 12M6 16L10 20" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="trust-bar-label" data-i18n="trustBar.returns">Free returns</span>
+          <p class="trust-bar-desc" data-i18n="trustBar.returnsDesc">Within 14 days</p>
+        </div>
+        <div class="trust-bar-item">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M7 10V7a5 5 0 0 1 10 0v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="4.5" y="10" width="15" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9 15.5l2 2 4-4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="trust-bar-label" data-i18n="trustBar.payment">Secure payment</span>
+          <p class="trust-bar-desc" data-i18n="trustBar.paymentDesc">Encrypted by Stripe</p>
+        </div>
+      </div>
+    </div>
+    <div class="carousel-dots trust-bar-dots" id="trust-bar-dots">
+      <button class="carousel-dot active" type="button" data-slide="0" aria-label="Customer service" data-i18n-attr="aria-label:trustBar.service"></button>
+      <button class="carousel-dot" type="button" data-slide="1" aria-label="Free shipping" data-i18n-attr="aria-label:trustBar.shipping"></button>
+      <button class="carousel-dot" type="button" data-slide="2" aria-label="Free returns" data-i18n-attr="aria-label:trustBar.returns"></button>
+      <button class="carousel-dot" type="button" data-slide="3" aria-label="Secure payment" data-i18n-attr="aria-label:trustBar.payment"></button>
+    </div>
+    <div class="trust-bar-divider"></div>
+  </div>
+
+  <section class="shop-newsletter">
+    <div class="shop-newsletter-inner" id="shop-newsletter-inner">
+      <div class="shop-newsletter-text">
+        <span class="section-label shop-newsletter-kicker" data-i18n="product.newsletter.heading">Stay Informed</span>
+        <p class="shop-newsletter-body" data-i18n="product.newsletter.body">New editions, occasional offers, nothing more.</p>
+      </div>
+      <form class="email-popup-form shop-newsletter-form" id="shop-newsletter-form" novalidate>
+        <input type="email" class="email-popup-input" id="shop-newsletter-input" placeholder="you@email.com" required aria-label="Email address" data-i18n-attr="placeholder:emailPopup.emailPlaceholder;aria-label:emailPopup.emailAriaLabel">
+        <input type="text" class="email-popup-honeypot" id="shop-newsletter-honeypot" name="hp_email_confirm" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <p class="email-popup-consent" data-i18n="emailPopup.consent">By submitting, you agree to receive marketing emails from Effluve Paris.</p>
+        <p class="promo-message promo-message-error" id="shop-newsletter-error" aria-live="polite" hidden></p>
+        <button type="submit" class="cta-button email-popup-submit" data-i18n="product.newsletter.submit">Subscribe</button>
+      </form>
+    </div>
+  </section>
+</div>
+
 <!-- FOOTER (normal document flow, after the scroll-driven 900vh container —
      js/app.js un-pins the fixed CTA overlay into normal flow once scroll passes
      the container's own bottom edge, so this isn't permanently hidden behind it) -->
@@ -282,7 +365,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js?v=20260822"></script>
 <script src="js/i18n.js?v=20261029c"></script>
-<script src="js/app.js?v=20261030"></script>
+<script src="js/app.js?v=20261030b"></script>
 <script src="js/footer-active-page.js?v=20261014"></script>
 <script src="js/cart.js?v=20260823"></script>
 <script src="js/cart-widget.js?v=20261015d"></script>
@@ -291,6 +374,8 @@
 <script src="js/promo-banner.js?v=20260822"></script>
 <script src="js/cookie-consent.js?v=20261027"></script>
 <script src="js/email-popup.js?v=20260822"></script>
+<script src="js/trust-bar-carousel.js?v=20261029b"></script>
+<script src="js/product-newsletter.js?v=20260823"></script>
 <script src="js/note-highlight.js?v=20260822"></script>
 <script src="js/cta-buy-now.js?v=20261014"></script>
 </body>
