@@ -1628,21 +1628,66 @@ let activeTierIndex = -1;
 
 const PYRAMID_HEADER_LEAD = 0.025; // scroll distance reserved for the kicker+heading to lead before any tier appears
 
+/* BUG FIX (confirmed live, headless-Chromium tween instrumentation: two
+   tiers stuck simultaneously at opacity ~1 for 7+ consecutive scroll steps
+   during a scroll-back-up pass, not a one-tick blip): the old version fired
+   a brand-new gsap.to()/gsap.fromTo() opacity tween on every tier each time
+   `idx` changed, with no `overwrite`. Fast scrolling or reversing direction
+   routinely calls this again before a prior 0.3-0.5s tween finishes, and
+   without overwrite those tweens don't kill each other -- they ACCUMULATE
+   on the same tier's opacity property (confirmed via gsap.getTweensOf():
+   1, then 2, then 3, then 4 simultaneously active). Whichever stale tween
+   happened to render last on a given tick "won" that tick's opacity, with
+   no guarantee it matched the current scroll position -- exactly how two
+   tiers could both end up stuck near 1.
+
+   Fix: tier opacity is no longer a wall-clock-duration tween at all. It's
+   computed directly from `local` (current scroll progress) and written via
+   plain style assignment on every single call -- a pure, synchronous
+   function of the CURRENT scroll position, with no running tween to go
+   stale and no "last writer wins" race, so a skipped or out-of-order call
+   can never leave two tiers visible. tierOpacityAt()'s three outputs sum to
+   exactly 1 at every `local` value (a true crossfade: whatever one tier
+   loses, its neighbor gains), so "two fully visible notes" is
+   mathematically impossible -- a transition is two PARTIAL opacities that
+   always sum to 1, never two values anywhere near 1 at once. Same ~4%-of-
+   range crossfade width as the old tweens' own typical scroll-distance
+   coverage, kept brief on purpose.
+
+   Only the staggered label/heading/body entrance (a one-time "slide up and
+   fade in" when a tier newly becomes active, not something that should
+   replay every scroll tick) stays a real GSAP tween -- it never drives
+   whether a tier is VISIBLE, only how its text enters, so a stale/
+   overlapping instance of it can look slightly off but can never reproduce
+   the "two notes visible" bug. overwrite:true on it regardless, so rapid
+   re-entries can't pile up extra instances of that either. */
+const TIER_CROSSFADE_HALF_WIDTH = 0.02; // half-width in `local` units -- 4% total, a brief/snappy crossfade
+
+function crossfadeRamp(edge, local) {
+  // Linear 0 -> 1 ramp centered on `edge`, spanning [edge-half, edge+half].
+  const half = TIER_CROSSFADE_HALF_WIDTH;
+  return Math.min(1, Math.max(0, (local - (edge - half)) / (half * 2)));
+}
+
+function tierOpacityAt(local, tierIndex) {
+  const upAtTh0 = crossfadeRamp(tierThresholds[0], local);
+  const upAtTh1 = crossfadeRamp(tierThresholds[1], local);
+  if (tierIndex === 0) return 1 - upAtTh0;
+  if (tierIndex === 1) return upAtTh0 * (1 - upAtTh1);
+  return upAtTh1;
+}
+
 function updatePyramidTiers(p) {
   if (!pyramidSection) return;
   const enter = 0.34, leave = 0.56; // matches section-pyramid data-enter/leave (shifted -6pts)
   const tiersEnter = enter + PYRAMID_HEADER_LEAD;
 
   if (p < tiersEnter || p > leave) {
-    if (activeTierIndex !== -1) {
-      activeTierIndex = -1;
-      // See the idx-switch branch below for why pointerEvents is set here
-      // too, not just opacity.
-      tiers.forEach((tier) => {
-        gsap.set(tier, { pointerEvents: 'none' });
-        gsap.to(tier, { opacity: 0, duration: 0.3, ease: 'power2.out' });
-      });
-    }
+    activeTierIndex = -1;
+    tiers.forEach((tier) => {
+      tier.style.opacity = 0;
+      tier.style.pointerEvents = 'none';
+    });
     return;
   }
 
@@ -1650,38 +1695,25 @@ function updatePyramidTiers(p) {
   let idx = 0;
   if (local >= tierThresholds[1]) idx = 2;
   else if (local >= tierThresholds[0]) idx = 1;
+
+  // BUG FIX: all three tiers share the exact same absolute position (this
+  // is how the crossfade works at all) -- css/style.css's own .pyramid-tier
+  // is pointer-events:none by default specifically so an inactive tier can
+  // never intercept hover/clicks meant for whatever's stacked on top of it.
+  // Recomputed directly here on every call (not gated behind an idx change)
+  // so it's exactly as stale-proof as opacity above.
+  tiers.forEach((tier, i) => {
+    tier.style.opacity = tierOpacityAt(local, i);
+    tier.style.pointerEvents = i === idx ? 'auto' : 'none';
+  });
+
   if (idx !== activeTierIndex) {
     activeTierIndex = idx;
-    tiers.forEach((tier, i) => {
-      if (i === idx) {
-        // BUG FIX: all three tiers share the exact same absolute position
-        // (this is how the crossfade works at all) -- css/style.css's own
-        // .pyramid-tier is pointer-events:none by default specifically so
-        // an inactive tier can never intercept hover/clicks meant for
-        // whatever's stacked on top of it, but .note-word (the hoverable
-        // fragrance-note spans inside .tier-heading) used to unconditionally
-        // force pointer-events:auto back on for EVERY tier regardless of
-        // which one was actually active. Confirmed live via
-        // elementFromPoint() hit-testing: tier-base (align-left, same as
-        // tier-top, and LAST in DOM order so it paints on top) was silently
-        // stealing hover/clicks meant for tier-top's "Bergamot"/"Lemon" --
-        // tier-heart (align-right) never overlapped anything so it was
-        // never affected, matching exactly what was reported. Setting
-        // pointerEvents directly on the tier container here (immediate via
-        // gsap.set, not animated) instead of forcing it open on .note-word
-        // itself means only the currently-active tier is ever interactive;
-        // css/style.css no longer overrides pointer-events on .note-word at
-        // all, so it correctly inherits none from an inactive parent.
-        gsap.set(tier, { pointerEvents: 'auto' });
-        gsap.fromTo(tier, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power2.out' });
-        gsap.fromTo(tier.querySelectorAll('.section-label, .tier-heading, .section-body'),
-          { y: 30, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.7, stagger: 0.1, ease: 'power3.out', delay: 0.05 });
-      } else {
-        gsap.set(tier, { pointerEvents: 'none' });
-        gsap.to(tier, { opacity: 0, duration: 0.4, ease: 'power2.out' });
-      }
-    });
+    // Purely cosmetic entrance flourish -- see this function's own header
+    // comment for why this one safely stays a real tween.
+    gsap.fromTo(tiers[idx].querySelectorAll('.section-label, .tier-heading, .section-body'),
+      { y: 30, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.7, stagger: 0.1, ease: 'power3.out', delay: 0.05, overwrite: true });
   }
 }
 
