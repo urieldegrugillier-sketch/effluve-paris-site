@@ -234,6 +234,29 @@
   <div class="trust-bar-divider"></div>
 </div>
 
+<!-- NEWSLETTER SIGNUP -- reused verbatim from product.html/index.html (exact
+     same markup/ids/classes/i18n keys): css/style.css's shared NEWSLETTER
+     SIGNUP section styles it, js/product-newsletter.js (loaded below, wired
+     by these exact element IDs, not anything page-specific) drives the
+     form -- same Supabase submission, honeypot, marketing-consent text, and
+     success/error states as those two pages' own copy, no second
+     implementation. -->
+<section class="shop-newsletter">
+  <div class="shop-newsletter-inner" id="shop-newsletter-inner">
+    <div class="shop-newsletter-text">
+      <span class="section-label shop-newsletter-kicker" data-i18n="product.newsletter.heading">Stay Informed</span>
+      <p class="shop-newsletter-body" data-i18n="product.newsletter.body">New editions, occasional offers, nothing more.</p>
+    </div>
+    <form class="email-popup-form shop-newsletter-form" id="shop-newsletter-form" novalidate>
+      <input type="email" class="email-popup-input" id="shop-newsletter-input" placeholder="you@email.com" required aria-label="Email address" data-i18n-attr="placeholder:emailPopup.emailPlaceholder;aria-label:emailPopup.emailAriaLabel">
+      <input type="text" class="email-popup-honeypot" id="shop-newsletter-honeypot" name="hp_email_confirm" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="email-popup-consent" data-i18n="emailPopup.consent">By submitting, you agree to receive marketing emails from Effluve Paris.</p>
+      <p class="promo-message promo-message-error" id="shop-newsletter-error" aria-live="polite" hidden></p>
+      <button type="submit" class="cta-button email-popup-submit" data-i18n="product.newsletter.submit">Subscribe</button>
+    </form>
+  </div>
+</section>
+
 <!-- FOOTER -->
 <footer class="shop-footer">
   <a href="index.html" class="shop-footer-wordmark">Effluve Paris</a>
@@ -265,5 +288,6 @@
 <script src="js/cookie-consent.js?v=20261027"></script>
 <script src="js/email-popup.js?v=20260822"></script>
 <script src="js/trust-bar-carousel.js?v=20261029b"></script>
+<script src="js/product-newsletter.js?v=20260823"></script>
 </body>
 </html>
