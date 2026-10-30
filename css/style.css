@@ -2411,6 +2411,39 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
    untouched. */
 .cta-text-col .cta-button { margin-top: 0.6rem; }
 
+/* Wraps Buy Now + Add to Cart side by side (S6) -- justify-content:flex-end
+   keeps the pair flush with this column's own right-aligned content
+   (.section-inner's text-align:right) same as a single button already was.
+   flex:1 1 0 on the children (below) splits the row evenly between them
+   rather than by each button's own text width -- Add to Cart's label runs
+   noticeably longer than Buy Now's (especially in French), and without an
+   even split Buy Now would end up much narrower than its sibling, reading
+   as lopsided. Overridden to stack full-width in the 768px media query
+   further down. */
+.cta-text-col .cta-button-row {
+  display: flex;
+  width: 100%;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+  justify-content: flex-end;
+}
+/* margin-top:0 here (not on .cta-button-row's children generically) is what
+   stops the single-button rule just above from ALSO applying its own
+   0.6rem to each button now that they're nested one level deeper --
+   descendant selectors match at any depth, so without this override each
+   button would carry a redundant second margin-top on top of the row's
+   own, pushing the pair down further than a single button ever sat. Three
+   classes beats that rule's two regardless of source order, so this is
+   safe to keep right next to the row rule above rather than needing to
+   stay below it in the file. */
+.cta-text-col .cta-button-row .cta-button {
+  margin-top: 0;
+  flex: 1 1 0;
+  padding: 1.1rem 1.4rem;
+  text-align: center;
+  white-space: normal;
+}
+
 .cta-button {
   display: inline-block;
   margin-top: 2.2rem;
@@ -2690,6 +2723,12 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   .cta-text-col .section-heading { font-size: clamp(1.8rem, 7vw, 2.6rem); margin: 0.6rem 0 0.8rem; }
   .cta-text-col .section-body { margin-left: auto; margin-right: auto; }
   .cta-text-col .cta-button { margin-top: 0.6rem; padding: 0.9rem 1.8rem; }
+  /* Stacked, full-width, same order as the markup (Buy Now above Add to
+     Cart) -- the row's own even 1fr/1fr split (base rule above) only makes
+     sense side by side, so this flips it to a plain column instead of
+     fighting that split at a width it was never meant for. */
+  .cta-text-col .cta-button-row { flex-direction: column; }
+  .cta-text-col .cta-button-row .cta-button { padding: 0.9rem 1.8rem; width: 100%; }
   .cta-text-col .section-note { margin-top: 0.9rem; }
 }
 

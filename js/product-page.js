@@ -71,22 +71,9 @@
   // "Buy Now" used to live here (add 1, go straight to checkout.html) --
   // removed entirely, replaced everywhere by the real Payment Request
   // Button (Apple Pay/Google Pay/Link, see the standalone IIFE below).
-
-  // Homepage's gold "Buy now" CTA (index.html, section 006 -- see
-  // js/cta-buy-now.js) sets this one-shot flag before navigating here.
-  // Consumed (removed) IMMEDIATELY, before acting on it -- not after --
-  // so a refresh or back/forward navigation back to this exact page never
-  // re-adds the same unit; sessionStorage otherwise persists across both.
-  // Same two calls as the real Add to Cart button's own click handler just
-  // above (same stock-ceiling checks inside addToCart() itself, same cart
-  // preview confirmation), reached at the same point in this page's own
-  // lifecycle (this whole block is already behind the window.MonarkCart
-  // guard at the top of this IIFE).
-  if (sessionStorage.getItem('autoBuyNow')) {
-    sessionStorage.removeItem('autoBuyNow');
-    window.MonarkCart.addToCart(1);
-    if (window.MonarkCartWidget) window.MonarkCartWidget.flashPreview();
-  }
+  // The homepage's own gold "Buy now" CTA (index.html, section 006) no
+  // longer routes through this page at all -- see js/cta-buy-now.js -- it
+  // adds to the cart and goes straight to checkout.html itself now.
 })();
 
 /* ---------------- Sticky buy bar (mobile/tablet only) ----------------

@@ -125,6 +125,8 @@
         body: 'A scent built for men who rule rooms without entering them.',
         badge: 'Limited-Time Offer : −21% Off',
         button: 'Buy now',
+        addToCart: 'Add to Cart',
+        added: 'Added',
         note: 'Ships in a matte black box, wrapped in protective plastic.'
       },
       footer: {
@@ -796,6 +798,8 @@
         body: "Un parfum conçu pour les hommes qui règnent sur une pièce sans jamais y entrer.",
         badge: 'Offre Limitée : −21%',
         button: 'Buy now',
+        addToCart: 'Ajouter au Panier',
+        added: 'Ajouté',
         note: 'Expédié dans une boîte noire mate, enveloppée d\'un film plastique protecteur.'
       },
       footer: {
