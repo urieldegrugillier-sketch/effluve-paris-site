@@ -2563,6 +2563,84 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   color: var(--text-muted);
 }
 
+/* S6/#acquisition's photo/headline/body/badge links to product.html --
+   display:contents removes the <a> from the box tree entirely rather than
+   giving it a box of its own: the wrapped image/heading/paragraph renders
+   exactly as if the <a> weren't there (same percentage/flex sizing
+   references, same margin collapsing, zero layout shift -- confirmed via
+   direct before/after getBoundingClientRect comparison; a plain display:
+   block wrapper measurably grew the image ~150px and shifted the text stack
+   ~7px, both regressions this avoids outright), while the element stays a
+   real, clickable, focusable link (click bubbles up from its rendered
+   children same as any ancestor; browsers keep it focusable/keyboard-
+   activatable regardless of display:contents). The one tradeoff:
+   display:contents has no box, so `outline` on the <a> itself paints
+   nothing -- the :focus-visible rules below redirect the cue (and the
+   :hover one) onto the actual rendered child instead, same technique as
+   the sitewide :focus-visible rule relies on a real box existing elsewhere.
+   color: inherit stops the browser's default link-blue from inheriting
+   into these children (display:contents doesn't affect normal CSS
+   inheritance, only box generation) -- everything else about
+   .section-heading/.section-body/.cta-discount-badge's own look is
+   untouched. */
+.cta-image-link, .cta-text-link { display: contents; color: inherit; text-decoration: none; }
+
+.cta-text-link h2,
+.cta-text-link p { transition: opacity 0.3s ease; }
+.cta-text-link:focus-visible h2,
+.cta-text-link:focus-visible p {
+  opacity: 0.74;
+  outline: 2px solid var(--accent-bronze-light);
+  outline-offset: 2px;
+}
+.cta-product-image { transition: transform 0.35s ease; }
+.cta-image-link:focus-visible .cta-product-image {
+  transform: scale(1.03);
+  outline: 2px solid var(--accent-bronze-light);
+  outline-offset: 2px;
+}
+
+/* Hover gated behind (hover: hover) and (pointer: fine), same convention as
+   .cta-button just above -- without it, touch browsers apply :hover on tap
+   and only clear it on the next tap elsewhere, reading as a stuck dim/scale
+   state (see .cta-button's own comment on this exact bug). */
+@media (hover: hover) and (pointer: fine) {
+  .cta-text-link:hover h2,
+  .cta-text-link:hover p { opacity: 0.74; }
+  .cta-image-link:hover .cta-product-image { transform: scale(1.03); }
+}
+
+/* Discreet "Discover the fragrance" link under the two buttons -- mono/
+   uppercase/letter-spaced like .section-note and .cta-discount-badge right
+   above it, muted at rest, gold with a thin underline on hover/focus. Kept
+   to a single small line (no margin-top large enough to read as its own
+   section) so it doesn't grow this already-100vh section's height. */
+.cta-discover-link {
+  display: block;
+  width: fit-content;
+  margin: 0.7rem 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.cta-discover-link:focus-visible {
+  color: var(--accent-bronze-light);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cta-discover-link:hover {
+    color: var(--accent-bronze-light);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+}
+
 /* ================= RESPONSIVE ================= */
 
 /* Mobile/tablet nav: index.html's header ".nav-links > a" -- the "Acquire"
@@ -2730,6 +2808,16 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   .cta-text-col .cta-button-row { flex-direction: column; }
   .cta-text-col .cta-button-row .cta-button { padding: 0.9rem 1.8rem; width: 100%; }
   .cta-text-col .section-note { margin-top: 0.9rem; }
+  /* .cta-text-link is display:contents (no box of its own, see base rule),
+     so it needs no override here -- it was never right-aligned by margin
+     in the first place, just the text-align it inherits like any other
+     child. .cta-discover-link is a real block box though (own visible
+     link, not a wrapper), and its margin-left:auto (base rule, desktop-
+     right-aligned column) would otherwise just hug the right edge of this
+     now-centered, full-width mobile column -- margin:auto on both sides
+     centers its fit-content box instead, matching .section-inner's own
+     text-align:center here. */
+  .cta-text-col .cta-discover-link { margin: 0.6rem auto 0; }
 }
 
 /* BUG FIX (real scroll lockup + 4+ rounds of pin/unpin timing patches on

@@ -127,7 +127,8 @@
         button: 'Buy now',
         addToCart: 'Add to Cart',
         added: 'Added',
-        note: 'Ships in a matte black box, wrapped in protective plastic.'
+        note: 'Ships in a matte black box, wrapped in protective plastic.',
+        discover: 'Discover the fragrance →'
       },
       footer: {
         copyright: '© 2026 Effluve Paris. All rights reserved.',
@@ -819,7 +820,8 @@
         button: 'Buy now',
         addToCart: 'Ajouter au Panier',
         added: 'Ajouté',
-        note: 'Expédié dans une boîte noire mate, enveloppée d\'un film plastique protecteur.'
+        note: 'Expédié dans une boîte noire mate, enveloppée d\'un film plastique protecteur.',
+        discover: 'Découvrir le parfum →'
       },
       footer: {
         copyright: '© 2026 Effluve Paris. Tous droits réservés.',
