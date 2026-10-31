@@ -1172,3 +1172,75 @@ body.shop-page { background: var(--bg-void); }
   .shop-sticky-prb { position: relative; flex: 1 1 0; height: 43px; }
   .shop-sticky-prb[hidden] { display: none; }
 }
+
+/* ================= DESKTOP BUY BAR (desktop only) ================= */
+/* Slim fixed bottom bar shown once #add-to-cart-btn (the hero's main CTA)
+   scrolls out of the viewport -- see js/product-page.js's own
+   IntersectionObserver-driven initDesktopBar(), no scroll listener. Only
+   ever shown at the min-width:1024px breakpoint below -- the mobile sticky
+   bar above already covers this exact role everywhere under 769px, and
+   between 769-1023px neither bar shows (same gap the sticky bar's own
+   max-width:768px query already leaves today).
+
+   bottom:var(--cookie-banner-h) -- same convention as .shop-sticky-bar
+   above, keeps this stacked directly above the cookie banner instead of
+   overlapping it once js/cookie-consent.js sets a real height. z-index:220,
+   same figure as .shop-sticky-bar -- below the cart preview drawer (250,
+   css/style.css's .cart-preview) and the cookie banner (300) so both still
+   paint over this, above everything else in the page's normal flow
+   (highest other value in that range is .site-header's 100). */
+.shop-desktop-bar {
+  /* Same reasoning as .shop-sticky-bar's own display:none above -- without
+     this, a bare <div> would lay out full-width/static-flow outside the
+     @media below instead of staying invisible on mobile/tablet. */
+  display: none;
+}
+@media (min-width: 1024px) {
+  .shop-desktop-bar {
+    position: fixed;
+    left: 0;
+    bottom: var(--cookie-banner-h);
+    width: 100%;
+    z-index: 220;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3rem;
+    padding: 0.9rem 4vw;
+    background: var(--bg-void);
+    border-top: 1px solid var(--accent-bronze-light);
+    box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.35);
+    /* Same opacity+visibility+transform combo as .shop-sticky-bar/
+       .cart-preview -- visibility (not just opacity) keeps the button out
+       of the tab order and untappable while hidden, not just invisible. */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(100%);
+    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+  }
+
+  .shop-desktop-bar-visible { opacity: 1; visibility: visible; transform: translateY(0); }
+
+  .shop-desktop-bar-info { display: flex; align-items: baseline; gap: 1.2rem; }
+
+  .shop-desktop-bar-name {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-on-dark);
+  }
+
+  .shop-desktop-bar-price {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    color: var(--accent-bronze-light);
+  }
+
+  .shop-desktop-bar-add-to-cart {
+    margin-top: 0;
+    padding: 0.75rem 2.6rem;
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
+}

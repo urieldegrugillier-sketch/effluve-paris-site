@@ -293,6 +293,12 @@
         // page's two Add to Cart buttons can read differently without one
         // affecting the other.
         stickyAddToCart: 'Add to Cart',
+        // Desktop-only fixed bottom bar (product.html, shown via
+        // IntersectionObserver once #add-to-cart-btn scrolls out of view) --
+        // same short label as the mobile sticky bar's own button, kept as a
+        // separate key for the same reason that one is: so either can read
+        // differently later without touching the other.
+        desktopBarAddToCart: 'Add to Cart',
         // Keyboard-only fallback for the Payment Request Button (Apple
         // Pay/Google Pay/Link) -- invisible to mouse/touch users, who see
         // and use Stripe's own rendered button instead; only ever shown to
@@ -932,6 +938,7 @@
         stockLabel: 'Plus que {count} en stock',
         addToCart: 'Ajouter au Panier | 100ML',
         stickyAddToCart: 'Ajouter au Panier',
+        desktopBarAddToCart: 'Ajouter au Panier',
         paymentRequestFallback: 'Payer avec Apple Pay, Google Pay ou Link',
         returnPolicy: {
           summary: 'Retours sous 14 Jours',

@@ -138,6 +138,61 @@
   });
 })();
 
+/* ---------------- Desktop buy bar (desktop only) ----------------
+   Slim fixed bottom bar -- see css/shop.css's own @media (min-width: 1024px)
+   block for why this never shows below that width (the mobile sticky bar
+   above already covers the same role there). Visibility is driven entirely
+   by two IntersectionObservers (the main CTA button, and the footer), never
+   a scroll listener: the bar shows once #add-to-cart-btn scrolls out of the
+   viewport, and hides again either when that button comes back into view OR
+   when the footer scrolls into view (so it never sits on top of footer
+   content, the same overlap .shop-sticky-bar's own footer check on mobile
+   guards against). */
+(function () {
+  const bar = document.getElementById('shop-desktop-bar');
+  const addBtn = document.getElementById('add-to-cart-btn');
+  const barAddBtn = document.getElementById('desktop-bar-add-to-cart-btn');
+  const footer = document.querySelector('.shop-footer');
+  const cart = window.MonarkCart;
+  if (!bar || !addBtn || !barAddBtn || !footer || !cart || !('IntersectionObserver' in window)) return;
+
+  let mainButtonVisible = true;
+  let footerVisible = false;
+
+  function updateBarVisibility() {
+    bar.classList.toggle('shop-desktop-bar-visible', !mainButtonVisible && !footerVisible);
+  }
+
+  new IntersectionObserver((entries) => {
+    mainButtonVisible = entries[entries.length - 1].isIntersecting;
+    updateBarVisibility();
+  }).observe(addBtn);
+
+  new IntersectionObserver((entries) => {
+    footerVisible = entries[entries.length - 1].isIntersecting;
+    updateBarVisibility();
+  }).observe(footer);
+
+  // Mirrors #add-to-cart-btn's disabled state (out-of-stock or any other
+  // future reason it might be disabled) -- checked up front, and kept in
+  // sync afterward since nothing else re-renders this bar on that change.
+  function syncDisabled() {
+    barAddBtn.disabled = addBtn.disabled;
+  }
+  syncDisabled();
+  new MutationObserver(syncDisabled).observe(addBtn, { attributes: true, attributeFilter: ['disabled'] });
+
+  // Exact same add-to-cart logic as the main/sticky buttons (same product,
+  // same fixed quantity of 1, same cart-preview flash feedback) -- GA4's
+  // add_to_cart fires from inside cart.addToCart() itself, the one shared
+  // hook point every Add to Cart button on this page already funnels
+  // through (see js/cart.js's own comment on that).
+  barAddBtn.addEventListener('click', () => {
+    cart.addToCart(1);
+    if (window.MonarkCartWidget) window.MonarkCartWidget.flashPreview();
+  });
+})();
+
 /* ---------------- Stripe Payment Request Button (Apple Pay/Google Pay/Link) ----------------
    One real PaymentRequest, mounted into TWO Elements -- the main content
    area's own row (next to Add to Cart, every breakpoint, replacing the old
