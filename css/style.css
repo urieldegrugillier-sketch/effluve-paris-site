@@ -1595,6 +1595,72 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
    -- makes this win regardless of stylesheet order. */
 .trust-bar-dots.carousel-dots { display: none; }
 
+/* Self-contained circle styling for these dots specifically, rather than
+   relying on css/shop.css's shared .carousel-dot base rule -- that rule 1)
+   only loads on product.html (css/shop.css isn't linked on index.html/
+   faq.html/contact.html at all, see README's "shop.css product.html only"),
+   so on every other page these buttons had zero circle styling and fell
+   back to the flex row's default align-items:stretch with no intrinsic
+   size, rendering as the reported "short pills/dashes stuck together",
+   and 2) grows the active dot from 6px to 9px, a size change this spec
+   explicitly avoids (color/opacity only, no layout jump). Scoped to
+   .trust-bar-dots specifically so product.html's own unrelated image-
+   gallery carousel (plain .carousel-dot, css/shop.css) keeps its existing
+   6px/9px look untouched. flex:none + explicit width/height is what
+   actually fixes the stretched-pill look on the shop.css-less pages --
+   width/height alone wouldn't override a flex item's stretch default. */
+.trust-bar-dots .carousel-dot {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  /* Zeroed explicitly -- these are real <button> elements, and unlike
+     css/shop.css's own .carousel-dot (which already sets padding:0/
+     border:none), there's no base rule doing that on the pages without
+     shop.css, so the browser's own default button padding/border was
+     inflating the rendered box well past the declared 8x8 (confirmed via
+     direct measurement: 16x8px on index.html/faq.html/contact.html --
+     the UA default's horizontal padding+border, not vertical, which is
+     exactly the "squashed pill" shape being fixed here). */
+  padding: 0;
+  border: none;
+  background: var(--text-on-dark);
+  opacity: 0.4;
+  transition: background 0.25s ease, opacity 0.25s ease;
+}
+/* Invisible tap-area extension, not padding -- padding would paint the
+   gold/ivory background across the larger box too (background paints the
+   padding box by default), growing the visible dot along with the tap
+   target. This pseudo-element adds no visible pixels of its own (no
+   background/border) but still counts toward the real <button>'s hit area
+   since it's generated content of that same element. */
+.trust-bar-dots .carousel-dot::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+}
+.trust-bar-dots .carousel-dot.active {
+  /* Explicit, even though it matches the base rule's own 8x8 -- on
+     product.html, css/shop.css's .carousel-dot.active sets width/height:
+     9px (that carousel's own active-dot grow effect) at the same
+     specificity as this rule's un-active base width/height, which was
+     winning the tie on source order (shop.css loads after this file).
+     This selector's extra .trust-bar-dots class gives it strictly higher
+     specificity than shop.css's two-class rule, so it wins regardless of
+     load order -- keeping this dot at a fixed 8x8 the way the spec
+     requires (color/opacity change only, no size jump). */
+  width: 8px;
+  height: 8px;
+  background: var(--accent-bronze-light);
+  opacity: 1;
+}
+
 /* Thin gold separator between this row and the newsletter block below --
    the same fade-at-both-ends bronze gradient already used for
    .cta-divider, not a flat border, so it doesn't read as a harsh rule on a
@@ -1653,6 +1719,13 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
     left: auto;
     transform: none;
     justify-content: center;
+    align-items: center;
+    /* Explicit, not inherited from css/shop.css's own .carousel-dots gap
+       (0.7rem/~11.2px, and not loaded at all on index.html/faq.html/
+       contact.html -- see .trust-bar-dots .carousel-dot's own comment
+       above) -- this is the one value every page using the trust bar
+       shares regardless of which stylesheets it loads. */
+    gap: 10px;
     margin-top: 1.4rem;
   }
   .trust-bar-divider { margin-bottom: 2rem; }
