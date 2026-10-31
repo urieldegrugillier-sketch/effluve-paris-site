@@ -3351,17 +3351,29 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   border-top: 1px solid var(--line);
 }
 
-.shop-footer-wordmark {
+/* Real Effluve Paris logo (assets/icons/effluve-word-dark-bg.svg +
+   paris-word-dark-bg.svg -- the "-dark-bg" pair is the cream-fill variant
+   meant for a dark background, matching .shop-footer's --bg-void, same
+   files/reasoning as .nav-logo's own two-image split documented above).
+   SVG source, so it stays crisp at any pixel density without a @2x asset. */
+.shop-footer-logo {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 auto 0.9rem;
+}
+
+.shop-footer-logo-word {
   display: block;
-  margin-bottom: 0.9rem;
-  font-family: var(--font-wordmark);
-  font-weight: 500;
-  font-size: 1.3rem;
-  /* Dialed back from Bodoni Moda's 0.32em, same reasoning as .nav-logo's own
-     letter-spacing comment -- see --font-wordmark's note at :root. */
-  letter-spacing: 0.24em;
-  color: var(--text-on-dark);
-  text-decoration: none;
+  height: 1.35rem;
+  width: auto;
+}
+
+.shop-footer-logo-subword {
+  display: block;
+  height: calc(1.35rem * 0.349);
+  width: auto;
+  margin-top: calc(1.35rem * 0.16);
 }
 
 .shop-footer-copy {
