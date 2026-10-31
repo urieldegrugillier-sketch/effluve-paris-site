@@ -229,7 +229,7 @@
       // claim anywhere in here, by design -- this is a reminder only.
       cartTimer: {
         before: 'You have',
-        after: 'to complete your order',
+        after: 'min to complete your order',
         expired: 'Time is up, your cart is still here.',
         restart: 'Restart timer'
       },
@@ -900,7 +900,7 @@
       },
       cartTimer: {
         before: 'Vous avez',
-        after: 'pour valider votre panier',
+        after: 'min pour valider votre panier',
         expired: 'Le temps est écoulé, votre panier est toujours là.',
         restart: 'Relancer le minuteur'
       },
