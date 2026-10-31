@@ -1204,13 +1204,13 @@ body.shop-page { background: var(--bg-void); }
     position: fixed;
     left: 50%;
     bottom: calc(var(--cookie-banner-h) + 20px);
-    width: 760px;
+    width: 520px;
     max-width: 90vw;
     z-index: 220;
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 0.7rem 0.9rem 0.7rem 0.7rem;
+    gap: 0.65rem;
+    padding: 0.625rem 0.75rem;
     /* Slightly lighter than --bg-void (#0a0908) -- reads as "lifted" off
        the page background rather than just another flat black slab. */
     background: #141110;
@@ -1232,10 +1232,10 @@ body.shop-page { background: var(--bg-void); }
   .shop-desktop-bar-visible { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
 
   .shop-desktop-bar-thumb {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     object-fit: cover;
-    border-radius: 6px;
+    border-radius: 5px;
     border: 1px solid var(--line);
     flex-shrink: 0;
   }
@@ -1244,7 +1244,7 @@ body.shop-page { background: var(--bg-void); }
      min-width:auto blocks the name's own overflow:hidden/ellipsis below
      from ever kicking in, since the row would just grow wider instead of
      letting the name shrink past its content size. */
-  .shop-desktop-bar-info { display: flex; align-items: baseline; gap: 0.9rem; flex: 1 1 auto; min-width: 0; }
+  .shop-desktop-bar-info { display: flex; align-items: baseline; gap: 0.6rem; flex: 1 1 auto; min-width: 0; }
 
   .shop-desktop-bar-name {
     flex: 1 1 auto;
@@ -1253,8 +1253,8 @@ body.shop-page { background: var(--bg-void); }
     text-overflow: ellipsis;
     white-space: nowrap;
     font-family: var(--font-display);
-    font-size: 1rem;
-    letter-spacing: 0.08em;
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--text-on-dark);
   }
@@ -1262,7 +1262,7 @@ body.shop-page { background: var(--bg-void); }
   .shop-desktop-bar-price {
     flex-shrink: 0;
     font-family: var(--font-mono);
-    font-size: 0.9rem;
+    font-size: 0.78rem;
     color: var(--accent-bronze-light);
   }
 
@@ -1278,15 +1278,16 @@ body.shop-page { background: var(--bg-void); }
     margin-top: 0;
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
     flex-shrink: 0;
-    padding: 0.75rem 1.6rem;
-    font-size: 0.68rem;
+    padding: 0.7rem 1.25rem;
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
     white-space: nowrap;
     background: var(--accent-bronze);
     border-color: var(--accent-bronze);
     color: #000;
   }
 
-  .shop-desktop-bar-add-to-cart svg { flex-shrink: 0; }
+  .shop-desktop-bar-add-to-cart svg { flex-shrink: 0; width: 14px; height: 14px; }
 }
