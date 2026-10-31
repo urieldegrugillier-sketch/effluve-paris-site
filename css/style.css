@@ -2640,6 +2640,12 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
+/* Same .back-link-arrow span/transition as .back-link (css/style.css, see
+   its own comment) -- translateX(4px) here instead of -4px since this link
+   points forward (to product.html), not back, so the arrow slides right,
+   not left. The span's own display:inline-block + transition:transform
+   0.25s ease (declared once on .back-link-arrow) already covers this. */
+.cta-discover-link:focus-visible .back-link-arrow { transform: translateX(4px); }
 @media (hover: hover) and (pointer: fine) {
   .cta-discover-link:hover {
     color: var(--accent-bronze-lighter);
@@ -2647,6 +2653,7 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
     text-decoration-thickness: 1px;
     text-underline-offset: 3px;
   }
+  .cta-discover-link:hover .back-link-arrow { transform: translateX(4px); }
 }
 
 /* ---- Shared "back" link (any arrow-prefixed "go back" link: checkout.html/
@@ -2663,7 +2670,11 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
    The arrow is wrapped in its own .back-link-arrow span (via each i18n
    string's own markup, data-i18n-html not data-i18n -- see js/i18n.js's
    common.backToShop/backToHome) specifically so only the arrow glyph
-   translates on hover/focus, not the whole label. */
+   translates on hover/focus, not the whole label. .cta-discover-link
+   (just above) reuses this same .back-link-arrow span/class for its own
+   arrow, same data-i18n-html mechanism (s6.discover) -- its own
+   :hover/:focus-visible rules there just point the translateX the other
+   way (it's a "go forward to product.html" link, not a "go back" one). */
 .back-link {
   color: var(--accent-bronze-light);
   text-decoration: none;
@@ -2696,7 +2707,9 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .back-link-arrow { transition: none; }
   .back-link:hover .back-link-arrow,
-  .back-link:focus-visible .back-link-arrow { transform: none; }
+  .back-link:focus-visible .back-link-arrow,
+  .cta-discover-link:hover .back-link-arrow,
+  .cta-discover-link:focus-visible .back-link-arrow { transform: none; }
 }
 
 /* S6/#acquisition's text column (.cta-text-col) sat too low at shorter
