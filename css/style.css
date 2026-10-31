@@ -2666,20 +2666,29 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
    translates on hover/focus, not the whole label. */
 .back-link {
   color: var(--accent-bronze-light);
-  text-decoration: underline;
-  text-decoration-color: var(--accent-bronze-light);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 4px;
-  transition: text-decoration-color 0.25s ease;
+  text-decoration: none;
 }
 .back-link-arrow {
   display: inline-block;
   transition: transform 0.25s ease;
 }
-.back-link:focus-visible { text-decoration-color: var(--accent-bronze-lighter); }
+/* No underline at rest -- same hover/focus-only pattern as .cta-discover-
+   link just above (same 1px thickness, 3px offset, and no transition on
+   the underline/color itself, only on the arrow's own slide below). */
+.back-link:focus-visible {
+  text-decoration: underline;
+  text-decoration-color: var(--accent-bronze-lighter);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
 .back-link:focus-visible .back-link-arrow { transform: translateX(-4px); }
 @media (hover: hover) and (pointer: fine) {
-  .back-link:hover { text-decoration-color: var(--accent-bronze-lighter); }
+  .back-link:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--accent-bronze-lighter);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
   .back-link:hover .back-link-arrow { transform: translateX(-4px); }
 }
 /* Motion only -- the underline-brighten color cue above stays either way,
@@ -2688,6 +2697,41 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   .back-link-arrow { transition: none; }
   .back-link:hover .back-link-arrow,
   .back-link:focus-visible .back-link-arrow { transform: none; }
+}
+
+/* S6/#acquisition's text column (.cta-text-col) sat too low at shorter
+   desktop heights: align-items:center there only has `padding-top` to
+   redistribute (see that rule's own comment), so with no padding-bottom at
+   all, EVERY bit of that padding-top gets echoed back as extra space above
+   the content -- confirmed via direct measurement (promo banner active,
+   so --promo-banner-h adds its own height to that padding-top) the margin
+   below the discover link was only ~4px at 1496x682 and ~35px at 1280x720,
+   vs. a comfortable 230px at 1920x1080 where the much taller image gives
+   the column far more height to begin with. Content height was already
+   tight enough at 1496x682 that reserving a real padding-bottom needed
+   actual room freed elsewhere, not just redistribution -- trimming a few
+   internal margins (badge/note/discover-link) is what supplies that,
+   confirmed via direct measurement to still read as normal spacing, not
+   cramped. padding-top's own flat "+10px" buffer (BUG FIX round 3, that
+   rule's own comment) is dropped here too -- the header-clearance-critical
+   part is the 100px + var(--promo-banner-h) real-height sum right before
+   it, which stays untouched, so the headline still clears the header with
+   real margin (confirmed via direct measurement: ~17px at 1496x682, the
+   shortest/tightest viewport -- a real, visible gap, not a rounding
+   artifact -- and well over 100px at the two taller ones) at every height
+   tested. Scoped to exactly
+   the complement of the mobile/short-viewport query below
+   (max-width:768px, max-height:500px) so mobile's own spacing -- confirmed
+   via direct measurement to already have a comfortable margin there -- is
+   completely untouched. The bottle image (.cta-image-col) is untouched. */
+@media (min-width: 769px) and (min-height: 501px) {
+  .cta-text-col {
+    padding-top: calc(100px + var(--promo-banner-h));
+    padding-bottom: 56px;
+  }
+  .cta-discount-badge { margin-top: 0.8rem; }
+  .section-note { margin-top: 0.9rem; }
+  .cta-discover-link { margin-top: 0.5rem; }
 }
 
 /* ================= RESPONSIVE ================= */
