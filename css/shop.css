@@ -1174,21 +1174,25 @@ body.shop-page { background: var(--bg-void); }
 }
 
 /* ================= DESKTOP BUY BAR (desktop only) ================= */
-/* Slim fixed bottom bar shown once #add-to-cart-btn (the hero's main CTA)
-   scrolls out of the viewport -- see js/product-page.js's own
-   IntersectionObserver-driven initDesktopBar(), no scroll listener. Only
-   ever shown at the min-width:1024px breakpoint below -- the mobile sticky
-   bar above already covers this exact role everywhere under 769px, and
-   between 769-1023px neither bar shows (same gap the sticky bar's own
-   max-width:768px query already leaves today).
+/* Floating centered card (not a full-width bar) shown once #add-to-cart-btn
+   (the hero's main CTA) scrolls out of the viewport -- see
+   js/product-page.js's own IntersectionObserver-driven initDesktopBar(), no
+   scroll listener. Only ever shown at the min-width:1024px breakpoint below
+   -- the mobile sticky bar above already covers this exact role everywhere
+   under 769px, and between 769-1023px neither bar shows (same gap the
+   sticky bar's own max-width:768px query already leaves today).
 
-   bottom:var(--cookie-banner-h) -- same convention as .shop-sticky-bar
-   above, keeps this stacked directly above the cookie banner instead of
-   overlapping it once js/cookie-consent.js sets a real height. z-index:220,
-   same figure as .shop-sticky-bar -- below the cart preview drawer (250,
-   css/style.css's .cart-preview) and the cookie banner (300) so both still
-   paint over this, above everything else in the page's normal flow
-   (highest other value in that range is .site-header's 100). */
+   bottom:calc(var(--cookie-banner-h) + 20px) -- floats 20px above the
+   bottom edge, same var(--cookie-banner-h) convention as .shop-sticky-bar
+   above so it still clears the cookie banner once js/cookie-consent.js sets
+   a real height, just with the extra 20px gap instead of sitting flush.
+   left:50% + translateX(-50%) centers the card horizontally regardless of
+   viewport width; combined with the show/hide transform below since both
+   need to apply at once. z-index:220, same figure as .shop-sticky-bar --
+   below the cart preview drawer (250, css/style.css's .cart-preview) and
+   the cookie banner (300) so both still paint over this, above everything
+   else in the page's normal flow (highest other value in that range is
+   .site-header's 100). */
 .shop-desktop-bar {
   /* Same reasoning as .shop-sticky-bar's own display:none above -- without
      this, a bare <div> would lay out full-width/static-flow outside the
@@ -1198,49 +1202,91 @@ body.shop-page { background: var(--bg-void); }
 @media (min-width: 1024px) {
   .shop-desktop-bar {
     position: fixed;
-    left: 0;
-    bottom: var(--cookie-banner-h);
-    width: 100%;
+    left: 50%;
+    bottom: calc(var(--cookie-banner-h) + 20px);
+    width: 760px;
+    max-width: 90vw;
     z-index: 220;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 3rem;
-    padding: 0.9rem 4vw;
-    background: var(--bg-void);
-    border-top: 1px solid var(--accent-bronze-light);
-    box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.35);
+    gap: 1rem;
+    padding: 0.7rem 0.9rem 0.7rem 0.7rem;
+    /* Slightly lighter than --bg-void (#0a0908) -- reads as "lifted" off
+       the page background rather than just another flat black slab. */
+    background: #141110;
+    border: 1px solid rgba(216, 178, 124, 0.25);
+    border-radius: 8px;
+    box-shadow: 0 24px 60px -8px rgba(0, 0, 0, 0.6), 0 8px 20px rgba(0, 0, 0, 0.35);
     /* Same opacity+visibility+transform combo as .shop-sticky-bar/
        .cart-preview -- visibility (not just opacity) keeps the button out
-       of the tab order and untappable while hidden, not just invisible. */
+       of the tab order and untappable while hidden, not just invisible.
+       translate() (not translateX/Y) so the permanent horizontal centering
+       and the slide-up show/hide offset combine into one transform instead
+       of one overwriting the other. */
     opacity: 0;
     visibility: hidden;
-    transform: translateY(100%);
+    transform: translate(-50%, 24px);
     transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
   }
 
-  .shop-desktop-bar-visible { opacity: 1; visibility: visible; transform: translateY(0); }
+  .shop-desktop-bar-visible { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
 
-  .shop-desktop-bar-info { display: flex; align-items: baseline; gap: 1.2rem; }
+  .shop-desktop-bar-thumb {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+
+  /* min-width:0 is load-bearing -- without it, a flex item's default
+     min-width:auto blocks the name's own overflow:hidden/ellipsis below
+     from ever kicking in, since the row would just grow wider instead of
+     letting the name shrink past its content size. */
+  .shop-desktop-bar-info { display: flex; align-items: baseline; gap: 0.9rem; flex: 1 1 auto; min-width: 0; }
 
   .shop-desktop-bar-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-family: var(--font-display);
-    font-size: 1.05rem;
-    letter-spacing: 0.1em;
+    font-size: 1rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-on-dark);
   }
 
   .shop-desktop-bar-price {
+    flex-shrink: 0;
     font-family: var(--font-mono);
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: var(--accent-bronze-light);
   }
 
+  /* Filled gold, same convention as .checkout-submit (css/checkout.css) --
+     background/border-color var(--accent-bronze), dark text -- rather than
+     the outlined default .cta-button look the hero/sticky-mobile Add to
+     Cart buttons use, so this card's single action reads as the primary
+     CTA it is. No separate :hover rule needed -- the base .cta-button:hover
+     (css/style.css, background var(--accent-bronze-light)) already wins on
+     specificity and gives a clear, lighter-gold hover state for free, same
+     as every other filled-gold button on the site. */
   .shop-desktop-bar-add-to-cart {
     margin-top: 0;
-    padding: 0.75rem 2.6rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    padding: 0.75rem 1.6rem;
     font-size: 0.68rem;
     white-space: nowrap;
+    background: var(--accent-bronze);
+    border-color: var(--accent-bronze);
+    color: #000;
   }
+
+  .shop-desktop-bar-add-to-cart svg { flex-shrink: 0; }
 }
