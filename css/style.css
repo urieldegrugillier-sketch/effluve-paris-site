@@ -3657,22 +3657,6 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
 }
 .cart-timer-checkout .promo-countdown-value { font-size: 1.3em; }
 
-/* Text-button, not a .cta-button -- this is a quiet offer to resume the
-   countdown, not a primary action competing with Place Order/Apply. */
-.cart-timer-restart-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  margin-left: 0.5em;
-  color: var(--accent-bronze-light);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  font-family: inherit;
-  font-size: 1em;
-  cursor: pointer;
-}
-.cart-timer-restart-btn:hover { color: var(--text-on-dark); }
-
 /* Same close-button treatment as .email-popup-close -- absolutely positioned
    inside its own fixed-position container, small × glyph, opacity-based
    hover/active feedback rather than a color swap. */

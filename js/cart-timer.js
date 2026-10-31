@@ -56,20 +56,12 @@
     if (readEndTime() === null) writeEndTime(Date.now() + CART_TIMER_SECONDS * 1000);
   }
 
-  // The explicit "restart" offered once the countdown has expired (see each
-  // consumer's own expired-state markup/button) -- always starts a fresh
-  // CART_TIMER_SECONDS, regardless of what was stored before.
-  function restart() {
-    writeEndTime(Date.now() + CART_TIMER_SECONDS * 1000);
-    notify();
-  }
-
   function computeState() {
-    if (getCartCount() === 0) return { visible: false, expired: false, seconds: 0 };
+    if (getCartCount() === 0) return { visible: false, seconds: 0 };
     ensureStarted();
     const end = readEndTime();
     const seconds = Math.max(0, Math.round((end - Date.now()) / 1000));
-    return { visible: true, expired: seconds <= 0, seconds };
+    return { visible: true, seconds };
   }
 
   const listeners = [];
@@ -85,6 +77,7 @@
   function notify() {
     const state = computeState();
     listeners.slice().forEach((fn) => fn(state));
+    syncTicking(state);
   }
 
   function formatMMSS(totalSeconds) {
@@ -94,7 +87,26 @@
     return `${pad(m)}:${pad(s)}`;
   }
 
-  setInterval(notify, 1000);
+  // The 1s tick only needs to run while a cart timer is actually counting
+  // down -- once it hits 0 the display just stays at 00:00 forever (until
+  // the cart empties or refills), so there's nothing left to animate and the
+  // interval stops itself instead of firing once a second for no reason.
+  // cart:updated and the cross-tab 'storage' listener below both call
+  // notify() directly regardless of whether this interval is running, so a
+  // fresh end time (emptied-then-refilled cart, or another tab's write)
+  // still turns it back on immediately rather than waiting on a dead timer.
+  let tickId = null;
+  function syncTicking(state) {
+    const shouldTick = state.visible && state.seconds > 0;
+    if (shouldTick && tickId === null) {
+      tickId = setInterval(notify, 1000);
+    } else if (!shouldTick && tickId !== null) {
+      clearInterval(tickId);
+      tickId = null;
+    }
+  }
+
+  syncTicking(computeState());
 
   // Cart going to/from empty is the only mutation this module itself reacts
   // to (start-on-first-item, clear-on-empty) -- every other cart:updated
@@ -114,5 +126,5 @@
     if (e.key === STORAGE_KEY) notify();
   });
 
-  global.MonarkCartTimer = { subscribe, restart, formatMMSS, getState: computeState };
+  global.MonarkCartTimer = { subscribe, formatMMSS, getState: computeState };
 })(window);

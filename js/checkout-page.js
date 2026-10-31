@@ -1308,9 +1308,6 @@
   // renderSummary() -- looked up once, not re-queried every tick.
   const cartTimerEl = document.getElementById('checkout-cart-timer');
   function cartTimerContentHtml(state) {
-    if (state.expired) {
-      return `${t('cartTimer.expired') || 'Time is up, your cart is still here.'} <button type="button" class="cart-timer-restart-btn" data-action="cart-timer-restart">${t('cartTimer.restart') || 'Restart timer'}</button>`;
-    }
     const mmss = window.MonarkCartTimer.formatMMSS(state.seconds);
     return `<span class="promo-countdown-label">${t('cartTimer.before') || 'You have'}</span> <span class="promo-countdown-value">${mmss}</span> <span class="promo-countdown-label">${t('cartTimer.after') || 'to complete your order'}</span>`;
   }
@@ -1324,10 +1321,6 @@
     // next second-tick, same reasoning as renderSummary()'s own langchange
     // listener above.
     document.addEventListener('monark:langchange', () => renderCartTimer(window.MonarkCartTimer.getState()));
-    cartTimerEl.addEventListener('click', (e) => {
-      if (!e.target.closest('[data-action="cart-timer-restart"]')) return;
-      window.MonarkCartTimer.restart();
-    });
   }
 
   const termsCheckbox = document.getElementById('checkout-terms-checkbox');

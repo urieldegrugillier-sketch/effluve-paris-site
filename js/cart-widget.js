@@ -667,9 +667,6 @@
   // and remove-confirmation branches of render() don't include it -- the
   // countdown is only ever shown alongside real cart contents).
   function cartTimerContentHtml(state) {
-    if (state.expired) {
-      return `${t('cartTimer.expired') || 'Time is up, your cart is still here.'} <button type="button" class="cart-timer-restart-btn" data-action="cart-timer-restart">${t('cartTimer.restart') || 'Restart timer'}</button>`;
-    }
     const mmss = window.MonarkCartTimer.formatMMSS(state.seconds);
     return `<span class="promo-countdown-label">${t('cartTimer.before') || 'You have'}</span> <span class="promo-countdown-value">${mmss}</span> <span class="promo-countdown-label">${t('cartTimer.after') || 'to complete your order'}</span>`;
   }
@@ -686,17 +683,6 @@
   // previewBody rebuild.
   document.addEventListener('monark:langchange', () => {
     if (window.MonarkCartTimer) renderCartTimer(window.MonarkCartTimer.getState());
-  });
-  // Delegated on previewBody (stable across every render(), unlike the
-  // restart button itself, which gets torn down and recreated on every tick)
-  // rather than re-attached per tick. stopPropagation for the same reason
-  // every other cart-preview button has it -- see those buttons' own comment
-  // above.
-  previewBody.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-action="cart-timer-restart"]');
-    if (!btn) return;
-    e.stopPropagation();
-    window.MonarkCartTimer.restart();
   });
 
   document.addEventListener('cart:updated', render);
