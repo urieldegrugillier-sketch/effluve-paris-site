@@ -429,7 +429,7 @@
 
   function stockClampMessageHtml() {
     if (!stockClampNotice) return '';
-    return `<p class="cart-preview-stock-message" aria-live="polite">${t('cartWidget.quantityClamped', { max: stockClampNotice.max }) || `Only ${stockClampNotice.max} in stock — quantity adjusted.`}</p>`;
+    return `<p class="cart-preview-stock-message" aria-live="polite">${t('cartWidget.quantityClamped', { max: stockClampNotice.max }) || `Only ${stockClampNotice.max} in stock, quantity adjusted.`}</p>`;
   }
 
   // If a qty/remove/add-another button inside previewBody is focused when a
@@ -482,41 +482,33 @@
       : (t('cartWidget.viewCart') || 'View cart'));
 
     if (!items.length) {
-      // product.html IS the "Buy now" destination, so clicking this adds
-      // directly instead of navigating there. Detected off
-      // body[data-page="product"] (see js/nav-cta-page-aware.js's own
-      // comment on why: Cloudflare's clean URLs mean location.pathname is
-      // never literally "product.html" in production), never off the URL.
-      const isProductPage = document.body.dataset.page === 'product';
-      const label = t('cartWidget.emptyCartBuyNow') || 'Buy now';
-      const buyNowHtml = isProductPage
-        ? `<button type="button" class="cart-preview-buy cart-preview-discover-btn" data-action="buy-now-empty">${label}</button>`
-        : `<a href="product.html" class="cart-preview-buy cart-preview-discover-btn" data-action="buy-now-empty">${label}</a>`;
-      previewBody.innerHTML = `<p class="cart-preview-empty">${t('cartWidget.empty') || 'Your cart is empty.'}</p>${stockClampMessageHtml()}${buyNowHtml}`;
-      if (isProductPage) {
-        // Same addToCart(1) call (and the stock-ceiling checks already
-        // inside it) as product.html's own Add to Cart/sticky-bar buttons
-        // (js/product-page.js) -- no separate stock logic duplicated here.
-        // stopPropagation for the same reason every other cart-mutating
-        // button in this file has it: writeCart() fires 'cart:updated'
-        // synchronously, re-running render() and replacing this very button
-        // out from under its own still-bubbling click before it reaches
-        // document's outside-click listener.
-        previewBody.querySelector('[data-action="buy-now-empty"]').addEventListener('click', (e) => {
-          e.stopPropagation();
-          cart.addToCart(1);
-        });
-      } else {
-        // Same one-shot sessionStorage flag js/cta-buy-now.js's homepage CTA
-        // sets, consumed by the SAME existing code in js/product-page.js
-        // (adds 1 unit, flashes the cart preview open) -- not duplicated
-        // here. Plain anchor, not intercepted: setItem() is synchronous, so
-        // it's already written before the browser's own default navigation
-        // to product.html proceeds.
-        previewBody.querySelector('[data-action="buy-now-empty"]').addEventListener('click', () => {
-          sessionStorage.setItem('autoBuyNow', '1');
-        });
-      }
+      const buyLabel = t('cartWidget.emptyCartBuyNow') || 'Buy now';
+      const addLabel = t('cartWidget.emptyCartAddToCart') || 'Add to Cart';
+      previewBody.innerHTML = `<p class="cart-preview-empty">${t('cartWidget.empty') || 'Your cart is empty.'}</p>${stockClampMessageHtml()}<a href="checkout.html" class="cart-preview-buy cart-preview-discover-btn" data-action="buy-now-empty">${buyLabel}</a><button type="button" class="cart-preview-add-to-cart cart-preview-discover-btn" data-action="add-to-cart-empty">${addLabel}</button>`;
+      // Same ensure-in-cart-without-duplicating + let-the-plain-anchor's-own-
+      // href-carry-the-click-to-checkout.html pattern as index.html's own
+      // homepage "Buy now" CTA (js/cta-buy-now.js's #cta-buy-now-btn) --
+      // addToCart() is synchronous and already committed to localStorage
+      // before the browser's default navigation fires, so this works
+      // identically from every page the drawer can be opened on, not just
+      // product.html.
+      previewBody.querySelector('[data-action="buy-now-empty"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const alreadyInCart = cart.getCart().some((i) => i.productId === cart.PRODUCT.id);
+        if (!alreadyInCart) cart.addToCart(1);
+      });
+      // Same addToCart(1) call as product.html's own Add to Cart button
+      // (js/product-page.js) -- no separate stock logic duplicated here.
+      // writeCart() fires 'cart:updated' synchronously, which re-runs
+      // render() above and replaces this empty-cart markup with the
+      // filled-cart view (js/cart-timer.js's countdown starts on that same
+      // event) before this click even finishes bubbling -- stopPropagation
+      // for the same reason every other cart-mutating button in this file
+      // has it, see those buttons' own comments.
+      previewBody.querySelector('[data-action="add-to-cart-empty"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        cart.addToCart(1);
+      });
       restoreFocusAfterRender(hadFocusInPreviewBody, focusedSelector);
       return;
     }

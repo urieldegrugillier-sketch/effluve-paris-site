@@ -4119,6 +4119,23 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   cursor: pointer;
 }
 
+/* Second empty-cart button ("Ajouter au panier"/"Add to Cart", js/cart-widget.js)
+   -- outlined-gold, same border/text color and hover-fills-solid treatment as
+   index.html's own plain .cta-button ("Add to Cart" next to that page's own
+   filled-gold "Buy now"), just sized at drawer scale via the shared
+   .cart-preview-discover-btn block/width/padding rule above instead of that
+   button's own full-size hero padding. Stacks directly under "Acheter" by
+   that same rule's margin-top. */
+.cart-preview-add-to-cart {
+  background: none;
+  border: 1px solid var(--accent-bronze-light);
+  color: var(--accent-bronze-light);
+}
+@media (hover: hover) and (pointer: fine) {
+  .cart-preview-add-to-cart:hover { background: var(--accent-bronze-light); color: var(--bg-void); }
+}
+.cart-preview-add-to-cart:active { background: var(--accent-bronze-light); color: var(--bg-void); }
+
 .cart-preview-item { display: flex; align-items: flex-start; gap: 1.1rem; }
 
 .cart-preview-thumb {

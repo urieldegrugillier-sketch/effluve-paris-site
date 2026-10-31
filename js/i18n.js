@@ -210,12 +210,12 @@
         removeItem: 'Remove item from cart',
         addAnother: 'Add Another',
         buyNow: 'Buy Now',
-        quantityClamped: 'Only {max} in stock — quantity adjusted.',
-        // Deliberately literal "Buy now" in both locales, not translated --
-        // same convention as index.html's own homepage CTA (s6.button,
-        // js/cta-buy-now.js), which this empty-cart button mirrors exactly
-        // (same sessionStorage flag, same label, untranslated there too).
+        quantityClamped: 'Only {max} in stock, quantity adjusted.',
+        // Same ensure-in-cart-then-navigate-to-checkout.html flow as
+        // index.html's own homepage CTA (s6.button, js/cta-buy-now.js),
+        // which this empty-cart button mirrors exactly.
         emptyCartBuyNow: 'Buy now',
+        emptyCartAddToCart: 'Add to Cart',
         confirmRemoveText: 'Remove MONARK from your cart?',
         confirmRemoveBtn: 'Remove',
         confirmCancelBtn: 'Cancel'
@@ -271,8 +271,8 @@
       },
       product: {
         carouselAriaLabel: 'MONARK bottle image carousel',
-        imgAltStudio: 'MONARK Eau de Parfum bottle — studio view',
-        imgAltDetail: 'MONARK Eau de Parfum bottle — detail view',
+        imgAltStudio: 'MONARK Eau de Parfum bottle | studio view',
+        imgAltDetail: 'MONARK Eau de Parfum bottle | detail view',
         zoomStudio: 'Zoom in on studio view',
         zoomDetail: 'Zoom in on detail view',
         dotStudio: 'Show studio view',
@@ -485,7 +485,7 @@
         forgotPassword: 'Forgot password?',
         resetPasswordSent: 'A password reset email has been sent to {email}.',
         resetPasswordError: 'Could not send the reset email. Please check the address and try again.',
-        updatedElsewhere: 'Your account was just updated in another tab — you’re now logged in.',
+        updatedElsewhere: 'Your account was just updated in another tab. You’re now logged in.',
         confirmAccountPending: 'Check your inbox at {email} to confirm your account before logging in.',
         setNewPasswordHeading: 'Set a New Password',
         setNewPasswordIntro: 'Choose a new password for your account: {email}.',
@@ -516,7 +516,7 @@
         statusGuest: 'Browsing as guest ({email})',
         logOut: 'Log Out',
         orderHistoryHeading: 'Order History',
-        noOrdersYet: 'No orders yet — your past purchases will appear here.',
+        noOrdersYet: 'No orders yet: your past purchases will appear here.',
         editProfileHeading: 'Edit Profile',
         emailLabel: 'Email',
         passwordLabel: 'New Password',
@@ -541,7 +541,7 @@
         cardNameLabel: 'Name on Card',
         cardNumberLabel: 'Card Number',
         cardExpiryLabel: 'Expiry',
-        paymentMockNote: 'Mocked for demo purposes — no real card data is stored or processed.',
+        paymentMockNote: 'Mocked for demo purposes: no real card data is stored or processed.',
         savePaymentBtn: 'Save Card',
         paymentUpdated: 'Card updated.',
         preferencesHeading: 'Preferences',
@@ -600,7 +600,7 @@
       contact: {
         pageTitle: 'Contact',
         intro: 'Questions about an order, the composition, or a wholesale inquiry, we read every message personally.',
-        reachUs: 'Reach us directly at <span class="placeholder">[CONTACT EMAIL — TO BE COMPLETED]</span>, or use the form below.',
+        reachUs: 'Reach us directly at <span class="placeholder">[CONTACT EMAIL | TO BE COMPLETED]</span>, or use the form below.',
         whatsappBtn: 'Contact us<br class="mobile-only-break"> on WhatsApp',
         whatsappHref: 'https://api.whatsapp.com/send?phone=33605893897&text=Hello%2C%20I%20have%20a%20question.',
         honeypotLabel: 'Leave this field blank',
@@ -615,7 +615,7 @@
         reasonError: 'Please select a reason.',
         messageLabel: 'Message',
         submitBtn: 'Send Message',
-        successMessage: "Thank you — your message has been received. We'll get back to you shortly. (This is a mocked confirmation; no message was actually sent yet.)"
+        successMessage: "Thank you. Your message has been received. We'll get back to you shortly. (This is a mocked confirmation; no message was actually sent yet.)"
       },
       notFound: {
         heading: "This Room Doesn't Exist",
@@ -626,10 +626,10 @@
       legalNotice: {
         pageTitle: 'Legal Notice',
         publisherHeading: 'Site Publisher',
-        publisherBody1: 'The Effluve Paris website is published by <span class="placeholder">[COMPANY NAME — TO BE COMPLETED]</span>, <span class="placeholder">[LEGAL STRUCTURE — TO BE COMPLETED]</span> with share capital of <span class="placeholder">[SHARE CAPITAL — TO BE COMPLETED]</span>, registered with the Trade and Companies Register under SIRET number <span class="placeholder">[SIRET — TO BE COMPLETED]</span>.',
-        publisherBody2: 'Registered office: <span class="placeholder">[ADDRESS — TO BE COMPLETED]</span><br>Intra-Community VAT number: <span class="placeholder">[VAT NUMBER — TO BE COMPLETED]</span>',
+        publisherBody1: 'The Effluve Paris website is published by <span class="placeholder">[COMPANY NAME | TO BE COMPLETED]</span>, <span class="placeholder">[LEGAL STRUCTURE | TO BE COMPLETED]</span> with share capital of <span class="placeholder">[SHARE CAPITAL | TO BE COMPLETED]</span>, registered with the Trade and Companies Register under SIRET number <span class="placeholder">[SIRET | TO BE COMPLETED]</span>.',
+        publisherBody2: 'Registered office: <span class="placeholder">[ADDRESS | TO BE COMPLETED]</span><br>Intra-Community VAT number: <span class="placeholder">[VAT NUMBER | TO BE COMPLETED]</span>',
         directorHeading: 'Publication Director',
-        directorBody: '<span class="placeholder">[PUBLICATION DIRECTOR NAME — TO BE COMPLETED]</span>',
+        directorBody: '<span class="placeholder">[PUBLICATION DIRECTOR NAME | TO BE COMPLETED]</span>',
         contactHeading: 'Contact',
         contactBody: 'For any questions regarding the site or this legal notice, you may contact us at the following address: <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>',
         hostingHeading: 'Hosting',
@@ -663,7 +663,7 @@
         s8Heading: '8. Warranties',
         s8Body: 'All products sold on the site benefit from the legal guarantee of conformity (Articles L217-3 et seq. of the French Consumer Code) and the legal guarantee against hidden defects (Articles 1641 et seq. of the French Civil Code).',
         s9Heading: '9. Disputes and Jurisdiction',
-        s9Body: 'These Terms are governed by French law. In the event of a dispute, an amicable solution will be sought before any legal action, in particular via the consumer mediator <span class="placeholder">[MEDIATOR — TO BE COMPLETED]</span>. Failing an amicable agreement, the French courts shall have sole jurisdiction.'
+        s9Body: 'These Terms are governed by French law. In the event of a dispute, an amicable solution will be sought before any legal action, in particular via the consumer mediator <span class="placeholder">[MEDIATOR | TO BE COMPLETED]</span>. Failing an amicable agreement, the French courts shall have sole jurisdiction.'
       },
       privacyPolicy: {
         pageTitle: 'Privacy Policy',
@@ -681,7 +681,7 @@
         s3Heading: '3. Legal Basis for Processing',
         s3Body: "The processing of your data is based, depending on the case, on: performance of the sales contract (for order processing), consent (for the newsletter and non-essential cookies), Effluve Paris's legitimate interest (service improvement, security), and compliance with legal obligations (invoicing, accounting).",
         s4Heading: '4. Data Retention Period',
-        s4Body: 'Your data is retained for the period necessary to fulfill the purposes for which it was collected, and in particular: order-related data is retained for the period required by accounting and tax obligations (10 years); prospect data is retained for 3 years from the last contact. Where an account is deleted before this period has elapsed, the account and its profile data are deleted, but data relating to past orders — including the shipping name, address, and email used for those orders — is kept, disassociated from the account, for the remainder of that retention period, and then deleted or otherwise handled as described above.',
+        s4Body: 'Your data is retained for the period necessary to fulfill the purposes for which it was collected, and in particular: order-related data is retained for the period required by accounting and tax obligations (10 years); prospect data is retained for 3 years from the last contact. Where an account is deleted before this period has elapsed, the account and its profile data are deleted, but data relating to past orders, including the shipping name, address, and email used for those orders, is kept, disassociated from the account, for the remainder of that retention period, and then deleted or otherwise handled as described above.',
         s5Heading: '5. Your Rights',
         s5Intro: 'In accordance with Articles 15 to 22 of the GDPR, you have the following rights over your personal data:',
         s5Right1: '<strong>Right of access</strong>: to obtain confirmation that your data is being processed and to obtain a copy of it;',
@@ -815,7 +815,7 @@
         heading: 'Le Règne Est Mis en Flacon. Réclamez le Vôtre.',
         body: "Un parfum conçu pour les hommes qui règnent sur une pièce sans jamais y entrer.",
         badge: 'Offre Limitée : −21%',
-        button: 'Buy now',
+        button: 'Acheter',
         addToCart: 'Ajouter au Panier',
         added: 'Ajouté',
         note: 'Expédié dans une boîte noire mate, enveloppée d\'un film plastique protecteur.',
@@ -890,8 +890,9 @@
         removeItem: "Retirer l'article du panier",
         addAnother: 'Ajouter un Autre',
         buyNow: 'Acheter',
-        quantityClamped: "Seulement {max} en stock — quantité ajustée.",
-        emptyCartBuyNow: 'Buy now',
+        quantityClamped: "Seulement {max} en stock, quantité ajustée.",
+        emptyCartBuyNow: 'Acheter',
+        emptyCartAddToCart: 'Ajouter au panier',
         confirmRemoveText: 'Retirer MONARK du panier ?',
         confirmRemoveBtn: 'Retirer',
         confirmCancelBtn: 'Annuler'
@@ -923,8 +924,8 @@
       },
       product: {
         carouselAriaLabel: "Carrousel d'images du flacon MONARK",
-        imgAltStudio: 'Flacon MONARK Eau de Parfum — vue studio',
-        imgAltDetail: 'Flacon MONARK Eau de Parfum — vue détaillée',
+        imgAltStudio: 'Flacon MONARK Eau de Parfum | vue studio',
+        imgAltDetail: 'Flacon MONARK Eau de Parfum | vue détaillée',
         zoomStudio: 'Zoomer sur la vue studio',
         zoomDetail: 'Zoomer sur la vue détaillée',
         dotStudio: 'Afficher la vue studio',
@@ -1092,7 +1093,7 @@
         forgotPassword: 'Mot de passe oublié ?',
         resetPasswordSent: 'Un e-mail de réinitialisation du mot de passe a été envoyé à {email}.',
         resetPasswordError: "Impossible d'envoyer l'e-mail de réinitialisation. Veuillez vérifier l'adresse et réessayer.",
-        updatedElsewhere: 'Votre compte vient d’être mis à jour dans un autre onglet — vous êtes maintenant connecté(e).',
+        updatedElsewhere: 'Votre compte vient d’être mis à jour dans un autre onglet. Vous êtes maintenant connecté(e).',
         confirmAccountPending: 'Consultez votre boîte de réception à {email} pour confirmer votre compte avant de vous connecter.',
         setNewPasswordHeading: 'Définir un Nouveau Mot de Passe',
         setNewPasswordIntro: 'Choisissez un nouveau mot de passe pour votre compte : {email}.',
@@ -1123,7 +1124,7 @@
         statusGuest: "Navigation en tant qu'invité ({email})",
         logOut: 'Se Déconnecter',
         orderHistoryHeading: 'Historique des Commandes',
-        noOrdersYet: 'Aucune commande pour l\'instant — vos achats passés apparaîtront ici.',
+        noOrdersYet: 'Aucune commande pour l\'instant : vos achats passés apparaîtront ici.',
         editProfileHeading: 'Modifier le Profil',
         emailLabel: 'E-mail',
         passwordLabel: 'Nouveau Mot de Passe',
@@ -1146,7 +1147,7 @@
         cardNameLabel: 'Nom sur la Carte',
         cardNumberLabel: 'Numéro de Carte',
         cardExpiryLabel: 'Expiration',
-        paymentMockNote: 'Simulé à des fins de démonstration — aucune donnée de carte réelle n\'est stockée ni traitée.',
+        paymentMockNote: 'Simulé à des fins de démonstration : aucune donnée de carte réelle n\'est stockée ni traitée.',
         savePaymentBtn: 'Enregistrer la Carte',
         paymentUpdated: 'Carte mise à jour.',
         preferencesHeading: 'Préférences',
@@ -1205,7 +1206,7 @@
       contact: {
         pageTitle: 'Contact',
         intro: 'Une question sur une commande, la composition, ou une demande de revente en gros, nous lisons chaque message personnellement.',
-        reachUs: 'Contactez-nous directement à <span class="placeholder">[E-MAIL DE CONTACT — À COMPLÉTER]</span>, ou utilisez le formulaire ci-dessous.',
+        reachUs: 'Contactez-nous directement à <span class="placeholder">[E-MAIL DE CONTACT | À COMPLÉTER]</span>, ou utilisez le formulaire ci-dessous.',
         whatsappBtn: 'Contactez-nous<br class="mobile-only-break"> sur WhatsApp',
         whatsappHref: "https://api.whatsapp.com/send?phone=33605893897&text=Bonjour%2C%20j%27ai%20une%20question.",
         honeypotLabel: 'Laissez ce champ vide',
@@ -1220,7 +1221,7 @@
         reasonError: 'Veuillez sélectionner un motif.',
         messageLabel: 'Message',
         submitBtn: 'Envoyer le Message',
-        successMessage: "Merci — votre message a bien été reçu. Nous vous répondrons sous peu. (Ceci est une confirmation simulée ; aucun message n'a encore été réellement envoyé.)"
+        successMessage: "Merci. Votre message a bien été reçu. Nous vous répondrons sous peu. (Ceci est une confirmation simulée ; aucun message n'a encore été réellement envoyé.)"
       },
       notFound: {
         heading: "Cette Pièce N'existe Pas",
@@ -1231,10 +1232,10 @@
       legalNotice: {
         pageTitle: 'Mentions Légales',
         publisherHeading: 'Éditeur du Site',
-        publisherBody1: 'Le site Effluve Paris est édité par <span class="placeholder">[NOM DE LA SOCIÉTÉ — À COMPLÉTER]</span>, <span class="placeholder">[FORME JURIDIQUE — À COMPLÉTER]</span> au capital social de <span class="placeholder">[CAPITAL SOCIAL — À COMPLÉTER]</span>, immatriculée au Registre du Commerce et des Sociétés sous le numéro SIRET <span class="placeholder">[SIRET — À COMPLÉTER]</span>.',
-        publisherBody2: 'Siège social : <span class="placeholder">[ADRESSE — À COMPLÉTER]</span><br>Numéro de TVA intracommunautaire : <span class="placeholder">[NUMÉRO DE TVA — À COMPLÉTER]</span>',
+        publisherBody1: 'Le site Effluve Paris est édité par <span class="placeholder">[NOM DE LA SOCIÉTÉ | À COMPLÉTER]</span>, <span class="placeholder">[FORME JURIDIQUE | À COMPLÉTER]</span> au capital social de <span class="placeholder">[CAPITAL SOCIAL | À COMPLÉTER]</span>, immatriculée au Registre du Commerce et des Sociétés sous le numéro SIRET <span class="placeholder">[SIRET | À COMPLÉTER]</span>.',
+        publisherBody2: 'Siège social : <span class="placeholder">[ADRESSE | À COMPLÉTER]</span><br>Numéro de TVA intracommunautaire : <span class="placeholder">[NUMÉRO DE TVA | À COMPLÉTER]</span>',
         directorHeading: 'Directeur de la Publication',
-        directorBody: '<span class="placeholder">[NOM DU DIRECTEUR DE LA PUBLICATION — À COMPLÉTER]</span>',
+        directorBody: '<span class="placeholder">[NOM DU DIRECTEUR DE LA PUBLICATION | À COMPLÉTER]</span>',
         contactHeading: 'Contact',
         contactBody: 'Pour toute question relative au site ou aux présentes mentions légales, vous pouvez nous contacter à l\'adresse suivante : <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>',
         hostingHeading: 'Hébergement',
@@ -1268,7 +1269,7 @@
         s8Heading: '8. Garanties',
         s8Body: 'Tous les produits vendus sur le site bénéficient de la garantie légale de conformité (articles L217-3 et suivants du Code de la consommation) et de la garantie légale des vices cachés (articles 1641 et suivants du Code civil).',
         s9Heading: '9. Litiges et Juridiction',
-        s9Body: 'Les présentes Conditions sont soumises au droit français. En cas de litige, une solution amiable sera recherchée avant toute action judiciaire, notamment auprès du médiateur de la consommation <span class="placeholder">[MÉDIATEUR — À COMPLÉTER]</span>. À défaut d\'accord amiable, les tribunaux français seront seuls compétents.'
+        s9Body: 'Les présentes Conditions sont soumises au droit français. En cas de litige, une solution amiable sera recherchée avant toute action judiciaire, notamment auprès du médiateur de la consommation <span class="placeholder">[MÉDIATEUR | À COMPLÉTER]</span>. À défaut d\'accord amiable, les tribunaux français seront seuls compétents.'
       },
       privacyPolicy: {
         pageTitle: 'Politique de Confidentialité',
@@ -1286,7 +1287,7 @@
         s3Heading: '3. Base Légale du Traitement',
         s3Body: 'Le traitement de vos données repose, selon les cas, sur : l\'exécution du contrat de vente (pour le traitement des commandes), le consentement (pour la newsletter et les cookies non essentiels), l\'intérêt légitime d\'Effluve Paris (amélioration du service, sécurité), et le respect d\'obligations légales (facturation, comptabilité).',
         s4Heading: '4. Durée de Conservation des Données',
-        s4Body: 'Vos données sont conservées pendant la durée nécessaire à la réalisation des finalités pour lesquelles elles ont été collectées, et notamment : les données liées aux commandes sont conservées pendant la durée imposée par les obligations comptables et fiscales (10 ans) ; les données prospects sont conservées 3 ans à compter du dernier contact. Lorsqu\'un compte est supprimé avant l\'expiration de cette durée, le compte et les données de profil sont supprimés, mais les données relatives aux commandes passées — dont le nom, l\'adresse de livraison et l\'e-mail utilisés pour ces commandes — sont conservées, dissociées du compte, pendant le reste de cette durée de conservation, puis supprimées ou traitées comme décrit ci-dessus.',
+        s4Body: 'Vos données sont conservées pendant la durée nécessaire à la réalisation des finalités pour lesquelles elles ont été collectées, et notamment : les données liées aux commandes sont conservées pendant la durée imposée par les obligations comptables et fiscales (10 ans) ; les données prospects sont conservées 3 ans à compter du dernier contact. Lorsqu\'un compte est supprimé avant l\'expiration de cette durée, le compte et les données de profil sont supprimés, mais les données relatives aux commandes passées, dont le nom, l\'adresse de livraison et l\'e-mail utilisés pour ces commandes, sont conservées, dissociées du compte, pendant le reste de cette durée de conservation, puis supprimées ou traitées comme décrit ci-dessus.',
         s5Heading: '5. Vos Droits',
         s5Intro: 'Conformément aux articles 15 à 22 du RGPD, vous disposez des droits suivants sur vos données personnelles :',
         s5Right1: '<strong>Droit d\'accès</strong> : obtenir la confirmation que vos données sont traitées et en obtenir une copie ;',
