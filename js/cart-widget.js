@@ -601,6 +601,7 @@
         <button type="button" class="cart-preview-add-another" data-action="add-another"${atStockMax ? ' disabled' : ''}>${t('cartWidget.addAnother') || 'Add Another'}</button>
         <a href="checkout.html" class="cart-preview-buy">${t('cartWidget.buyNow') || 'Buy Now'}</a>
       </div>
+      <p class="cart-timer-drawer" id="cart-timer-drawer" hidden></p>
     `;
 
     /* stopPropagation on every button here that mutates the cart: writeCart()
@@ -650,8 +651,53 @@
       requestRemoveConfirm();
     });
 
+    // #cart-timer-drawer was just (re)created above -- paint it immediately
+    // from the current state rather than leaving it empty/hidden for up to a
+    // second until window.MonarkCartTimer's own next tick finds it.
+    if (window.MonarkCartTimer) renderCartTimer(window.MonarkCartTimer.getState());
+
     restoreFocusAfterRender(hadFocusInPreviewBody, focusedSelector);
   }
+
+  // Shared by the per-second subscribe() tick below and the manual call
+  // right after render() rebuilds #cart-timer-drawer above -- looked up by
+  // id fresh every time (not cached) since render() replacing
+  // previewBody.innerHTML tears down and recreates this element on every
+  // cart mutation. Returns silently when it's not there at all (empty-cart
+  // and remove-confirmation branches of render() don't include it -- the
+  // countdown is only ever shown alongside real cart contents).
+  function cartTimerContentHtml(state) {
+    if (state.expired) {
+      return `${t('cartTimer.expired') || 'Time is up, your cart is still here.'} <button type="button" class="cart-timer-restart-btn" data-action="cart-timer-restart">${t('cartTimer.restart') || 'Restart timer'}</button>`;
+    }
+    const mmss = window.MonarkCartTimer.formatMMSS(state.seconds);
+    return `<span class="promo-countdown-label">${t('cartTimer.before') || 'You have'}</span> <span class="promo-countdown-value">${mmss}</span> <span class="promo-countdown-label">${t('cartTimer.after') || 'to complete your order'}</span>`;
+  }
+  function renderCartTimer(state) {
+    const el = document.getElementById('cart-timer-drawer');
+    if (!el) return;
+    el.hidden = !state.visible;
+    el.innerHTML = state.visible ? cartTimerContentHtml(state) : '';
+  }
+  if (window.MonarkCartTimer) window.MonarkCartTimer.subscribe(renderCartTimer);
+  // Rebuilds immediately on a language switch rather than waiting for the
+  // next second-tick -- same reasoning as render()'s own langchange listener
+  // further below, just scoped to this one element instead of a full
+  // previewBody rebuild.
+  document.addEventListener('monark:langchange', () => {
+    if (window.MonarkCartTimer) renderCartTimer(window.MonarkCartTimer.getState());
+  });
+  // Delegated on previewBody (stable across every render(), unlike the
+  // restart button itself, which gets torn down and recreated on every tick)
+  // rather than re-attached per tick. stopPropagation for the same reason
+  // every other cart-preview button has it -- see those buttons' own comment
+  // above.
+  previewBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action="cart-timer-restart"]');
+    if (!btn) return;
+    e.stopPropagation();
+    window.MonarkCartTimer.restart();
+  });
 
   document.addEventListener('cart:updated', render);
   // js/cart.js dispatches this whenever addToCart()/updateQuantity() had to

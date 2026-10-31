@@ -219,6 +219,19 @@
         confirmRemoveBtn: 'Remove',
         confirmCancelBtn: 'Cancel'
       },
+      // Cart countdown reminder (js/cart-timer.js) -- before/after split
+      // instead of one string with a {time} placeholder so the MM:SS value
+      // can sit in its own styled span (reused .promo-countdown-value look)
+      // with CSS-driven spacing around it, same convention as
+      // promoBanner.endsIn (see that key's own comment on why the gap isn't
+      // baked into the translation string itself). Not a stock-reservation
+      // claim anywhere in here, by design -- this is a reminder only.
+      cartTimer: {
+        before: 'You have',
+        after: 'to complete your order',
+        expired: 'Time is up, your cart is still here.',
+        restart: 'Restart timer'
+      },
       common: {
         backToShop: '← Back to Shop',
         backToHome: '← Back to homepage',
@@ -876,6 +889,12 @@
         confirmRemoveText: 'Retirer MONARK du panier ?',
         confirmRemoveBtn: 'Retirer',
         confirmCancelBtn: 'Annuler'
+      },
+      cartTimer: {
+        before: 'Vous avez',
+        after: 'pour valider votre panier',
+        expired: 'Le temps est écoulé, votre panier est toujours là.',
+        restart: 'Relancer le minuteur'
       },
       common: {
         backToShop: '← Retour à la Boutique',

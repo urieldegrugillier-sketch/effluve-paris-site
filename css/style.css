@@ -3351,6 +3351,48 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   color: var(--accent-bronze-light);
 }
 
+/* "You have MM:SS to complete your order" cart reminder (js/cart-timer.js) --
+   shown in the cart drawer/preview (.cart-timer-drawer, small and discreet,
+   tucked under the existing action buttons) and at the top of checkout.html
+   (.cart-timer-checkout, deliberately larger/more visible, same page
+   position as the Order Summary heading). Both reuse .promo-countdown-label/
+   .promo-countdown-value as-is for the label/digits look (gold accent,
+   monospace) rather than a second copy of that styling. */
+.cart-timer-drawer,
+.cart-timer-checkout {
+  margin: 0;
+  color: var(--text-muted);
+}
+.cart-timer-drawer {
+  margin-top: 0.8rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.68rem;
+}
+.cart-timer-checkout {
+  margin-bottom: 1.4rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--line);
+  font-size: 0.78rem;
+}
+.cart-timer-checkout .promo-countdown-value { font-size: 1.3em; }
+
+/* Text-button, not a .cta-button -- this is a quiet offer to resume the
+   countdown, not a primary action competing with Place Order/Apply. */
+.cart-timer-restart-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 0.5em;
+  color: var(--accent-bronze-light);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-family: inherit;
+  font-size: 1em;
+  cursor: pointer;
+}
+.cart-timer-restart-btn:hover { color: var(--text-on-dark); }
+
 /* Same close-button treatment as .email-popup-close -- absolutely positioned
    inside its own fixed-position container, small × glyph, opacity-based
    hover/active feedback rather than a color swap. */

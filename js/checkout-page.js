@@ -1299,6 +1299,37 @@
     );
   }
 
+  // "You have MM:SS to complete your order" reminder (js/cart-timer.js) --
+  // a separate, unrelated countdown from the promo one just above (that one
+  // is a site-wide marketing offer; this one is per-cart and starts over
+  // once the cart is emptied/paid). #checkout-cart-timer is a static element
+  // outside .checkout-grid (see checkout.html's own comment on it), so
+  // unlike .checkout-promo-countdown-value above it's never torn down by
+  // renderSummary() -- looked up once, not re-queried every tick.
+  const cartTimerEl = document.getElementById('checkout-cart-timer');
+  function cartTimerContentHtml(state) {
+    if (state.expired) {
+      return `${t('cartTimer.expired') || 'Time is up, your cart is still here.'} <button type="button" class="cart-timer-restart-btn" data-action="cart-timer-restart">${t('cartTimer.restart') || 'Restart timer'}</button>`;
+    }
+    const mmss = window.MonarkCartTimer.formatMMSS(state.seconds);
+    return `<span class="promo-countdown-label">${t('cartTimer.before') || 'You have'}</span> <span class="promo-countdown-value">${mmss}</span> <span class="promo-countdown-label">${t('cartTimer.after') || 'to complete your order'}</span>`;
+  }
+  if (cartTimerEl && window.MonarkCartTimer) {
+    function renderCartTimer(state) {
+      cartTimerEl.hidden = !state.visible;
+      cartTimerEl.innerHTML = state.visible ? cartTimerContentHtml(state) : '';
+    }
+    window.MonarkCartTimer.subscribe(renderCartTimer);
+    // Rebuilds immediately on a language switch rather than waiting for the
+    // next second-tick, same reasoning as renderSummary()'s own langchange
+    // listener above.
+    document.addEventListener('monark:langchange', () => renderCartTimer(window.MonarkCartTimer.getState()));
+    cartTimerEl.addEventListener('click', (e) => {
+      if (!e.target.closest('[data-action="cart-timer-restart"]')) return;
+      window.MonarkCartTimer.restart();
+    });
+  }
+
   const termsCheckbox = document.getElementById('checkout-terms-checkbox');
   const termsError = document.getElementById('checkout-terms-error');
   termsCheckbox.addEventListener('change', () => { termsError.hidden = true; });
