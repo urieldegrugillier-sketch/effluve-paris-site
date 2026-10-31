@@ -3345,6 +3345,7 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
 }
 .promo-countdown-value {
   margin-left: 0.35em;
+  margin-right: 0.35em;
   font-weight: 700;
   font-size: 1.15em;
   letter-spacing: 0.02em;
