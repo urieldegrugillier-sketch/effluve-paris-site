@@ -234,8 +234,8 @@
         restart: 'Restart timer'
       },
       common: {
-        backToShop: '← Back to Shop',
-        backToHome: '← Back to homepage',
+        backToShop: '<span class="back-link-arrow">←</span> Back to Shop',
+        backToHome: '<span class="back-link-arrow">←</span> Back to homepage',
         account: 'Account',
         showPassword: 'Show password',
         hidePassword: 'Hide password',
@@ -905,8 +905,8 @@
         restart: 'Relancer le minuteur'
       },
       common: {
-        backToShop: '← Retour à la Boutique',
-        backToHome: "← Retour à l'accueil",
+        backToShop: '<span class="back-link-arrow">←</span> Retour à la Boutique',
+        backToHome: "<span class=\"back-link-arrow\">←</span> Retour à l'accueil",
         account: 'Compte',
         showPassword: 'Afficher le mot de passe',
         hidePassword: 'Masquer le mot de passe',

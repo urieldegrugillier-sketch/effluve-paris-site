@@ -44,9 +44,13 @@
   margin: 0 0 1.8rem;
 }
 
-/* Small, unobtrusive shortcut back to the shop -- same treatment as
-   product.html's own .shop-back-link (css/shop.css), duplicated here rather
-   than shared since checkout.html doesn't load shop.css. */
+/* Small, unobtrusive shortcut back to the shop -- same size/spacing
+   treatment as product.html's own .shop-back-link (css/shop.css),
+   duplicated here rather than shared since checkout.html doesn't load
+   shop.css. Color/underline/hover-motion now come from the shared
+   .back-link class (css/style.css) instead of being declared here --
+   this class only owns what's specific to sitting in this spot on
+   checkout.html/account.html (size, spacing, position). */
 .checkout-back-link {
   display: inline-block;
   margin-bottom: 1.2rem;
@@ -54,14 +58,6 @@
   font-size: 0.7rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 3px;
-  transition: color 0.3s ease, border-color 0.3s ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .checkout-back-link:hover { color: var(--text-on-dark); border-color: var(--accent-bronze-light); }
 }
 
 /* ---- empty state ---- */

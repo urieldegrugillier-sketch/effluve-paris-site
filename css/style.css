@@ -43,6 +43,11 @@
 
   --accent-bronze: #9c6b2e;
   --accent-bronze-light: #d8b27c;
+  /* Lighter still than --accent-bronze-light -- used only as the "brighten
+     on hover/focus" shade for gold text/underlines that are already at
+     --accent-bronze-light at rest (the discover link, .back-link), so
+     hovering reads as a real step up, not an identical color. */
+  --accent-bronze-lighter: #e6cdaa;
 
   --text-on-dark: #ede7dd;
   --text-muted: #8f887c;
@@ -2612,9 +2617,12 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
 
 /* Discreet "Discover the fragrance" link under the two buttons -- mono/
    uppercase/letter-spaced like .section-note and .cta-discount-badge right
-   above it, muted at rest, gold with a thin underline on hover/focus. Kept
-   to a single small line (no margin-top large enough to read as its own
-   section) so it doesn't grow this already-100vh section's height. */
+   above it. Gold (--accent-bronze-light) at rest so it reads clearly against
+   the dark section rather than disappearing like a muted caption; the thin
+   underline stays hover/focus-only, going to the lighter --accent-bronze-
+   lighter there so the shift is visible. Kept to a single small line (no
+   margin-top large enough to read as its own section) so it doesn't grow
+   this already-100vh section's height. */
 .cta-discover-link {
   display: block;
   width: fit-content;
@@ -2623,22 +2631,63 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   font-size: 0.65rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--accent-bronze-light);
   text-decoration: none;
 }
 .cta-discover-link:focus-visible {
-  color: var(--accent-bronze-light);
+  color: var(--accent-bronze-lighter);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
 @media (hover: hover) and (pointer: fine) {
   .cta-discover-link:hover {
-    color: var(--accent-bronze-light);
+    color: var(--accent-bronze-lighter);
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 3px;
   }
+}
+
+/* ---- Shared "back" link (any arrow-prefixed "go back" link: checkout.html/
+   account.html's own shortcut to the shop, and every legal/content page's
+   "back to homepage" link at the bottom) -- unifies what used to be two
+   separately-declared color/underline/hover treatments (.checkout-back-link
+   in css/checkout.css, and the legal pages' plain <a> relying on
+   .legal-content a's own color) into one. Deliberately does NOT set
+   font-family/font-size/letter-spacing/text-transform/margin/display here --
+   each page's own existing class (.checkout-back-link, or nothing extra on
+   the legal pages) keeps governing size/spacing exactly as before; this
+   class only owns color, underline, and the hover/focus motion, so adding
+   it never changes a link's size or position on the page.
+   The arrow is wrapped in its own .back-link-arrow span (via each i18n
+   string's own markup, data-i18n-html not data-i18n -- see js/i18n.js's
+   common.backToShop/backToHome) specifically so only the arrow glyph
+   translates on hover/focus, not the whole label. */
+.back-link {
+  color: var(--accent-bronze-light);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-bronze-light);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  transition: text-decoration-color 0.25s ease;
+}
+.back-link-arrow {
+  display: inline-block;
+  transition: transform 0.25s ease;
+}
+.back-link:focus-visible { text-decoration-color: var(--accent-bronze-lighter); }
+.back-link:focus-visible .back-link-arrow { transform: translateX(-4px); }
+@media (hover: hover) and (pointer: fine) {
+  .back-link:hover { text-decoration-color: var(--accent-bronze-lighter); }
+  .back-link:hover .back-link-arrow { transform: translateX(-4px); }
+}
+/* Motion only -- the underline-brighten color cue above stays either way,
+   since it's not the kind of movement prefers-reduced-motion is about. */
+@media (prefers-reduced-motion: reduce) {
+  .back-link-arrow { transition: none; }
+  .back-link:hover .back-link-arrow,
+  .back-link:focus-visible .back-link-arrow { transform: none; }
 }
 
 /* ================= RESPONSIVE ================= */
