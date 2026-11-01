@@ -591,7 +591,7 @@
       </div>
       <div class="cart-preview-actions">
         <button type="button" class="cart-preview-add-another" data-action="add-another"${atStockMax ? ' disabled' : ''}>${t('cartWidget.addAnother') || 'Add Another'}</button>
-        <a href="checkout.html" class="cart-preview-buy">${t('cartWidget.buyNow') || 'Buy Now'}</a>
+        <a href="checkout.html" class="cart-preview-buy">${t('cartWidget.buyNow') || 'Checkout'}</a>
       </div>
       <p class="cart-timer-drawer" id="cart-timer-drawer" hidden></p>
     `;

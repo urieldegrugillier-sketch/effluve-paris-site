@@ -209,7 +209,7 @@
         quantity: 'Quantity',
         removeItem: 'Remove item from cart',
         addAnother: 'Add Another',
-        buyNow: 'Buy Now',
+        buyNow: 'Checkout',
         quantityClamped: 'Only {max} in stock, quantity adjusted.',
         // Same ensure-in-cart-then-navigate-to-checkout.html flow as
         // index.html's own homepage CTA (s6.button, js/cta-buy-now.js),
@@ -889,7 +889,7 @@
         quantity: 'Quantité',
         removeItem: "Retirer l'article du panier",
         addAnother: 'Ajouter un Autre',
-        buyNow: 'Acheter',
+        buyNow: 'Commander',
         quantityClamped: "Seulement {max} en stock, quantité ajustée.",
         emptyCartBuyNow: 'Acheter',
         emptyCartAddToCart: 'Ajouter au panier',
