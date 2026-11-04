@@ -73,32 +73,65 @@
 
 .checkout-empty-note a { color: var(--accent-bronze-light); }
 
-/* Top-of-page banner (checkout.html only) shown instead of the normal
+/* Top-of-page line (checkout.html only) shown instead of the normal
    Account/Shipping/Payment flow being meaningfully usable while the cart has
    nothing in it -- toggled by js/checkout-page.js's own
-   applyCartEmptyVisuals()/handleCartEmptyTransition(). Left-aligned, matching .checkout-title right above
-   it, unlike the centered .checkout-empty-note (that one lives inside the
-   narrower Order Summary column). */
+   applyCartEmptyVisuals()/handleCartEmptyTransition(). Deliberately slim --
+   no box/border/background -- a single discreet row sitting directly under
+   .checkout-title, not a boxed callout competing with it. flex-wrap lets it
+   drop to a clean stack on mobile (390px) instead of squeezing three items
+   onto one line; margin-bottom kept modest so there's no big empty gap
+   before the accordion right below it, whether this row is one line or
+   stacked. */
 .checkout-empty-banner {
-  margin: 0 0 2.2rem;
-  padding: 1.4rem 1.6rem;
-  border: 1px solid var(--line);
-  background: var(--bg-ink);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem 1.4rem;
+  margin: 0 0 1.6rem;
 }
 .checkout-empty-banner[hidden] { display: none; }
 .checkout-empty-banner-text {
-  margin: 0 0 1.1rem;
   font-family: var(--font-body);
   font-weight: 300;
-  color: var(--text-on-dark);
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
-.checkout-empty-banner-actions {
-  display: flex;
+/* Compact outlined-gold button -- deliberately NOT .cta-button (that one's
+   block-sized padding/font read as a primary full-width CTA, too heavy for
+   a single inline row next to a plain text line and a small .back-link).
+   ~38px tall via line-height + padding rather than a fixed height, so it
+   still grows gracefully if the label is ever longer in some locale. */
+.checkout-empty-banner-add-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 1.6rem;
-  flex-wrap: wrap;
+  line-height: 38px;
+  padding: 0 1.1rem;
+  background: none;
+  border: 1px solid var(--accent-bronze-light);
+  color: var(--accent-bronze-light);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.25s ease, color 0.25s ease;
 }
-.checkout-empty-banner-add-btn { margin-top: 0; }
+@media (hover: hover) and (pointer: fine) {
+  .checkout-empty-banner-add-btn:hover { background: var(--accent-bronze-light); color: var(--bg-void); }
+}
+.checkout-empty-banner-add-btn:active { background: var(--accent-bronze-light); color: var(--bg-void); }
+/* Plain .back-link (css/style.css) carries no size/spacing of its own --
+   matched here to .checkout-back-link's own small-mono-uppercase treatment
+   (same class used at the very top of this page) so the two read as the
+   same kind of link, just without that class's own margin-bottom (this one
+   sits inline in a row, not stacked above something). */
+.checkout-empty-banner-back {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
 
 /* Guest-mode order-history note's own "Create an Account" link-button --
    centered to match .checkout-empty-note's centered text just above it.
@@ -1601,8 +1634,16 @@
    body.checkout-cart-empty rules below), so every inert control in the
    Payment step shares the exact same hover affordance instead of three
    slightly different ones. One custom url() is all the cursor property
-   allows before its own fallback keyword. */
-:root { --checkout-not-allowed-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%23e5484d' stroke-width='2'/%3E%3Cline x1='6' y1='18' x2='18' y2='6' stroke='%23e5484d' stroke-width='2'/%3E%3C/svg%3E") 12 12, not-allowed; }
+   allows before its own fallback keyword.
+   18x18 (was 24x24) -- smaller, less attention-grabbing for a hover cue, not
+   a warning dialog. Hotspot re-centered to 9 9 to match. Stroke is a dark,
+   desaturated red (#8a3b34, was a bright #e5484d) so it reads as muted/
+   secondary rather than an alarm color; a faint --text-on-dark halo (same
+   shape, slightly thicker, drawn first/underneath at low opacity) is the
+   "thin lighter outline" that keeps the now-dark stroke visible against this
+   page's own near-black background, since the darker red alone had very low
+   contrast there. */
+:root { --checkout-not-allowed-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18'%3E%3Ccircle cx='9' cy='9' r='7' fill='none' stroke='%23ede7dd' stroke-opacity='0.35' stroke-width='2.4'/%3E%3Cline x1='4.5' y1='13.5' x2='13.5' y2='4.5' stroke='%23ede7dd' stroke-opacity='0.35' stroke-width='2.4'/%3E%3Ccircle cx='9' cy='9' r='7' fill='none' stroke='%238a3b34' stroke-width='1.5'/%3E%3Cline x1='4.5' y1='13.5' x2='13.5' y2='4.5' stroke='%238a3b34' stroke-width='1.5'/%3E%3C/svg%3E") 9 9, not-allowed; }
 
 /* Terms of Sale checkbox (Payment section) -- same native-checkbox
    restyling as .account-toggle-row (account.html's marketing-opt-in
