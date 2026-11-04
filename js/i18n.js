@@ -232,8 +232,8 @@
         after: 'min to complete your order'
       },
       common: {
-        backToShop: '<span class="back-link-arrow">←</span> Back to Shop',
-        backToHome: '<span class="back-link-arrow">←</span> Back to homepage',
+        backToShop: 'Back to Shop <span class="back-link-arrow">→</span>',
+        backToHome: 'Back to homepage <span class="back-link-arrow">→</span>',
         account: 'Account',
         showPassword: 'Show password',
         hidePassword: 'Hide password',
@@ -913,8 +913,8 @@
         after: 'min pour valider votre panier'
       },
       common: {
-        backToShop: '<span class="back-link-arrow">←</span> Retour à la Boutique',
-        backToHome: "<span class=\"back-link-arrow\">←</span> Retour à l'accueil",
+        backToShop: 'Retour à la Boutique <span class="back-link-arrow">→</span>',
+        backToHome: "Retour à l'accueil <span class=\"back-link-arrow\">→</span>",
         account: 'Compte',
         showPassword: 'Afficher le mot de passe',
         hidePassword: 'Masquer le mot de passe',

@@ -2729,26 +2729,33 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   .cta-discover-link:hover .back-link-arrow { transform: translateX(4px); }
 }
 
-/* ---- Shared "back" link (any arrow-prefixed "go back" link: checkout.html/
-   account.html's own shortcut to the shop, and every legal/content page's
-   "back to homepage" link at the bottom) -- unifies what used to be two
-   separately-declared color/underline/hover treatments (.checkout-back-link
-   in css/checkout.css, and the legal pages' plain <a> relying on
-   .legal-content a's own color) into one. Deliberately does NOT set
-   font-family/font-size/letter-spacing/text-transform/margin/display here --
-   each page's own existing class (.checkout-back-link, or nothing extra on
-   the legal pages) keeps governing size/spacing exactly as before; this
-   class only owns color, underline, and the hover/focus motion, so adding
-   it never changes a link's size or position on the page.
-   The arrow is wrapped in its own .back-link-arrow span (via each i18n
-   string's own markup, data-i18n-html not data-i18n -- see js/i18n.js's
-   common.backToShop/backToHome) specifically so only the arrow glyph
-   translates on hover/focus, not the whole label. .cta-discover-link
-   (just above) reuses this same .back-link-arrow span/class for its own
-   arrow, same data-i18n-html mechanism (s6.discover) -- its own
-   :hover/:focus-visible rules there just point the translateX the other
-   way (it's a "go forward to product.html" link, not a "go back" one). */
+/* ---- Shared "back" link (any arrow-suffixed "go back" link: checkout.html/
+   account.html's own shortcut to the shop, checkout.html's own empty-cart
+   banner link, and every legal/content page's "back to homepage" link at the
+   bottom) -- ALL of these now share this exact look, including font/size
+   (previously three divergent treatments: .checkout-back-link's own
+   0.7rem/0.15em mono-uppercase in css/checkout.css, the legal pages' plain
+   <a> with no font override at all (just inheriting .legal-content p's body
+   font), and this class's own color/underline/hover-only treatment layered
+   on top of whichever of those applied). Font-family/size/letter-spacing/
+   text-transform now live here, matching .cta-discover-link just above
+   ("Découvrir le parfum →") -- .checkout-back-link (css/checkout.css) keeps
+   only its own page-specific display/margin-bottom now, no font properties
+   left to conflict with this.
+   The arrow now trails the label (text first, then the span) and points
+   right in every one of these strings (see js/i18n.js's own
+   common.backToShop/backToHome) -- reads as "go, in this direction" the same
+   way .cta-discover-link's own forward arrow does, rather than the arrow
+   sitting ambiguously in front of a "go back" label. Wrapped in its own
+   .back-link-arrow span (via each i18n string's own data-i18n-html markup,
+   not data-i18n) specifically so only the arrow glyph translates on
+   hover/focus, not the whole label -- .cta-discover-link reuses this same
+   span/class for its own arrow, same data-i18n-html mechanism (s6.discover). */
 .back-link {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--accent-bronze-light);
   text-decoration: none;
 }
@@ -2765,7 +2772,7 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
-.back-link:focus-visible .back-link-arrow { transform: translateX(-4px); }
+.back-link:focus-visible .back-link-arrow { transform: translateX(4px); }
 @media (hover: hover) and (pointer: fine) {
   .back-link:hover {
     text-decoration: underline;
@@ -2773,7 +2780,7 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
     text-decoration-thickness: 1px;
     text-underline-offset: 3px;
   }
-  .back-link:hover .back-link-arrow { transform: translateX(-4px); }
+  .back-link:hover .back-link-arrow { transform: translateX(4px); }
 }
 /* Motion only -- the underline-brighten color cue above stays either way,
    since it's not the kind of movement prefers-reduced-motion is about. */

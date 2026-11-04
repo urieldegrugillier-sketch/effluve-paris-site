@@ -44,20 +44,15 @@
   margin: 0 0 1.8rem;
 }
 
-/* Small, unobtrusive shortcut back to the shop -- same size/spacing
-   treatment as product.html's own .shop-back-link (css/shop.css),
-   duplicated here rather than shared since checkout.html doesn't load
-   shop.css. Color/underline/hover-motion now come from the shared
-   .back-link class (css/style.css) instead of being declared here --
-   this class only owns what's specific to sitting in this spot on
-   checkout.html/account.html (size, spacing, position). */
+/* Small, unobtrusive shortcut back to the shop -- font/size/letter-spacing/
+   color/underline/hover-motion all come from the shared .back-link class
+   now (css/style.css, matched there to every other back-link on the site --
+   see that class's own comment), this just owns the one thing specific to
+   sitting in this exact spot on checkout.html/account.html: the stacked
+   block layout and the gap below it before the title. */
 .checkout-back-link {
   display: inline-block;
   margin-bottom: 1.2rem;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
 }
 
 /* ---- empty state ---- */
@@ -121,18 +116,6 @@
   .checkout-empty-banner-add-btn:hover { background: var(--accent-bronze-light); color: var(--bg-void); }
 }
 .checkout-empty-banner-add-btn:active { background: var(--accent-bronze-light); color: var(--bg-void); }
-/* Plain .back-link (css/style.css) carries no size/spacing of its own --
-   matched here to .checkout-back-link's own small-mono-uppercase treatment
-   (same class used at the very top of this page) so the two read as the
-   same kind of link, just without that class's own margin-bottom (this one
-   sits inline in a row, not stacked above something). */
-.checkout-empty-banner-back {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-}
-
 /* Guest-mode order-history note's own "Create an Account" link-button --
    centered to match .checkout-empty-note's centered text just above it.
    .checkout-account-link-btn stays inline-block/left-aligned by default
