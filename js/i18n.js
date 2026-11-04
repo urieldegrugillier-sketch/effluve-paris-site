@@ -402,6 +402,17 @@
         errorPostalFormat: 'Please enter a valid {digits}-digit postal code.',
         errorCountry: 'Shipping is currently only available to France and Belgium.',
         emptyCartNote: 'Your cart is empty. <a href="product.html">Shop MONARK</a> first.',
+        // Top-of-page banner shown instead of (not alongside) emptyCartNote
+        // above while the cart has nothing in it -- see
+        // applyCartEmptyVisuals()/handleCartEmptyTransition() in js/checkout-page.js.
+        emptyCartMessage: 'Your cart is empty.',
+        emptyCartAddButton: 'Add to Cart',
+        // Inert placeholder field labels shown in place of the real Stripe
+        // Payment Element while the cart is empty -- plain text, never sent
+        // anywhere (see js/checkout-page.js's own applyCartEmptyVisuals()/handleCartEmptyTransition()).
+        cardNumberLabel: 'Card Number',
+        expirationLabel: 'Expiration Date',
+        cvcLabel: 'CVC',
         qty: 'Qty',
         subtotal: 'Subtotal',
         shipping: 'Shipping',
@@ -1021,6 +1032,11 @@
         errorPostalFormat: 'Veuillez saisir un code postal valide à {digits} chiffres.',
         errorCountry: "La livraison n'est actuellement disponible qu'en France et en Belgique.",
         emptyCartNote: 'Votre panier est vide. <a href="product.html">Découvrez MONARK</a> avant de continuer.',
+        emptyCartMessage: 'Votre panier est vide.',
+        emptyCartAddButton: 'Ajouter au panier',
+        cardNumberLabel: 'Numéro de carte',
+        expirationLabel: "Date d'expiration",
+        cvcLabel: 'CVC',
         qty: 'Qté',
         subtotal: 'Sous-total',
         shipping: 'Livraison',

@@ -607,6 +607,12 @@
     if (!validateShippingForm()) return;
     completeAccordionSection('shipping', shippingSummaryText());
     openAccordionSection('payment');
+    // Flipped on regardless of whether the cart happens to be empty right
+    // now -- see the empty-cart state block further below, which is what
+    // actually mounts the real Payment Element/Payment Request Button once
+    // the cart does gain an item, instead of this handler trying to do it
+    // twice.
+    paymentSectionReached = true;
     initStripePayment();
     initPaymentRequestButton();
   });
@@ -944,6 +950,10 @@
   // self-diagnosable from the browser console instead of a silent no-op.
   function initPaymentRequestButton() {
     if (prInitStarted || !paymentRequest || !prContainer) return;
+    // Nothing to pay for yet -- bail without flipping prInitStarted, so this
+    // re-runs cleanly once the cart actually gains an item (see
+    // handleCartEmptyTransition() further below, the only other call site).
+    if (!cart.getCart().length) return;
     prInitStarted = true;
     paymentRequest.canMakePayment().then((result) => {
       if (!result) {
@@ -1326,6 +1336,76 @@
   const termsCheckbox = document.getElementById('checkout-terms-checkbox');
   const termsError = document.getElementById('checkout-terms-error');
   termsCheckbox.addEventListener('change', () => { termsError.hidden = true; });
+
+  // ---------------- Empty-cart state (Payment step) ----------------
+  // Shows the top-of-page banner in place of a meaningfully usable checkout
+  // flow, swaps the real Stripe Payment Element for inert disabled
+  // placeholders, force-hides the Payment Request Button (Apple Pay/Google
+  // Pay/Link) + its "or" divider, and greys out Place Order/the Terms
+  // checkbox -- all purely visual/UX. initStripePayment() and
+  // initPaymentRequestButton() already refuse to run at all while the cart
+  // is empty (see their own early-returns above), so no PaymentIntent is
+  // ever created regardless of what's shown here. Switches live on every
+  // 'cart:updated' -- adding from this page's own banner button below,
+  // another tab, or the header's mini-cart -- no reload needed either way.
+  let paymentSectionReached = false; // set true once Shipping's Next Step is first clicked (see that handler above)
+  let cartIsEmpty = !cart.getCart().length;
+  const emptyBanner = document.getElementById('checkout-empty-banner');
+  const emptyBannerAddBtn = document.getElementById('checkout-empty-banner-add-btn');
+  const stripePlaceholder = document.getElementById('checkout-stripe-placeholder');
+  const stripeElementEl = document.getElementById('checkout-stripe-payment-element');
+
+  // Same window.MonarkCart.addToCart(1) call product.html's own Add to Cart
+  // button makes -- no quantity-1-already-in-cart guard needed here (unlike
+  // the homepage/drawer's "Acheter"/buy-now buttons): this is explicitly
+  // "Ajouter au panier," always adds, same as the product page's own button.
+  emptyBannerAddBtn.addEventListener('click', () => cart.addToCart(1));
+
+  function applyCartEmptyVisuals() {
+    document.body.classList.toggle('checkout-cart-empty', cartIsEmpty);
+    emptyBanner.hidden = !cartIsEmpty;
+    termsCheckbox.disabled = cartIsEmpty;
+    stripePlaceholder.hidden = !cartIsEmpty;
+    stripePlaceholder.setAttribute('aria-hidden', String(!cartIsEmpty));
+    stripeElementEl.hidden = cartIsEmpty;
+  }
+  applyCartEmptyVisuals();
+
+  function teardownStripePaymentElement() {
+    if (stripePaymentElement) {
+      stripePaymentElement.unmount();
+      stripePaymentElement = null;
+    }
+    stripeElements = null;
+    stripeClientSecret = null;
+    stripePaymentIntentId = null;
+  }
+
+  function handleCartEmptyTransition() {
+    const nowEmpty = !cart.getCart().length;
+    if (nowEmpty === cartIsEmpty) return;
+    cartIsEmpty = nowEmpty;
+    applyCartEmptyVisuals();
+    if (cartIsEmpty) {
+      // Cart emptied (e.g. removed via the header's mini-cart) while Payment
+      // was already mounted -- unmount cleanly rather than leaving a stale
+      // Element/PaymentIntent sitting behind the now-visible placeholder.
+      teardownStripePaymentElement();
+      if (prElement) { prElement.unmount(); prElement = null; }
+      prEligible = false;
+      prInitStarted = false;
+      prContainer.hidden = true;
+      prDivider.hidden = true;
+    } else if (paymentSectionReached) {
+      // Payment step was already reached at least once (possibly while the
+      // cart was still empty, in which case these never actually mounted
+      // anything the first time -- see their own early-returns) -- mount
+      // the real flow now that there's something to pay for.
+      initStripePayment();
+      initPaymentRequestButton();
+    }
+  }
+  document.addEventListener('cart:updated', handleCartEmptyTransition);
 
   // Shared order-completion path -- runs once real (test-mode) money has
   // actually moved, regardless of which payment method got it there (this

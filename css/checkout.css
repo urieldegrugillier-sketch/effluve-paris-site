@@ -73,6 +73,33 @@
 
 .checkout-empty-note a { color: var(--accent-bronze-light); }
 
+/* Top-of-page banner (checkout.html only) shown instead of the normal
+   Account/Shipping/Payment flow being meaningfully usable while the cart has
+   nothing in it -- toggled by js/checkout-page.js's own
+   applyCartEmptyVisuals()/handleCartEmptyTransition(). Left-aligned, matching .checkout-title right above
+   it, unlike the centered .checkout-empty-note (that one lives inside the
+   narrower Order Summary column). */
+.checkout-empty-banner {
+  margin: 0 0 2.2rem;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid var(--line);
+  background: var(--bg-ink);
+}
+.checkout-empty-banner[hidden] { display: none; }
+.checkout-empty-banner-text {
+  margin: 0 0 1.1rem;
+  font-family: var(--font-body);
+  font-weight: 300;
+  color: var(--text-on-dark);
+}
+.checkout-empty-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.6rem;
+  flex-wrap: wrap;
+}
+.checkout-empty-banner-add-btn { margin-top: 0; }
+
 /* Guest-mode order-history note's own "Create an Account" link-button --
    centered to match .checkout-empty-note's centered text just above it.
    .checkout-account-link-btn stays inline-block/left-aligned by default
@@ -1543,6 +1570,40 @@
   min-height: 3rem;
 }
 
+/* Inert stand-in for the real Payment Element above (checkout.html only),
+   shown instead of it while the cart is empty -- see js/checkout-page.js's
+   own applyCartEmptyVisuals()/handleCartEmptyTransition(). Reuses .checkout-field's own layout/label
+   styling as-is (dark look, thin bottom border, mono uppercase label) so
+   these read as part of the same form rather than a visibly different
+   component; only the modifier class below changes anything, scoped so it
+   never leaks onto the real Shipping/Billing fields that also use
+   .checkout-field. [hidden] rule needed because .checkout-field-row's own
+   display:flex (nested row for Expiration/CVC) would otherwise win over the
+   UA [hidden]{display:none} rule at equal specificity, same class of bug as
+   this file's other [hidden] fixes (e.g. .checkout-account-status[hidden]). */
+.checkout-stripe-placeholder[hidden] { display: none; }
+/* ID-scoped (not just .checkout-stripe-placeholder-field input) so this
+   reliably outweighs .checkout-field input:disabled's own plain
+   `cursor: not-allowed` (css/checkout.css, higher up this file) on
+   specificity alone -- confirmed live that a class-only selector here lost
+   that tie-break (both effectively two-class-equivalent selectors, base
+   rule simply comes later), leaving the browser's own generic not-allowed
+   showing instead of this custom red circle-slash one. */
+#checkout-stripe-placeholder .checkout-stripe-placeholder-field input {
+  opacity: 0.45;
+  cursor: var(--checkout-not-allowed-cursor);
+}
+
+/* Shared red circle-slash "not allowed" cursor -- a custom SVG data URI
+   (not-allowed is only the fallback for a browser/engine that can't load a
+   custom cursor image at all) -- applied to the placeholder fields above,
+   and to Place Order/the Terms checkbox while the cart is empty (see the
+   body.checkout-cart-empty rules below), so every inert control in the
+   Payment step shares the exact same hover affordance instead of three
+   slightly different ones. One custom url() is all the cursor property
+   allows before its own fallback keyword. */
+:root { --checkout-not-allowed-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%23e5484d' stroke-width='2'/%3E%3Cline x1='6' y1='18' x2='18' y2='6' stroke='%23e5484d' stroke-width='2'/%3E%3C/svg%3E") 12 12, not-allowed; }
+
 /* Terms of Sale checkbox (Payment section) -- same native-checkbox
    restyling as .account-toggle-row (account.html's marketing-opt-in
    toggle), just overriding its all-caps/small-mono label treatment since
@@ -1554,6 +1615,19 @@
 .checkout-terms-row input[type="checkbox"] { margin-top: 0.15rem; flex-shrink: 0; }
 .checkout-terms-row span { text-transform: none; letter-spacing: 0.02em; font-size: 0.78rem; font-family: var(--font-body); font-weight: 300; }
 .checkout-terms-row a { color: var(--accent-bronze-light); }
+
+/* Greyed + same red not-allowed cursor as the Payment placeholder fields
+   above, while the cart is empty (body.checkout-cart-empty, toggled by
+   js/checkout-page.js's own applyCartEmptyVisuals()/handleCartEmptyTransition()) -- the checkbox itself is
+   also set `disabled` at that point, this is purely the visual match.
+   Outweighs .account-toggle-row's own shared `cursor: pointer` (and its
+   input[type="checkbox"] variant, both declared earlier in this same file)
+   on specificity alone, regardless of source order. */
+body.checkout-cart-empty .checkout-terms-row {
+  opacity: 0.4;
+  cursor: var(--checkout-not-allowed-cursor);
+}
+body.checkout-cart-empty .checkout-terms-row * { cursor: var(--checkout-not-allowed-cursor); }
 
 /* .checkout-trust-badges/.checkout-trust-badge (+ svg/span) now live in
    css/style.css (shared -- product.html's own reassurance block reuses
@@ -1585,6 +1659,11 @@
    --accent-bronze-light on interaction, exactly like every button above. */
 .checkout-submit { width: 100%; text-align: center; margin-top: 0.6rem; cursor: pointer; background: var(--accent-bronze); border-color: var(--accent-bronze); color: #000; }
 .checkout-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+/* Same custom red not-allowed cursor as the Payment placeholder fields/Terms
+   row above, specifically while the cart is empty (not just "disabled for
+   any reason") -- body.checkout-cart-empty .checkout-submit:disabled (0,3,0)
+   outweighs the plain .checkout-submit:disabled rule just above (0,2,0). */
+body.checkout-cart-empty .checkout-submit:disabled { cursor: var(--checkout-not-allowed-cursor); }
 
 .checkout-confirmation { text-align: center; padding: 10vh 0; }
 
