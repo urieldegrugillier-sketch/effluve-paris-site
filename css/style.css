@@ -1872,6 +1872,32 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   .checkout-support-link:hover { color: var(--text-on-dark); }
 }
 
+/* Contact-page mailto link(s) -- href built at load time by
+   js/contact-email.js from this element's own data-email-user/
+   data-email-domain attributes, never written as one literal address
+   anywhere in this site's HTML/i18n source (see that file's own comment).
+   Gold at rest, underlined only on hover/focus (not .checkout-support-link's
+   own always-underlined treatment just above -- this one sits inline in a
+   sentence rather than standing alone as "the" contact method). */
+.contact-email-link {
+  color: var(--accent-bronze-light);
+  text-decoration: none;
+}
+.contact-email-link:focus-visible {
+  text-decoration: underline;
+  text-decoration-color: var(--accent-bronze-lighter);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .contact-email-link:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--accent-bronze-lighter);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+  }
+}
+
 /* Hermès-style trust-badge row -- three quiet icon+label pairs, no
    borders/boxes around any one of them, just a hairline var(--line) divider
    between each pair instead of around them.
@@ -2731,26 +2757,30 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
 
 /* ---- Shared "back" link (any arrow-suffixed "go back" link: checkout.html/
    account.html's own shortcut to the shop, checkout.html's own empty-cart
-   banner link, and every legal/content page's "back to homepage" link at the
-   bottom) -- ALL of these now share this exact look, including font/size
-   (previously three divergent treatments: .checkout-back-link's own
-   0.7rem/0.15em mono-uppercase in css/checkout.css, the legal pages' plain
-   <a> with no font override at all (just inheriting .legal-content p's body
-   font), and this class's own color/underline/hover-only treatment layered
-   on top of whichever of those applied). Font-family/size/letter-spacing/
-   text-transform now live here, matching .cta-discover-link just above
-   ("Découvrir le parfum →") -- .checkout-back-link (css/checkout.css) keeps
-   only its own page-specific display/margin-bottom now, no font properties
-   left to conflict with this.
-   The arrow now trails the label (text first, then the span) and points
-   right in every one of these strings (see js/i18n.js's own
-   common.backToShop/backToHome) -- reads as "go, in this direction" the same
-   way .cta-discover-link's own forward arrow does, rather than the arrow
-   sitting ambiguously in front of a "go back" label. Wrapped in its own
-   .back-link-arrow span (via each i18n string's own data-i18n-html markup,
-   not data-i18n) specifically so only the arrow glyph translates on
-   hover/focus, not the whole label -- .cta-discover-link reuses this same
-   span/class for its own arrow, same data-i18n-html mechanism (s6.discover). */
+   banner link, and every legal/content page's own link back to
+   product.html at the bottom) -- ALL of these now share this exact look,
+   including font/size (previously three divergent treatments:
+   .checkout-back-link's own 0.7rem/0.15em mono-uppercase in
+   css/checkout.css, the legal pages' plain <a> with no font override at all
+   (just inheriting .legal-content p's body font), and this class's own
+   color/underline/hover-only treatment layered on top of whichever of those
+   applied). Font-family/size/letter-spacing/text-transform now live here,
+   matching .cta-discover-link just above ("Découvrir le parfum →") --
+   .checkout-back-link (css/checkout.css) keeps only its own page-specific
+   display/margin-bottom now, no font properties left to conflict with this.
+   The arrow trails the label (text first, then the span) and points right
+   in every one of these strings (see js/i18n.js's own common.backToShop,
+   the single shared key for all of them -- the legal pages used to point to
+   index.html under a separate common.backToHome key/"back to homepage"
+   wording; both now point to product.html and say the exact same thing, so
+   that second key was merged into this one) -- reads as "go, in this
+   direction" the same way .cta-discover-link's own forward arrow does,
+   rather than the arrow sitting ambiguously in front of a "go back" label.
+   Wrapped in its own .back-link-arrow span (via each i18n string's own
+   data-i18n-html markup, not data-i18n) specifically so only the arrow
+   glyph translates on hover/focus, not the whole label -- .cta-discover-link
+   reuses this same span/class for its own arrow, same data-i18n-html
+   mechanism (s6.discover). */
 .back-link {
   font-family: var(--font-mono);
   font-size: 0.65rem;

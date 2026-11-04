@@ -74,6 +74,18 @@
   max-width: 50ch;
 }
 
+/* Discreet second mention of the contact address, near the form (see
+   contact.emailNote in js/i18n.js) -- deliberately small/muted, not a
+   second CTA competing with the form above it. .contact-email-link
+   (css/style.css) carries the actual link's own gold/hover-underline look. */
+.contact-email-note {
+  margin: 1.4rem 0 0;
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
 .contact-char-counter {
   align-self: flex-end;
   margin: 0.4rem 0 0;

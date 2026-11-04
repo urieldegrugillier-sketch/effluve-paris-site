@@ -232,8 +232,12 @@
         after: 'min to complete your order'
       },
       common: {
-        backToShop: 'Back to Shop <span class="back-link-arrow">→</span>',
-        backToHome: 'Back to homepage <span class="back-link-arrow">→</span>',
+        // Single shared key for every .back-link on the site, all pointing
+        // to product.html -- see css/style.css's own .back-link comment.
+        // Used to be two keys (this one + backToHome, for the legal pages'
+        // link back to index.html) until that link was repointed here too
+        // and both ended up saying the exact same thing.
+        backToShop: 'Back to shop <span class="back-link-arrow">→</span>',
         account: 'Account',
         showPassword: 'Show password',
         hidePassword: 'Hide password',
@@ -611,7 +615,10 @@
       contact: {
         pageTitle: 'Contact',
         intro: 'Questions about an order, the composition, or a wholesale inquiry, we read every message personally.',
-        reachUs: 'Reach us directly at <span class="placeholder">[CONTACT EMAIL | TO BE COMPLETED]</span>, or use the form below.',
+        reachUs: 'Reach us directly at <a class="contact-email-link" data-email-user="effluvepariscontact" data-email-domain="gmail.com"><span class="contact-email-user">effluvepariscontact</span>@<span class="contact-email-domain">gmail.com</span></a>, or use the form below.',
+        // Discreet second mention near the contact form itself -- same
+        // obfuscated-mailto markup as reachUs above (see js/contact-email.js).
+        emailNote: 'You can also write to us at <a class="contact-email-link" data-email-user="effluvepariscontact" data-email-domain="gmail.com"><span class="contact-email-user">effluvepariscontact</span>@<span class="contact-email-domain">gmail.com</span></a>.',
         whatsappBtn: 'Contact us<br class="mobile-only-break"> on WhatsApp',
         whatsappHref: 'https://api.whatsapp.com/send?phone=33605893897&text=Hello%2C%20I%20have%20a%20question.',
         honeypotLabel: 'Leave this field blank',
@@ -913,8 +920,7 @@
         after: 'min pour valider votre panier'
       },
       common: {
-        backToShop: 'Retour à la Boutique <span class="back-link-arrow">→</span>',
-        backToHome: "Retour à l'accueil <span class=\"back-link-arrow\">→</span>",
+        backToShop: 'Retour à la boutique <span class="back-link-arrow">→</span>',
         account: 'Compte',
         showPassword: 'Afficher le mot de passe',
         hidePassword: 'Masquer le mot de passe',
@@ -1222,7 +1228,8 @@
       contact: {
         pageTitle: 'Contact',
         intro: 'Une question sur une commande, la composition, ou une demande de revente en gros, nous lisons chaque message personnellement.',
-        reachUs: 'Contactez-nous directement à <span class="placeholder">[E-MAIL DE CONTACT | À COMPLÉTER]</span>, ou utilisez le formulaire ci-dessous.',
+        reachUs: 'Contactez-nous directement à <a class="contact-email-link" data-email-user="effluvepariscontact" data-email-domain="gmail.com"><span class="contact-email-user">effluvepariscontact</span>@<span class="contact-email-domain">gmail.com</span></a>, ou utilisez le formulaire ci-dessous.',
+        emailNote: 'Vous pouvez aussi nous écrire à <a class="contact-email-link" data-email-user="effluvepariscontact" data-email-domain="gmail.com"><span class="contact-email-user">effluvepariscontact</span>@<span class="contact-email-domain">gmail.com</span></a>.',
         whatsappBtn: 'Contactez-nous<br class="mobile-only-break"> sur WhatsApp',
         whatsappHref: "https://api.whatsapp.com/send?phone=33605893897&text=Bonjour%2C%20j%27ai%20une%20question.",
         honeypotLabel: 'Laissez ce champ vide',
