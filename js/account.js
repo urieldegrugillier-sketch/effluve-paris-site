@@ -24,6 +24,15 @@
    out-of-band session change, e.g. another tab logging out) without every
    caller having to know about it. */
 (function (global) {
+  // Off until the Meta app backing signInWithFacebook() below finishes
+  // Meta's business verification -- until then Facebook rejects the login
+  // for anyone outside the app's own test-user list, so the button is
+  // hidden rather than shown and failing for every real visitor. Flip this
+  // back to true (no other change needed) once verification is done --
+  // signInWithFacebook(), its i18n keys, and all of its error handling stay
+  // in place below either way.
+  const FACEBOOK_LOGIN_ENABLED = false;
+
   function client() { return global.MonarkSupabase; }
 
   const GUEST_KEY = 'monark_guest_email';
@@ -1037,6 +1046,29 @@
   // fresh at the moment they're shown instead, same pattern as
   // js/email-popup.js's own per-condition error messages.
   function accountGateMarkup() {
+    // See FACEBOOK_LOGIN_ENABLED's own comment at the top of this file --
+    // the button (and its error paragraph) simply isn't part of the markup
+    // at all while it's off, so there's nothing for showStep()/the click
+    // handler below to toggle and no gap left in the layout: the "or"
+    // divider's own spacing sits right above whatever comes right after it,
+    // Google alone or Google-then-Facebook, unchanged either way.
+    const facebookBlock = FACEBOOK_LOGIN_ENABLED ? `
+      <!-- Facebook sign-in -- same bypass-the-form shape as the Google
+           button just above (see signInWithFacebook() for the actual
+           supabase.auth.signInWithOAuth() call), placed directly under it
+           with no extra divider: the single "or" above already separates
+           the email path from "sign in with a provider", and this is a
+           second option within that same group. Icon is a single-color "f"
+           mark (css/checkout.css colors it via currentColor) rather than
+           Facebook's own blue, matching this flow's "no bright brand colors
+           besides Google's own required multicolor mark" treatment. -->
+      <button type="button" class="cta-button checkout-account-btn-sm checkout-account-btn-secondary checkout-account-facebook-btn" id="checkout-account-facebook-btn">
+        <svg class="checkout-account-facebook-icon" viewBox="0 0 320 512" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M279.14 288l14.22-92.66h-88.91v-66.76c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z"></path>
+        </svg>
+        <span data-i18n="accountGate.continueWithFacebook">Continue with Facebook</span>
+      </button>
+      <p class="promo-message promo-message-error" id="checkout-account-facebook-error" aria-live="polite" hidden></p>` : '';
     return `
       <p class="checkout-account-status" id="checkout-account-status" hidden>
         <span id="checkout-account-status-text"></span>
@@ -1087,24 +1119,7 @@
         <span data-i18n="accountGate.continueWithGoogle">Continue with Google</span>
       </button>
       <p class="promo-message promo-message-error" id="checkout-account-google-error" aria-live="polite" hidden></p>
-
-      <!-- Facebook sign-in -- same bypass-the-form shape as the Google
-           button just above (see signInWithFacebook() for the actual
-           supabase.auth.signInWithOAuth() call), placed directly under it
-           with no extra divider: the single "or" above already separates
-           the email path from "sign in with a provider", and this is a
-           second option within that same group. Icon is a single-color "f"
-           mark (css/checkout.css colors it via currentColor) rather than
-           Facebook's own blue, matching this flow's "no bright brand colors
-           besides Google's own required multicolor mark" treatment. -->
-      <button type="button" class="cta-button checkout-account-btn-sm checkout-account-btn-secondary checkout-account-facebook-btn" id="checkout-account-facebook-btn">
-        <svg class="checkout-account-facebook-icon" viewBox="0 0 320 512" aria-hidden="true" focusable="false">
-          <path fill="currentColor" d="M279.14 288l14.22-92.66h-88.91v-66.76c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z"></path>
-        </svg>
-        <span data-i18n="accountGate.continueWithFacebook">Continue with Facebook</span>
-      </button>
-      <p class="promo-message promo-message-error" id="checkout-account-facebook-error" aria-live="polite" hidden></p>
-
+${facebookBlock}
       <div id="checkout-account-auth" hidden>
         <p class="checkout-account-email-echo">
           <span id="checkout-account-auth-email"></span>
@@ -1688,7 +1703,10 @@
       emailForm.hidden = step !== 'email';
       googleDivider.hidden = step !== 'email';
       googleBtn.hidden = step !== 'email';
-      facebookBtn.hidden = step !== 'email';
+      // facebookBtn/facebookError don't exist in the DOM at all while
+      // FACEBOOK_LOGIN_ENABLED is off (see accountGateMarkup()'s own
+      // comment) -- guarded rather than toggled unconditionally.
+      if (facebookBtn) facebookBtn.hidden = step !== 'email';
       // googleError/facebookError sit outside emailForm itself (so either
       // stays visible underneath its own "Continue with ..." button even
       // while the email form above it is mid-edit), so leaving this step is
@@ -1697,7 +1715,7 @@
       // auth/recovery step or a fully resolved session took over below it.
       if (step !== 'email') {
         googleError.hidden = true;
-        facebookError.hidden = true;
+        if (facebookError) facebookError.hidden = true;
       }
       authBlock.hidden = step !== 'auth';
       recoveryBlock.hidden = step !== 'recovery';
@@ -1819,7 +1837,11 @@
         emailCancelBtn.hidden = true;
         authCancelBtn.hidden = true;
         if (oauthError) {
-          const isFacebook = oauthProvider === 'facebook';
+          // FACEBOOK_LOGIN_ENABLED-gated too: with the button hidden/unclickable
+          // there's no live way for oauthProvider to actually be 'facebook'
+          // here, but gating on both means this can never try to target the
+          // facebookError paragraph that doesn't exist in the DOM while it's off.
+          const isFacebook = FACEBOOK_LOGIN_ENABLED && oauthProvider === 'facebook';
           const targetError = isFacebook ? facebookError : googleError;
           const otherError = isFacebook ? googleError : facebookError;
           // Facebook (unlike Google) lets the user deny sharing their email
@@ -1836,11 +1858,11 @@
               ? (isFacebook ? 'accountGate.errorFacebookCancelled' : 'accountGate.errorGoogleCancelled')
               : (isFacebook ? 'accountGate.errorFacebookSignIn' : 'accountGate.errorGoogleSignIn'));
           targetError.hidden = false;
-          otherError.hidden = true;
+          if (otherError) otherError.hidden = true;
           oauthError = null;
         } else {
           googleError.hidden = true;
-          facebookError.hidden = true;
+          if (facebookError) facebookError.hidden = true;
         }
         if (options.onUnresolved) options.onUnresolved();
         return;
@@ -1996,19 +2018,23 @@
     // signInWithFacebook()'s comment for the one real difference (the
     // no-email case, surfaced later via oauthError/oauthProvider once the
     // redirect actually lands back here, not from this synchronous call).
-    facebookBtn.addEventListener('click', async () => {
-      facebookError.hidden = true;
-      facebookBtn.disabled = true;
-      try {
-        const result = await signInWithFacebook();
-        if (!result.ok) {
-          facebookError.textContent = t('accountGate.errorFacebookSignIn');
-          facebookError.hidden = false;
+    // Guarded: facebookBtn is null whenever FACEBOOK_LOGIN_ENABLED is off
+    // (see accountGateMarkup()'s own comment), so there's nothing to wire up.
+    if (facebookBtn) {
+      facebookBtn.addEventListener('click', async () => {
+        facebookError.hidden = true;
+        facebookBtn.disabled = true;
+        try {
+          const result = await signInWithFacebook();
+          if (!result.ok) {
+            facebookError.textContent = t('accountGate.errorFacebookSignIn');
+            facebookError.hidden = false;
+          }
+        } finally {
+          facebookBtn.disabled = false;
         }
-      } finally {
-        facebookBtn.disabled = false;
-      }
-    });
+      });
+    }
 
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
