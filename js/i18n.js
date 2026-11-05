@@ -238,11 +238,13 @@
         // link back to index.html) until that link was repointed here too
         // and both ended up saying the exact same thing.
         backToShop: 'Back to shop <span class="back-link-arrow">→</span>',
-        // Inline confirmation shown by js/contact-email.js right after a
+        // Bottom-toast title shown by js/contact-email.js right after a
         // visitor clicks any obfuscated mailto link (contact.html,
-        // mentions-legales.html) -- shared under `common` since both pages'
-        // links use it, not just contact.html's own.
+        // mentions-legales.html, confidentialite.html) -- shared under
+        // `common` since every page's link uses it, not just contact.html's
+        // own.
         emailCopied: 'Address copied',
+        toastClose: 'Close notification',
         account: 'Account',
         showPassword: 'Show password',
         hidePassword: 'Hide password',
@@ -928,6 +930,7 @@
       common: {
         backToShop: 'Retour à la boutique <span class="back-link-arrow">→</span>',
         emailCopied: 'Adresse copiée',
+        toastClose: 'Fermer la notification',
         account: 'Compte',
         showPassword: 'Afficher le mot de passe',
         hidePassword: 'Masquer le mot de passe',

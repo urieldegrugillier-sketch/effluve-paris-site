@@ -32,9 +32,11 @@
 // directly) specifically so it keeps working regardless of how many times
 // the surrounding markup gets torn down and rebuilt -- a fresh anchor from
 // a later re-render is still covered the instant it exists, no re-binding
-// needed.
+// needed. The copy-confirmation toast below is a page-level singleton
+// instead (appended once to <body>, outside any of those re-rendered
+// anchors) so it survives those re-renders untouched.
 (function () {
-  function t(key) { return window.MonarkI18n ? window.MonarkI18n.t(key) : key; }
+  const TOAST_DURATION = 4000;
 
   function copyText(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -60,64 +62,11 @@
     document.body.removeChild(ta);
   }
 
-  // Nudges the badge's default centered position (left:50% +
-  // translateX(-50%), see css/style.css) inward just far enough to stay
-  // fully on-screen when the link it's centered on sits close to a narrow
-  // viewport's edge -- CSS alone can't react to the actual viewport here
-  // (centering is relative to .contact-email-wrap, not the screen), so this
-  // measures the real rendered result each time the badge is shown and only
-  // overrides the transform when it would otherwise overflow. Resets to the
-  // plain CSS default first so the measurement reflects the unclamped
-  // position, not a previous call's own adjustment compounding on itself.
-  function positionBadge(badge) {
-    badge.style.transform = '';
-    const rect = badge.getBoundingClientRect();
-    const margin = 8;
-    let shiftX = 0;
-    if (rect.left < margin) {
-      shiftX = margin - rect.left;
-    } else if (rect.right > window.innerWidth - margin) {
-      shiftX = (window.innerWidth - margin) - rect.right;
-    }
-    if (shiftX !== 0) {
-      badge.style.transform = 'translateX(calc(-50% + ' + shiftX + 'px))';
-    }
-  }
-
-  // Wraps the anchor in a position:relative span (if not already) and adds
-  // the hidden "Address copied" badge as its sibling -- position:absolute on
-  // the badge itself (see css/style.css) is what keeps this from ever
-  // shifting surrounding text when it appears, so this wrap only needs to
-  // exist, not carry any layout weight of its own. Re-run on every
-  // enhanceAll() pass (including right before showing the badge on click)
-  // since a data-i18n-html re-render tears down and rebuilds the anchor's
-  // whole parent, taking any previous wrap/badge with it.
-  function ensureWrap(anchor) {
-    let wrap = anchor.parentElement;
-    if (!wrap || !wrap.classList.contains('contact-email-wrap')) {
-      wrap = document.createElement('span');
-      wrap.className = 'contact-email-wrap';
-      anchor.parentNode.insertBefore(wrap, anchor);
-      wrap.appendChild(anchor);
-    }
-    let badge = wrap.querySelector('.contact-email-copied');
-    if (!badge) {
-      badge = document.createElement('span');
-      badge.className = 'contact-email-copied';
-      badge.setAttribute('aria-live', 'polite');
-      badge.hidden = true;
-      wrap.appendChild(badge);
-    }
-    badge.textContent = t('common.emailCopied');
-    return { wrap, badge };
-  }
-
   function enhance(el) {
     const user = el.getAttribute('data-email-user');
     const domain = el.getAttribute('data-email-domain');
     if (!user || !domain) return;
     el.setAttribute('href', 'mailto:' + user + '@' + domain);
-    ensureWrap(el);
   }
 
   function enhanceAll() {
@@ -127,6 +76,124 @@
   enhanceAll();
   document.addEventListener('DOMContentLoaded', enhanceAll);
   document.addEventListener('monark:langchange', enhanceAll);
+
+  // ---------------- Copy-confirmation toast ----------------
+  // One shared element, built lazily on first use (always after
+  // DOMContentLoaded, since it only ever happens in response to a click) so
+  // js/i18n.js has already run and its data-i18n/data-i18n-attr pass below
+  // resolves real text, not a raw key.
+  let toast = null;
+  let emailEl = null;
+  let closeBtn = null;
+  let progressBar = null;
+  let countdown = null;
+
+  // Drives the progress bar and the auto-dismiss on requestAnimationFrame
+  // rather than a plain setTimeout + CSS transition, specifically so pause()
+  // can freeze both at the exact instant the pointer lands and resume()
+  // can continue from there, instead of restarting the full 4s or having to
+  // read back a live CSS transition's current computed value.
+  function createCountdown(duration, onTick, onDone) {
+    let remaining = duration;
+    let rafId = null;
+    let frameStart = null;
+    function frame(ts) {
+      if (frameStart === null) frameStart = ts;
+      const left = remaining - (ts - frameStart);
+      if (left <= 0) {
+        onTick(0);
+        rafId = null;
+        onDone();
+        return;
+      }
+      onTick(left / duration);
+      rafId = requestAnimationFrame(frame);
+    }
+    return {
+      start: function () {
+        if (rafId !== null) return;
+        frameStart = null;
+        rafId = requestAnimationFrame(frame);
+      },
+      pause: function () {
+        if (rafId === null) return;
+        cancelAnimationFrame(rafId);
+        if (frameStart !== null) remaining -= (performance.now() - frameStart);
+        rafId = null;
+        frameStart = null;
+      },
+      stop: function () {
+        if (rafId !== null) cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    };
+  }
+
+  function ensureToast() {
+    if (toast) return;
+    toast = document.createElement('div');
+    toast.className = 'contact-toast';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+    toast.innerHTML =
+      '<div class="contact-toast-icon" aria-hidden="true">' +
+        '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="9" height="9" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 11V2.5a1 1 0 0 1 1-1H11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      '</div>' +
+      '<div class="contact-toast-body">' +
+        '<span class="contact-toast-title" data-i18n="common.emailCopied"></span>' +
+        '<span class="contact-toast-email"></span>' +
+      '</div>' +
+      '<button type="button" class="contact-toast-close" data-i18n-attr="aria-label:common.toastClose">' +
+        '<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.2 1.2L9.8 9.8M9.8 1.2L1.2 9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>' +
+      '</button>' +
+      '<div class="contact-toast-progress"><div class="contact-toast-progress-bar"></div></div>';
+    document.body.appendChild(toast);
+    if (window.MonarkI18n) window.MonarkI18n.apply(toast);
+
+    emailEl = toast.querySelector('.contact-toast-email');
+    closeBtn = toast.querySelector('.contact-toast-close');
+    progressBar = toast.querySelector('.contact-toast-progress-bar');
+
+    closeBtn.addEventListener('click', hideToast);
+    toast.addEventListener('mouseenter', function () { if (countdown) countdown.pause(); });
+    toast.addEventListener('mouseleave', function () { if (countdown) countdown.start(); });
+    toast.addEventListener('touchstart', function () { if (countdown) countdown.pause(); }, { passive: true });
+    toast.addEventListener('touchend', function () { if (countdown) countdown.start(); }, { passive: true });
+    toast.addEventListener('touchcancel', function () { if (countdown) countdown.start(); }, { passive: true });
+  }
+
+  // Clears any inline override from a previous call before checking again --
+  // on every other page this toast exists on, --cookie-banner-h (set in
+  // css/style.css's :root) already covers the cookie banner on its own, so
+  // the CSS default bottom offset applies and this only needs to act when a
+  // product-page-style floating buy bar is actually on screen above it.
+  function updateBottomOffset() {
+    const bar = document.querySelector('.shop-sticky-bar.shop-sticky-bar-visible, .shop-desktop-bar.shop-desktop-bar-visible');
+    if (!bar) {
+      toast.style.removeProperty('bottom');
+      return;
+    }
+    const clearance = Math.max(0, window.innerHeight - bar.getBoundingClientRect().top) + 20;
+    toast.style.bottom = 'calc(env(safe-area-inset-bottom, 0px) + ' + clearance + 'px)';
+  }
+
+  function hideToast() {
+    if (countdown) { countdown.stop(); countdown = null; }
+    if (toast) toast.classList.remove('is-visible');
+  }
+
+  function showToast(address) {
+    ensureToast();
+    emailEl.textContent = address;
+    updateBottomOffset();
+    if (countdown) countdown.stop();
+    progressBar.style.transform = 'scaleX(1)';
+    countdown = createCountdown(TOAST_DURATION, function (frac) {
+      progressBar.style.transform = 'scaleX(' + frac + ')';
+    }, hideToast);
+    toast.classList.add('is-visible');
+    countdown.start();
+  }
 
   // Single delegated listener, not one per anchor -- see this file's own
   // top comment for why that's what actually makes clicking survive any
@@ -143,14 +210,9 @@
     e.preventDefault();
     const address = user + '@' + domain;
     copyText(address);
-    const { badge } = ensureWrap(target);
-    badge.textContent = t('common.emailCopied');
-    badge.hidden = false;
-    positionBadge(badge);
-    if (badge._hideTimer) clearTimeout(badge._hideTimer);
-    badge._hideTimer = setTimeout(function () { badge.hidden = true; }, 2000);
+    showToast(address);
     // mailto: doesn't unload this page (it just hands off to the OS/mail
-    // client), so the badge above stays visible for its own full 2s
+    // client), so the toast above stays visible for its own full 4s
     // regardless of this running right away rather than after a delay.
     window.location.href = 'mailto:' + address;
   });
