@@ -60,6 +60,30 @@
     document.body.removeChild(ta);
   }
 
+  // Nudges the badge's default centered position (left:50% +
+  // translateX(-50%), see css/style.css) inward just far enough to stay
+  // fully on-screen when the link it's centered on sits close to a narrow
+  // viewport's edge -- CSS alone can't react to the actual viewport here
+  // (centering is relative to .contact-email-wrap, not the screen), so this
+  // measures the real rendered result each time the badge is shown and only
+  // overrides the transform when it would otherwise overflow. Resets to the
+  // plain CSS default first so the measurement reflects the unclamped
+  // position, not a previous call's own adjustment compounding on itself.
+  function positionBadge(badge) {
+    badge.style.transform = '';
+    const rect = badge.getBoundingClientRect();
+    const margin = 8;
+    let shiftX = 0;
+    if (rect.left < margin) {
+      shiftX = margin - rect.left;
+    } else if (rect.right > window.innerWidth - margin) {
+      shiftX = (window.innerWidth - margin) - rect.right;
+    }
+    if (shiftX !== 0) {
+      badge.style.transform = 'translateX(calc(-50% + ' + shiftX + 'px))';
+    }
+  }
+
   // Wraps the anchor in a position:relative span (if not already) and adds
   // the hidden "Address copied" badge as its sibling -- position:absolute on
   // the badge itself (see css/style.css) is what keeps this from ever
@@ -122,6 +146,7 @@
     const { badge } = ensureWrap(target);
     badge.textContent = t('common.emailCopied');
     badge.hidden = false;
+    positionBadge(badge);
     if (badge._hideTimer) clearTimeout(badge._hideTimer);
     badge._hideTimer = setTimeout(function () { badge.hidden = true; }, 2000);
     // mailto: doesn't unload this page (it just hands off to the OS/mail

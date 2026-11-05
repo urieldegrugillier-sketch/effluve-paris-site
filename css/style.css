@@ -1907,16 +1907,27 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
 /* position:absolute is what keeps this from ever pushing the surrounding
    sentence/line around when it appears (no layout shift) -- sits just under
    the link rather than inline after it, so it can't collide with whatever
-   punctuation/text follows the link in a given sentence. Muted gold mono,
+   punctuation/text follows the link in a given sentence. left:50% +
+   translateX(-50%) centers it on the link itself (.contact-email-wrap's own
+   width matches the link's rendered width, see that class's own comment)
+   rather than left-aligning with the link's own left edge. Muted gold mono,
    matching the small-note treatment used elsewhere on the site (e.g.
    .checkout-promo-countdown-note) rather than a full-strength UI color, since
    this is a passing confirmation, not something that needs to compete with
-   the link itself for attention. */
+   the link itself for attention.
+   On a narrow viewport this default centering can push the badge past the
+   screen edge if the link itself sits close to it -- js/contact-email.js's
+   own positionBadge() (called every time the badge is shown) measures the
+   rendered result and, only when it would actually overflow, nudges this
+   same translateX() inward via an inline style override on top of this rule
+   rather than duplicating the centering logic in JS. */
 .contact-email-copied {
   position: absolute;
-  left: 0;
+  left: 50%;
   top: 100%;
   margin-top: 0.3rem;
+  transform: translateX(-50%);
+  text-align: center;
   white-space: nowrap;
   font-family: var(--font-mono);
   font-size: 0.66rem;
