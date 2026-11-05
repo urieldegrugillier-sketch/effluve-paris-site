@@ -42,13 +42,13 @@
      copy of this comment for why (avoids a fallback-font flash). -->
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=block" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20261104b">
+<link rel="stylesheet" href="css/style.css?v=20261105a">
 <!-- checkout.css: reused here only for its generic .checkout-field input
      styling (Name/Email/Message below) -- this page's own exclusive rules
      (honeypot, char counter, the custom "Reason" dropdown) live in
      contact.css instead, loaded right after. -->
 <link rel="stylesheet" href="css/checkout.css?v=20261104c">
-<link rel="stylesheet" href="css/contact.css?v=20261104a">
+<link rel="stylesheet" href="css/contact.css?v=20261105a">
 </head>
 <body class="shop-page">
 
@@ -65,44 +65,9 @@
 
 <main class="legal-content">
   <h1 data-i18n="contact.pageTitle">Contact</h1>
-  <p data-i18n="contact.intro">Questions about an order, the composition, or a wholesale inquiry, we read every message
+  <p data-i18n="contact.intro">A question about an order, the composition, or a wholesale request? We read every message
      personally.</p>
-  <p data-i18n-html="contact.reachUs">Reach us directly at <a class="contact-email-link" data-email-user="effluvepariscontact" data-email-domain="gmail.com"><span class="contact-email-user">effluvepariscontact</span>@<span class="contact-email-domain">gmail.com</span></a>, or use the form below.</p>
-
-  <!-- WhatsApp deep link -- opens a chat to +33 6 05 89 38 97 with a
-       pre-filled text message (general-purpose here, not order-specific
-       like checkout.html's support line -- "Hello, I have a question." /
-       "Bonjour, j'ai une question."). href goes through data-i18n-attr
-       (not just the button label) so the pre-filled message is in the
-       right language too -- see contact.whatsappHref in js/i18n.js, same
-       pattern checkout.whatsappHref already uses.
-       UPDATE: target="_blank"/rel="noopener" removed -- on mobile (tested on
-       two phones, Chrome + Safari), forcing a new tab/context interfered
-       with the OS's wa.me -> WhatsApp app hand-off: the app opened the right
-       chat but the compose box came through empty. Same-context navigation
-       lets the OS's deep-link interception carry the full URL (including
-       ?text=) through to the app intact. Desktop trade-off: this now
-       navigates the current tab to WhatsApp instead of opening a new one,
-       rather than opening a fresh tab -- acceptable here since the whole
-       point is handing off to WhatsApp, not staying on this page.
-       UPDATE: switched from https://wa.me/33605893897 to
-       https://api.whatsapp.com/send?phone=33605893897 -- removing
-       target/rel alone didn't fix checkout.html's mobile pre-fill issue
-       (confirmed on two real phones), so this page's link was moved to the
-       same URL format for consistency.
-       UPDATE: added the ?text= pre-filled message above, now that this page
-       is on the same api.whatsapp.com format checkout.html's working
-       pattern uses. Reuses .cta-button for the shared border/font/hover
-       treatment (same pattern #contact-submit-btn already uses -- see
-       contact.css -- of only overriding display/spacing on top of it),
-       plus .contact-whatsapp-btn for the icon+label flex layout. -->
-  <a href="https://api.whatsapp.com/send?phone=33605893897&text=Hello%2C%20I%20have%20a%20question." class="cta-button contact-whatsapp-btn" data-i18n-attr="href:contact.whatsappHref">
-    <svg class="contact-whatsapp-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.86 12.86 0 0 0-.57-.011c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-      <path d="M12.017 2C6.508 2 2.033 6.475 2.033 11.984c0 1.99.52 3.856 1.51 5.48L2 22l4.657-1.522a9.912 9.912 0 0 0 5.36 1.556h.004c5.508 0 9.983-4.475 9.983-9.983 0-2.666-1.038-5.171-2.923-7.055A9.939 9.939 0 0 0 12.017 2Zm0 18.263a8.24 8.24 0 0 1-4.207-1.153l-.302-.18-3.126 1.022 1.038-3.05-.198-.312a8.223 8.223 0 0 1-1.264-4.406c0-4.554 3.707-8.261 8.264-8.261 2.206 0 4.28.86 5.84 2.421a8.207 8.207 0 0 1 2.42 5.845c0 4.554-3.707 8.074-8.465 8.074Z"/>
-    </svg>
-    <span data-i18n-html="contact.whatsappBtn">Contact us<br class="mobile-only-break"> on WhatsApp</span>
-  </a>
+  <p data-i18n-html="contact.reachUs">Reach us directly at <a class="contact-email-link" data-email-user="contact" data-email-domain="effluve-paris.fr"><span class="contact-email-user">contact</span>@<span class="contact-email-domain">effluve-paris.fr</span></a>, or use the form below.</p>
 
   <form class="contact-form" id="contact-form" novalidate>
     <!-- Real, working honeypot (not just a placeholder comment) -- a field real
@@ -168,16 +133,53 @@
   </form>
   <p class="contact-form-message" id="contact-form-message" data-i18n="contact.successMessage" aria-live="polite" hidden></p>
 
-  <!-- Discreet second mention of the contact address, near the form itself
-       (not just the page intro above) -- same obfuscated-mailto markup/
-       helper as contact.reachUs, see js/contact-email.js. -->
-  <p class="contact-email-note" data-i18n-html="contact.emailNote">You can also write to us at <a class="contact-email-link" data-email-user="effluvepariscontact" data-email-domain="gmail.com"><span class="contact-email-user">effluvepariscontact</span>@<span class="contact-email-domain">gmail.com</span></a>.</p>
+  <!-- WhatsApp deep link -- opens a chat to +33 6 05 89 38 97 with a
+       pre-filled text message (general-purpose here, not order-specific
+       like checkout.html's support line -- "Hello, I have a question." /
+       "Bonjour, j'ai une question."). href goes through data-i18n-attr
+       (not just the button label) so the pre-filled message is in the
+       right language too -- see contact.whatsappHref in js/i18n.js, same
+       pattern checkout.whatsappHref already uses.
+       UPDATE: target="_blank"/rel="noopener" removed -- on mobile (tested on
+       two phones, Chrome + Safari), forcing a new tab/context interfered
+       with the OS's wa.me -> WhatsApp app hand-off: the app opened the right
+       chat but the compose box came through empty. Same-context navigation
+       lets the OS's deep-link interception carry the full URL (including
+       ?text=) through to the app intact. Desktop trade-off: this now
+       navigates the current tab to WhatsApp instead of opening a new one,
+       rather than opening a fresh tab -- acceptable here since the whole
+       point is handing off to WhatsApp, not staying on this page.
+       UPDATE: switched from https://wa.me/33605893897 to
+       https://api.whatsapp.com/send?phone=33605893897 -- removing
+       target/rel alone didn't fix checkout.html's mobile pre-fill issue
+       (confirmed on two real phones), so this page's link was moved to the
+       same URL format for consistency.
+       UPDATE: added the ?text= pre-filled message above, now that this page
+       is on the same api.whatsapp.com format checkout.html's working
+       pattern uses. Reuses .cta-button for the shared border/font/hover
+       treatment (same pattern #contact-submit-btn already uses -- see
+       contact.css -- of only overriding display/spacing on top of it),
+       plus .contact-whatsapp-btn for the icon+label flex layout.
+       UPDATE: moved here, from right under the page's intro paragraph, to
+       the bottom of the page -- now that the "Vous pouvez aussi..." second
+       email mention right above this spot is gone (contact.reachUs already
+       covers that, see above), this is what actually fills "the end of the
+       page" instead. .contact-whatsapp-btn's own margin-top (css/contact.css)
+       is what gives this its generous ~40px clearance from Send Message
+       above it, not spacing added here. -->
+  <a href="https://api.whatsapp.com/send?phone=33605893897&text=Hello%2C%20I%20have%20a%20question." class="cta-button contact-whatsapp-btn" data-i18n-attr="href:contact.whatsappHref">
+    <svg class="contact-whatsapp-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.86 12.86 0 0 0-.57-.011c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+      <path d="M12.017 2C6.508 2 2.033 6.475 2.033 11.984c0 1.99.52 3.856 1.51 5.48L2 22l4.657-1.522a9.912 9.912 0 0 0 5.36 1.556h.004c5.508 0 9.983-4.475 9.983-9.983 0-2.666-1.038-5.171-2.923-7.055A9.939 9.939 0 0 0 12.017 2Zm0 18.263a8.24 8.24 0 0 1-4.207-1.153l-.302-.18-3.126 1.022 1.038-3.05-.198-.312a8.223 8.223 0 0 1-1.264-4.406c0-4.554 3.707-8.261 8.264-8.261 2.206 0 4.28.86 5.84 2.421a8.207 8.207 0 0 1 2.42 5.845c0 4.554-3.707 8.074-8.465 8.074Z"/>
+    </svg>
+    <span data-i18n-html="contact.whatsappBtn">Contact us<br class="mobile-only-break"> on WhatsApp</span>
+  </a>
 
   <p class="legal-back-home"><a href="product.html" class="back-link" data-i18n-html="common.backToShop">Back to shop <span class="back-link-arrow">&rarr;</span></a></p>
 </main>
 
 <script src="js/contact.js?v=20260823"></script>
-<script src="js/contact-email.js?v=20261104a"></script>
+<script src="js/contact-email.js?v=20261105a"></script>
 
 <!-- TRUST BAR -- reused verbatim from product.html (exact same markup/ids/
      classes/i18n keys, see that page's own comments for the full
@@ -280,7 +282,7 @@
 <script src="js/analytics.js?v=20261027"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js?v=20260822"></script>
-<script src="js/i18n.js?v=20261104c"></script>
+<script src="js/i18n.js?v=20261105a"></script>
 <script src="js/nav-cta-page-aware.js?v=20261014c"></script>
 <script src="js/header-position-fix.js?v=20260822"></script>
 <script src="js/footer-active-page.js?v=20261014"></script>

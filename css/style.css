@@ -1898,6 +1898,36 @@ body[data-page="product"] .nav-cta-acquire { display: none; }
   }
 }
 
+/* Wraps .contact-email-link (built at render time by js/contact-email.js's
+   own ensureWrap(), not baked into the static markup) purely so the "Adresse
+   copiée"/"Address copied" confirmation below has a positioning anchor --
+   inline-block so it keeps sitting inline mid-sentence exactly like the
+   plain <a> it's wrapping, not a line of its own. */
+.contact-email-wrap { position: relative; display: inline-block; }
+/* position:absolute is what keeps this from ever pushing the surrounding
+   sentence/line around when it appears (no layout shift) -- sits just under
+   the link rather than inline after it, so it can't collide with whatever
+   punctuation/text follows the link in a given sentence. Muted gold mono,
+   matching the small-note treatment used elsewhere on the site (e.g.
+   .checkout-promo-countdown-note) rather than a full-strength UI color, since
+   this is a passing confirmation, not something that needs to compete with
+   the link itself for attention. */
+.contact-email-copied {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 0.3rem;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-bronze-light);
+  opacity: 0.85;
+  pointer-events: none;
+}
+.contact-email-copied[hidden] { display: none; }
+
 /* Hermès-style trust-badge row -- three quiet icon+label pairs, no
    borders/boxes around any one of them, just a hairline var(--line) divider
    between each pair instead of around them.

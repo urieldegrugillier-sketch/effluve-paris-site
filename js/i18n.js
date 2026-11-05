@@ -238,6 +238,11 @@
         // link back to index.html) until that link was repointed here too
         // and both ended up saying the exact same thing.
         backToShop: 'Back to shop <span class="back-link-arrow">→</span>',
+        // Inline confirmation shown by js/contact-email.js right after a
+        // visitor clicks any obfuscated mailto link (contact.html,
+        // mentions-legales.html) -- shared under `common` since both pages'
+        // links use it, not just contact.html's own.
+        emailCopied: 'Address copied',
         account: 'Account',
         showPassword: 'Show password',
         hidePassword: 'Hide password',
@@ -614,11 +619,8 @@
       },
       contact: {
         pageTitle: 'Contact',
-        intro: 'Questions about an order, the composition, or a wholesale inquiry, we read every message personally.',
-        reachUs: 'Reach us directly at <a class="contact-email-link" data-email-user="effluvepariscontact" data-email-domain="gmail.com"><span class="contact-email-user">effluvepariscontact</span>@<span class="contact-email-domain">gmail.com</span></a>, or use the form below.',
-        // Discreet second mention near the contact form itself -- same
-        // obfuscated-mailto markup as reachUs above (see js/contact-email.js).
-        emailNote: 'You can also write to us at <a class="contact-email-link" data-email-user="effluvepariscontact" data-email-domain="gmail.com"><span class="contact-email-user">effluvepariscontact</span>@<span class="contact-email-domain">gmail.com</span></a>.',
+        intro: 'A question about an order, the composition, or a wholesale request? We read every message personally.',
+        reachUs: 'Reach us directly at <a class="contact-email-link" data-email-user="contact" data-email-domain="effluve-paris.fr"><span class="contact-email-user">contact</span>@<span class="contact-email-domain">effluve-paris.fr</span></a>, or use the form below.',
         whatsappBtn: 'Contact us<br class="mobile-only-break"> on WhatsApp',
         whatsappHref: 'https://api.whatsapp.com/send?phone=33605893897&text=Hello%2C%20I%20have%20a%20question.',
         honeypotLabel: 'Leave this field blank',
@@ -649,7 +651,7 @@
         directorHeading: 'Publication Director',
         directorBody: '<span class="placeholder">[PUBLICATION DIRECTOR NAME | TO BE COMPLETED]</span>',
         contactHeading: 'Contact',
-        contactBody: 'For any questions regarding the site or this legal notice, you may contact us at the following address: <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>',
+        contactBody: 'For any questions regarding the site or this legal notice, you may contact us at the following address: <a class="contact-email-link" data-email-user="contact" data-email-domain="effluve-paris.fr"><span class="contact-email-user">contact</span>@<span class="contact-email-domain">effluve-paris.fr</span></a>',
         hostingHeading: 'Hosting',
         hostingBody: 'Cloudflare, Inc.',
         ipHeading: 'Intellectual Property',
@@ -921,6 +923,7 @@
       },
       common: {
         backToShop: 'Retour à la boutique <span class="back-link-arrow">→</span>',
+        emailCopied: 'Adresse copiée',
         account: 'Compte',
         showPassword: 'Afficher le mot de passe',
         hidePassword: 'Masquer le mot de passe',
@@ -1227,9 +1230,8 @@
       },
       contact: {
         pageTitle: 'Contact',
-        intro: 'Une question sur une commande, la composition, ou une demande de revente en gros, nous lisons chaque message personnellement.',
-        reachUs: 'Contactez-nous directement à <a class="contact-email-link" data-email-user="effluvepariscontact" data-email-domain="gmail.com"><span class="contact-email-user">effluvepariscontact</span>@<span class="contact-email-domain">gmail.com</span></a>, ou utilisez le formulaire ci-dessous.',
-        emailNote: 'Vous pouvez aussi nous écrire à <a class="contact-email-link" data-email-user="effluvepariscontact" data-email-domain="gmail.com"><span class="contact-email-user">effluvepariscontact</span>@<span class="contact-email-domain">gmail.com</span></a>.',
+        intro: 'Une question sur une commande, la composition ou une demande de revente en gros ? Nous lisons chaque message personnellement.',
+        reachUs: 'Contactez-nous directement à <a class="contact-email-link" data-email-user="contact" data-email-domain="effluve-paris.fr"><span class="contact-email-user">contact</span>@<span class="contact-email-domain">effluve-paris.fr</span></a>, ou utilisez le formulaire ci-dessous.',
         whatsappBtn: 'Contactez-nous<br class="mobile-only-break"> sur WhatsApp',
         whatsappHref: "https://api.whatsapp.com/send?phone=33605893897&text=Bonjour%2C%20j%27ai%20une%20question.",
         honeypotLabel: 'Laissez ce champ vide',
@@ -1260,7 +1262,7 @@
         directorHeading: 'Directeur de la Publication',
         directorBody: '<span class="placeholder">[NOM DU DIRECTEUR DE LA PUBLICATION | À COMPLÉTER]</span>',
         contactHeading: 'Contact',
-        contactBody: 'Pour toute question relative au site ou aux présentes mentions légales, vous pouvez nous contacter à l\'adresse suivante : <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>',
+        contactBody: 'Pour toute question relative au site ou aux présentes mentions légales, vous pouvez nous contacter à l\'adresse suivante : <a class="contact-email-link" data-email-user="contact" data-email-domain="effluve-paris.fr"><span class="contact-email-user">contact</span>@<span class="contact-email-domain">effluve-paris.fr</span></a>',
         hostingHeading: 'Hébergement',
         hostingBody: 'Cloudflare, Inc.',
         ipHeading: 'Propriété Intellectuelle',
