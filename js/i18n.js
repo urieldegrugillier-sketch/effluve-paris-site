@@ -476,6 +476,10 @@
         continueWithGoogle: 'Continue with Google',
         errorGoogleSignIn: 'Google sign-in isn\'t available right now. Please try again, or continue with your email.',
         errorGoogleCancelled: 'Google sign-in was cancelled. Please try again, or continue with your email.',
+        continueWithFacebook: 'Continue with Facebook',
+        errorFacebookSignIn: 'Facebook sign-in isn\'t available right now. Please try again, or continue with your email.',
+        errorFacebookCancelled: 'Facebook sign-in was cancelled. Please try again, or continue with your email.',
+        errorFacebookNoEmail: 'Your Facebook account did not share an email address with us. Please use another sign-in method.',
         passwordLabel: 'Password',
         passwordHint: 'Minimum 8 characters, with at least one letter, one number, and one special character (e.g. ! @ # $ % ? -).',
         passwordReqLength: '8+ characters',
@@ -695,7 +699,7 @@
         s1Item3: 'Order data: purchase history, products viewed',
         s1Item4: 'Payment data: processed directly by our payment provider; Effluve Paris does not have access to full banking details',
         s1Item5: 'Browsing data: IP address, cookies (see section 8)',
-        s1Social: 'If you sign in using Google, we receive only the name and email address associated with your Google account; we do not store any password for this login.',
+        s1Social: 'If you sign in using Google or Facebook, we receive only the name and email address associated with your account; we do not store any password for this login.',
         s2Heading: '2. Purposes of Processing',
         s2Body: 'This data is collected for the following purposes: processing and tracking orders, managing the customer relationship, fraud prevention, improving the site and user experience, and, subject to your consent, sending marketing communications.',
         s3Heading: '3. Legal Basis for Processing',
@@ -726,7 +730,7 @@
         s8Heading: '9. Contact',
         s8Body: 'For any questions regarding your personal data or to exercise your rights, you may contact our Data Protection Officer (DPO) at the following address: <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>',
         s9Heading: '10. Delete My Data',
-        s9Body: 'You may delete your account and all associated personal data at any time from your <a href="account.html">Account page</a> (Account &rarr; Delete Account), or by emailing us at <a href="mailto:contact@effluve-paris.fr?subject=Data%20deletion">contact@effluve-paris.fr</a> with the subject line "Data deletion". This deletes your account and profile data; past orders are kept, disassociated from your account, for the legal retention period described in Section 4 above, and then deleted or otherwise handled as described there.'
+        s9Body: 'You may delete your account and all associated personal data at any time from your <a href="account.html">Account page</a> (Account &rarr; Delete Account), or by emailing us at <a class="contact-email-link" data-email-user="contact" data-email-domain="effluve-paris.fr"><span class="contact-email-user">contact</span>@<span class="contact-email-domain">effluve-paris.fr</span></a> to request deletion of your data. A request sent by email is processed within 30 days. This deletes your account and profile data; past orders are kept, disassociated from your account, for the legal retention period described in Section 4 above, and then deleted or otherwise handled as described there.'
       },
       cookiePolicy: {
         pageTitle: 'Cookie Preferences',
@@ -1089,6 +1093,10 @@
         continueWithGoogle: 'Continuer avec Google',
         errorGoogleSignIn: "La connexion avec Google n'est pas disponible pour le moment. Veuillez réessayer, ou continuer avec votre e-mail.",
         errorGoogleCancelled: "La connexion avec Google a été annulée. Vous pouvez réessayer, ou continuer avec votre e-mail.",
+        continueWithFacebook: 'Continuer avec Facebook',
+        errorFacebookSignIn: "La connexion avec Facebook n'est pas disponible pour le moment. Veuillez réessayer, ou continuer avec votre e-mail.",
+        errorFacebookCancelled: "La connexion avec Facebook a été annulée. Vous pouvez réessayer, ou continuer avec votre e-mail.",
+        errorFacebookNoEmail: "Votre compte Facebook n'a pas partagé d'adresse e-mail avec nous. Veuillez utiliser une autre méthode de connexion.",
         passwordLabel: 'Mot de Passe',
         passwordHint: 'Minimum 8 caractères, avec au moins une lettre, un chiffre et un caractère spécial (ex. ! @ # $ % ? -).',
         passwordReqLength: '8 caractères ou plus',
@@ -1306,7 +1314,7 @@
         s1Item3: "Données de commande : historique d'achats, produits consultés",
         s1Item4: "Données de paiement : traitées directement par notre prestataire de paiement ; Effluve Paris n'a pas accès aux coordonnées bancaires complètes",
         s1Item5: 'Données de navigation : adresse IP, cookies (voir section 8)',
-        s1Social: 'Si vous vous connectez via Google, nous recevons uniquement le nom et l\'adresse e-mail associés à votre compte Google ; nous ne stockons aucun mot de passe pour cette connexion.',
+        s1Social: 'Si vous vous connectez via Google ou Facebook, nous recevons uniquement le nom et l\'adresse e-mail associés à votre compte ; nous ne stockons aucun mot de passe pour cette connexion.',
         s2Heading: '2. Finalités du Traitement',
         s2Body: 'Ces données sont collectées pour les finalités suivantes : traitement et suivi des commandes, gestion de la relation client, prévention de la fraude, amélioration du site et de l\'expérience utilisateur, et, sous réserve de votre consentement, envoi de communications marketing.',
         s3Heading: '3. Base Légale du Traitement',
@@ -1337,7 +1345,7 @@
         s8Heading: '9. Contact',
         s8Body: 'Pour toute question relative à vos données personnelles ou pour exercer vos droits, vous pouvez contacter notre Délégué à la Protection des Données (DPO) à l\'adresse suivante : <a href="mailto:contact@effluve-paris.fr">contact@effluve-paris.fr</a>',
         s9Heading: '10. Suppression de mes données',
-        s9Body: 'Vous pouvez supprimer votre compte et l\'ensemble des données personnelles associées à tout moment depuis votre <a href="account.html">page Compte</a> (Compte &rarr; Supprimer le Compte), ou en nous écrivant à <a href="mailto:contact@effluve-paris.fr?subject=Suppression%20de%20donn%C3%A9es">contact@effluve-paris.fr</a> avec pour objet « Suppression de données ». Cela supprime votre compte et vos données de profil ; les commandes passées sont conservées, dissociées de votre compte, pendant la durée de conservation légale décrite à la section 4 ci-dessus, puis supprimées ou traitées comme décrit à cette section.'
+        s9Body: 'Vous pouvez supprimer votre compte et l\'ensemble des données personnelles associées à tout moment depuis votre <a href="account.html">page Compte</a> (Compte &rarr; Supprimer le Compte), ou en nous écrivant à <a class="contact-email-link" data-email-user="contact" data-email-domain="effluve-paris.fr"><span class="contact-email-user">contact</span>@<span class="contact-email-domain">effluve-paris.fr</span></a> pour demander la suppression de vos données. Une demande envoyée par e-mail est traitée dans un délai de 30 jours. Cela supprime votre compte et vos données de profil ; les commandes passées sont conservées, dissociées de votre compte, pendant la durée de conservation légale décrite à la section 4 ci-dessus, puis supprimées ou traitées comme décrit à cette section.'
       },
       cookiePolicy: {
         pageTitle: 'Gestion des Cookies',

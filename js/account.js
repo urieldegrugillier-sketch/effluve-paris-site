@@ -28,6 +28,15 @@
 
   const GUEST_KEY = 'monark_guest_email';
   const MOCK_CARD_KEY_PREFIX = 'monark_mock_card_';
+  // Written right before every signInWithOAuth() redirect (Google or
+  // Facebook, see signInWithGoogle()/signInWithFacebook() below) so that once
+  // the provider/Supabase redirect back lands on a FRESH page load,
+  // mountAccountGate() can tell which of the two buttons' own error paragraph
+  // an `error` URL param (consumeOAuthErrorFromUrl()) belongs to -- that URL
+  // param alone carries no provider info. sessionStorage (not localStorage):
+  // only needs to survive this one same-tab redirect round trip, same scope
+  // reasoning as every other short-lived marker in this file.
+  const OAUTH_PROVIDER_PENDING_KEY = 'monark_oauth_provider_pending';
   // REVISED (recovery-pending state used to survive a refresh via
   // sessionStorage -- it no longer does, at all, see passwordRecoveryActive's
   // own comment below for why). RECOVERY_UNCONFIRMED_KEY is the one thing
@@ -626,12 +635,41 @@
   // consumeOAuthErrorFromUrl() below for that half.
   async function signInWithGoogle() {
     const redirectTo = window.location.origin + window.location.pathname + window.location.search;
+    sessionStorage.setItem(OAUTH_PROVIDER_PENDING_KEY, 'google');
     const { error } = await client().auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo }
     });
     if (error) {
       console.error('MonarkAccount.signInWithGoogle:', error.message);
+      return { ok: false };
+    }
+    return { ok: true };
+  }
+
+  // Facebook sign-in -- same shape/redirect handling as signInWithGoogle()
+  // above, just with an explicit `scopes` (Supabase's own default Facebook
+  // scope list doesn't include public_profile) and its own provider marker
+  // (see OAUTH_PROVIDER_PENDING_KEY's own comment). Same server-side
+  // allow-list caveat as Google: this project's Facebook Login app also
+  // needs this exact redirect URL (or Supabase's callback URL, depending on
+  // how the Facebook app is configured) allowed, or the provider rejects the
+  // request before Supabase ever gets to redirect back here at all -- a
+  // separate, Facebook-side setting from the Supabase Redirect URLs allow-
+  // list AUTH_EMAIL_REDIRECT_URL's own comment documents. A Facebook account
+  // that denies/has no email on file comes back as a server-side `error` on
+  // this same redirectTo URL (consumeOAuthErrorFromUrl() below), not a
+  // distinct code of its own -- mountAccountGate() pattern-matches its
+  // error_description for "email" to show the dedicated no-email message.
+  async function signInWithFacebook() {
+    const redirectTo = window.location.origin + window.location.pathname + window.location.search;
+    sessionStorage.setItem(OAUTH_PROVIDER_PENDING_KEY, 'facebook');
+    const { error } = await client().auth.signInWithOAuth({
+      provider: 'facebook',
+      options: { redirectTo, scopes: 'email public_profile' }
+    });
+    if (error) {
+      console.error('MonarkAccount.signInWithFacebook:', error.message);
       return { ok: false };
     }
     return { ok: true };
@@ -1050,6 +1088,23 @@
       </button>
       <p class="promo-message promo-message-error" id="checkout-account-google-error" aria-live="polite" hidden></p>
 
+      <!-- Facebook sign-in -- same bypass-the-form shape as the Google
+           button just above (see signInWithFacebook() for the actual
+           supabase.auth.signInWithOAuth() call), placed directly under it
+           with no extra divider: the single "or" above already separates
+           the email path from "sign in with a provider", and this is a
+           second option within that same group. Icon is a single-color "f"
+           mark (css/checkout.css colors it via currentColor) rather than
+           Facebook's own blue, matching this flow's "no bright brand colors
+           besides Google's own required multicolor mark" treatment. -->
+      <button type="button" class="cta-button checkout-account-btn-sm checkout-account-btn-secondary checkout-account-facebook-btn" id="checkout-account-facebook-btn">
+        <svg class="checkout-account-facebook-icon" viewBox="0 0 320 512" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M279.14 288l14.22-92.66h-88.91v-66.76c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z"></path>
+        </svg>
+        <span data-i18n="accountGate.continueWithFacebook">Continue with Facebook</span>
+      </button>
+      <p class="promo-message promo-message-error" id="checkout-account-facebook-error" aria-live="polite" hidden></p>
+
       <div id="checkout-account-auth" hidden>
         <p class="checkout-account-email-echo">
           <span id="checkout-account-auth-email"></span>
@@ -1334,14 +1389,23 @@
     const googleDivider = container.querySelector('#checkout-account-google-divider');
     const googleBtn = container.querySelector('#checkout-account-google-btn');
     const googleError = container.querySelector('#checkout-account-google-error');
-    // Read (and consumed/cleared) once, right here at mount -- a Google
-    // consent-screen cancellation/failure lands back on a fresh load of this
-    // same page, so mount time is the one point this page ever needs to look
-    // for it. Shown further below, the first time resolveSession() finds no
-    // session (the gate's normal starting point anyway for anyone coming
-    // back from a failed/cancelled Google redirect) -- then nulled out so a
-    // LATER, unrelated resolve (e.g. an explicit logout) never resurfaces it.
+    const facebookBtn = container.querySelector('#checkout-account-facebook-btn');
+    const facebookError = container.querySelector('#checkout-account-facebook-error');
+    // Read (and consumed/cleared) once, right here at mount -- a
+    // Google/Facebook consent-screen cancellation/failure lands back on a
+    // fresh load of this same page, so mount time is the one point this page
+    // ever needs to look for it. Shown further below, the first time
+    // resolveSession() finds no session (the gate's normal starting point
+    // anyway for anyone coming back from a failed/cancelled OAuth redirect)
+    // -- then nulled out so a LATER, unrelated resolve (e.g. an explicit
+    // logout) never resurfaces it. oauthProvider (see
+    // OAUTH_PROVIDER_PENDING_KEY's own comment) says which of the two
+    // buttons' error paragraph oauthError actually belongs to; read/cleared
+    // in the same breath since it's meaningless on its own once this mount
+    // has consumed it.
     let oauthError = consumeOAuthErrorFromUrl();
+    const oauthProvider = sessionStorage.getItem(OAUTH_PROVIDER_PENDING_KEY);
+    sessionStorage.removeItem(OAUTH_PROVIDER_PENDING_KEY);
 
     const authBlock = container.querySelector('#checkout-account-auth');
     const authEmailEcho = container.querySelector('#checkout-account-auth-email');
@@ -1624,13 +1688,17 @@
       emailForm.hidden = step !== 'email';
       googleDivider.hidden = step !== 'email';
       googleBtn.hidden = step !== 'email';
-      // googleError sits outside emailForm itself (so it stays visible
-      // underneath the "Continue with Google" button even while the email
-      // form above it is mid-edit), so leaving this step is the one thing
-      // that has to hide it explicitly -- otherwise a message raised here
-      // would keep showing, orphaned, once the auth/recovery step or a fully
-      // resolved session took over below it.
-      if (step !== 'email') googleError.hidden = true;
+      facebookBtn.hidden = step !== 'email';
+      // googleError/facebookError sit outside emailForm itself (so either
+      // stays visible underneath its own "Continue with ..." button even
+      // while the email form above it is mid-edit), so leaving this step is
+      // the one thing that has to hide them explicitly -- otherwise a
+      // message raised here would keep showing, orphaned, once the
+      // auth/recovery step or a fully resolved session took over below it.
+      if (step !== 'email') {
+        googleError.hidden = true;
+        facebookError.hidden = true;
+      }
       authBlock.hidden = step !== 'auth';
       recoveryBlock.hidden = step !== 'recovery';
       if (step !== 'auth') {
@@ -1751,13 +1819,28 @@
         emailCancelBtn.hidden = true;
         authCancelBtn.hidden = true;
         if (oauthError) {
-          googleError.textContent = t(oauthError.errorCode === 'access_denied'
-            ? 'accountGate.errorGoogleCancelled'
-            : 'accountGate.errorGoogleSignIn');
-          googleError.hidden = false;
+          const isFacebook = oauthProvider === 'facebook';
+          const targetError = isFacebook ? facebookError : googleError;
+          const otherError = isFacebook ? googleError : facebookError;
+          // Facebook (unlike Google) lets the user deny sharing their email
+          // on the consent screen while still approving the login itself --
+          // Supabase then fails this exact same `error` redirect with an
+          // error_description naming the missing email, rather than a
+          // distinct error_code of its own (see signInWithFacebook()'s own
+          // comment), so that's the one case pattern-matched here instead of
+          // branching on errorCode alone.
+          const noEmail = isFacebook && /email/i.test(oauthError.errorDescription || '');
+          targetError.textContent = t(noEmail
+            ? 'accountGate.errorFacebookNoEmail'
+            : oauthError.errorCode === 'access_denied'
+              ? (isFacebook ? 'accountGate.errorFacebookCancelled' : 'accountGate.errorGoogleCancelled')
+              : (isFacebook ? 'accountGate.errorFacebookSignIn' : 'accountGate.errorGoogleSignIn'));
+          targetError.hidden = false;
+          otherError.hidden = true;
           oauthError = null;
         } else {
           googleError.hidden = true;
+          facebookError.hidden = true;
         }
         if (options.onUnresolved) options.onUnresolved();
         return;
@@ -1906,6 +1989,24 @@
         }
       } finally {
         googleBtn.disabled = false;
+      }
+    });
+
+    // Same shape as googleBtn's own handler just above -- see
+    // signInWithFacebook()'s comment for the one real difference (the
+    // no-email case, surfaced later via oauthError/oauthProvider once the
+    // redirect actually lands back here, not from this synchronous call).
+    facebookBtn.addEventListener('click', async () => {
+      facebookError.hidden = true;
+      facebookBtn.disabled = true;
+      try {
+        const result = await signInWithFacebook();
+        if (!result.ok) {
+          facebookError.textContent = t('accountGate.errorFacebookSignIn');
+          facebookError.hidden = false;
+        }
+      } finally {
+        facebookBtn.disabled = false;
       }
     });
 
