@@ -186,8 +186,9 @@
   // still is: document.documentElement.clientHeight, not vh/dvh, the same
   // fixed-metric approach already used for .site-header/.canvas-wrap/
   // #dark-overlay elsewhere in this codebase (see their own comments) --
-  // the panel is still visible while the page behind its backdrop can be
-  // scrolled (scroll is never locked, see openMenu() below), so the same
+  // the page behind the backdrop is scroll-locked while open (see
+  // lockScroll()/openMenu() below), but that lock still reads this same
+  // viewport metric indirectly via document.documentElement, so the same
   // care against jitter still applies to the one dimension that's still
   // viewport-relative.
   function sizeMenuHeight() {
@@ -236,7 +237,87 @@
     focusable[nextIndex].focus();
   }
 
+  // Background scroll lock while the menu is open. Lenis (js/app.js) only
+  // ever exists on index.html and is kept there as a local `const`, never
+  // exposed on `window` -- there's no handle here to call .stop()/.start()
+  // on. Locking the real scroll container instead (position: fixed +
+  // overflow: hidden on html/body, see lockScroll() below) blocks native
+  // wheel/touch/keyboard scrolling regardless of whether Lenis exists on
+  // the page at all, and the capture-phase wheel/touchmove listeners below
+  // stop those same events from ever reaching Lenis's own (bubble-phase)
+  // wheel handler on index.html, so its smoothWheel loop never sees them
+  // either -- same practical effect as stop()/start() without needing a
+  // reference to the instance. stopLenisIfAvailable()/startLenisIfAvailable()
+  // still check for a `window.lenis` handle as a defensive extra layer, in
+  // case one's ever added later.
+  let scrollLocked = false;
+  let savedScrollY = 0;
+
+  function stopLenisIfAvailable() {
+    if (window.lenis && typeof window.lenis.stop === 'function') window.lenis.stop();
+  }
+
+  function startLenisIfAvailable() {
+    if (window.lenis && typeof window.lenis.start === 'function') window.lenis.start();
+  }
+
+  // Only .nav-menu itself (which already has its own overflow-y: auto, see
+  // css/style.css) is allowed to keep scrolling while locked -- anything
+  // outside it, including the backdrop and the rest of the page, is
+  // blocked outright. stopPropagation() here runs in the capture phase on
+  // document, ahead of any bubble-phase listener (including Lenis's wheel
+  // handler on index.html), so a blocked event never reaches it either.
+  function blockBackgroundScroll(e) {
+    if (menu.contains(e.target)) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  function lockScroll() {
+    if (scrollLocked) return;
+    scrollLocked = true;
+    savedScrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+    // Measured BEFORE html/body lose their scrollbar below -- the exact
+    // width that's about to disappear, added back as body padding so
+    // nothing shifts right when it does.
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = -savedScrollY + 'px';
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = scrollbarWidth + 'px';
+    }
+    document.addEventListener('wheel', blockBackgroundScroll, { passive: false, capture: true });
+    document.addEventListener('touchmove', blockBackgroundScroll, { passive: false, capture: true });
+    stopLenisIfAvailable();
+  }
+
+  function unlockScroll() {
+    if (!scrollLocked) return;
+    scrollLocked = false;
+    document.documentElement.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+    document.removeEventListener('wheel', blockBackgroundScroll, { capture: true });
+    document.removeEventListener('touchmove', blockBackgroundScroll, { capture: true });
+    // position: fixed never changed window.scrollY itself, but restoring
+    // it explicitly here is the cross-browser-safe way to guarantee no
+    // jump (to the top or anywhere else) rather than relying on that.
+    window.scrollTo(0, savedScrollY);
+    startLenisIfAvailable();
+  }
+
   function openMenu() {
+    lockScroll();
     sizeMenuHeight();
     menu.classList.add('nav-menu-open');
     backdrop.classList.add('nav-menu-open');
@@ -277,6 +358,7 @@
     hamburger.setAttribute('aria-expanded', 'false');
     hamburger.setAttribute('aria-label', window.MonarkI18n ? window.MonarkI18n.t('navMenu.openMenu') : 'Open menu');
     resetInfoAccordion();
+    unlockScroll();
     // Standard dialog-close behavior (ARIA APG): return focus to whatever
     // opened it. Covers the X/toggle click, Escape, and backdrop-click paths
     // -- all three call this same function. A link inside the menu
@@ -318,5 +400,23 @@
 
   window.addEventListener('resize', () => {
     if (menu.classList.contains('nav-menu-open')) sizeMenuHeight();
+  });
+
+  // bfcache restore: a link inside the menu navigating away never calls
+  // closeMenu() (the page is already unloading, see that function's own
+  // comment), so if the browser later serves this exact page back from
+  // bfcache -- e.g. the user clicked a menu link, then hit Back -- it can
+  // come back with the menu still frozen open and the lock styles above
+  // still sitting on html/body, with no further click/Escape ever coming
+  // to release them. Force both closed on restore so the page can never
+  // come back stuck unscrollable.
+  window.addEventListener('pageshow', (e) => {
+    if (!e.persisted) return;
+    menu.classList.remove('nav-menu-open');
+    backdrop.classList.remove('nav-menu-open');
+    hamburger.classList.remove('nav-hamburger-active');
+    hamburger.setAttribute('aria-expanded', 'false');
+    resetInfoAccordion();
+    unlockScroll();
   });
 })();
