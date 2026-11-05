@@ -82,6 +82,13 @@
   menu.setAttribute('aria-modal', 'true');
   menu.setAttribute('aria-label', 'Site menu');
   menu.setAttribute('data-i18n-attr', 'aria-label:navMenu.siteMenu');
+  // Tells Lenis (index.html only, see js/app.js) to leave wheel/touch
+  // events inside this panel alone -- otherwise it treats them as page
+  // scroll, calls preventDefault() on them, and the panel's own native
+  // overflow-y: auto scroll never gets a chance to run at all.
+  menu.setAttribute('data-lenis-prevent', '');
+  menu.setAttribute('data-lenis-prevent-wheel', '');
+  menu.setAttribute('data-lenis-prevent-touch', '');
   menu.innerHTML = `
     <nav class="nav-menu-links" aria-label="Site menu" data-i18n-attr="aria-label:navMenu.siteMenu">
       <div class="nav-menu-item nav-menu-item-lang">
@@ -267,8 +274,20 @@
   // blocked outright. stopPropagation() here runs in the capture phase on
   // document, ahead of any bubble-phase listener (including Lenis's wheel
   // handler on index.html), so a blocked event never reaches it either.
+  //
+  // Events that DO target the panel still get stopPropagation() -- so
+  // nothing downstream (Lenis included, belt-and-suspenders alongside the
+  // data-lenis-prevent* attributes set on .nav-menu above) can cancel them
+  // -- but deliberately skip preventDefault(), so the panel's own native
+  // overflow-y: auto scroll still runs. Without this split, index.html
+  // (the only page with Lenis) ended up with the wheel/touchmove case
+  // blocking the panel's own scroll too, since this same listener runs
+  // ahead of Lenis's and was calling preventDefault() unconditionally.
   function blockBackgroundScroll(e) {
-    if (menu.contains(e.target)) return;
+    if (menu.contains(e.target)) {
+      e.stopPropagation();
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
   }
