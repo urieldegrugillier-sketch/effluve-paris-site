@@ -145,3 +145,9 @@ dist/
 # `npm run build` -- see that function's own comment. src/worker.js and
 # src/package.json are real, hand-written source and stay tracked.
 src/routes.generated.js
+
+# Playwright (tests/) -- generated reports/artifacts, not source
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

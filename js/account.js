@@ -37,6 +37,17 @@
 
   const GUEST_KEY = 'monark_guest_email';
   const MOCK_CARD_KEY_PREFIX = 'monark_mock_card_';
+  // Holds the email a brand-new signUp() is awaiting its 6-digit
+  // verifyOtp() confirmation for -- set the instant createForm's own submit
+  // handler below sends that email its first code, read back on a fresh
+  // page load so a reload mid-verification returns straight to the code
+  // step instead of a blank email form (see mountAccountGate()'s own
+  // pendingCodeEmail). Deliberately holds ONLY the email, never the
+  // password -- verifyOtp() only ever needs the email plus the typed code,
+  // so there's nothing else this flow could leak by persisting it.
+  // sessionStorage (not localStorage): scoped to this one tab/visit, same
+  // reasoning as every other short-lived marker in this file.
+  const SIGNUP_OTP_PENDING_EMAIL_KEY = 'monark_signup_otp_pending_email';
   // Written right before every signInWithOAuth() redirect (Google or
   // Facebook, see signInWithGoogle()/signInWithFacebook() below) so that once
   // the provider/Supabase redirect back lands on a FRESH page load,
@@ -560,6 +571,17 @@
       // (Supabase dashboard -> Authentication -> Emails/SMTP Settings) to
       // lift the default limit before launch.
       if (error.status === 429 || error.code === 'over_email_send_rate_limit') return { ok: false, error: 'rate-limited' };
+      // Supabase's own server-side password policy (length/breach-list
+      // checks, etc.) can reject a password the client-side isValidPassword()
+      // check above already passed -- e.g. a password on Supabase's known-
+      // weak/pwned list, which no client-side rule can predict. error.code
+      // is 'weak_password' for this; the message-pattern fallback mirrors
+      // this file's own same_password/already-registered detection, for the
+      // same reason (a future Supabase wording change shouldn't silently
+      // fall through to the generic error). Reuses accountGate.errorPasswordWeak
+      // (the same copy the client-side check already shows) rather than a
+      // second, near-duplicate string.
+      if (error.code === 'weak_password' || /password/i.test(error.message)) return { ok: false, error: 'weak-password' };
       console.error('MonarkAccount.createAccount:', error.message);
       return { ok: false, error: 'unknown' };
     }
@@ -579,6 +601,88 @@
       return { ok: true, needsEmailConfirmation: true };
     }
     return { ok: true, needsEmailConfirmation: false };
+  }
+
+  // Verifies the 6-digit code Supabase's "Confirm signup" email sends via
+  // {{ .Token }} (see the Supabase dashboard's own email template config --
+  // this project's own is already set up to mail the code itself rather
+  // than a clickable confirmation link) -- called by mountAccountGate()'s
+  // own code step right after createAccount() above returns
+  // needsEmailConfirmation. A successful verifyOtp() establishes a real
+  // session itself, same as logIn()'s signInWithPassword() -- the caller
+  // doesn't need to do anything else to "log in": onAuthStateChange's own
+  // SIGNED_IN handling (top of this file) and the caller's resolveSession()
+  // pick that session up exactly like any other.
+  async function verifySignupOtp(email, token) {
+    let result;
+    try {
+      result = await client().auth.verifyOtp({
+        email: String(email || '').trim(),
+        token: String(token || '').trim(),
+        type: 'signup'
+      });
+    } catch (e) {
+      return { ok: false, error: 'network' };
+    }
+    const { error } = result;
+    if (error) {
+      // Supabase/GoTrue deliberately returns the exact same generic "Token
+      // has expired or is invalid" message for a wrong code AND a genuinely
+      // timed-out one -- same anti-enumeration reasoning as logIn()'s own
+      // "Incorrect password" wording (see that function's comment), there's
+      // no separate code distinguishing the two. This pattern-match is a
+      // best-effort split (checked "expired" first, since a real timeout
+      // does sometimes surface that word on its own), not a guaranteed-
+      // accurate one -- the common case (a mistyped digit) still correctly
+      // falls through to the "invalid" branch either way.
+      if (error.status === 429 || error.code === 'over_request_rate_limit' || /rate limit/i.test(error.message)) {
+        return { ok: false, error: 'rate-limited' };
+      }
+      // supabase-js's own AuthRetryableFetchError (a real fetch failure --
+      // offline, DNS, CORS -- rather than a server response) carries no
+      // HTTP status at all, unlike every other branch here; that absence,
+      // plus its own distinct error.name, is what tells this apart from a
+      // genuine server-side rejection.
+      if (error.name === 'AuthRetryableFetchError' || /network|fetch/i.test(error.message)) {
+        return { ok: false, error: 'network' };
+      }
+      if (/expired/i.test(error.message)) return { ok: false, error: 'expired' };
+      if (/invalid|token/i.test(error.message)) return { ok: false, error: 'invalid' };
+      console.error('MonarkAccount.verifySignupOtp:', error.message);
+      return { ok: false, error: 'unknown' };
+    }
+    return { ok: true };
+  }
+
+  // Re-sends the same 6-digit signup code to an email already mid-
+  // verification -- supabase.auth.resend() (not a second signUp() call,
+  // which would re-run the whole signup payload for no reason) issues a
+  // fresh code/invalidates the previous one. mountAccountGate()'s own
+  // "Resend code" link calls this, with its own 30-second cooldown gating
+  // how often a customer can trigger it (see startResendCountdown()) --
+  // the over_email_send_rate_limit check here is Supabase's OWN, stricter
+  // server-side throttle underneath that, for the same reason
+  // createAccount()'s initial send checks it.
+  async function resendSignupOtp(email) {
+    let result;
+    try {
+      result = await client().auth.resend({ type: 'signup', email: String(email || '').trim() });
+    } catch (e) {
+      return { ok: false, error: 'network' };
+    }
+    const { error } = result;
+    if (error) {
+      if (error.status === 429 || error.code === 'over_email_send_rate_limit' || /rate limit/i.test(error.message)) {
+        return { ok: false, error: 'rate-limited' };
+      }
+      // Same AuthRetryableFetchError detection as verifySignupOtp() above.
+      if (error.name === 'AuthRetryableFetchError' || /network|fetch/i.test(error.message)) {
+        return { ok: false, error: 'network' };
+      }
+      console.error('MonarkAccount.resendSignupOtp:', error.message);
+      return { ok: false, error: 'unknown' };
+    }
+    return { ok: true };
   }
 
   // Server-side existence check via the check-email-exists Edge Function
@@ -1228,7 +1332,46 @@ ${facebookBlock}
           <p class="promo-message promo-message-error" id="checkout-account-create-error" aria-live="polite" hidden></p>
           <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-create-submit-btn" data-i18n="accountGate.createAccountAndContinue">Create Account &amp; Continue</button>
         </form>
-        <p class="promo-message promo-message-success" id="checkout-account-confirm-pending" aria-live="polite" hidden></p>
+      </div>
+
+      <!-- Email-code (OTP) step -- shown right after createForm's own
+           submit handler below gets needsEmailConfirmation back from
+           signUp(). Supabase's "Confirm signup" email sends the 6-digit
+           code via {{ .Token }} (dashboard-side template config, not
+           anything this file controls) -- verified here with
+           verifySignupOtp() (supabase.auth.verifyOtp({..., type: 'signup'}))
+           instead of the old click-a-link flow. Reachable either fresh
+           (right after createForm's submit) or, on a page reload mid-
+           verification, from SIGNUP_OTP_PENDING_EMAIL_KEY's own persisted
+           email -- see mountAccountGate()'s pendingCodeEmail/enterCodeStep(). -->
+      <div id="checkout-account-code" hidden>
+        <p class="checkout-account-intro" data-i18n="accountGate.codeHeading">Enter the code sent by email</p>
+        <p class="checkout-account-email-echo"><span id="checkout-account-code-email"></span></p>
+        <form id="checkout-account-code-form" novalidate>
+          <!-- A real <fieldset>/<legend> (not just a visual label) groups
+               the six boxes for assistive tech, same reasoning as every
+               other labelled control on this gate -- the boxes themselves
+               carry their own per-position aria-label (see below) rather
+               than relying on the legend alone to say which digit is which. -->
+          <fieldset class="checkout-account-code-fieldset">
+            <legend class="checkout-account-code-legend" data-i18n="accountGate.codeFieldLabel">6-digit code</legend>
+            <div class="checkout-account-code-boxes" id="checkout-account-code-boxes">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" maxlength="1" class="checkout-account-code-box" data-i18n-attr="aria-label:accountGate.codeDigit1" aria-label="Digit 1 of 6">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" class="checkout-account-code-box" data-i18n-attr="aria-label:accountGate.codeDigit2" aria-label="Digit 2 of 6">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" class="checkout-account-code-box" data-i18n-attr="aria-label:accountGate.codeDigit3" aria-label="Digit 3 of 6">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" class="checkout-account-code-box" data-i18n-attr="aria-label:accountGate.codeDigit4" aria-label="Digit 4 of 6">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" class="checkout-account-code-box" data-i18n-attr="aria-label:accountGate.codeDigit5" aria-label="Digit 5 of 6">
+              <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" class="checkout-account-code-box" data-i18n-attr="aria-label:accountGate.codeDigit6" aria-label="Digit 6 of 6">
+            </div>
+          </fieldset>
+          <p class="promo-message promo-message-error" id="checkout-account-code-error" aria-live="polite" hidden></p>
+          <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-code-submit-btn" data-i18n="accountGate.verifyCodeBtn">Verify Code</button>
+          <span class="checkout-account-code-actions">
+            <button type="button" class="checkout-account-link-btn" id="checkout-account-code-modify-email-btn" data-i18n="accountGate.modifyEmail">Modify Email</button>
+            <button type="button" class="checkout-account-link-btn" id="checkout-account-code-resend-btn" data-i18n="accountGate.resendCode">Resend code</button>
+          </span>
+          <p class="promo-message" id="checkout-account-code-resend-status" aria-live="polite" hidden></p>
+        </form>
       </div>
 
       <!-- Reached not by anything clicked on THIS page, but by this tab
@@ -1422,6 +1565,16 @@ ${facebookBlock}
     const oauthProvider = sessionStorage.getItem(OAUTH_PROVIDER_PENDING_KEY);
     sessionStorage.removeItem(OAUTH_PROVIDER_PENDING_KEY);
 
+    // Read once at mount, same timing as oauthProvider above -- a reload
+    // mid-signup-verification is exactly a FRESH page load, so this is the
+    // one point this instance needs to check for it. Null means either no
+    // pending signup at all, or one that already resolved (verified,
+    // abandoned via Modify Email, or superseded by a real session --
+    // see clearPendingCodeEmail()'s own call sites for all three). Kept in
+    // sync with SIGNUP_OTP_PENDING_EMAIL_KEY by enterCodeStep()/
+    // clearPendingCodeEmail() below -- never written to directly anywhere else.
+    let pendingCodeEmail = sessionStorage.getItem(SIGNUP_OTP_PENDING_EMAIL_KEY) || null;
+
     const authBlock = container.querySelector('#checkout-account-auth');
     const authEmailEcho = container.querySelector('#checkout-account-auth-email');
     const authModifyEmailBtn = container.querySelector('#checkout-account-auth-modify-email-btn');
@@ -1454,7 +1607,16 @@ ${facebookBlock}
     const createMarketingCheckbox = container.querySelector('#checkout-account-create-marketing');
     const createError = container.querySelector('#checkout-account-create-error');
     const createSubmitBtn = container.querySelector('#checkout-account-create-submit-btn');
-    const confirmPending = container.querySelector('#checkout-account-confirm-pending');
+
+    const codeBlock = container.querySelector('#checkout-account-code');
+    const codeEmailEcho = container.querySelector('#checkout-account-code-email');
+    const codeForm = container.querySelector('#checkout-account-code-form');
+    const codeBoxes = Array.from(container.querySelectorAll('.checkout-account-code-box'));
+    const codeError = container.querySelector('#checkout-account-code-error');
+    const codeSubmitBtn = container.querySelector('#checkout-account-code-submit-btn');
+    const codeModifyEmailBtn = container.querySelector('#checkout-account-code-modify-email-btn');
+    const codeResendBtn = container.querySelector('#checkout-account-code-resend-btn');
+    const codeResendStatus = container.querySelector('#checkout-account-code-resend-status');
 
     // Optional at account creation (no `required`) -- asking for a phone
     // number is friction a first-time signup shouldn't need to clear just to
@@ -1718,10 +1880,10 @@ ${facebookBlock}
         if (facebookError) facebookError.hidden = true;
       }
       authBlock.hidden = step !== 'auth';
+      codeBlock.hidden = step !== 'code';
       recoveryBlock.hidden = step !== 'recovery';
       if (step !== 'auth') {
         createForm.hidden = true;
-        confirmPending.hidden = true;
       }
     }
 
@@ -1827,6 +1989,18 @@ ${facebookBlock}
       if (!leavingRecovery && resolvedKey === lastResolvedKey) return;
       lastResolvedKey = resolvedKey;
       if (!session) {
+        // A reload mid-signup-verification (pendingCodeEmail, read once at
+        // mount from SIGNUP_OTP_PENDING_EMAIL_KEY -- see that constant's own
+        // comment) takes priority over the plain email step: there is no
+        // real session either way, but the customer already has a code
+        // sitting in their inbox for THIS email, so showing them a blank
+        // "enter your email" form instead would just be throwing that
+        // progress away. `fresh: false` -- this is a recovery, not a brand
+        // new send, so no resend cooldown is assumed to still be running.
+        if (pendingCodeEmail) {
+          enterCodeStep(pendingCodeEmail, false);
+          return;
+        }
         statusEl.hidden = true;
         showStep('email');
         emailInput.value = '';
@@ -1867,6 +2041,14 @@ ${facebookBlock}
         if (options.onUnresolved) options.onUnresolved();
         return;
       }
+      // A real session resolving at all means any pending signup-code
+      // verification is moot -- most likely this tab's own verifyOtp()
+      // just succeeded (codeForm's own submit handler already cleared this
+      // itself, so this is a no-op there), but also covers the same signup
+      // being confirmed from another tab/device while this one was still
+      // sitting on the code step (cross-tab auth sync, same mechanism as
+      // every other "finished elsewhere" case in this file).
+      if (pendingCodeEmail) clearPendingCodeEmail();
       statusText.textContent = statusLabel(session);
       statusEl.hidden = false;
       showStep(null);
@@ -1919,8 +2101,258 @@ ${facebookBlock}
       // is the default state, not something the user has to actively choose.
       if (createMarketingCheckbox) createMarketingCheckbox.checked = true;
       createError.hidden = true;
-      confirmPending.hidden = true;
     }
+
+    // ---- Email-code (OTP) step -- see checkout-account-code's own markup
+    // comment above for the overall shape. Everything below (the six boxes'
+    // input/keydown/paste wiring, the resend cooldown, enterCodeStep() itself)
+    // lives in this closure for the same reason resetAuthStepFields()/
+    // showFieldError() above do: it needs direct access to this mounted
+    // instance's own DOM nodes, and there's only ever one code step per gate.
+
+    function getCodeValue() {
+      return codeBoxes.map((b) => b.value).join('');
+    }
+    function clearCodeBoxes() {
+      codeBoxes.forEach((b) => { b.value = ''; });
+    }
+    function focusCodeBox(i) {
+      const box = codeBoxes[i];
+      if (box) box.focus();
+    }
+
+    // Shared by the paste handler and the input handler's own multi-char
+    // branch below (see that handler's comment on why a single box can
+    // receive more than one character at once) -- distributes `raw`'s
+    // digits across the six boxes from index 0, same semantics either way:
+    // "the full code landed somewhere, fill the boxes with it."
+    function fillCode(raw) {
+      const digits = String(raw || '').replace(/\D/g, '').slice(0, codeBoxes.length);
+      if (!digits) return;
+      codeBoxes.forEach((b, idx) => { b.value = digits[idx] || ''; });
+      codeError.hidden = true;
+      focusCodeBox(Math.min(digits.length, codeBoxes.length - 1));
+      if (digits.length === codeBoxes.length) codeForm.requestSubmit();
+    }
+
+    let resendTimer = null;
+    let resendRemaining = 0;
+    function stopResendCountdown() {
+      if (resendTimer) { clearInterval(resendTimer); resendTimer = null; }
+      resendRemaining = 0;
+    }
+    function updateResendBtnLabel() {
+      codeResendBtn.textContent = t('accountGate.resendCodeCountdown', { seconds: resendRemaining });
+    }
+    // 30-second cooldown after every send (the initial one from signUp()
+    // itself, and every later click of this button) -- matches Supabase's
+    // own stricter server-side over_email_send_rate_limit throttle
+    // (resendSignupOtp()'s own comment), just a friendlier, visible one the
+    // customer doesn't have to hit the real limit to notice.
+    function startResendCountdown(seconds) {
+      stopResendCountdown();
+      resendRemaining = seconds;
+      codeResendBtn.disabled = true;
+      updateResendBtnLabel();
+      resendTimer = setInterval(() => {
+        resendRemaining -= 1;
+        if (resendRemaining <= 0) {
+          stopResendCountdown();
+          codeResendBtn.disabled = false;
+          codeResendBtn.textContent = t('accountGate.resendCode');
+          return;
+        }
+        updateResendBtnLabel();
+      }, 1000);
+    }
+
+    // The only place SIGNUP_OTP_PENDING_EMAIL_KEY/pendingCodeEmail are ever
+    // written -- keeps both in sync, same "one function owns this pair"
+    // pattern as setRecoveryPending() at the top of this file. Called on a
+    // successful verify, right before Modify Email backs out of the step,
+    // and defensively whenever resolveSession() finds a real session
+    // (covers a signup confirmed from another tab/device while this one
+    // was still sitting on the code step).
+    function clearPendingCodeEmail() {
+      pendingCodeEmail = null;
+      sessionStorage.removeItem(SIGNUP_OTP_PENDING_EMAIL_KEY);
+    }
+
+    // Enters (or re-enters, on a fresh page load -- see resolveSession()'s
+    // own pendingCodeEmail check) the code step for `email`. `fresh` is true
+    // only right after createForm's own submit just triggered a brand-new
+    // send (signUp() itself) -- that's the one case this should also start
+    // the 30-second resend cooldown; a reload recovery never knows how much
+    // time has actually passed since that original send, so it leaves the
+    // resend button immediately available instead of guessing.
+    function enterCodeStep(email, fresh) {
+      pendingCodeEmail = email;
+      sessionStorage.setItem(SIGNUP_OTP_PENDING_EMAIL_KEY, email);
+      statusEl.hidden = true;
+      showStep('code');
+      codeEmailEcho.textContent = email;
+      clearCodeBoxes();
+      codeError.hidden = true;
+      codeResendStatus.hidden = true;
+      codeSubmitBtn.disabled = false;
+      codeBoxes.forEach((b) => { b.disabled = false; });
+      if (fresh) {
+        startResendCountdown(30);
+      } else {
+        stopResendCountdown();
+        codeResendBtn.disabled = false;
+        codeResendBtn.textContent = t('accountGate.resendCode');
+      }
+      // Same one-frame defer as emailForm's own submit handler further down
+      // (see its comment) -- showStep('code') just unhid this field in the
+      // same tick, and focusing it before the browser has laid out/painted
+      // the change can silently no-op on some engines.
+      requestAnimationFrame(() => focusCodeBox(0));
+    }
+
+    codeBoxes.forEach((box, i) => {
+      box.addEventListener('input', () => {
+        const digitsOnly = box.value.replace(/\D/g, '');
+        if (digitsOnly.length > 1) {
+          // A multi-character value landed in this ONE box in a single
+          // tick -- either a pasted code some mobile browsers deliver here
+          // before the dedicated 'paste' listener below ever fires, or
+          // iOS/Android's own "code from Mail" QuickType suggestion (the
+          // same one autocomplete="one-time-code" on box 0 is there to
+          // trigger) inserting the whole 6-digit code at once. Treated
+          // exactly like a paste of the full code, not a single keystroke.
+          fillCode(digitsOnly);
+          return;
+        }
+        box.value = digitsOnly;
+        codeError.hidden = true;
+        if (box.value && i < codeBoxes.length - 1) {
+          focusCodeBox(i + 1);
+        } else if (box.value && getCodeValue().length === codeBoxes.length) {
+          codeForm.requestSubmit();
+        }
+      });
+      box.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !box.value && i > 0) {
+          e.preventDefault();
+          codeBoxes[i - 1].value = '';
+          focusCodeBox(i - 1);
+        } else if (e.key === 'ArrowLeft' && i > 0) {
+          e.preventDefault();
+          focusCodeBox(i - 1);
+        } else if (e.key === 'ArrowRight' && i < codeBoxes.length - 1) {
+          e.preventDefault();
+          focusCodeBox(i + 1);
+        }
+      });
+      box.addEventListener('paste', (e) => {
+        const text = (e.clipboardData || window.clipboardData).getData('text');
+        if (!/\d/.test(text)) return;
+        e.preventDefault();
+        fillCode(text);
+      });
+    });
+
+    codeForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = pendingCodeEmail;
+      if (!email) return;
+      const code = getCodeValue();
+      if (code.length !== codeBoxes.length) {
+        showFieldError(codeError, 'accountGate.errorCodeIncomplete');
+        return;
+      }
+      codeError.hidden = true;
+      codeSubmitBtn.disabled = true;
+      codeBoxes.forEach((b) => { b.disabled = true; });
+      try {
+        const result = await verifySignupOtp(email, code);
+        if (!result.ok) {
+          const errorKey = result.error === 'expired' ? 'accountGate.errorCodeExpired'
+            : result.error === 'rate-limited' ? 'accountGate.errorRateLimited'
+            : result.error === 'network' ? 'accountGate.errorNetwork'
+            : result.error === 'invalid' ? 'accountGate.errorCodeInvalid'
+            : 'accountGate.errorGeneric';
+          showFieldError(codeError, errorKey);
+          // Only a wrong/expired code means the customer needs to type a
+          // DIFFERENT code -- a rate-limit or network error means the exact
+          // same digits may well still work once that clears, so those two
+          // leave whatever was already typed in place instead of forcing a
+          // full retype.
+          if (result.error === 'invalid' || result.error === 'expired') {
+            // Re-enabled here, BEFORE focusing/clearing -- the `finally`
+            // below also does this, but only after this whole branch
+            // returns, and a disabled input silently refuses focus(). Doing
+            // it here first means the focus() call below actually lands;
+            // the finally's own reset is then a harmless no-op for this path.
+            codeBoxes.forEach((b) => { b.disabled = false; });
+            clearCodeBoxes();
+            focusCodeBox(0);
+          }
+          return;
+        }
+        clearPendingCodeEmail();
+        stopResendCountdown();
+        // onAuthStateChange's own SIGNED_IN handling (top of this file)
+        // already picked up the real session verifyOtp() just established
+        // by the time this await resolves -- resolveSession() below just
+        // needs to render it. Same "a real account creation deserves its
+        // own success note" treatment as the non-OTP branch further down in
+        // createForm's own submit handler.
+        createdNote.textContent = t('accountGate.accountCreated');
+        createdNote.hidden = false;
+        resolveSession();
+      } finally {
+        codeSubmitBtn.disabled = false;
+        codeBoxes.forEach((b) => { b.disabled = false; });
+      }
+    });
+
+    codeResendBtn.addEventListener('click', async () => {
+      const email = pendingCodeEmail;
+      if (!email) return;
+      codeResendStatus.hidden = true;
+      codeResendBtn.disabled = true;
+      const result = await resendSignupOtp(email);
+      if (result.ok) {
+        codeResendStatus.className = 'promo-message promo-message-success';
+        codeResendStatus.textContent = t('accountGate.resendCodeSuccess');
+        codeResendStatus.hidden = false;
+        startResendCountdown(30);
+      } else {
+        codeResendStatus.className = 'promo-message promo-message-error';
+        codeResendStatus.textContent = result.error === 'rate-limited' ? t('accountGate.errorRateLimited')
+          : result.error === 'network' ? t('accountGate.errorNetwork')
+          : t('accountGate.errorGeneric');
+        codeResendStatus.hidden = false;
+        // No send actually happened here -- nothing to cool down, so the
+        // button goes right back to clickable rather than enforcing a
+        // 30-second wait for a send that never left.
+        codeResendBtn.disabled = false;
+      }
+    });
+
+    // Backs all the way out of the pending signup -- the customer typed the
+    // wrong address, or just wants to restart with a different one. Clears
+    // SIGNUP_OTP_PENDING_EMAIL_KEY (see clearPendingCodeEmail()'s own
+    // comment on why) and returns to the plain email step, pre-filled with
+    // the address that was pending -- the "with the email prefilled" half of
+    // this link's own requirement, same convenience enterEmailEditMode()
+    // already gives its own Modify Email button.
+    codeModifyEmailBtn.addEventListener('click', () => {
+      const email = pendingCodeEmail;
+      clearPendingCodeEmail();
+      stopResendCountdown();
+      onEnterEditMode();
+      showStep('email');
+      emailInput.value = email || '';
+      emailError.hidden = true;
+      emailAlreadyExists = false;
+      emailCancelBtn.hidden = true;
+      authCancelBtn.hidden = true;
+      emailInput.focus();
+      emailInput.select();
+    });
 
     emailForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -2220,18 +2652,22 @@ ${facebookBlock}
           // console.error already has the real message when it's 'unknown'.
           const errorKey = result.error === 'exists' ? 'accountGate.errorAccountExists'
             : result.error === 'rate-limited' ? 'accountGate.errorRateLimited'
+            // Supabase's own server-side password policy rejecting this
+            // password (see createAccount()'s own weak_password comment) --
+            // reuses the exact same copy the client-side check above shows,
+            // so the wording is consistent regardless of which side caught it.
+            : result.error === 'weak-password' ? 'accountGate.errorPasswordWeak'
             : 'accountGate.errorGeneric';
           showFieldError(createError, errorKey);
           return;
         }
         if (result.needsEmailConfirmation) {
-          // No session yet -- shown inline here (not via createdNote +
-          // resolveSession(), which only make sense once a session actually
-          // exists) so the message doesn't get wiped the instant
-          // resolveSession() re-checks and finds nothing yet.
-          createForm.hidden = true;
-          confirmPending.textContent = t('accountGate.confirmAccountPending', { email: newAccountEmail });
-          confirmPending.hidden = false;
+          // Supabase's Confirm Email setting (dashboard-side) is on, so the
+          // account isn't real yet -- its "Confirm signup" email just mailed
+          // a 6-digit code (see enterCodeStep()'s own markup comment).
+          // Nothing to do here beyond handing off to that step: it owns its
+          // own success/error messaging from here on, not createdNote.
+          enterCodeStep(newAccountEmail, true);
           return;
         }
         // BUG FIX: this used to say "a confirmation email has been sent to
@@ -2484,6 +2920,15 @@ ${facebookBlock}
       changeBtn.textContent = changeLabel();
       const session = getSession();
       if (session) statusText.textContent = statusLabel(session);
+      // Same reasoning as changeBtn/statusText above -- codeResendBtn's
+      // countdown label is also a plain textContent write (updateResendBtnLabel()),
+      // not a data-i18n-tagged element, so a language switch mid-countdown
+      // needs this to pick up the new wording itself. Only while a
+      // countdown is actually running (resendRemaining > 0) -- otherwise
+      // codeResendBtn's static "Resend code" label is already handled by
+      // MonarkI18n.apply(document)'s own pass, same as every other
+      // data-i18n element on this gate.
+      if (resendRemaining > 0) updateResendBtnLabel();
     });
 
     // Re-resolves on every session change this instance didn't itself just
@@ -2522,6 +2967,8 @@ ${facebookBlock}
   global.MonarkAccount = {
     findAccount,
     createAccount,
+    verifySignupOtp,
+    resendSignupOtp,
     logIn,
     continueAsGuest,
     logOut,

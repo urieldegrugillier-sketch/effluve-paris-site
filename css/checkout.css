@@ -953,6 +953,55 @@
   margin-right: auto;
 }
 
+/* Email-code (OTP) step (js/account.js's own codeBoxes/enterCodeStep()) --
+   six individually-boxed digit inputs rather than one plain text field, so
+   each character's own state (filled/empty, focus) is visible at a glance
+   and auto-advance/auto-submit (that file's own input/paste wiring) has
+   somewhere real to move focus between. Square corners, a thin
+   --accent-bronze border at rest brightening to --accent-bronze-light on
+   focus -- same focus treatment as every other field on this gate
+   (.checkout-field input:focus above), just a full border instead of an
+   underline since these read as discrete boxes, not a single-line field. */
+.checkout-account-code-fieldset { border: none; padding: 0; margin: 0 0 1.2rem; }
+.checkout-account-code-legend {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0;
+  margin: 0 0 0.6rem;
+}
+
+/* flex:1 1 0 (not a fixed px/rem width) on each box -- the row always
+   shrinks to fit whatever width the gate itself has rather than risking
+   overflow on a narrow phone (confirmed at 390px) the way six fixed-width
+   boxes plus five gaps could. max-width keeps them from stretching too wide
+   on desktop. */
+.checkout-account-code-boxes { display: flex; gap: 0.5rem; max-width: 22rem; }
+.checkout-account-code-box {
+  flex: 1 1 0;
+  min-width: 0;
+  aspect-ratio: 0.8;
+  box-sizing: border-box;
+  background: var(--bg-void);
+  border: 1px solid var(--accent-bronze);
+  color: var(--text-on-dark);
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+  text-align: center;
+  padding: 0;
+  transition: border-color 0.3s ease;
+}
+.checkout-account-code-box:focus { outline: none; border-color: var(--accent-bronze-light); }
+.checkout-account-code-box:focus-visible { outline: 2px solid var(--accent-bronze-light); outline-offset: 2px; }
+.checkout-account-code-box:disabled { color: var(--text-muted); cursor: not-allowed; opacity: 0.6; }
+
+/* Same centering treatment as #checkout-account-create-submit-btn above. */
+#checkout-account-code-submit-btn { display: block; margin-left: auto; margin-right: auto; margin-top: 1rem; }
+
+.checkout-account-code-actions { display: flex; align-items: center; gap: 1.2rem; margin-top: 1rem; }
+
 /* Every primary action button centered EXCEPT the small text-link-style
    actions (Modify Email, Forgot password?), which keep their own right-
    aligned/inline treatment untouched. Continue as Guest/Create Account
