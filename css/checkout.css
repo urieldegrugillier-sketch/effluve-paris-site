@@ -954,35 +954,57 @@
 }
 
 /* Email-code (OTP) step (js/account.js's own codeBoxes/enterCodeStep()) --
-   six individually-boxed digit inputs rather than one plain text field, so
+   everything in this step reads as one centered column: the email line,
+   the six boxes, the status line, Valider, then the Resend/Modify row --
+   see #checkout-account-code's own text-align below for the simple part of
+   that, and each flex row's own justify-content for the rest. */
+#checkout-account-code { text-align: center; }
+
+/* Reuses .checkout-account-email-echo's font/size/letter-spacing/color
+   wholesale (see that markup's own comment on why) -- this override only
+   drops the base class's flex/space-between layout (meant for pairing the
+   email with an inline action button, which this step doesn't do: Resend/
+   Modify Email both live in their own row below instead) in favor of
+   simple centered text. */
+.checkout-account-code-email-line { display: block; text-align: center; }
+
+/* Six individually-boxed digit inputs rather than one plain text field, so
    each character's own state (filled/empty, focus) is visible at a glance
-   and auto-advance/auto-submit (that file's own input/paste wiring) has
+   and auto-advance/auto-submit (js/account.js's own input/paste wiring) has
    somewhere real to move focus between. Square corners, a thin
    --accent-bronze border at rest brightening to --accent-bronze-light on
    focus -- same focus treatment as every other field on this gate
    (.checkout-field input:focus above), just a full border instead of an
    underline since these read as discrete boxes, not a single-line field. */
 .checkout-account-code-fieldset { border: none; padding: 0; margin: 0 0 1.2rem; }
+/* Visually hidden, not removed -- the group still needs its own label for
+   assistive tech (see this legend's own markup comment on why), but "Enter
+   the code sent to {email}" right above already says what to do on screen,
+   so a second, visible "6-digit code" heading was redundant there. Clip-based
+   hiding (not display:none) is what keeps it in the accessibility tree while
+   taking up no visual space. */
 .checkout-account-code-legend {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  position: absolute;
+  width: 1px;
+  height: 1px;
   padding: 0;
-  margin: 0 0 0.6rem;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-/* flex:1 1 0 (not a fixed px/rem width) on each box -- the row always
-   shrinks to fit whatever width the gate itself has rather than risking
-   overflow on a narrow phone (confirmed at 390px) the way six fixed-width
-   boxes plus five gaps could. max-width keeps them from stretching too wide
-   on desktop. */
-.checkout-account-code-boxes { display: flex; gap: 0.5rem; max-width: 22rem; }
+/* Fixed sizing (not the flex-shrink approach this used to have) -- about
+   40x48px on desktop, 36x44px at/below 420px (comfortably covers the
+   390px-width requirement with room to spare: 6 boxes + 5 small gaps add up
+   to ~248px there, well inside the available width). Centered as their own
+   row via justify-content, independent of the boxes' own size. */
+.checkout-account-code-boxes { display: flex; justify-content: center; gap: 0.5rem; }
 .checkout-account-code-box {
-  flex: 1 1 0;
-  min-width: 0;
-  aspect-ratio: 0.8;
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 3rem;
   box-sizing: border-box;
   background: var(--bg-void);
   border: 1px solid var(--accent-bronze);
@@ -993,14 +1015,35 @@
   padding: 0;
   transition: border-color 0.3s ease;
 }
+@media (max-width: 420px) {
+  .checkout-account-code-box { width: 2.25rem; height: 2.75rem; font-size: 1.1rem; }
+  .checkout-account-code-boxes { gap: 0.4rem; }
+}
 .checkout-account-code-box:focus { outline: none; border-color: var(--accent-bronze-light); }
 .checkout-account-code-box:focus-visible { outline: 2px solid var(--accent-bronze-light); outline-offset: 2px; }
 .checkout-account-code-box:disabled { color: var(--text-muted); cursor: not-allowed; opacity: 0.6; }
 
-/* Same centering treatment as #checkout-account-create-submit-btn above. */
-#checkout-account-code-submit-btn { display: block; margin-left: auto; margin-right: auto; margin-top: 1rem; }
+/* Same centering treatment as #checkout-account-create-submit-btn above --
+   the shared status line (margin:0.7rem 0 0, .promo-message's own default
+   in css/style.css) already sits centered via the parent's text-align. */
+#checkout-account-code-submit-btn { display: block; margin: 1rem auto 0; }
 
-.checkout-account-code-actions { display: flex; align-items: center; gap: 1.2rem; margin-top: 1rem; }
+/* Resend code (left) / Modify Email (right) -- its own row, not inline with
+   the email line above (see .checkout-account-code-email-line's own
+   comment). Capped to the same width the boxes row above actually
+   measures out to (6 boxes + 5 gaps, both breakpoints) so the two rows'
+   edges line up instead of this one stretching edge-to-edge of the form. */
+.checkout-account-code-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.2rem;
+  max-width: 17.5rem;
+  margin: 1rem auto 0;
+}
+@media (max-width: 420px) {
+  .checkout-account-code-actions { max-width: 15.5rem; }
+}
 
 /* Every primary action button centered EXCEPT the small text-link-style
    actions (Modify Email, Forgot password?), which keep their own right-

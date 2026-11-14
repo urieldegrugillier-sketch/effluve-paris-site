@@ -32,6 +32,10 @@ function installSupabaseMock() {
     // immediate session (false -- Confirm Email off, not this project's
     // configuration, but the code path createAccount() still supports).
     needsEmailConfirmation: true,
+    // signInWithPassword() -- set to an {message, status, code} object to
+    // simulate a login failure (wrong password, or email_not_confirmed);
+    // null means success.
+    signInError: null,
     // verifyOtp()/resend() -- set to an {message, status, code} object to
     // simulate that call failing; null means success. *Throws is a thrown
     // exception instead (simulating a real network failure -- see
@@ -42,8 +46,22 @@ function installSupabaseMock() {
     resendThrows: false,
     // check-email-exists Edge Function stand-in (checkEmailExists()) --
     // false lets the email step fall through to Create Account, matching
-    // every scenario this spec needs (a brand-new signup).
-    emailExists: false
+    // most scenarios this spec needs (a brand-new signup); set true to
+    // exercise the Log In path instead.
+    emailExists: false,
+    // In call order, every signOut()/signUp()/updateUser() this mock's auth
+    // methods actually run -- lets a test assert not just "did X happen" but
+    // "did X happen before/instead of Y" (e.g. BUG 2's own fix: a logged-in
+    // customer creating a second account must sign out BEFORE signUp(),
+    // and updateUser() must never be the call that sends them a code).
+    callLog: [],
+    // Lets a test simulate a background auth-state event -- e.g. supabase-js's
+    // own TOKEN_REFRESHED/SIGNED_IN re-notification firing on tab focus for a
+    // session this tab never itself signed into here (BUG 1's own scenario:
+    // a stale or unrelated session resolving while a signup code is still
+    // pending). Reassigned below, once the real onAuthStateChange callback
+    // is known.
+    fireAuthEvent: null
   };
 
   const callbacks = [];
@@ -52,6 +70,7 @@ function installSupabaseMock() {
     currentSession = session;
     callbacks.slice().forEach((cb) => cb(event, session));
   }
+  window.__mock.fireAuthEvent = notify;
 
   // Minimal stand-in for supabase-js's own chainable, awaitable query
   // builder -- every chain method returns the same stub (so any call order
@@ -83,6 +102,7 @@ function installSupabaseMock() {
         return { data: { subscription: { unsubscribe() {} } } };
       },
       async signUp({ email }) {
+        window.__mock.callLog.push('signUp');
         if (window.__mock.signUpError) return { data: { user: null, session: null }, error: window.__mock.signUpError };
         if (window.__mock.needsEmailConfirmation) {
           return { data: { user: { identities: [{ id: 'mock-identity' }] }, session: null }, error: null };
@@ -103,11 +123,21 @@ function installSupabaseMock() {
         if (window.__mock.resendError) return { data: null, error: window.__mock.resendError };
         return { data: {}, error: null };
       },
-      async signInWithPassword() { return { error: { message: 'mock: not used by this spec' } }; },
+      async signInWithPassword() {
+        if (window.__mock.signInError) return { error: window.__mock.signInError };
+        return { error: { message: 'mock: not used by this spec' } };
+      },
       async signInWithOAuth() { return { error: null }; },
       async resetPasswordForEmail() { return { error: null }; },
-      async updateUser() { return { error: null }; },
-      async signOut() { notify('SIGNED_OUT', null); return { error: null }; }
+      async updateUser() {
+        window.__mock.callLog.push('updateUser');
+        return { error: null };
+      },
+      async signOut() {
+        window.__mock.callLog.push('signOut');
+        notify('SIGNED_OUT', null);
+        return { error: null };
+      }
     },
     from(table) {
       return queryStub(table === 'profiles'

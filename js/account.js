@@ -48,6 +48,17 @@
   // sessionStorage (not localStorage): scoped to this one tab/visit, same
   // reasoning as every other short-lived marker in this file.
   const SIGNUP_OTP_PENDING_EMAIL_KEY = 'monark_signup_otp_pending_email';
+  // How many of the 3 allowed verifyOtp() attempts have already failed for
+  // the currently pending code (see MAX_CODE_ATTEMPTS below) -- sessionStorage
+  // alongside SIGNUP_OTP_PENDING_EMAIL_KEY, for the same reason: a reload
+  // mid-verification must not hand back 3 fresh attempts for free.
+  const SIGNUP_OTP_ATTEMPTS_KEY = 'monark_signup_otp_attempts';
+  // When the currently pending code was actually sent (Date.now(), as a
+  // string) -- the 30-second resend cooldown is computed FROM this on every
+  // render (see computeResendRemaining()) rather than counted down from a
+  // fixed 30 in memory, so a reload mid-cooldown shows the real remaining
+  // time instead of resetting it to a fresh 30s.
+  const SIGNUP_OTP_SENT_AT_KEY = 'monark_signup_otp_sent_at';
   // Written right before every signInWithOAuth() redirect (Google or
   // Facebook, see signInWithGoogle()/signInWithFacebook() below) so that once
   // the provider/Supabase redirect back lands on a FRESH page load,
@@ -659,7 +670,7 @@
   // which would re-run the whole signup payload for no reason) issues a
   // fresh code/invalidates the previous one. mountAccountGate()'s own
   // "Resend code" link calls this, with its own 30-second cooldown gating
-  // how often a customer can trigger it (see startResendCountdown()) --
+  // how often a customer can trigger it (see syncResendCountdown()) --
   // the over_email_send_rate_limit check here is Supabase's OWN, stricter
   // server-side throttle underneath that, for the same reason
   // createAccount()'s initial send checks it.
@@ -720,7 +731,24 @@
     // mountAccountGate()'s applyAuthOptionsVisibility()), so implying the
     // email itself might be wrong here was never actually possible and just
     // added doubt. The copy now says only "Incorrect password" in js/i18n.js.
-    if (error) return { ok: false, error: 'invalid' };
+    if (error) {
+      // BUG FIX: an account that signed up but never confirmed its email
+      // (never finished the code step) got the exact same "Incorrect
+      // password" message on login as a genuinely wrong password --
+      // Supabase correctly rejects the login either way, but for a totally
+      // different reason the customer has no way to tell apart from that
+      // message alone. error.code is 'email_not_confirmed' for this case;
+      // the message-pattern fallback mirrors this file's own already-
+      // registered/same-password detection, for the same reason (a future
+      // Supabase wording change shouldn't silently fall through to the
+      // generic "wrong password" branch). mountAccountGate()'s loginForm
+      // handler reacts to this distinctly: resend a fresh code and hand the
+      // customer straight to the code step instead of just failing login.
+      if (error.code === 'email_not_confirmed' || /email not confirmed/i.test(error.message)) {
+        return { ok: false, error: 'not-confirmed' };
+      }
+      return { ok: false, error: 'invalid' };
+    }
     return { ok: true };
   }
 
@@ -1336,23 +1364,35 @@ ${facebookBlock}
 
       <!-- Email-code (OTP) step -- shown right after createForm's own
            submit handler below gets needsEmailConfirmation back from
-           signUp(). Supabase's "Confirm signup" email sends the 6-digit
-           code via {{ .Token }} (dashboard-side template config, not
-           anything this file controls) -- verified here with
-           verifySignupOtp() (supabase.auth.verifyOtp({..., type: 'signup'}))
-           instead of the old click-a-link flow. Reachable either fresh
-           (right after createForm's submit) or, on a page reload mid-
-           verification, from SIGNUP_OTP_PENDING_EMAIL_KEY's own persisted
-           email -- see mountAccountGate()'s pendingCodeEmail/enterCodeStep(). -->
+           signUp(), or after loginForm's own email_not_confirmed handling
+           below resends a code for an account that was never confirmed.
+           Supabase's "Confirm signup" email sends the 6-digit code via
+           {{ .Token }} (dashboard-side template config, not anything this
+           file controls) -- verified here with verifySignupOtp()
+           (supabase.auth.verifyOtp({..., type: 'signup'})) instead of the
+           old click-a-link flow. Reachable fresh, on a page reload mid-
+           verification (SIGNUP_OTP_PENDING_EMAIL_KEY's own persisted email),
+           or simply left alone across a tab switch/visibilitychange while
+           still pending -- see mountAccountGate()'s pendingCodeEmail/
+           codeStepActive/enterCodeStep() for all three. -->
       <div id="checkout-account-code" hidden>
-        <p class="checkout-account-intro" data-i18n="accountGate.codeHeading">Enter the code sent by email</p>
-        <p class="checkout-account-email-echo"><span id="checkout-account-code-email"></span></p>
+        <p class="checkout-account-intro" data-i18n="accountGate.codeHeading">Enter the code sent to</p>
+        <!-- Reuses .checkout-account-email-echo wholesale -- the exact
+             same font/size/letter-spacing/color the email already uses in
+             the auth step's own echo line (the one with "Modify Email" next
+             to it) -- just with nothing else inside it here: Resend/Modify
+             Email both moved to their own row below codeSubmitBtn instead
+             of sitting inline with the email. -->
+        <p class="checkout-account-email-echo checkout-account-code-email-line"><span id="checkout-account-code-email"></span></p>
         <form id="checkout-account-code-form" novalidate>
-          <!-- A real <fieldset>/<legend> (not just a visual label) groups
-               the six boxes for assistive tech, same reasoning as every
-               other labelled control on this gate -- the boxes themselves
-               carry their own per-position aria-label (see below) rather
-               than relying on the legend alone to say which digit is which. -->
+          <!-- A real <fieldset>/<legend> still groups the six boxes for
+               assistive tech -- the legend text itself is visually hidden
+               (checkout-account-code-legend, css/checkout.css) rather than
+               shown as on-page copy: "Enter the code sent to {email}" above
+               already says what to do, and spelling out "6-digit code"
+               again as a separate visible heading was redundant on screen,
+               though a screen reader still benefits from the group having
+               its own label. -->
           <fieldset class="checkout-account-code-fieldset">
             <legend class="checkout-account-code-legend" data-i18n="accountGate.codeFieldLabel">6-digit code</legend>
             <div class="checkout-account-code-boxes" id="checkout-account-code-boxes">
@@ -1364,13 +1404,21 @@ ${facebookBlock}
               <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="1" class="checkout-account-code-box" data-i18n-attr="aria-label:accountGate.codeDigit6" aria-label="Digit 6 of 6">
             </div>
           </fieldset>
-          <p class="promo-message promo-message-error" id="checkout-account-code-error" aria-live="polite" hidden></p>
-          <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-code-submit-btn" data-i18n="accountGate.verifyCodeBtn">Verify Code</button>
+          <!-- Single shared status line for this whole step -- every
+               message (incomplete/wrong/expired code, attempts remaining,
+               locked-out, rate limit, network error, resend success, the
+               "wasn't confirmed yet" notice) goes through here, never two
+               separate error/success paragraphs -- see showCodeStatus(). -->
+          <p class="promo-message" id="checkout-account-code-status" aria-live="polite" hidden></p>
+          <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-code-submit-btn" data-i18n="accountGate.verifyCodeBtn" disabled>Verify</button>
+          <!-- Resend (left) / Modify Email (right) -- same thin underlined
+               .checkout-account-link-btn treatment as every other secondary
+               action on this gate, just laid out as one row instead of
+               inline with the email echo above. -->
           <span class="checkout-account-code-actions">
-            <button type="button" class="checkout-account-link-btn" id="checkout-account-code-modify-email-btn" data-i18n="accountGate.modifyEmail">Modify Email</button>
             <button type="button" class="checkout-account-link-btn" id="checkout-account-code-resend-btn" data-i18n="accountGate.resendCode">Resend code</button>
+            <button type="button" class="checkout-account-link-btn" id="checkout-account-code-modify-email-btn" data-i18n="accountGate.modifyEmail">Modify Email</button>
           </span>
-          <p class="promo-message" id="checkout-account-code-resend-status" aria-live="polite" hidden></p>
         </form>
       </div>
 
@@ -1612,11 +1660,10 @@ ${facebookBlock}
     const codeEmailEcho = container.querySelector('#checkout-account-code-email');
     const codeForm = container.querySelector('#checkout-account-code-form');
     const codeBoxes = Array.from(container.querySelectorAll('.checkout-account-code-box'));
-    const codeError = container.querySelector('#checkout-account-code-error');
+    const codeStatus = container.querySelector('#checkout-account-code-status');
     const codeSubmitBtn = container.querySelector('#checkout-account-code-submit-btn');
     const codeModifyEmailBtn = container.querySelector('#checkout-account-code-modify-email-btn');
     const codeResendBtn = container.querySelector('#checkout-account-code-resend-btn');
-    const codeResendStatus = container.querySelector('#checkout-account-code-resend-status');
 
     // Optional at account creation (no `required`) -- asking for a phone
     // number is friction a first-time signup shouldn't need to clear just to
@@ -1923,6 +1970,30 @@ ${facebookBlock}
     let previousSession = null;
 
     function resolveSession() {
+      // BUG FIX: an unconfirmed signup's code step (pendingCodeEmail) used
+      // to only be checked once getSession() already came back empty --
+      // which meant ANY session resolving at all (a stale one left over
+      // from before this signup attempt started, a cross-tab broadcast for
+      // a totally unrelated account, or simply Supabase's own background
+      // TOKEN_REFRESHED/SIGNED_IN re-firing on tab focus, confirmed live via
+      // supabase-js's _onVisibilityChanged()) silently abandoned the code
+      // step and jumped the customer straight to "logged in as X" -- often
+      // the exact moment they switched back from their mail app/tab to type
+      // the code they just read. Checked here, FIRST, unconditionally: a
+      // pending signup verification now wins over password recovery, over
+      // every session state below, and over every OTHER reason this
+      // function gets re-invoked (visibilitychange/pageshow/bfcache
+      // restores all funnel through the very same 'account:updated'
+      // listener this resolves from). codeStepActive (set by enterCodeStep(),
+      // cleared only by clearPendingCodeEmail()) guards against ever
+      // rebuilding the step a second time while it's already showing --
+      // rebuilding it would call clearCodeBoxes() and wipe whatever digits
+      // the customer already typed, which is exactly the "keep the typed
+      // digits across a tab switch" requirement this whole check exists for.
+      if (pendingCodeEmail) {
+        if (!codeStepActive) enterCodeStep(pendingCodeEmail, false);
+        return;
+      }
       // Checked first, ahead of getSession() -- a password-recovery link
       // grants a real (temporary) Supabase session, so getSession() would
       // otherwise report this as a normal logged-in state and skip straight
@@ -1989,18 +2060,8 @@ ${facebookBlock}
       if (!leavingRecovery && resolvedKey === lastResolvedKey) return;
       lastResolvedKey = resolvedKey;
       if (!session) {
-        // A reload mid-signup-verification (pendingCodeEmail, read once at
-        // mount from SIGNUP_OTP_PENDING_EMAIL_KEY -- see that constant's own
-        // comment) takes priority over the plain email step: there is no
-        // real session either way, but the customer already has a code
-        // sitting in their inbox for THIS email, so showing them a blank
-        // "enter your email" form instead would just be throwing that
-        // progress away. `fresh: false` -- this is a recovery, not a brand
-        // new send, so no resend cooldown is assumed to still be running.
-        if (pendingCodeEmail) {
-          enterCodeStep(pendingCodeEmail, false);
-          return;
-        }
+        // pendingCodeEmail is already handled, unconditionally, at the very
+        // top of this function now -- nothing left to check here for it.
         statusEl.hidden = true;
         showStep('email');
         emailInput.value = '';
@@ -2041,14 +2102,10 @@ ${facebookBlock}
         if (options.onUnresolved) options.onUnresolved();
         return;
       }
-      // A real session resolving at all means any pending signup-code
-      // verification is moot -- most likely this tab's own verifyOtp()
-      // just succeeded (codeForm's own submit handler already cleared this
-      // itself, so this is a no-op there), but also covers the same signup
-      // being confirmed from another tab/device while this one was still
-      // sitting on the code step (cross-tab auth sync, same mechanism as
-      // every other "finished elsewhere" case in this file).
-      if (pendingCodeEmail) clearPendingCodeEmail();
+      // pendingCodeEmail (and therefore clearing it) is handled entirely by
+      // the unconditional check at the very top of this function now --
+      // this point is never reached while a signup verification is still
+      // pending.
       statusText.textContent = statusLabel(session);
       statusEl.hidden = false;
       showStep(null);
@@ -2105,10 +2162,46 @@ ${facebookBlock}
 
     // ---- Email-code (OTP) step -- see checkout-account-code's own markup
     // comment above for the overall shape. Everything below (the six boxes'
-    // input/keydown/paste wiring, the resend cooldown, enterCodeStep() itself)
-    // lives in this closure for the same reason resetAuthStepFields()/
-    // showFieldError() above do: it needs direct access to this mounted
-    // instance's own DOM nodes, and there's only ever one code step per gate.
+    // input/keydown/paste wiring, the resend cooldown, the 3-attempt
+    // lockout, enterCodeStep() itself) lives in this closure for the same
+    // reason resetAuthStepFields()/showFieldError() above do: it needs
+    // direct access to this mounted instance's own DOM nodes, and there's
+    // only ever one code step per gate.
+
+    // True from the moment enterCodeStep() first renders the step until
+    // clearPendingCodeEmail() tears it back down -- resolveSession()'s own
+    // top-of-function pendingCodeEmail check (see that comment) reads this
+    // to tell "already showing, leave it alone" apart from "first time,
+    // build it" -- rebuilding on every re-resolve (a tab switch, a
+    // TOKEN_REFRESHED firing in the background) would wipe whatever digits
+    // the customer already typed.
+    let codeStepActive = false;
+
+    const MAX_CODE_ATTEMPTS = 3;
+    function getAttemptsUsed() {
+      return Number(sessionStorage.getItem(SIGNUP_OTP_ATTEMPTS_KEY) || 0);
+    }
+    function setAttemptsUsed(n) {
+      sessionStorage.setItem(SIGNUP_OTP_ATTEMPTS_KEY, String(n));
+    }
+    function resetAttempts() {
+      sessionStorage.removeItem(SIGNUP_OTP_ATTEMPTS_KEY);
+    }
+
+    // The 30-second cooldown is computed FROM the real send timestamp on
+    // every render, never counted down from a fixed 30 held only in memory
+    // -- see SIGNUP_OTP_SENT_AT_KEY's own comment for why (a reload
+    // mid-cooldown needs the REAL remaining time, not a fresh 30s).
+    const RESEND_COOLDOWN_SECONDS = 30;
+    function recordSendTimestamp() {
+      sessionStorage.setItem(SIGNUP_OTP_SENT_AT_KEY, String(Date.now()));
+    }
+    function computeResendRemaining() {
+      const sentAt = Number(sessionStorage.getItem(SIGNUP_OTP_SENT_AT_KEY) || 0);
+      if (!sentAt) return 0;
+      const elapsedSeconds = Math.floor((Date.now() - sentAt) / 1000);
+      return Math.max(0, RESEND_COOLDOWN_SECONDS - elapsedSeconds);
+    }
 
     function getCodeValue() {
       return codeBoxes.map((b) => b.value).join('');
@@ -2120,6 +2213,101 @@ ${facebookBlock}
       const box = codeBoxes[i];
       if (box) box.focus();
     }
+    // "Focus goes to the first empty box" -- the honest version of a bare
+    // focusCodeBox(0): after a failed attempt the boxes are already cleared
+    // before this runs, so in practice box 0 is always the first empty one,
+    // but this is what actually guarantees that rather than assuming it.
+    function focusFirstEmptyBox() {
+      const idx = codeBoxes.findIndex((b) => !b.value);
+      focusCodeBox(idx === -1 ? 0 : idx);
+    }
+
+    // Single shared status line for the whole step -- every message it
+    // ever shows (incomplete/wrong/expired code, attempts remaining,
+    // locked-out, rate limit, network error, a resend success, the "wasn't
+    // confirmed yet" notice) goes through here, never a separate error
+    // paragraph and a separate success one. kind picks the promo-message
+    // colour variant ('error'/'success'); omit it for a neutral note.
+    function showCodeStatus(key, vars, kind) {
+      codeStatus.textContent = t(key, vars);
+      codeStatus.className = 'promo-message' + (kind ? ' promo-message-' + kind : '');
+      codeStatus.hidden = false;
+    }
+    function hideCodeStatus() {
+      codeStatus.hidden = true;
+      codeStatus.textContent = '';
+    }
+
+    // Valider/Verify stays disabled until all 6 boxes are filled (the happy
+    // path never actually needs this -- auto-submit on the 6th digit fires
+    // first -- but it's what keeps the button correctly disabled for
+    // anyone who tabs to it instead, or after Backspace empties a box back
+    // out) AND whenever the 3-attempt lockout below is in effect.
+    function updateSubmitButtonState() {
+      const locked = getAttemptsUsed() >= MAX_CODE_ATTEMPTS;
+      codeSubmitBtn.disabled = locked || getCodeValue().length !== codeBoxes.length;
+    }
+
+    // Reflects (and, if the lockout is already in effect, announces) the
+    // 3-attempt lockout -- called on every entry into the step, including a
+    // reload (SIGNUP_OTP_ATTEMPTS_KEY survives one), and right after a
+    // failed verify. Returns whether it's actually locked, so callers know
+    // whether they're allowed to re-enable what they just found disabled.
+    function applyAttemptsLockState() {
+      const locked = getAttemptsUsed() >= MAX_CODE_ATTEMPTS;
+      codeBoxes.forEach((b) => { b.disabled = locked; });
+      updateSubmitButtonState();
+      return locked;
+    }
+
+    // True while the status line is showing the expiry countdown message --
+    // the resend countdown's own per-second tick (below) re-renders this
+    // exact message every second while it's active, and switches its
+    // wording the instant the cooldown reaches 0, rather than leaving a
+    // stale "in Xs" sitting there once a new code is actually requestable.
+    let expiredMessageActive = false;
+    function renderExpiredMessage() {
+      const remaining = computeResendRemaining();
+      if (remaining > 0) {
+        showCodeStatus('accountGate.errorCodeExpiredCooldown', { seconds: remaining }, 'error');
+      } else {
+        showCodeStatus('accountGate.errorCodeExpired', null, 'error');
+      }
+    }
+
+    let resendTimer = null;
+    let resendRemaining = 0;
+    function stopResendCountdown() {
+      if (resendTimer) { clearInterval(resendTimer); resendTimer = null; }
+      resendRemaining = 0;
+    }
+    function renderResendButton() {
+      if (resendRemaining > 0) {
+        codeResendBtn.disabled = true;
+        codeResendBtn.textContent = t('accountGate.resendCodeCountdown', { seconds: resendRemaining });
+      } else {
+        codeResendBtn.disabled = false;
+        codeResendBtn.textContent = t('accountGate.resendCode');
+      }
+    }
+    // (Re)starts the cooldown display from whatever SIGNUP_OTP_SENT_AT_KEY
+    // actually says right now -- the one function both a fresh send and a
+    // reload-recovery entry call into, so neither path can drift from the
+    // other's idea of how much time is actually left.
+    function syncResendCountdown() {
+      stopResendCountdown();
+      resendRemaining = computeResendRemaining();
+      renderResendButton();
+      if (expiredMessageActive) renderExpiredMessage();
+      if (resendRemaining > 0) {
+        resendTimer = setInterval(() => {
+          resendRemaining = computeResendRemaining();
+          renderResendButton();
+          if (expiredMessageActive) renderExpiredMessage();
+          if (resendRemaining <= 0) stopResendCountdown();
+        }, 1000);
+      }
+    }
 
     // Shared by the paste handler and the input handler's own multi-char
     // branch below (see that handler's comment on why a single box can
@@ -2130,84 +2318,62 @@ ${facebookBlock}
       const digits = String(raw || '').replace(/\D/g, '').slice(0, codeBoxes.length);
       if (!digits) return;
       codeBoxes.forEach((b, idx) => { b.value = digits[idx] || ''; });
-      codeError.hidden = true;
+      hideCodeStatus();
+      updateSubmitButtonState();
       focusCodeBox(Math.min(digits.length, codeBoxes.length - 1));
       if (digits.length === codeBoxes.length) codeForm.requestSubmit();
     }
 
-    let resendTimer = null;
-    let resendRemaining = 0;
-    function stopResendCountdown() {
-      if (resendTimer) { clearInterval(resendTimer); resendTimer = null; }
-      resendRemaining = 0;
-    }
-    function updateResendBtnLabel() {
-      codeResendBtn.textContent = t('accountGate.resendCodeCountdown', { seconds: resendRemaining });
-    }
-    // 30-second cooldown after every send (the initial one from signUp()
-    // itself, and every later click of this button) -- matches Supabase's
-    // own stricter server-side over_email_send_rate_limit throttle
-    // (resendSignupOtp()'s own comment), just a friendlier, visible one the
-    // customer doesn't have to hit the real limit to notice.
-    function startResendCountdown(seconds) {
-      stopResendCountdown();
-      resendRemaining = seconds;
-      codeResendBtn.disabled = true;
-      updateResendBtnLabel();
-      resendTimer = setInterval(() => {
-        resendRemaining -= 1;
-        if (resendRemaining <= 0) {
-          stopResendCountdown();
-          codeResendBtn.disabled = false;
-          codeResendBtn.textContent = t('accountGate.resendCode');
-          return;
-        }
-        updateResendBtnLabel();
-      }, 1000);
-    }
-
-    // The only place SIGNUP_OTP_PENDING_EMAIL_KEY/pendingCodeEmail are ever
-    // written -- keeps both in sync, same "one function owns this pair"
-    // pattern as setRecoveryPending() at the top of this file. Called on a
-    // successful verify, right before Modify Email backs out of the step,
-    // and defensively whenever resolveSession() finds a real session
-    // (covers a signup confirmed from another tab/device while this one
-    // was still sitting on the code step).
+    // The only place SIGNUP_OTP_PENDING_EMAIL_KEY/pendingCodeEmail (and the
+    // attempts/send-timestamp markers riding alongside it) are ever
+    // cleared -- keeps all of it in sync, same "one function owns this
+    // whole group" pattern as setRecoveryPending() at the top of this file.
+    // Called on a successful verify and right before Modify Email backs out
+    // of the step; resolveSession()'s own top-of-function check then simply
+    // stops finding pendingCodeEmail set on its very next call, for every
+    // other way this tab's session could resolve afterward.
     function clearPendingCodeEmail() {
       pendingCodeEmail = null;
+      codeStepActive = false;
+      expiredMessageActive = false;
+      stopResendCountdown();
       sessionStorage.removeItem(SIGNUP_OTP_PENDING_EMAIL_KEY);
+      sessionStorage.removeItem(SIGNUP_OTP_ATTEMPTS_KEY);
+      sessionStorage.removeItem(SIGNUP_OTP_SENT_AT_KEY);
     }
 
     // Enters (or re-enters, on a fresh page load -- see resolveSession()'s
     // own pendingCodeEmail check) the code step for `email`. `fresh` is true
-    // only right after createForm's own submit just triggered a brand-new
-    // send (signUp() itself) -- that's the one case this should also start
-    // the 30-second resend cooldown; a reload recovery never knows how much
-    // time has actually passed since that original send, so it leaves the
-    // resend button immediately available instead of guessing.
+    // only right after an actual send just went out -- createForm's own
+    // submit triggering signUp(), loginForm's own email_not_confirmed
+    // handling triggering resend(), or codeResendBtn itself (which calls
+    // this indirectly via syncResendCountdown(), not through here) -- that's
+    // the one case this should record a new send timestamp, reset the
+    // attempts counter, and clear the boxes. A reload recovery (fresh:
+    // false) does none of that: the real remaining cooldown and attempts
+    // count are already sitting in sessionStorage from before the reload.
     function enterCodeStep(email, fresh) {
       pendingCodeEmail = email;
+      codeStepActive = true;
       sessionStorage.setItem(SIGNUP_OTP_PENDING_EMAIL_KEY, email);
       statusEl.hidden = true;
       showStep('code');
       codeEmailEcho.textContent = email;
-      clearCodeBoxes();
-      codeError.hidden = true;
-      codeResendStatus.hidden = true;
-      codeSubmitBtn.disabled = false;
-      codeBoxes.forEach((b) => { b.disabled = false; });
+      expiredMessageActive = false;
+      hideCodeStatus();
       if (fresh) {
-        startResendCountdown(30);
-      } else {
-        stopResendCountdown();
-        codeResendBtn.disabled = false;
-        codeResendBtn.textContent = t('accountGate.resendCode');
+        recordSendTimestamp();
+        resetAttempts();
+        clearCodeBoxes();
       }
+      const locked = applyAttemptsLockState();
+      if (locked) showCodeStatus('accountGate.errorTooManyAttempts', null, 'error');
+      syncResendCountdown();
       // Same one-frame defer as emailForm's own submit handler further down
       // (see its comment) -- showStep('code') just unhid this field in the
       // same tick, and focusing it before the browser has laid out/painted
       // the change can silently no-op on some engines.
-      requestAnimationFrame(() => focusCodeBox(0));
+      requestAnimationFrame(() => focusFirstEmptyBox());
     }
 
     codeBoxes.forEach((box, i) => {
@@ -2225,7 +2391,8 @@ ${facebookBlock}
           return;
         }
         box.value = digitsOnly;
-        codeError.hidden = true;
+        hideCodeStatus();
+        updateSubmitButtonState();
         if (box.value && i < codeBoxes.length - 1) {
           focusCodeBox(i + 1);
         } else if (box.value && getCodeValue().length === codeBoxes.length) {
@@ -2236,6 +2403,7 @@ ${facebookBlock}
         if (e.key === 'Backspace' && !box.value && i > 0) {
           e.preventDefault();
           codeBoxes[i - 1].value = '';
+          updateSubmitButtonState();
           focusCodeBox(i - 1);
         } else if (e.key === 'ArrowLeft' && i > 0) {
           e.preventDefault();
@@ -2256,43 +2424,70 @@ ${facebookBlock}
     codeForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = pendingCodeEmail;
-      if (!email) return;
+      if (!email || getAttemptsUsed() >= MAX_CODE_ATTEMPTS) return;
       const code = getCodeValue();
       if (code.length !== codeBoxes.length) {
-        showFieldError(codeError, 'accountGate.errorCodeIncomplete');
+        showCodeStatus('accountGate.errorCodeIncomplete', null, 'error');
         return;
       }
-      codeError.hidden = true;
+      expiredMessageActive = false;
+      hideCodeStatus();
       codeSubmitBtn.disabled = true;
       codeBoxes.forEach((b) => { b.disabled = true; });
       try {
         const result = await verifySignupOtp(email, code);
         if (!result.ok) {
-          const errorKey = result.error === 'expired' ? 'accountGate.errorCodeExpired'
-            : result.error === 'rate-limited' ? 'accountGate.errorRateLimited'
-            : result.error === 'network' ? 'accountGate.errorNetwork'
-            : result.error === 'invalid' ? 'accountGate.errorCodeInvalid'
-            : 'accountGate.errorGeneric';
-          showFieldError(codeError, errorKey);
-          // Only a wrong/expired code means the customer needs to type a
-          // DIFFERENT code -- a rate-limit or network error means the exact
-          // same digits may well still work once that clears, so those two
-          // leave whatever was already typed in place instead of forcing a
-          // full retype.
-          if (result.error === 'invalid' || result.error === 'expired') {
-            // Re-enabled here, BEFORE focusing/clearing -- the `finally`
-            // below also does this, but only after this whole branch
-            // returns, and a disabled input silently refuses focus(). Doing
-            // it here first means the focus() call below actually lands;
-            // the finally's own reset is then a harmless no-op for this path.
+          if (result.error === 'invalid') {
+            // Counts toward the 3-attempt lockout -- a genuinely wrong code
+            // is the one failure mode this limit exists for (see MAX_CODE_ATTEMPTS's
+            // own comment); expired/rate-limited/network below are all
+            // deliberately NOT counted, since none of them mean the
+            // customer actually guessed wrong.
+            const used = getAttemptsUsed() + 1;
+            setAttemptsUsed(used);
+            const remaining = MAX_CODE_ATTEMPTS - used;
+            if (remaining > 0) {
+              showCodeStatus(
+                remaining === 1 ? 'accountGate.errorCodeInvalidAttemptsOne' : 'accountGate.errorCodeInvalidAttemptsMany',
+                { remaining },
+                'error'
+              );
+              // Re-enabled here, BEFORE clearing/focusing -- the `finally`
+              // below also does this, but only once this whole branch
+              // returns, and a disabled input silently refuses focus().
+              codeBoxes.forEach((b) => { b.disabled = false; });
+              clearCodeBoxes();
+              focusFirstEmptyBox();
+            } else {
+              showCodeStatus('accountGate.errorTooManyAttempts', null, 'error');
+              // Left disabled deliberately -- the `finally` below only
+              // re-enables when NOT locked (see its own guard), so this
+              // lockout actually holds rather than being undone a line later.
+            }
+          } else if (result.error === 'expired') {
+            // Never counted toward the lockout (see above) -- an expired
+            // code can't succeed no matter how many attempts are left, so
+            // this is its own message/flow (the live countdown toward a
+            // fresh code), not another "wrong guess."
+            expiredMessageActive = true;
+            renderExpiredMessage();
+            // Same "re-enable before focusing" reasoning as the 'invalid'
+            // branch above -- see its own comment.
             codeBoxes.forEach((b) => { b.disabled = false; });
             clearCodeBoxes();
-            focusCodeBox(0);
+            focusFirstEmptyBox();
+          } else if (result.error === 'rate-limited') {
+            // Digits kept -- not the customer's fault, and the exact same
+            // code may well still work once Supabase's own limit clears.
+            showCodeStatus('accountGate.errorRateLimited', null, 'error');
+          } else if (result.error === 'network') {
+            showCodeStatus('accountGate.errorNetwork', null, 'error');
+          } else {
+            showCodeStatus('accountGate.errorGeneric', null, 'error');
           }
           return;
         }
         clearPendingCodeEmail();
-        stopResendCountdown();
         // onAuthStateChange's own SIGNED_IN handling (top of this file)
         // already picked up the real session verifyOtp() just established
         // by the time this await resolves -- resolveSession() below just
@@ -2303,28 +2498,43 @@ ${facebookBlock}
         createdNote.hidden = false;
         resolveSession();
       } finally {
-        codeSubmitBtn.disabled = false;
-        codeBoxes.forEach((b) => { b.disabled = false; });
+        // Only touches disabled state when NOT (now) locked out -- a
+        // 3rd-failure lockout above deliberately keeps both disabled, and
+        // this must never silently undo that a line later.
+        if (getAttemptsUsed() < MAX_CODE_ATTEMPTS) {
+          codeBoxes.forEach((b) => { b.disabled = false; });
+          updateSubmitButtonState();
+        }
       }
     });
 
     codeResendBtn.addEventListener('click', async () => {
       const email = pendingCodeEmail;
       if (!email) return;
-      codeResendStatus.hidden = true;
+      hideCodeStatus();
       codeResendBtn.disabled = true;
       const result = await resendSignupOtp(email);
       if (result.ok) {
-        codeResendStatus.className = 'promo-message promo-message-success';
-        codeResendStatus.textContent = t('accountGate.resendCodeSuccess');
-        codeResendStatus.hidden = false;
-        startResendCountdown(30);
+        // "Sending a new code resets the attempts and clears the boxes" --
+        // a fresh code genuinely gives the customer a clean slate, lockout
+        // included.
+        recordSendTimestamp();
+        resetAttempts();
+        clearCodeBoxes();
+        expiredMessageActive = false;
+        codeBoxes.forEach((b) => { b.disabled = false; });
+        updateSubmitButtonState();
+        showCodeStatus('accountGate.resendCodeSuccess', null, 'success');
+        syncResendCountdown();
+        focusFirstEmptyBox();
       } else {
-        codeResendStatus.className = 'promo-message promo-message-error';
-        codeResendStatus.textContent = result.error === 'rate-limited' ? t('accountGate.errorRateLimited')
-          : result.error === 'network' ? t('accountGate.errorNetwork')
-          : t('accountGate.errorGeneric');
-        codeResendStatus.hidden = false;
+        showCodeStatus(
+          result.error === 'rate-limited' ? 'accountGate.errorRateLimited'
+            : result.error === 'network' ? 'accountGate.errorNetwork'
+            : 'accountGate.errorGeneric',
+          null,
+          'error'
+        );
         // No send actually happened here -- nothing to cool down, so the
         // button goes right back to clickable rather than enforcing a
         // 30-second wait for a send that never left.
@@ -2334,15 +2544,14 @@ ${facebookBlock}
 
     // Backs all the way out of the pending signup -- the customer typed the
     // wrong address, or just wants to restart with a different one. Clears
-    // SIGNUP_OTP_PENDING_EMAIL_KEY (see clearPendingCodeEmail()'s own
-    // comment on why) and returns to the plain email step, pre-filled with
-    // the address that was pending -- the "with the email prefilled" half of
-    // this link's own requirement, same convenience enterEmailEditMode()
-    // already gives its own Modify Email button.
+    // every pending marker (clearPendingCodeEmail()'s own comment) and
+    // returns to the plain email step, pre-filled with the address that was
+    // pending -- the "with the email prefilled" half of this link's own
+    // requirement, same convenience enterEmailEditMode() already gives its
+    // own Modify Email button.
     codeModifyEmailBtn.addEventListener('click', () => {
       const email = pendingCodeEmail;
       clearPendingCodeEmail();
-      stopResendCountdown();
       onEnterEditMode();
       showStep('email');
       emailInput.value = email || '';
@@ -2480,9 +2689,26 @@ ${facebookBlock}
       loginSubmitBtn.disabled = true;
       loginPasswordInput.disabled = true;
       try {
-        const result = await logIn(authEmailEcho.textContent, loginPasswordInput.value);
+        const email = authEmailEcho.textContent;
+        const result = await logIn(email, loginPasswordInput.value);
         if (result.ok) {
           resolveSession();
+        } else if (result.error === 'not-confirmed') {
+          // BUG FIX: an account that signed up but never finished the code
+          // step got the exact same "Incorrect password" message as a
+          // genuinely wrong password here -- logIn()'s own error: 'not-
+          // confirmed' (see that function's comment) is what tells the two
+          // apart. Only move to the code step once resend() actually
+          // confirms a fresh code went out -- if THAT fails (rate limit,
+          // network), stay on the password step and say so there instead of
+          // showing a code step for a code that was never actually sent.
+          const resendResult = await resendSignupOtp(email);
+          if (resendResult.ok) {
+            enterCodeStep(email, true);
+            showCodeStatus('accountGate.emailNotConfirmedResent', null, 'info');
+          } else {
+            showFieldError(loginError, resendResult.error === 'rate-limited' ? 'accountGate.errorRateLimited' : 'accountGate.errorGeneric');
+          }
         } else {
           showFieldError(loginError, 'accountGate.errorWrongPassword');
         }
@@ -2542,7 +2768,21 @@ ${facebookBlock}
         const email = authEmailEcho.textContent;
         const result = await logIn(email, guestPasswordInput.value);
         if (!result.ok) {
-          showFieldError(guestPasswordError, 'accountGate.errorWrongPassword');
+          // Same email_not_confirmed handling as loginForm's own submit
+          // handler above -- an unconfirmed account has no "saved data" to
+          // pre-fill from yet either way, so this sends it through the
+          // exact same resend-then-code-step path rather than just failing.
+          if (result.error === 'not-confirmed') {
+            const resendResult = await resendSignupOtp(email);
+            if (resendResult.ok) {
+              enterCodeStep(email, true);
+              showCodeStatus('accountGate.emailNotConfirmedResent', null, 'info');
+            } else {
+              showFieldError(guestPasswordError, resendResult.error === 'rate-limited' ? 'accountGate.errorRateLimited' : 'accountGate.errorGeneric');
+            }
+          } else {
+            showFieldError(guestPasswordError, 'accountGate.errorWrongPassword');
+          }
           return;
         }
         // logIn() succeeded -- a real session now exists just long enough to
@@ -2635,6 +2875,28 @@ ${facebookBlock}
       // try/finally around it so every return path below still re-enables it.
       createSubmitBtn.disabled = true;
       try {
+        // BUG FIX: a still-logged-in customer reaching this form via
+        // modifyEmailBtn/guestUpgradeBtn's own cancelable edit mode (see
+        // enterEmailEditMode()'s comment on why neither signs out on its
+        // own) used to still have a REAL session active at this exact
+        // moment -- and supabase-js attaches that session's own access
+        // token as the Authorization header on every request it sends,
+        // signUp() included. Supabase's server-side identity-linking logic
+        // treats a signUp() call carrying an authenticated bearer token for
+        // an EXISTING user as updating/linking that account rather than
+        // creating a brand-new one -- which is also why it sent a Change
+        // Email Address confirmation LINK instead of this project's Confirm
+        // Signup OTP (confirmed as the actual cause of a real report: a
+        // customer already logged in, creating a second account under a
+        // different address, got a link email instead of a 6-digit code).
+        // Signing out HERE, right before createAccount()'s own signUp()
+        // call, removes that token entirely -- the request below now runs
+        // as a clean, anonymous signup, with no old/new identity ever
+        // mixed under one session.
+        const existingSession = getSession();
+        if (existingSession && !existingSession.isGuest) {
+          await logOut();
+        }
         const result = await createAccount(newAccountEmail, createPasswordInput.value, {
           firstName: createFirstNameInput.value.trim(),
           lastName: createLastNameInput.value.trim(),
@@ -2921,14 +3183,20 @@ ${facebookBlock}
       const session = getSession();
       if (session) statusText.textContent = statusLabel(session);
       // Same reasoning as changeBtn/statusText above -- codeResendBtn's
-      // countdown label is also a plain textContent write (updateResendBtnLabel()),
-      // not a data-i18n-tagged element, so a language switch mid-countdown
-      // needs this to pick up the new wording itself. Only while a
-      // countdown is actually running (resendRemaining > 0) -- otherwise
-      // codeResendBtn's static "Resend code" label is already handled by
+      // countdown label, the expiry countdown message, and the lockout
+      // message are all plain textContent writes (renderResendButton()/
+      // renderExpiredMessage()/showCodeStatus()), not data-i18n-tagged
+      // elements, so a language switch mid-flow needs this to pick up the
+      // new wording itself. Each only re-renders while its own state is
+      // actually active -- codeResendBtn's static "Resend code" label and
+      // every other static string on this step are already handled by
       // MonarkI18n.apply(document)'s own pass, same as every other
       // data-i18n element on this gate.
-      if (resendRemaining > 0) updateResendBtnLabel();
+      if (resendRemaining > 0) renderResendButton();
+      if (expiredMessageActive) renderExpiredMessage();
+      else if (codeStepActive && getAttemptsUsed() >= MAX_CODE_ATTEMPTS) {
+        showCodeStatus('accountGate.errorTooManyAttempts', null, 'error');
+      }
     });
 
     // Re-resolves on every session change this instance didn't itself just
