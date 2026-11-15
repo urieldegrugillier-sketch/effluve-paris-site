@@ -123,16 +123,32 @@
   });
   const sectionState = { account: 'active', shipping: 'pending', payment: 'pending' };
   const completedFlags = { account: false, shipping: false, payment: false };
+  // The step the user would land back on if they closed whatever they're
+  // currently inspecting -- i.e. the furthest step actually reached, NOT
+  // necessarily the one that's open right now (reopening a completed step
+  // to double-check it doesn't change this). Drives the header click
+  // handler below: clicking the step that's currently open collapses it
+  // back into this one, never a hardcoded step. Kept one step behind
+  // whenever invalidateForward() clears something ahead of it (see that
+  // function below), so it never points at a step that's no longer
+  // actually reachable.
+  let currentStep = 'account';
 
   function applyAccordionState() {
     STEP_ORDER.forEach((step) => {
-      const { root, header, body } = sectionEls[step];
+      const { root, header, body, summary } = sectionEls[step];
       const state = sectionState[step];
       body.hidden = state !== 'active';
       header.setAttribute('aria-expanded', String(state === 'active'));
       header.disabled = state === 'pending';
       root.classList.toggle('checkout-accordion-active', state === 'active');
       root.classList.toggle('checkout-accordion-completed', state === 'completed');
+      // Point 2: the collapsed-step recap (point 3) only ever makes sense
+      // for a COLLAPSED step -- shown while a step is active, it just sits
+      // there describing data the user may be mid-editing right above it
+      // (e.g. the old guest-session email while a different one is being
+      // typed into the Account step itself).
+      summary.hidden = state === 'active';
     });
   }
 
@@ -173,15 +189,32 @@
       completedFlags[s] = false;
       if (sectionState[s] !== 'active') sectionState[s] = 'pending';
     });
+    // currentStep itself just got invalidated along with everything after
+    // `step` -- it has to fall back to `step` (the furthest point still
+    // genuinely reachable), or a later click on the step that's open would
+    // try to reopen a step that's actually 'pending' again now.
+    if (STEP_ORDER.indexOf(currentStep) > idx) currentStep = step;
     applyAccordionState();
   }
 
-  // Clicking a header only ever re-opens an already-completed (collapsed)
-  // section -- pending headers are disabled outright, and clicking the
-  // currently-active section's own header is a harmless no-op (nothing to
-  // collapse it into).
+  // BUG FIX: clicking the header of the step that's currently open used to
+  // be a no-op (the condition below only ever matched 'completed'), so
+  // there was no way to back out of a step reopened just to double-check it
+  // -- the one escape was clicking a DIFFERENT completed header, which is
+  // how "closes and reopens Shipping" could happen (Shipping being
+  // whichever earlier step happened to still read 'completed'). Now:
+  // reopening any completed step and clicking its own header again
+  // collapses it straight back to currentStep (the furthest step actually
+  // reached) -- never a hardcoded one, and never invalidating anything,
+  // since nothing's data changed. Clicking the currentStep's own header
+  // while it's the one open is still a no-op: a step must always be open,
+  // and it's already the right one.
   STEP_ORDER.forEach((step) => {
     sectionEls[step].header.addEventListener('click', () => {
+      if (sectionState[step] === 'active') {
+        if (step !== currentStep) openAccordionSection(currentStep);
+        return;
+      }
       if (sectionState[step] === 'completed') openAccordionSection(step);
     });
   });
@@ -315,6 +348,7 @@
       await prefillShippingFromAccount(session);
       completeAccordionSection('account', accountSummaryText(session));
       openAccordionSection('shipping');
+      currentStep = 'shipping';
       trackAbandonedCheckout(session);
     },
     // See js/account.js's mountAccountGate() own comment on this option --
@@ -334,6 +368,7 @@
       sectionState.account = 'active';
       sectionState.shipping = 'pending';
       sectionState.payment = 'pending';
+      currentStep = 'account';
       applyAccordionState();
     }
   });
@@ -666,6 +701,7 @@
     // this reachability flag.
     completedFlags.payment = true;
     openAccordionSection('payment');
+    currentStep = 'payment';
     // Flipped on regardless of whether the cart happens to be empty right
     // now -- see the empty-cart state block further below, which is what
     // actually mounts the real Payment Element/Payment Request Button once
@@ -1612,6 +1648,7 @@
     // field submits it directly, bypassing Next Step entirely.
     if (!validateShippingForm()) {
       openAccordionSection('shipping');
+      currentStep = 'shipping';
       return;
     }
     if (!termsCheckbox.checked) {

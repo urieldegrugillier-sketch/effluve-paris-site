@@ -136,7 +136,7 @@ test('wrong code (within the valid window) shows the remaining-attempts message,
   await expect(page.locator('.checkout-account-code-box').first()).toBeFocused();
 });
 
-test('BUG FIX 3: no error at all during the first 30s cooldown with no failed attempt (EN)', async ({ page }) => {
+test('BUG FIX 3: no error at all during the first 60s cooldown with no failed attempt (EN)', async ({ page }) => {
   test.setTimeout(30000);
   await page.clock.install();
   await gotoAccount(page, 'en');
@@ -144,10 +144,10 @@ test('BUG FIX 3: no error at all during the first 30s cooldown with no failed at
   await startSignup(page, email);
 
   await expect(page.locator('#checkout-account-code-status')).toBeHidden();
-  await page.clock.runFor(25000);
-  // Still within the cooldown, still no attempt made -- still nothing
-  // shown. Explicit, longer timeout -- same reasoning as the other
-  // clock-driven tests in this file: the 25 simulated ticks runFor() just
+  await page.clock.runFor(55000);
+  // Still within the (now 60s) cooldown, still no attempt made -- still
+  // nothing shown. Explicit, longer timeout -- same reasoning as the other
+  // clock-driven tests in this file: the 55 simulated ticks runFor() just
   // fired still need real wall-clock time to actually execute under a
   // fully parallel run, which can occasionally push past the default 5s.
   await expect(page.locator('#checkout-account-code-status')).toBeHidden({ timeout: 15000 });
@@ -159,10 +159,10 @@ test('BUG FIX 3: a genuinely expired code (>=600s since it was sent) shows the r
   await startSignup(page, email);
 
   // Simulates the code having actually been sent 10+ minutes ago -- the
-  // 30s resend cooldown computed from the SAME timestamp is necessarily
+  // 60s resend cooldown computed from the SAME timestamp is necessarily
   // long over by then too, so this always renders the final "ci-dessous"
   // wording directly (never the live "dans Xs" one, which can only ever
-  // apply during the first 30s -- i.e. never alongside a real 600s expiry).
+  // apply during the first 60s -- i.e. never alongside a real 600s expiry).
   await page.evaluate((key) => {
     sessionStorage.setItem(key, String(Date.now() - 601000));
   }, SENT_AT_KEY);
@@ -223,7 +223,7 @@ test('a server-side weak-password rejection shows the same clear password messag
 });
 
 test('3 wrong attempts locks the step; resend after the cooldown resets attempts and unlocks it (EN)', async ({ page }) => {
-  test.setTimeout(30000);
+  test.setTimeout(45000);
   await page.clock.install();
   await gotoAccount(page, 'en');
   const email = uniqueEmail('lockout');
@@ -250,8 +250,11 @@ test('3 wrong attempts locks the step; resend after the cooldown resets attempts
   const resendBtn = page.locator('#checkout-account-code-resend-btn');
   await expect(resendBtn).toBeDisabled();
   await expect(resendBtn).toHaveAttribute('aria-disabled', 'true');
-  await page.clock.runFor(35000);
-  await expect(resendBtn).toBeEnabled({ timeout: 15000 });
+  // 65s (not exactly 60s) covers the odd second of real time that can slip
+  // in before the fake clock takes hold, same margin reasoning as the
+  // resend-countdown test below.
+  await page.clock.runFor(65000);
+  await expect(resendBtn).toBeEnabled({ timeout: 20000 });
   await expect(resendBtn).toHaveAttribute('aria-disabled', 'false');
 
   await resendBtn.click();
@@ -280,7 +283,7 @@ test('resend link: greyed out with a live countdown while cooling down, then act
   // exact starting value is what actually makes this robust under load --
   // the real behavior under test (disabled right after a send, a visible
   // countdown, eventual re-enable, a working resend) is still fully covered.
-  test.setTimeout(30000);
+  test.setTimeout(45000);
   await page.clock.install();
   await gotoAccount(page, 'en');
   const email = uniqueEmail('resend');
@@ -294,15 +297,16 @@ test('resend link: greyed out with a live countdown while cooling down, then act
   // runFor (not fastForward) -- fastForward jumps the clock and fires each
   // due timer at most once, which would skip the countdown's own repeating
   // setInterval ticks; runFor simulates the intervening time passing
-  // normally, firing every 1-second tick along the way. 35s (not exactly
-  // 30s) covers the odd second of real time that can slip in before the
-  // fake clock takes hold (see above) without ever risking under-shooting.
-  await page.clock.runFor(35000);
+  // normally, firing every 1-second tick along the way. 65s (not exactly
+  // 60s, the RESEND_COOLDOWN_SECONDS) covers the odd second of real time
+  // that can slip in before the fake clock takes hold (see above) without
+  // ever risking under-shooting.
+  await page.clock.runFor(65000);
   // Explicit, longer timeout on this one assertion -- see test.setTimeout()
   // above for why: the simulated ticks runFor() just fired still need real
   // wall-clock time for the browser to actually execute, which a fully
   // parallel run can push past the default 5s expect timeout.
-  await expect(resendBtn).toBeEnabled({ timeout: 15000 });
+  await expect(resendBtn).toBeEnabled({ timeout: 20000 });
   await expect(resendBtn).toHaveAttribute('aria-disabled', 'false');
   await expect(resendBtn).toHaveText('Resend code');
 
@@ -310,6 +314,80 @@ test('resend link: greyed out with a live countdown while cooling down, then act
   await expect(page.locator('#checkout-account-code-status')).toHaveText('A new code has been sent.');
   await expect(resendBtn).toBeDisabled();
   await expect(resendBtn).toHaveText(/Resend code in \d+s/);
+});
+
+// POINT 4: Supabase's own rate limit tripping on a resend click used to
+// just show a generic error and re-enable the button immediately -- that
+// invited an instant second rate-limited retry. Now the button stays
+// disabled for the real wait Supabase just reported.
+test('resend button: a rate limit with a known wait disables it for that exact countdown, not the default (EN)', async ({ page }) => {
+  test.setTimeout(45000);
+  await page.clock.install();
+  await gotoAccount(page, 'en');
+  const email = uniqueEmail('resendratelimited');
+  await startSignup(page, email);
+
+  // Past the initial 60s send cooldown -- same margin reasoning as the
+  // other clock-driven tests in this file.
+  const resendBtn = page.locator('#checkout-account-code-resend-btn');
+  await page.clock.runFor(65000);
+  await expect(resendBtn).toBeEnabled({ timeout: 20000 });
+
+  await page.evaluate(() => {
+    window.__mock.resendError = { message: 'For security purposes, you can only request this after 12 seconds.', status: 429 };
+  });
+  await resendBtn.click();
+
+  await expect(page.locator('#checkout-account-code-status')).toHaveText(
+    'Too many attempts right now. Please wait a few minutes and try again.'
+  );
+  await expect(resendBtn).toBeDisabled();
+  await expect(resendBtn).toHaveAttribute('aria-disabled', 'true');
+  await expect(resendBtn).toHaveText('Resend code in 12s');
+});
+
+// The OTHER shape of Supabase's email-sending throttle: the project's
+// blunter hourly quota, which gives no specific wait at all -- distinct
+// copy (not the generic "too many attempts" one, which would be actively
+// misleading here) and the RESEND_COOLDOWN_SECONDS fallback (60s).
+test('resend button: the hourly email limit (no seconds given) shows a distinct message and the default 60s cooldown (FR)', async ({ page }) => {
+  test.setTimeout(45000);
+  await page.clock.install();
+  await gotoAccount(page, 'fr');
+  const email = uniqueEmail('resendhourly');
+  await startSignup(page, email);
+
+  const resendBtn = page.locator('#checkout-account-code-resend-btn');
+  await page.clock.runFor(65000);
+  await expect(resendBtn).toBeEnabled({ timeout: 20000 });
+
+  await page.evaluate(() => {
+    window.__mock.resendError = { message: 'Email rate limit exceeded', code: 'over_email_send_rate_limit', status: 429 };
+  });
+  await resendBtn.click();
+
+  await expect(page.locator('#checkout-account-code-status')).toHaveText(
+    "Trop d'e-mails envoyés pour le moment. Réessayez dans quelques minutes."
+  );
+  await expect(resendBtn).toBeDisabled();
+  await expect(resendBtn).toHaveText('Renvoyer le code dans 60 s');
+});
+
+test('signing up during the hourly email limit shows a distinct message, not the generic rate-limit one (EN)', async ({ page }) => {
+  await gotoAccount(page, 'en');
+  const email = uniqueEmail('signuphourly');
+  await submitEmailStep(page, email);
+  await expect(page.locator('#checkout-account-create-firstname')).toBeVisible();
+  await fillCreateForm(page);
+  await page.evaluate(() => {
+    window.__mock.signUpError = { message: 'Email rate limit exceeded', code: 'over_email_send_rate_limit', status: 429 };
+  });
+  await page.click('#checkout-account-create-submit-btn');
+
+  await expect(page.locator('#checkout-account-create-error')).toHaveText(
+    'Too many emails sent right now. Try again in a few minutes.'
+  );
+  await expect(page.locator('#checkout-account-code')).toBeHidden();
 });
 
 test('pasting the full 6-digit code fills every box and auto-submits (FR)', async ({ page }) => {
@@ -586,6 +664,63 @@ test('logging in with an unconfirmed email resends a code and moves to the code 
   await page.click('#checkout-account-login-submit-btn');
   await expect(page.locator('#checkout-account-login-error')).toHaveText('Mot de passe incorrect.');
   await expect(page.locator('#checkout-account-code')).toBeHidden();
+});
+
+// POINT 4: a rate-limited automatic resend (Supabase's own throttle
+// tripping on THIS resend attempt, distinct from the account's actual
+// original code) used to strand the customer on the password form with a
+// flat "too many attempts" -- a real code almost certainly already exists
+// to enter (that's exactly why the throttle just tripped), so this still
+// reaches the code step instead of failing the login outright.
+test('logging in with an unconfirmed email whose automatic resend is itself rate-limited still reaches the code step with a retry countdown (EN)', async ({ page }) => {
+  await gotoAccount(page, 'en');
+  const email = uniqueEmail('unconfirmedratelimited');
+  await page.evaluate(() => { window.__mock.emailExists = true; });
+  await submitEmailStep(page, email);
+  await expect(page.locator('#checkout-account-login-password')).toBeVisible();
+
+  await page.evaluate(() => {
+    window.__mock.signInError = { message: 'Email not confirmed', code: 'email_not_confirmed', status: 400 };
+    window.__mock.resendError = { message: 'For security purposes, you can only request this after 45 seconds.', status: 429 };
+  });
+  await page.fill('#checkout-account-login-password', 'whatever-does-not-matter');
+  await page.click('#checkout-account-login-submit-btn');
+
+  await expect(page.locator('#checkout-account-code')).toBeVisible();
+  await expect(page.locator('#checkout-account-login-error')).toBeHidden();
+  await expect(page.locator('#checkout-account-code-status')).toHaveText(
+    'A code has already been sent to you. You can request a new one in 45s.'
+  );
+  // Reflects Supabase's own reported wait (45s), not the project's own
+  // default RESEND_COOLDOWN_SECONDS (60s).
+  const resendBtn = page.locator('#checkout-account-code-resend-btn');
+  await expect(resendBtn).toBeDisabled();
+  await expect(resendBtn).toHaveText('Resend code in 45s');
+});
+
+// Same path, but Supabase's blunter hourly quota this time (no specific
+// wait given) -- falls back to RESEND_COOLDOWN_SECONDS (60s).
+test('logging in with an unconfirmed email during the hourly email limit still reaches the code step with the default cooldown (FR)', async ({ page }) => {
+  await gotoAccount(page, 'fr');
+  const email = uniqueEmail('unconfirmedhourly');
+  await page.evaluate(() => { window.__mock.emailExists = true; });
+  await submitEmailStep(page, email);
+  await expect(page.locator('#checkout-account-login-password')).toBeVisible();
+
+  await page.evaluate(() => {
+    window.__mock.signInError = { message: 'Email not confirmed', code: 'email_not_confirmed', status: 400 };
+    window.__mock.resendError = { message: 'Email rate limit exceeded', code: 'over_email_send_rate_limit', status: 429 };
+  });
+  await page.fill('#checkout-account-login-password', 'whatever-does-not-matter');
+  await page.click('#checkout-account-login-submit-btn');
+
+  await expect(page.locator('#checkout-account-code')).toBeVisible();
+  await expect(page.locator('#checkout-account-code-status')).toHaveText(
+    'Un code vous a déjà été envoyé. Vous pourrez en demander un nouveau dans 60 s.'
+  );
+  const resendBtn = page.locator('#checkout-account-code-resend-btn');
+  await expect(resendBtn).toBeDisabled();
+  await expect(resendBtn).toHaveText('Renvoyer le code dans 60 s');
 });
 
 test('the same OTP code step also appears on checkout.html (shared gate) (EN)', async ({ page }) => {

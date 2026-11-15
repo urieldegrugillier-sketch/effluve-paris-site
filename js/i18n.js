@@ -508,6 +508,7 @@
         errorNameFormat: 'First and last name may only contain letters, spaces, hyphens, and apostrophes (max 50 characters each).',
         errorGeneric: 'Something went wrong. Please try again.',
         errorRateLimited: 'Too many attempts right now. Please wait a few minutes and try again.',
+        errorEmailRateLimited: 'Too many emails sent right now. Try again in a few minutes.',
         forgotPassword: 'Forgot password?',
         resetPasswordSent: 'A password reset email has been sent to {email}.',
         resetPasswordError: 'Could not send the reset email. Please check the address and try again.',
@@ -540,7 +541,8 @@
         errorCodeExpiredCooldown: 'This code has expired. You can request a new one in {seconds}s.',
         errorCodeExpired: 'This code has expired. Request a new one below.',
         errorNetwork: 'Network error. Please check your connection and try again.',
-        emailNotConfirmedResent: 'This email isn\'t verified yet. We just sent you a new code.'
+        emailNotConfirmedResent: 'This email isn\'t verified yet. We just sent you a new code.',
+        codeAlreadySentRetryIn: 'A code has already been sent to you. You can request a new one in {seconds}s.'
       },
       resetPassword: {
         pageTitle: 'Password Reset',
@@ -1147,6 +1149,7 @@
         errorNameFormat: 'Le prénom et le nom ne peuvent contenir que des lettres, espaces, tirets et apostrophes (50 caractères maximum chacun).',
         errorGeneric: "Une erreur s'est produite. Veuillez réessayer.",
         errorRateLimited: 'Trop de tentatives pour le moment. Veuillez patienter quelques minutes puis réessayer.',
+        errorEmailRateLimited: "Trop d'e-mails envoyés pour le moment. Réessayez dans quelques minutes.",
         forgotPassword: 'Mot de passe oublié ?',
         resetPasswordSent: 'Un e-mail de réinitialisation du mot de passe a été envoyé à {email}.',
         resetPasswordError: "Impossible d'envoyer l'e-mail de réinitialisation. Veuillez vérifier l'adresse et réessayer.",
@@ -1179,7 +1182,8 @@
         errorCodeExpiredCooldown: 'Ce code a expiré. Vous pourrez en demander un nouveau dans {seconds} s.',
         errorCodeExpired: 'Ce code a expiré. Demandez-en un nouveau ci-dessous.',
         errorNetwork: 'Erreur réseau. Veuillez vérifier votre connexion et réessayer.',
-        emailNotConfirmedResent: "Cet e-mail n'est pas encore vérifié. Nous venons de vous envoyer un nouveau code."
+        emailNotConfirmedResent: "Cet e-mail n'est pas encore vérifié. Nous venons de vous envoyer un nouveau code.",
+        codeAlreadySentRetryIn: 'Un code vous a déjà été envoyé. Vous pourrez en demander un nouveau dans {seconds} s.'
       },
       resetPassword: {
         pageTitle: 'Réinitialisation du Mot de Passe',

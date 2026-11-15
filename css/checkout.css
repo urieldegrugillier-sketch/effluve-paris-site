@@ -1350,6 +1350,11 @@
   white-space: nowrap;
 }
 .checkout-accordion-summary:empty { display: none; }
+/* Same [hidden] specificity fix as elsewhere in this file (see
+   .checkout-account-status[hidden] above) -- point 2: hidden while the
+   step itself is open (checkout-page.js's own applyAccordionState()), at
+   equal specificity to the display:block rule above. */
+.checkout-accordion-summary[hidden] { display: none; }
 
 .checkout-accordion-chevron { flex-shrink: 0; color: var(--text-muted); transition: transform 0.3s ease; }
 .checkout-accordion-header[aria-expanded="true"] .checkout-accordion-chevron { transform: rotate(180deg); }

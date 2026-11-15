@@ -127,6 +127,90 @@ test('a completed step stays reopenable, and Payment is reachable directly witho
   await expect(page.locator('#checkout-payment-header')).toBeEnabled();
 });
 
+// BUG FIX regression: clicking the header of whichever step is currently
+// open must always collapse it back to the furthest step actually reached
+// (Payment, once reachPayment() below has run) -- never a hardcoded step,
+// and never by actually closing everything first. `opener` opens `step`
+// from wherever the accordion currently sits (Payment, right after
+// reachPayment()), then clicks `step`'s own header a second time and
+// asserts it lands back on Payment with nothing else disturbed.
+async function assertTogglesBackToPayment(page, step) {
+  const header = page.locator(`#checkout-${step}-header`);
+  await header.click();
+  await expect(header).toHaveAttribute('aria-expanded', 'true');
+  await header.click();
+  await expect(header).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#checkout-payment-header')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('#checkout-payment-header')).toBeEnabled();
+}
+
+test('toggling Account open/closed from Payment returns to Payment, not a hardcoded step (EN)', async ({ page }) => {
+  await reachPayment(page, uniqueEmail('toggleaccount'));
+  await assertTogglesBackToPayment(page, 'account');
+});
+
+test('toggling Shipping open/closed from Payment returns to Payment, not a hardcoded step (EN)', async ({ page }) => {
+  await reachPayment(page, uniqueEmail('toggleshipping'));
+  await assertTogglesBackToPayment(page, 'shipping');
+});
+
+test('Shipping to Account and back: closing Account returns to Payment, the furthest step, not Shipping (EN)', async ({ page }) => {
+  await reachPayment(page, uniqueEmail('shiptoaccount'));
+  await page.click('#checkout-shipping-header');
+  await expect(page.locator('#checkout-shipping-header')).toHaveAttribute('aria-expanded', 'true');
+  // Navigate on to Account (a normal jump to a different completed step,
+  // not yet the toggle-back under test).
+  await page.click('#checkout-account-header');
+  await expect(page.locator('#checkout-account-header')).toHaveAttribute('aria-expanded', 'true');
+  // Closing Account's own header now must return to Payment (the furthest
+  // step), never back to Shipping just because that's where this detour
+  // started.
+  await page.click('#checkout-account-header');
+  await expect(page.locator('#checkout-account-header')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#checkout-shipping-header')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#checkout-payment-header')).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('clicking the header of the furthest-reached step while it is already open does nothing (EN)', async ({ page }) => {
+  await reachPayment(page, uniqueEmail('noopfurthest'));
+  const paymentHeader = page.locator('#checkout-payment-header');
+  await paymentHeader.click();
+  await expect(paymentHeader).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('#checkout-account-header')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#checkout-shipping-header')).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('toggling a step open/closed with the keyboard also returns to Payment (EN)', async ({ page }) => {
+  await reachPayment(page, uniqueEmail('kbdtoggle'));
+  const shippingHeader = page.locator('#checkout-shipping-header');
+  await shippingHeader.focus();
+  await page.keyboard.press('Enter');
+  await expect(shippingHeader).toHaveAttribute('aria-expanded', 'true');
+  await shippingHeader.focus();
+  await page.keyboard.press('Space');
+  await expect(shippingHeader).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#checkout-payment-header')).toHaveAttribute('aria-expanded', 'true');
+});
+
+// Point 2: the collapsed-step summary must only ever show while that step
+// is actually collapsed -- reopening it to edit must hide its own stale
+// summary line instead of showing it alongside whatever's being typed.
+test('reopening the Account step hides its own summary while it is open, and restores it once closed (EN)', async ({ page }) => {
+  const email = uniqueEmail('summaryhide');
+  await reachPayment(page, email);
+  const accountSummary = page.locator('#checkout-account-header-summary');
+  await expect(accountSummary).toHaveText(`${email} (Guest)`);
+
+  await page.click('#checkout-account-header');
+  await expect(page.locator('#checkout-account-header')).toHaveAttribute('aria-expanded', 'true');
+  await expect(accountSummary).toBeHidden();
+
+  await page.click('#checkout-account-header');
+  await expect(page.locator('#checkout-account-header')).toHaveAttribute('aria-expanded', 'false');
+  await expect(accountSummary).toBeVisible();
+  await expect(accountSummary).toHaveText(`${email} (Guest)`);
+});
+
 test('a completed step header is keyboard-activatable with Enter and Space (EN)', async ({ page }) => {
   await reachPayment(page, uniqueEmail('kbd'));
 

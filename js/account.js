@@ -54,11 +54,40 @@
   // mid-verification must not hand back 3 fresh attempts for free.
   const SIGNUP_OTP_ATTEMPTS_KEY = 'monark_signup_otp_attempts';
   // When the currently pending code was actually sent (Date.now(), as a
-  // string) -- the 30-second resend cooldown is computed FROM this on every
+  // string) -- the 60-second resend cooldown is computed FROM this on every
   // render (see computeResendRemaining()) rather than counted down from a
-  // fixed 30 in memory, so a reload mid-cooldown shows the real remaining
-  // time instead of resetting it to a fresh 30s.
+  // fixed 60 in memory, so a reload mid-cooldown shows the real remaining
+  // time instead of resetting it to a fresh 60s.
   const SIGNUP_OTP_SENT_AT_KEY = 'monark_signup_otp_sent_at';
+  // Supabase refuses a second email to the same address before 60 seconds
+  // (confirmed live -- a 30s cooldown on this UI used to let a customer hit
+  // "Resend" before Supabase's own window actually cleared, which just
+  // bounced back as a rate-limit error). One constant, read everywhere this
+  // UI shows or counts down a resend wait, so there's never a second value
+  // to drift out of sync with it.
+  const RESEND_COOLDOWN_SECONDS = 60;
+  // Supabase's own rate-limit error messages usually embed the real wait
+  // ("For security purposes, you can only request this after 48 seconds.")
+  // -- read straight from there wherever available, so a resend countdown
+  // reflects the real remaining time instead of always restarting the full
+  // RESEND_COOLDOWN_SECONDS even moments before Supabase would have allowed
+  // it anyway. Null when no number is present in the message at all (e.g.
+  // the hourly-quota rejection, which gives no specific wait at all).
+  function parseRetrySeconds(message) {
+    const match = /(\d+)\s*second/i.exec(String(message || ''));
+    return match ? parseInt(match[1], 10) : null;
+  }
+  // Supabase's email-sending throttle comes in two different shapes: a
+  // short, per-address cooldown that names its own exact wait (handled via
+  // parseRetrySeconds() above), and the project's blunter hourly quota,
+  // which gives no number at all -- "too many attempts" is actively
+  // misleading for that second case (nothing was attempted wrong, the
+  // project just mailed too much this hour), so it gets its own distinct
+  // copy instead. Takes the raw {error, retryAfterSeconds} result shape
+  // createAccount()/resendSignupOtp() both return on 'rate-limited'.
+  function rateLimitMessageKey(result) {
+    return result.retryAfterSeconds ? 'accountGate.errorRateLimited' : 'accountGate.errorEmailRateLimited';
+  }
   // Matches this project's Supabase dashboard config (email OTP expiration,
   // 600 seconds) -- the one authoritative threshold for "is this code
   // actually expired yet", used two places: deciding whether a fresh
@@ -589,7 +618,9 @@
       // production exactly like repeated testing does. Set up custom SMTP
       // (Supabase dashboard -> Authentication -> Emails/SMTP Settings) to
       // lift the default limit before launch.
-      if (error.status === 429 || error.code === 'over_email_send_rate_limit') return { ok: false, error: 'rate-limited' };
+      if (error.status === 429 || error.code === 'over_email_send_rate_limit') {
+        return { ok: false, error: 'rate-limited', retryAfterSeconds: parseRetrySeconds(error.message) };
+      }
       // Supabase's own server-side password policy (length/breach-list
       // checks, etc.) can reject a password the client-side isValidPassword()
       // check above already passed -- e.g. a password on Supabase's known-
@@ -696,7 +727,7 @@
     const { error } = result;
     if (error) {
       if (error.status === 429 || error.code === 'over_email_send_rate_limit' || /rate limit/i.test(error.message)) {
-        return { ok: false, error: 'rate-limited' };
+        return { ok: false, error: 'rate-limited', retryAfterSeconds: parseRetrySeconds(error.message) };
       }
       // Same AuthRetryableFetchError detection as verifySignupOtp() above.
       if (error.name === 'AuthRetryableFetchError' || /network|fetch/i.test(error.message)) {
@@ -2273,11 +2304,13 @@ ${facebookBlock}
       sessionStorage.removeItem(SIGNUP_OTP_ATTEMPTS_KEY);
     }
 
-    // The 30-second cooldown is computed FROM the real send timestamp on
-    // every render, never counted down from a fixed 30 held only in memory
-    // -- see SIGNUP_OTP_SENT_AT_KEY's own comment for why (a reload
-    // mid-cooldown needs the REAL remaining time, not a fresh 30s).
-    const RESEND_COOLDOWN_SECONDS = 30;
+    // The cooldown is computed FROM the real send timestamp on every
+    // render, never counted down from a fixed value held only in memory --
+    // see SIGNUP_OTP_SENT_AT_KEY's own comment for why (a reload
+    // mid-cooldown needs the REAL remaining time, not a fresh
+    // RESEND_COOLDOWN_SECONDS). RESEND_COOLDOWN_SECONDS itself is declared
+    // at module scope (top of this file) -- parseRetrySeconds()/
+    // rateLimitMessageKey() there need it too, for the same cooldown.
     function recordSendTimestamp() {
       sessionStorage.setItem(SIGNUP_OTP_SENT_AT_KEY, String(Date.now()));
     }
@@ -2420,6 +2453,28 @@ ${facebookBlock}
       }
     }
 
+    // Overlays a plain countdown ON the resend button for exactly `seconds`
+    // -- used whenever Supabase itself just refused a resend (point 4: a
+    // rate-limited resendSignupOtp(), with or without a code actually going
+    // out), so the button reflects the REAL wait Supabase just reported
+    // instead of either the sentAt-derived cooldown (which already read 0,
+    // or this button would never have been clickable) or a naive immediate
+    // re-enable. Deliberately independent of SIGNUP_OTP_SENT_AT_KEY/
+    // computeResendRemaining() -- no new code necessarily went out here, so
+    // there's no new "sent at" moment to anchor a normal cooldown to.
+    function startExternalResendCooldown(seconds) {
+      stopResendCountdown();
+      resendRemaining = Math.max(0, Math.round(seconds));
+      renderResendButton();
+      if (resendRemaining > 0) {
+        resendTimer = setInterval(() => {
+          resendRemaining -= 1;
+          renderResendButton();
+          if (resendRemaining <= 0) stopResendCountdown();
+        }, 1000);
+      }
+    }
+
     // Shared by the paste handler and the input handler's own multi-char
     // branch below (see that handler's comment on why a single box can
     // receive more than one character at once) -- distributes `raw`'s
@@ -2484,6 +2539,52 @@ ${facebookBlock}
       // same tick, and focusing it before the browser has laid out/painted
       // the change can silently no-op on some engines.
       requestAnimationFrame(() => focusFirstEmptyBox());
+    }
+
+    // POINT 4: shared by loginForm's own submit handler and
+    // guestPasswordForm's below -- both land here the instant logIn()
+    // reports 'not-confirmed' (an account that signed up but never
+    // finished the code step, see that function's own comment). Used to
+    // just fail back to the password form on ANY resendSignupOtp() failure,
+    // including a rate limit -- but a rate limit here almost always means a
+    // real code is already sitting in the customer's inbox (the original
+    // signUp() send, or an earlier resend), so this now treats it the same
+    // as a successful resend: straight to the code step, never stranded on
+    // the password form with a flat "too many attempts" that gives no way
+    // to actually continue. Returns true once the customer's been moved to
+    // the code step either way; false only for a genuine network/unknown
+    // failure, which the caller still shows on its own password form (no
+    // code step to send them to -- resendSignupOtp() never even reached
+    // Supabase, or Supabase itself errored for an unrelated reason).
+    async function handleUnconfirmedLogin(email) {
+      const resendResult = await resendSignupOtp(email);
+      if (resendResult.ok) {
+        enterCodeStep(email, true);
+        showCodeStatus('accountGate.emailNotConfirmedResent', null, 'info');
+        return true;
+      }
+      if (resendResult.error === 'rate-limited') {
+        const seconds = resendResult.retryAfterSeconds || RESEND_COOLDOWN_SECONDS;
+        enterCodeStep(email, false);
+        // No new code actually went out, but a real one almost certainly
+        // already exists (that's exactly why Supabase's own throttle just
+        // tripped) -- seeds a timestamp only if this tab has no idea when
+        // it was sent, so BUG FIX 3's own expiry math (codeForm's own
+        // submit handler) has something sane to measure against instead of
+        // reading 0 and calling a perfectly valid code "expired" on the
+        // very first wrong digit.
+        if (!sessionStorage.getItem(SIGNUP_OTP_SENT_AT_KEY)) recordSendTimestamp();
+        startExternalResendCooldown(seconds);
+        // Skipped while already locked out from a previous attempt (rare,
+        // but real: enterCodeStep() above already showed and left the
+        // lockout message/disabled boxes in place) -- this note would
+        // otherwise silently paper over that more important one.
+        if (getAttemptsUsed() < MAX_CODE_ATTEMPTS) {
+          showCodeStatus('accountGate.codeAlreadySentRetryIn', { seconds }, 'info');
+        }
+        return true;
+      }
+      return false;
     }
 
     codeBoxes.forEach((box, i) => {
@@ -2649,17 +2750,21 @@ ${facebookBlock}
         showCodeStatus('accountGate.resendCodeSuccess', null, 'success');
         syncResendCountdown();
         focusFirstEmptyBox();
+      } else if (result.error === 'rate-limited') {
+        // POINT 4: Supabase's own throttle tripped on this resend -- no new
+        // code went out, but the real wait it just reported (or
+        // RESEND_COOLDOWN_SECONDS, when Supabase gave no number at all --
+        // the hourly-quota case) is still a real wait, so the button stays
+        // disabled for it instead of going straight back to clickable (the
+        // old behavior here, which just invited an immediate second
+        // rate-limited retry).
+        showCodeStatus(rateLimitMessageKey(result), null, 'error');
+        startExternalResendCooldown(result.retryAfterSeconds || RESEND_COOLDOWN_SECONDS);
       } else {
-        showCodeStatus(
-          result.error === 'rate-limited' ? 'accountGate.errorRateLimited'
-            : result.error === 'network' ? 'accountGate.errorNetwork'
-            : 'accountGate.errorGeneric',
-          null,
-          'error'
-        );
+        showCodeStatus(result.error === 'network' ? 'accountGate.errorNetwork' : 'accountGate.errorGeneric', null, 'error');
         // No send actually happened here -- nothing to cool down, so the
-        // button goes right back to clickable rather than enforcing a
-        // 30-second wait for a send that never left.
+        // button goes right back to clickable rather than enforcing a wait
+        // for a send that never left.
         codeResendBtn.disabled = false;
         codeResendBtn.setAttribute('aria-disabled', 'false');
       }
@@ -2838,16 +2943,11 @@ ${facebookBlock}
           // step got the exact same "Incorrect password" message as a
           // genuinely wrong password here -- logIn()'s own error: 'not-
           // confirmed' (see that function's comment) is what tells the two
-          // apart. Only move to the code step once resend() actually
-          // confirms a fresh code went out -- if THAT fails (rate limit,
-          // network), stay on the password step and say so there instead of
-          // showing a code step for a code that was never actually sent.
-          const resendResult = await resendSignupOtp(email);
-          if (resendResult.ok) {
-            enterCodeStep(email, true);
-            showCodeStatus('accountGate.emailNotConfirmedResent', null, 'info');
-          } else {
-            showFieldError(loginError, resendResult.error === 'rate-limited' ? 'accountGate.errorRateLimited' : 'accountGate.errorGeneric');
+          // apart. handleUnconfirmedLogin() (point 4) now also moves to the
+          // code step on a rate-limited resend, not just a successful one --
+          // only a genuine network/unknown failure still fails back here.
+          if (!(await handleUnconfirmedLogin(email))) {
+            showFieldError(loginError, 'accountGate.errorGeneric');
           }
         } else {
           showFieldError(loginError, 'accountGate.errorWrongPassword');
@@ -2913,12 +3013,8 @@ ${facebookBlock}
           // pre-fill from yet either way, so this sends it through the
           // exact same resend-then-code-step path rather than just failing.
           if (result.error === 'not-confirmed') {
-            const resendResult = await resendSignupOtp(email);
-            if (resendResult.ok) {
-              enterCodeStep(email, true);
-              showCodeStatus('accountGate.emailNotConfirmedResent', null, 'info');
-            } else {
-              showFieldError(guestPasswordError, resendResult.error === 'rate-limited' ? 'accountGate.errorRateLimited' : 'accountGate.errorGeneric');
+            if (!(await handleUnconfirmedLogin(email))) {
+              showFieldError(guestPasswordError, 'accountGate.errorGeneric');
             }
           } else {
             showFieldError(guestPasswordError, 'accountGate.errorWrongPassword');
@@ -3053,7 +3149,10 @@ ${facebookBlock}
           // was misreported as a duplicate account. createAccount()'s own
           // console.error already has the real message when it's 'unknown'.
           const errorKey = result.error === 'exists' ? 'accountGate.errorAccountExists'
-            : result.error === 'rate-limited' ? 'accountGate.errorRateLimited'
+            // POINT 4: distinct copy for Supabase's blunter hourly quota
+            // (no specific wait given at all) vs. its short, named cooldown
+            // -- see rateLimitMessageKey()'s own comment.
+            : result.error === 'rate-limited' ? rateLimitMessageKey(result)
             // Supabase's own server-side password policy rejecting this
             // password (see createAccount()'s own weak_password comment) --
             // reuses the exact same copy the client-side check above shows,
