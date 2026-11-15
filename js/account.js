@@ -59,6 +59,14 @@
   // fixed 30 in memory, so a reload mid-cooldown shows the real remaining
   // time instead of resetting it to a fresh 30s.
   const SIGNUP_OTP_SENT_AT_KEY = 'monark_signup_otp_sent_at';
+  // Matches this project's Supabase dashboard config (email OTP expiration,
+  // 600 seconds) -- the one authoritative threshold for "is this code
+  // actually expired yet", used two places: deciding whether a fresh
+  // SIGNUP_OTP_SENT_AT_KEY is still restorable at all on a reload/
+  // back-forward navigation (see pendingSignupEmailIsRestorable()), and
+  // reclassifying Supabase's own ambiguous "invalid or expired" verifyOtp()
+  // error (see codeForm's own submit handler further down -- BUG FIX 3).
+  const OTP_EXPIRY_MS = 600000;
   // Written right before every signInWithOAuth() redirect (Google or
   // Facebook, see signInWithGoogle()/signInWithFacebook() below) so that once
   // the provider/Supabase redirect back lands on a FRESH page load,
@@ -637,15 +645,6 @@
     }
     const { error } = result;
     if (error) {
-      // Supabase/GoTrue deliberately returns the exact same generic "Token
-      // has expired or is invalid" message for a wrong code AND a genuinely
-      // timed-out one -- same anti-enumeration reasoning as logIn()'s own
-      // "Incorrect password" wording (see that function's comment), there's
-      // no separate code distinguishing the two. This pattern-match is a
-      // best-effort split (checked "expired" first, since a real timeout
-      // does sometimes surface that word on its own), not a guaranteed-
-      // accurate one -- the common case (a mistyped digit) still correctly
-      // falls through to the "invalid" branch either way.
       if (error.status === 429 || error.code === 'over_request_rate_limit' || /rate limit/i.test(error.message)) {
         return { ok: false, error: 'rate-limited' };
       }
@@ -657,8 +656,21 @@
       if (error.name === 'AuthRetryableFetchError' || /network|fetch/i.test(error.message)) {
         return { ok: false, error: 'network' };
       }
-      if (/expired/i.test(error.message)) return { ok: false, error: 'expired' };
-      if (/invalid|token/i.test(error.message)) return { ok: false, error: 'invalid' };
+      // BUG FIX: this used to pattern-match "expired" in error.message to
+      // decide expired-vs-wrong-code right here -- but Supabase/GoTrue
+      // deliberately returns the exact same generic "Token has expired or
+      // is invalid" message for BOTH cases (same anti-enumeration reasoning
+      // as logIn()'s own "Incorrect password" wording), so a customer
+      // mistyping a digit seconds after signing up was shown "this code has
+      // expired" purely because that word happens to appear in Supabase's
+      // one shared error string. There is no reliable way to split the two
+      // from the message alone -- 'token-invalid' reports the raw fact
+      // (Supabase rejected this code) and leaves the actual classification
+      // to the caller (mountAccountGate()'s own codeForm submit handler),
+      // which knows the REAL elapsed time since the code was sent
+      // (SIGNUP_OTP_SENT_AT_KEY vs. OTP_EXPIRY_MS) and can tell a code that
+      // is mathematically still valid apart from one that genuinely can't be.
+      if (/invalid|token|expired/i.test(error.message)) return { ok: false, error: 'token-invalid' };
       console.error('MonarkAccount.verifySignupOtp:', error.message);
       return { ok: false, error: 'unknown' };
     }
@@ -846,6 +858,51 @@
     const newHash = hashParams.toString();
     history.replaceState(null, '', window.location.pathname + (newSearch ? '?' + newSearch : '') + (newHash ? '#' + newHash : ''));
     return { errorCode, errorDescription };
+  }
+
+  // BUG FIX: a pending signup verification used to be restored from
+  // SIGNUP_OTP_PENDING_EMAIL_KEY on ANY fresh page load, including a
+  // perfectly ordinary navigation (clicking a link, typing the URL) --
+  // leaving index.html and coming back to account.html resurrected a code
+  // step from an earlier visit the customer had already moved on from.
+  // Only an actual reload or a back/forward navigation (the customer
+  // genuinely returning to where they left off) should restore it now;
+  // the Performance Navigation Timing API's own `type` is the standard way
+  // to tell these apart ('navigate' vs 'reload' vs 'back_forward' vs
+  // 'prerender'). A true bfcache restore never re-runs this script at all
+  // (nothing is torn down to begin with, see enterCodeStep()'s own
+  // pageshow listener for that case instead), so this function only ever
+  // needs to decide between a fresh 'navigate' and everything else.
+  // Defaults to "restorable" if the API is unavailable for any reason --
+  // losing real in-progress state on an edge-case browser is worse than
+  // occasionally restoring it one navigation too generously.
+  function pendingSignupEmailIsRestorable() {
+    try {
+      const entries = performance && performance.getEntriesByType && performance.getEntriesByType('navigation');
+      const navType = entries && entries[0] ? entries[0].type : null;
+      return !navType || navType === 'reload' || navType === 'back_forward';
+    } catch (e) {
+      return true;
+    }
+  }
+
+  // "m***.49@gmail.com" for "muriel.elise.49@gmail.com" -- first character +
+  // exactly 3 asterisks + the local part's own last 3 characters + the full
+  // "@domain". A local part of 4 characters or fewer (nothing meaningful
+  // left to show after the first character and 3 more) collapses to just
+  // "first character + ***" instead. Used everywhere this gate displays the
+  // pending signup's address on screen (see setTextWithMaskedEmail() further
+  // down) -- the REAL address only ever lives in pendingCodeEmail/
+  // SIGNUP_OTP_PENDING_EMAIL_KEY for the actual verifyOtp()/resend() calls,
+  // never written into the DOM as text.
+  function maskEmailForDisplay(email) {
+    const value = String(email || '');
+    const at = value.indexOf('@');
+    if (at <= 0) return value;
+    const local = value.slice(0, at);
+    const domain = value.slice(at);
+    if (local.length <= 4) return local.charAt(0) + '***' + domain;
+    return local.charAt(0) + '***' + local.slice(-3) + domain;
   }
 
   // No Supabase involvement of its own -- a guest session is still just an
@@ -1376,23 +1433,23 @@ ${facebookBlock}
            still pending -- see mountAccountGate()'s pendingCodeEmail/
            codeStepActive/enterCodeStep() for all three. -->
       <div id="checkout-account-code" hidden>
-        <p class="checkout-account-intro" data-i18n="accountGate.codeHeading">Enter the code sent to</p>
-        <!-- Reuses .checkout-account-email-echo wholesale -- the exact
-             same font/size/letter-spacing/color the email already uses in
-             the auth step's own echo line (the one with "Modify Email" next
-             to it) -- just with nothing else inside it here: Resend/Modify
-             Email both moved to their own row below codeSubmitBtn instead
-             of sitting inline with the email. -->
-        <p class="checkout-account-email-echo checkout-account-code-email-line"><span id="checkout-account-code-email"></span></p>
+        <!-- One sentence, not two separate lines -- "Enter the code sent
+             to" plus the masked address live in the SAME <p>, built by
+             setTextWithMaskedEmail() below (same split-on-{placeholder} +
+             real element approach as setTextWithBoldValue(), just wrapping
+             a plain <span> instead of <strong>). The real address is never
+             written here -- only ever the masked form (see
+             maskEmailForDisplay()); it stays in pendingCodeEmail/
+             sessionStorage for the actual verify()/resend() calls. -->
+        <p class="checkout-account-intro" id="checkout-account-code-intro"></p>
         <form id="checkout-account-code-form" novalidate>
           <!-- A real <fieldset>/<legend> still groups the six boxes for
                assistive tech -- the legend text itself is visually hidden
                (checkout-account-code-legend, css/checkout.css) rather than
-               shown as on-page copy: "Enter the code sent to {email}" above
-               already says what to do, and spelling out "6-digit code"
-               again as a separate visible heading was redundant on screen,
-               though a screen reader still benefits from the group having
-               its own label. -->
+               shown as on-page copy: the sentence above already says what
+               to do, and spelling out "6-digit code" again as a separate
+               visible heading was redundant on screen, though a screen
+               reader still benefits from the group having its own label. -->
           <fieldset class="checkout-account-code-fieldset">
             <legend class="checkout-account-code-legend" data-i18n="accountGate.codeFieldLabel">6-digit code</legend>
             <div class="checkout-account-code-boxes" id="checkout-account-code-boxes">
@@ -1405,20 +1462,29 @@ ${facebookBlock}
             </div>
           </fieldset>
           <!-- Single shared status line for this whole step -- every
-               message (incomplete/wrong/expired code, attempts remaining,
+               message (wrong/truly-expired code, attempts remaining,
                locked-out, rate limit, network error, resend success, the
                "wasn't confirmed yet" notice) goes through here, never two
-               separate error/success paragraphs -- see showCodeStatus(). -->
+               separate error/success paragraphs -- see showCodeStatus().
+               Hidden/empty whenever none of those apply (in particular:
+               never shown just because a fresh code was sent -- see
+               enterCodeStep()'s own comment on BUG FIX 3). -->
           <p class="promo-message" id="checkout-account-code-status" aria-live="polite" hidden></p>
-          <button type="submit" class="cta-button checkout-account-btn-sm" id="checkout-account-code-submit-btn" data-i18n="accountGate.verifyCodeBtn" disabled>Verify</button>
-          <!-- Resend (left) / Modify Email (right) -- same thin underlined
-               .checkout-account-link-btn treatment as every other secondary
-               action on this gate, just laid out as one row instead of
-               inline with the email echo above. -->
-          <span class="checkout-account-code-actions">
-            <button type="button" class="checkout-account-link-btn" id="checkout-account-code-resend-btn" data-i18n="accountGate.resendCode">Resend code</button>
-            <button type="button" class="checkout-account-link-btn" id="checkout-account-code-modify-email-btn" data-i18n="accountGate.modifyEmail">Modify Email</button>
-          </span>
+          <!-- No submit button -- the 6th digit auto-submits (unchanged),
+               this just removes the extra bordered button underneath that
+               used to wrap awkwardly on narrow screens. Two plain-text
+               helper lines instead of two bordered .checkout-account-link-btn
+               buttons, each pairing a muted static prompt with one inline,
+               underlined link (.checkout-account-inline-link) for the
+               actual action -- reads as a sentence, not a form field. -->
+          <p class="checkout-account-code-helper-line">
+            <span data-i18n="accountGate.codeResendPrompt">Didn't get it?</span>
+            <button type="button" class="checkout-account-inline-link" id="checkout-account-code-resend-btn" data-i18n="accountGate.resendCode">Resend code</button>
+          </p>
+          <p class="checkout-account-code-helper-line">
+            <span data-i18n="accountGate.codeModifyEmailPrompt">Wrong address?</span>
+            <button type="button" class="checkout-account-inline-link" id="checkout-account-code-modify-email-btn" data-i18n="accountGate.codeModifyEmailLink">Change email</button>
+          </p>
         </form>
       </div>
 
@@ -1615,13 +1681,33 @@ ${facebookBlock}
 
     // Read once at mount, same timing as oauthProvider above -- a reload
     // mid-signup-verification is exactly a FRESH page load, so this is the
-    // one point this instance needs to check for it. Null means either no
-    // pending signup at all, or one that already resolved (verified,
-    // abandoned via Modify Email, or superseded by a real session --
-    // see clearPendingCodeEmail()'s own call sites for all three). Kept in
-    // sync with SIGNUP_OTP_PENDING_EMAIL_KEY by enterCodeStep()/
-    // clearPendingCodeEmail() below -- never written to directly anywhere else.
-    let pendingCodeEmail = sessionStorage.getItem(SIGNUP_OTP_PENDING_EMAIL_KEY) || null;
+    // one point this instance needs to check for it. Null means no pending
+    // signup is restorable right now, for any of FOUR reasons: none exists
+    // at all; it already resolved (verified, abandoned via Modify Email, or
+    // superseded by a real session -- see clearPendingCodeEmail()'s own
+    // call sites for all three); this load is a fresh 'navigate', not a
+    // reload/back-forward (BUG FIX 7, see pendingSignupEmailIsRestorable());
+    // or the stored send timestamp is already past OTP_EXPIRY_MS with no
+    // interaction, in which case there is nothing left worth restoring
+    // anyway. The last two cases also clear every SIGNUP_OTP_* key outright
+    // -- not just skip restoring it THIS load -- so a later, genuinely
+    // fresh signup for the same address never trips over stale leftovers.
+    // Kept in sync with SIGNUP_OTP_PENDING_EMAIL_KEY by enterCodeStep()/
+    // clearPendingCodeEmail() below from here on -- never written to
+    // directly anywhere else.
+    let pendingCodeEmail = null;
+    const storedPendingEmail = sessionStorage.getItem(SIGNUP_OTP_PENDING_EMAIL_KEY) || null;
+    if (storedPendingEmail) {
+      const storedSentAt = Number(sessionStorage.getItem(SIGNUP_OTP_SENT_AT_KEY) || 0);
+      const stillFresh = storedSentAt && (Date.now() - storedSentAt) < OTP_EXPIRY_MS;
+      if (stillFresh && pendingSignupEmailIsRestorable()) {
+        pendingCodeEmail = storedPendingEmail;
+      } else {
+        sessionStorage.removeItem(SIGNUP_OTP_PENDING_EMAIL_KEY);
+        sessionStorage.removeItem(SIGNUP_OTP_ATTEMPTS_KEY);
+        sessionStorage.removeItem(SIGNUP_OTP_SENT_AT_KEY);
+      }
+    }
 
     const authBlock = container.querySelector('#checkout-account-auth');
     const authEmailEcho = container.querySelector('#checkout-account-auth-email');
@@ -1657,11 +1743,10 @@ ${facebookBlock}
     const createSubmitBtn = container.querySelector('#checkout-account-create-submit-btn');
 
     const codeBlock = container.querySelector('#checkout-account-code');
-    const codeEmailEcho = container.querySelector('#checkout-account-code-email');
+    const codeIntro = container.querySelector('#checkout-account-code-intro');
     const codeForm = container.querySelector('#checkout-account-code-form');
     const codeBoxes = Array.from(container.querySelectorAll('.checkout-account-code-box'));
     const codeStatus = container.querySelector('#checkout-account-code-status');
-    const codeSubmitBtn = container.querySelector('#checkout-account-code-submit-btn');
     const codeModifyEmailBtn = container.querySelector('#checkout-account-code-modify-email-btn');
     const codeResendBtn = container.querySelector('#checkout-account-code-resend-btn');
 
@@ -2223,11 +2308,14 @@ ${facebookBlock}
     }
 
     // Single shared status line for the whole step -- every message it
-    // ever shows (incomplete/wrong/expired code, attempts remaining,
-    // locked-out, rate limit, network error, a resend success, the "wasn't
-    // confirmed yet" notice) goes through here, never a separate error
-    // paragraph and a separate success one. kind picks the promo-message
-    // colour variant ('error'/'success'); omit it for a neutral note.
+    // ever shows (wrong/truly-expired code, attempts remaining, locked-out,
+    // rate limit, network error, a resend success, the "wasn't confirmed
+    // yet" notice) goes through here, never a separate error paragraph and
+    // a separate success one. kind picks the promo-message colour variant
+    // ('error'/'success'); omit it for a neutral note. Deliberately NEVER
+    // called just because a fresh code went out (BUG FIX 3) -- the step
+    // shows nothing at all here until an actual failed attempt, a real
+    // expiry, or an explicit resend/notice has something to say.
     function showCodeStatus(key, vars, kind) {
       codeStatus.textContent = t(key, vars);
       codeStatus.className = 'promo-message' + (kind ? ' promo-message-' + kind : '');
@@ -2238,14 +2326,30 @@ ${facebookBlock}
       codeStatus.textContent = '';
     }
 
-    // Valider/Verify stays disabled until all 6 boxes are filled (the happy
-    // path never actually needs this -- auto-submit on the 6th digit fires
-    // first -- but it's what keeps the button correctly disabled for
-    // anyone who tabs to it instead, or after Backspace empties a box back
-    // out) AND whenever the 3-attempt lockout below is in effect.
-    function updateSubmitButtonState() {
-      const locked = getAttemptsUsed() >= MAX_CODE_ATTEMPTS;
-      codeSubmitBtn.disabled = locked || getCodeValue().length !== codeBoxes.length;
+    // Same split-on-{placeholder} + real element approach as
+    // setTextWithBoldValue() above, but wraps the dynamic part in a plain
+    // <span> (not <strong>) carrying its own masked-email styling class
+    // instead of bold emphasis -- the one visual treatment this particular
+    // spot needs. `maskedEmail` is already the masked form (maskEmailForDisplay())
+    // by the time this is called -- the real address is never passed here.
+    function setTextWithMaskedEmail(el, key, maskedEmail) {
+      const template = t(key);
+      const placeholder = '{email}';
+      const idx = template.indexOf(placeholder);
+      el.textContent = '';
+      if (idx === -1) {
+        el.textContent = template;
+        return;
+      }
+      const span = document.createElement('span');
+      span.className = 'checkout-account-code-masked-email';
+      span.id = 'checkout-account-code-email';
+      span.textContent = maskedEmail;
+      el.append(
+        document.createTextNode(template.slice(0, idx)),
+        span,
+        document.createTextNode(template.slice(idx + placeholder.length))
+      );
     }
 
     // Reflects (and, if the lockout is already in effect, announces) the
@@ -2253,10 +2357,13 @@ ${facebookBlock}
     // reload (SIGNUP_OTP_ATTEMPTS_KEY survives one), and right after a
     // failed verify. Returns whether it's actually locked, so callers know
     // whether they're allowed to re-enable what they just found disabled.
+    // Only ever touches the boxes now -- there is no longer a submit
+    // button to disable alongside them (BUG FIX 6: removed entirely, the
+    // 6th digit's own auto-submit was always the real way this step is
+    // submitted).
     function applyAttemptsLockState() {
       const locked = getAttemptsUsed() >= MAX_CODE_ATTEMPTS;
       codeBoxes.forEach((b) => { b.disabled = locked; });
-      updateSubmitButtonState();
       return locked;
     }
 
@@ -2281,14 +2388,18 @@ ${facebookBlock}
       if (resendTimer) { clearInterval(resendTimer); resendTimer = null; }
       resendRemaining = 0;
     }
+    // aria-disabled alongside the native `disabled` attribute -- redundant
+    // in most screen readers (disabled is already announced on its own),
+    // but explicit per this feature's own requirement, and harmless either
+    // way. Greyed out via CSS's own :disabled rule (muted color, no
+    // underline, not-allowed cursor) -- see .checkout-account-inline-link.
     function renderResendButton() {
-      if (resendRemaining > 0) {
-        codeResendBtn.disabled = true;
-        codeResendBtn.textContent = t('accountGate.resendCodeCountdown', { seconds: resendRemaining });
-      } else {
-        codeResendBtn.disabled = false;
-        codeResendBtn.textContent = t('accountGate.resendCode');
-      }
+      const disabled = resendRemaining > 0;
+      codeResendBtn.disabled = disabled;
+      codeResendBtn.setAttribute('aria-disabled', String(disabled));
+      codeResendBtn.textContent = disabled
+        ? t('accountGate.resendCodeCountdown', { seconds: resendRemaining })
+        : t('accountGate.resendCode');
     }
     // (Re)starts the cooldown display from whatever SIGNUP_OTP_SENT_AT_KEY
     // actually says right now -- the one function both a fresh send and a
@@ -2319,7 +2430,6 @@ ${facebookBlock}
       if (!digits) return;
       codeBoxes.forEach((b, idx) => { b.value = digits[idx] || ''; });
       hideCodeStatus();
-      updateSubmitButtonState();
       focusCodeBox(Math.min(digits.length, codeBoxes.length - 1));
       if (digits.length === codeBoxes.length) codeForm.requestSubmit();
     }
@@ -2358,7 +2468,7 @@ ${facebookBlock}
       sessionStorage.setItem(SIGNUP_OTP_PENDING_EMAIL_KEY, email);
       statusEl.hidden = true;
       showStep('code');
-      codeEmailEcho.textContent = email;
+      setTextWithMaskedEmail(codeIntro, 'accountGate.codeHeading', maskEmailForDisplay(email));
       expiredMessageActive = false;
       hideCodeStatus();
       if (fresh) {
@@ -2392,7 +2502,6 @@ ${facebookBlock}
         }
         box.value = digitsOnly;
         hideCodeStatus();
-        updateSubmitButtonState();
         if (box.value && i < codeBoxes.length - 1) {
           focusCodeBox(i + 1);
         } else if (box.value && getCodeValue().length === codeBoxes.length) {
@@ -2403,7 +2512,6 @@ ${facebookBlock}
         if (e.key === 'Backspace' && !box.value && i > 0) {
           e.preventDefault();
           codeBoxes[i - 1].value = '';
-          updateSubmitButtonState();
           focusCodeBox(i - 1);
         } else if (e.key === 'ArrowLeft' && i > 0) {
           e.preventDefault();
@@ -2432,50 +2540,65 @@ ${facebookBlock}
       }
       expiredMessageActive = false;
       hideCodeStatus();
-      codeSubmitBtn.disabled = true;
+      // The one remaining "loading state" this step has -- no submit
+      // button to disable alongside the boxes any more (see
+      // applyAttemptsLockState()'s own comment), just the boxes themselves
+      // going inert/dimmed for the duration of the await below.
       codeBoxes.forEach((b) => { b.disabled = true; });
       try {
         const result = await verifySignupOtp(email, code);
         if (!result.ok) {
-          if (result.error === 'invalid') {
-            // Counts toward the 3-attempt lockout -- a genuinely wrong code
-            // is the one failure mode this limit exists for (see MAX_CODE_ATTEMPTS's
-            // own comment); expired/rate-limited/network below are all
-            // deliberately NOT counted, since none of them mean the
-            // customer actually guessed wrong.
-            const used = getAttemptsUsed() + 1;
-            setAttemptsUsed(used);
-            const remaining = MAX_CODE_ATTEMPTS - used;
-            if (remaining > 0) {
-              showCodeStatus(
-                remaining === 1 ? 'accountGate.errorCodeInvalidAttemptsOne' : 'accountGate.errorCodeInvalidAttemptsMany',
-                { remaining },
-                'error'
-              );
-              // Re-enabled here, BEFORE clearing/focusing -- the `finally`
-              // below also does this, but only once this whole branch
-              // returns, and a disabled input silently refuses focus().
+          if (result.error === 'token-invalid') {
+            // BUG FIX 3: Supabase returns the exact same "token-invalid"
+            // result for a wrong code AND a genuinely expired one (see
+            // verifySignupOtp()'s own comment) -- this is the one place
+            // that actually tells them apart, using the REAL elapsed time
+            // since the code was sent (not Supabase's ambiguous wording).
+            // This is also why the expired message could never correctly
+            // appear moments after a fresh send before this fix: a wrong
+            // digit typed seconds after signing up used to be misread as
+            // "expired" purely because Supabase's shared error string
+            // happens to contain that word.
+            const sentAt = Number(sessionStorage.getItem(SIGNUP_OTP_SENT_AT_KEY) || 0);
+            const trulyExpired = !sentAt || (Date.now() - sentAt) >= OTP_EXPIRY_MS;
+            if (trulyExpired) {
+              // Never counted toward the lockout below -- an expired code
+              // can't succeed no matter how many attempts are left, so
+              // this is its own message/flow (the live countdown toward a
+              // fresh code), not another "wrong guess."
+              expiredMessageActive = true;
+              renderExpiredMessage();
               codeBoxes.forEach((b) => { b.disabled = false; });
               clearCodeBoxes();
               focusFirstEmptyBox();
             } else {
-              showCodeStatus('accountGate.errorTooManyAttempts', null, 'error');
-              // Left disabled deliberately -- the `finally` below only
-              // re-enables when NOT locked (see its own guard), so this
-              // lockout actually holds rather than being undone a line later.
+              // Still within OTP_EXPIRY_MS -- a genuinely wrong code, so
+              // THIS is the one failure mode that counts toward the
+              // 3-attempt lockout (see MAX_CODE_ATTEMPTS's own comment);
+              // rate-limited/network below never do, since neither means
+              // the customer actually guessed wrong.
+              const used = getAttemptsUsed() + 1;
+              setAttemptsUsed(used);
+              const remaining = MAX_CODE_ATTEMPTS - used;
+              if (remaining > 0) {
+                showCodeStatus(
+                  remaining === 1 ? 'accountGate.errorCodeInvalidAttemptsOne' : 'accountGate.errorCodeInvalidAttemptsMany',
+                  { remaining },
+                  'error'
+                );
+                // Re-enabled here, BEFORE clearing/focusing -- the `finally`
+                // below also does this, but only once this whole branch
+                // returns, and a disabled input silently refuses focus().
+                codeBoxes.forEach((b) => { b.disabled = false; });
+                clearCodeBoxes();
+                focusFirstEmptyBox();
+              } else {
+                showCodeStatus('accountGate.errorTooManyAttempts', null, 'error');
+                // Left disabled deliberately -- the `finally` below only
+                // re-enables when NOT locked (see its own guard), so this
+                // lockout actually holds rather than being undone a line later.
+              }
             }
-          } else if (result.error === 'expired') {
-            // Never counted toward the lockout (see above) -- an expired
-            // code can't succeed no matter how many attempts are left, so
-            // this is its own message/flow (the live countdown toward a
-            // fresh code), not another "wrong guess."
-            expiredMessageActive = true;
-            renderExpiredMessage();
-            // Same "re-enable before focusing" reasoning as the 'invalid'
-            // branch above -- see its own comment.
-            codeBoxes.forEach((b) => { b.disabled = false; });
-            clearCodeBoxes();
-            focusFirstEmptyBox();
           } else if (result.error === 'rate-limited') {
             // Digits kept -- not the customer's fault, and the exact same
             // code may well still work once Supabase's own limit clears.
@@ -2503,7 +2626,6 @@ ${facebookBlock}
         // this must never silently undo that a line later.
         if (getAttemptsUsed() < MAX_CODE_ATTEMPTS) {
           codeBoxes.forEach((b) => { b.disabled = false; });
-          updateSubmitButtonState();
         }
       }
     });
@@ -2513,6 +2635,7 @@ ${facebookBlock}
       if (!email) return;
       hideCodeStatus();
       codeResendBtn.disabled = true;
+      codeResendBtn.setAttribute('aria-disabled', 'true');
       const result = await resendSignupOtp(email);
       if (result.ok) {
         // "Sending a new code resets the attempts and clears the boxes" --
@@ -2523,7 +2646,6 @@ ${facebookBlock}
         clearCodeBoxes();
         expiredMessageActive = false;
         codeBoxes.forEach((b) => { b.disabled = false; });
-        updateSubmitButtonState();
         showCodeStatus('accountGate.resendCodeSuccess', null, 'success');
         syncResendCountdown();
         focusFirstEmptyBox();
@@ -2539,6 +2661,7 @@ ${facebookBlock}
         // button goes right back to clickable rather than enforcing a
         // 30-second wait for a send that never left.
         codeResendBtn.disabled = false;
+        codeResendBtn.setAttribute('aria-disabled', 'false');
       }
     });
 
@@ -2561,6 +2684,23 @@ ${facebookBlock}
       authCancelBtn.hidden = true;
       emailInput.focus();
       emailInput.select();
+    });
+
+    // Best-effort resync for a bfcache restore specifically (BUG FIX 7) --
+    // this page's own JS state (codeStepActive, pendingCodeEmail, typed
+    // digits) survives a bfcache suspend/resume completely untouched,
+    // since a TRUE bfcache restore never re-runs this script at all
+    // (nothing tore it down to begin with) -- but a setInterval-driven
+    // countdown sits paused for however long the page was suspended, so
+    // without this the displayed number/message can be stale for up to a
+    // second after becoming visible again. This just forces an immediate
+    // resync the instant that happens instead of waiting for the next
+    // natural tick.
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted && codeStepActive) {
+        syncResendCountdown();
+        if (expiredMessageActive) renderExpiredMessage();
+      }
     });
 
     emailForm.addEventListener('submit', async (e) => {
@@ -3193,6 +3333,13 @@ ${facebookBlock}
       // MonarkI18n.apply(document)'s own pass, same as every other
       // data-i18n element on this gate.
       if (resendRemaining > 0) renderResendButton();
+      // codeIntro's own "Enter the code sent to {masked email}" sentence --
+      // also a plain textContent/DOM write (setTextWithMaskedEmail()), not
+      // data-i18n, so it needs the exact same re-render-on-switch treatment
+      // while the code step is actually showing.
+      if (codeStepActive && pendingCodeEmail) {
+        setTextWithMaskedEmail(codeIntro, 'accountGate.codeHeading', maskEmailForDisplay(pendingCodeEmail));
+      }
       if (expiredMessageActive) renderExpiredMessage();
       else if (codeStepActive && getAttemptsUsed() >= MAX_CODE_ATTEMPTS) {
         showCodeStatus('accountGate.errorTooManyAttempts', null, 'error');

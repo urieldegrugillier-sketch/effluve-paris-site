@@ -358,8 +358,8 @@ function buildDeliveredEmail(details: DeliveredEmailDetails): { subject: string;
 
   const termsLabel = isFr ? "CGV" : "Terms of Sale";
   const privacyLabel = isFr ? "Confidentialité" : "Privacy Policy";
-  const legalFooterHtml = `<a href="${WEBSITE_URL}" style="color:#8f887c;">Effluve Paris</a> — <a href="${WEBSITE_URL}/cgv.html" style="color:#8f887c;">${termsLabel}</a> · <a href="${WEBSITE_URL}/confidentialite.html" style="color:#8f887c;">${privacyLabel}</a>`;
-  const legalFooterText = `Effluve Paris (${WEBSITE_URL}) — ${termsLabel}: ${WEBSITE_URL}/cgv.html — ${privacyLabel}: ${WEBSITE_URL}/confidentialite.html`;
+  const legalFooterHtml = `<a href="${WEBSITE_URL}" style="color:#8f887c;">Effluve Paris</a> · <a href="${WEBSITE_URL}/cgv.html" style="color:#8f887c;">${termsLabel}</a> · <a href="${WEBSITE_URL}/confidentialite.html" style="color:#8f887c;">${privacyLabel}</a>`;
+  const legalFooterText = `Effluve Paris (${WEBSITE_URL}) · ${termsLabel}: ${WEBSITE_URL}/cgv.html · ${privacyLabel}: ${WEBSITE_URL}/confidentialite.html`;
 
   // Same visual shell (header logos, card, footer/legal block) as
   // mark-order-shipped's own buildShippingEmail() -- see that function for

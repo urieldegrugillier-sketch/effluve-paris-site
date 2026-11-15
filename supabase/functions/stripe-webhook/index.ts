@@ -715,10 +715,10 @@ function buildInternalOrderNotificationEmail(details: InternalNotificationDetail
   const addressText = addressLines.length ? addressLines.join(", ") : "Non renseignée";
 
   const rows: [string, string][] = [
-    ["Référence", details.referenceNumber || "—"],
+    ["Référence", details.referenceNumber || "-"],
     ["Produit", `${details.productName} × ${details.quantity}`],
     ["Total", formatMoney(details.total)],
-    ["Client", details.customerEmail || "—"],
+    ["Client", details.customerEmail || "-"],
   ];
   if (details.promoCode) rows.push(["Code promo", details.promoCode]);
 
@@ -844,7 +844,7 @@ async function sendTelegramOrderNotification(orderId: string, order: TelegramNot
   const text = [
     "🛍️ <b>Nouvelle commande payée</b>",
     "",
-    `Référence : <b>${escapeHtml(order.referenceNumber || "—")}</b>`,
+    `Référence : <b>${escapeHtml(order.referenceNumber || "-")}</b>`,
     `Produit : ${escapeHtml(order.productName)} × ${order.quantity}`,
     `Total : ${formatMoney(order.total)}`,
     "",
@@ -1229,8 +1229,8 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   // them. Deliberately no unsubscribe link either -- this is a receipt tied
   // to a specific purchase, not a marketing send, so there's nothing to
   // unsubscribe from.
-  const legalFooterHtml = `<a href="${WEBSITE_URL}" style="color:#8f887c;">Effluve Paris</a> — <a href="${WEBSITE_URL}/cgv.html" style="color:#8f887c;">${labels.terms}</a> · <a href="${WEBSITE_URL}/confidentialite.html" style="color:#8f887c;">${labels.privacy}</a>`;
-  const legalFooterText = `Effluve Paris (${WEBSITE_URL}) — ${labels.terms}: ${WEBSITE_URL}/cgv.html — ${labels.privacy}: ${WEBSITE_URL}/confidentialite.html`;
+  const legalFooterHtml = `<a href="${WEBSITE_URL}" style="color:#8f887c;">Effluve Paris</a> · <a href="${WEBSITE_URL}/cgv.html" style="color:#8f887c;">${labels.terms}</a> · <a href="${WEBSITE_URL}/confidentialite.html" style="color:#8f887c;">${labels.privacy}</a>`;
+  const legalFooterText = `Effluve Paris (${WEBSITE_URL}) · ${labels.terms}: ${WEBSITE_URL}/cgv.html · ${labels.privacy}: ${WEBSITE_URL}/confidentialite.html`;
 
   // Date/Shipping(Free)/VAT(Free)/[Promo]/Total -- UPDATE: Subtotal removed
   // from this recap entirely (per request) -- with the compact block above

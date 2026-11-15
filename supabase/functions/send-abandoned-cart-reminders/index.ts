@@ -335,8 +335,8 @@ function buildReminderEmail(content: ReminderEmailContent): { subject: string; h
     terms: isFr ? "CGV" : "Terms of Sale",
     privacy: isFr ? "Confidentialité" : "Privacy Policy",
   };
-  const legalFooterHtml = `<a href="${WEBSITE_URL}" style="color:#8f887c;">Effluve Paris</a> — <a href="${WEBSITE_URL}/cgv.html" style="color:#8f887c;">${labels.terms}</a> · <a href="${WEBSITE_URL}/confidentialite.html" style="color:#8f887c;">${labels.privacy}</a>`;
-  const legalFooterText = `Effluve Paris (${WEBSITE_URL}) — ${labels.terms}: ${WEBSITE_URL}/cgv.html — ${labels.privacy}: ${WEBSITE_URL}/confidentialite.html`;
+  const legalFooterHtml = `<a href="${WEBSITE_URL}" style="color:#8f887c;">Effluve Paris</a> · <a href="${WEBSITE_URL}/cgv.html" style="color:#8f887c;">${labels.terms}</a> · <a href="${WEBSITE_URL}/confidentialite.html" style="color:#8f887c;">${labels.privacy}</a>`;
+  const legalFooterText = `Effluve Paris (${WEBSITE_URL}) · ${labels.terms}: ${WEBSITE_URL}/cgv.html · ${labels.privacy}: ${WEBSITE_URL}/confidentialite.html`;
 
   const html = `<!doctype html>
 <html lang="${content.language}">

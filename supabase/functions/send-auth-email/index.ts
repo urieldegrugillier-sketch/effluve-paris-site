@@ -84,6 +84,14 @@ interface HookUser {
 
 interface HookEmailData {
   token_hash?: string;
+  // The plain 6-digit OTP Supabase generates alongside token_hash for every
+  // action type (not just signup) -- only actually used for "signup" below
+  // (see buildAuthEmail()'s own isCodeEmail branch), but declared here
+  // regardless so TypeScript doesn't complain about reading it off the
+  // payload. NEVER logged anywhere in this file -- see every console.error
+  // below, each of which names a problem without ever including this value
+  // or the payload it came from verbatim.
+  token?: string;
   redirect_to?: string;
   email_action_type?: string;
 }
@@ -134,9 +142,34 @@ Deno.serve(async (req) => {
   const { user, email_data } = payload || {};
   const email = user?.email;
   const tokenHash = email_data?.token_hash;
+  const token = email_data?.token;
   const actionType = email_data?.email_action_type;
-  if (!email || !tokenHash || !actionType) {
-    console.error("send-auth-email: hook payload missing required fields:", JSON.stringify(payload).slice(0, 500));
+  if (!email || !actionType) {
+    // Logs which fields were missing, never the payload itself -- the old
+    // version here did `JSON.stringify(payload)`, which (now that token_hash/
+    // token both carry real, usable secrets) would have logged them in full
+    // on exactly this error path. Boolean presence checks only.
+    console.error(
+      "send-auth-email: hook payload missing required fields -- email:",
+      !!email,
+      "actionType:",
+      !!actionType,
+    );
+    return new Response("Invalid payload.", { status: 400 });
+  }
+
+  // "signup" is the one action type this Hook renders as a 6-digit code
+  // instead of a confirmation link (see buildAuthEmail()'s own isCodeEmail
+  // branch and this file's header comment) -- it needs `token` (the plain
+  // OTP), not `token_hash` (only used to build a clickable link).
+  const isCodeEmail = actionType === "signup";
+  if (isCodeEmail) {
+    if (!token) {
+      console.error("send-auth-email: signup hook payload missing token -- cannot render a verification code.");
+      return new Response("Invalid payload.", { status: 400 });
+    }
+  } else if (!tokenHash) {
+    console.error("send-auth-email: hook payload missing token_hash for action", actionType);
     return new Response("Invalid payload.", { status: 400 });
   }
 
@@ -150,10 +183,14 @@ Deno.serve(async (req) => {
   // takes over composing the EMAIL, not the verification flow itself, so
   // the link has to hit the exact same endpoint to keep working with
   // js/account.js's existing PASSWORD_RECOVERY/session handling downstream.
+  // Never built (left undefined) for a code email -- isCodeEmail's own
+  // branch in buildAuthEmail() never references it, see that function.
   const redirectTo = email_data.redirect_to || DEFAULT_REDIRECT_URL;
-  const confirmationUrl = `${SUPABASE_URL}/auth/v1/verify?token=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(actionType)}&redirect_to=${encodeURIComponent(redirectTo)}`;
+  const confirmationUrl = isCodeEmail
+    ? undefined
+    : `${SUPABASE_URL}/auth/v1/verify?token=${encodeURIComponent(tokenHash!)}&type=${encodeURIComponent(actionType)}&redirect_to=${encodeURIComponent(redirectTo)}`;
 
-  const { subject, html, text } = buildAuthEmail(actionType, language, confirmationUrl);
+  const { subject, html, text } = buildAuthEmail(actionType, language, confirmationUrl, token);
 
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -197,7 +234,11 @@ interface AuthEmailCopy {
   subject: string;
   heading: string;
   bodyText: string;
-  ctaLabel: string;
+  // Link-based emails (recovery/email_change/invite/default) set ctaLabel;
+  // the code-based signup email sets codeNote instead -- buildAuthEmail()'s
+  // own isCodeEmail branch picks the one actually relevant, never both.
+  ctaLabel?: string;
+  codeNote?: string;
 }
 
 // Covers every email_action_type this project's own code actually triggers
@@ -206,10 +247,12 @@ interface AuthEmailCopy {
 // (updateAccount()'s auth.updateUser({email}), Supabase's "Secure Email
 // Change" setting). "invite" is included too even though nothing in this
 // codebase currently sends invites -- costs nothing to handle, and Supabase
-// itself defines it as a possible action type for this same hook. Any OTHER
-// value falls through to a generic confirmation email rather than a hard
-// error -- this Hook is now the ONLY thing standing between a real auth
-// action and the user ever getting an email for it at all, so an
+// itself defines it as a possible action type for this same hook; it keeps
+// the OLD link-based "confirm your account" copy "signup" itself used to
+// share with it, since there's no actual OTP-code flow for an invite today.
+// Any OTHER value falls through to a generic confirmation email rather than
+// a hard error -- this Hook is now the ONLY thing standing between a real
+// auth action and the user ever getting an email for it at all, so an
 // unrecognized type still has to result in something usable, not silence
 // (logged loudly so it's actually noticed and this list gets updated).
 function authEmailCopy(actionType: string, isFr: boolean): AuthEmailCopy {
@@ -232,7 +275,20 @@ function authEmailCopy(actionType: string, isFr: boolean): AuthEmailCopy {
           : "Click the button below to confirm your new Effluve Paris email address.",
         ctaLabel: isFr ? "Confirmer mon e-mail" : "Confirm my email",
       };
+    // Code-based -- see buildAuthEmail()'s own isCodeEmail branch. Subject/
+    // heading/bodyText are deliberately distinct from "invite"'s own copy
+    // just below (no "click the button" wording, since there is no button).
     case "signup":
+      return {
+        subject: isFr ? "Votre code de vérification Effluve Paris" : "Your Effluve Paris verification code",
+        heading: isFr ? "Voici votre code de vérification" : "Here is your verification code",
+        bodyText: isFr
+          ? "Merci pour votre inscription. Utilisez le code ci-dessous pour confirmer votre adresse e-mail et activer votre compte."
+          : "Thank you for signing up. Use the code below to confirm your email address and activate your account.",
+        codeNote: isFr
+          ? "Ce code expire dans 10 minutes. Si vous n'avez pas créé de compte, ignorez cet e-mail."
+          : "This code expires in 10 minutes. If you didn't create an account, you can ignore this email.",
+      };
     case "invite":
       return {
         subject: isFr ? "Confirmez votre compte Effluve Paris" : "Confirm your Effluve Paris account",
@@ -258,10 +314,21 @@ function authEmailCopy(actionType: string, isFr: boolean): AuthEmailCopy {
 // Same dark card/logo header/legal footer chrome as stripe-webhook's own
 // buildConfirmationEmail() (colors, fonts, dark-mode meta tags/Outlook
 // data-ogsc hook, PNG logos) -- simplified here since there's no order/
-// product/price data for this kind of email, just a message and one button.
-function buildAuthEmail(actionType: string, language: "fr" | "en", confirmationUrl: string): { subject: string; html: string; text: string } {
+// product/price data for this kind of email, just a message and one button
+// (or, for "signup", a code -- see isCodeEmail below).
+function buildAuthEmail(
+  actionType: string,
+  language: "fr" | "en",
+  confirmationUrl: string | undefined,
+  token: string | undefined,
+): { subject: string; html: string; text: string } {
   const isFr = language === "fr";
   const copy = authEmailCopy(actionType, isFr);
+  // "signup" renders the 6-digit code itself, big/letter-spaced/monospace,
+  // with NO button or link anywhere in the email (the whole point of this
+  // change -- see this file's header comment) -- every other action type
+  // keeps the original clickable-button layout.
+  const isCodeEmail = actionType === "signup";
   const labels = {
     terms: isFr ? "CGV" : "Terms of Sale",
     privacy: isFr ? "Confidentialité" : "Privacy Policy",
@@ -269,12 +336,41 @@ function buildAuthEmail(actionType: string, language: "fr" | "en", confirmationU
   // Security note -- same reasoning a real bank/payment provider's own
   // reset/confirmation emails carry: reassures a recipient who wasn't
   // expecting this that ignoring it is safe, without needing a reply-to
-  // flow for something this low-stakes.
+  // flow for something this low-stakes. The code email uses its own
+  // combined expiry+ignore sentence instead (copy.codeNote) rather than
+  // this generic one, so the two are never both shown.
   const ignoreNote = isFr
     ? "Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail en toute sécurité."
     : "If you didn't request this, you can safely ignore this email.";
-  const legalFooterHtml = `<a href="${WEBSITE_URL}" style="color:#8f887c;">Effluve Paris</a> — <a href="${WEBSITE_URL}/cgv.html" style="color:#8f887c;">${labels.terms}</a> · <a href="${WEBSITE_URL}/confidentialite.html" style="color:#8f887c;">${labels.privacy}</a>`;
-  const legalFooterText = `Effluve Paris (${WEBSITE_URL}) — ${labels.terms}: ${WEBSITE_URL}/cgv.html — ${labels.privacy}: ${WEBSITE_URL}/confidentialite.html`;
+  const noteText = isCodeEmail ? (copy.codeNote || "") : ignoreNote;
+  // Middle dot throughout (never an em/en dash) -- same separator already
+  // used between the two legal links here, now also between the brand name
+  // and the first one, for one consistent convention across the whole line.
+  const legalFooterHtml = `<a href="${WEBSITE_URL}" style="color:#8f887c;">Effluve Paris</a> · <a href="${WEBSITE_URL}/cgv.html" style="color:#8f887c;">${labels.terms}</a> · <a href="${WEBSITE_URL}/confidentialite.html" style="color:#8f887c;">${labels.privacy}</a>`;
+  const legalFooterText = `Effluve Paris (${WEBSITE_URL}) · ${labels.terms}: ${WEBSITE_URL}/cgv.html · ${labels.privacy}: ${WEBSITE_URL}/confidentialite.html`;
+
+  // Code box (signup) vs. the original clickable button (every other
+  // action type) -- same outer table/cell shape either way (so the rest of
+  // the card's spacing doesn't shift), just a plain letter-spaced <span>
+  // with no href instead of an <a>.
+  const actionHtml = isCodeEmail
+    ? `<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                  <tr>
+                    <td style="background:#0a0908;border:1px solid #9c6b2e;padding:20px 36px;" align="center">
+                      <span style="display:inline-block;font-family:'IBM Plex Mono',Consolas,monospace;font-size:34px;font-weight:600;letter-spacing:0.5em;color:#d8b27c;">${escapeHtml(token || "")}</span>
+                    </td>
+                  </tr>
+                </table>`
+    : `<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                  <tr>
+                    <td style="background:#9c6b2e;border:1px solid #9c6b2e;" align="center">
+                      <a href="${confirmationUrl}" style="display:inline-block;padding:14px 32px;font-family:'IBM Plex Mono',Consolas,monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#000000;text-decoration:none;">${escapeHtml(copy.ctaLabel || "")}</a>
+                    </td>
+                  </tr>
+                </table>`;
+  // Plain-text mirror of actionHtml above -- just the bare code, or the
+  // same "label: url" line the link-based emails always used.
+  const actionText = isCodeEmail ? (token || "") : `${copy.ctaLabel}: ${confirmationUrl}`;
 
   const html = `<!doctype html>
 <html lang="${language}">
@@ -316,14 +412,8 @@ function buildAuthEmail(actionType: string, language: "fr" | "en", confirmationU
               <td style="padding:32px;">
                 <h1 style="margin:0 0 16px;font-size:20px;font-weight:600;color:#ede7dd;">${escapeHtml(copy.heading)}</h1>
                 <p style="margin:0 0 28px;font-size:14px;line-height:1.6;color:#ede7dd;">${escapeHtml(copy.bodyText)}</p>
-                <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
-                  <tr>
-                    <td style="background:#9c6b2e;border:1px solid #9c6b2e;" align="center">
-                      <a href="${confirmationUrl}" style="display:inline-block;padding:14px 32px;font-family:'IBM Plex Mono',Consolas,monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#000000;text-decoration:none;">${escapeHtml(copy.ctaLabel)}</a>
-                    </td>
-                  </tr>
-                </table>
-                <p style="margin:28px 0 0;font-size:12px;line-height:1.6;color:#8f887c;">${escapeHtml(ignoreNote)}</p>
+                ${actionHtml}
+                <p style="margin:28px 0 0;font-size:12px;line-height:1.6;color:#8f887c;">${escapeHtml(noteText)}</p>
               </td>
             </tr>
             <tr>
@@ -345,9 +435,9 @@ function buildAuthEmail(actionType: string, language: "fr" | "en", confirmationU
     "",
     copy.bodyText,
     "",
-    `${copy.ctaLabel}: ${confirmationUrl}`,
+    actionText,
     "",
-    ignoreNote,
+    noteText,
     "",
     "---",
     legalFooterText,

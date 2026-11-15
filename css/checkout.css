@@ -954,19 +954,27 @@
 }
 
 /* Email-code (OTP) step (js/account.js's own codeBoxes/enterCodeStep()) --
-   everything in this step reads as one centered column: the email line,
-   the six boxes, the status line, Valider, then the Resend/Modify row --
-   see #checkout-account-code's own text-align below for the simple part of
-   that, and each flex row's own justify-content for the rest. */
+   everything in this step reads as one centered column: the intro sentence
+   (with the masked email inline, not a separate line), the six boxes, the
+   status line, then the two Resend/Modify helper lines -- see
+   #checkout-account-code's own text-align below for the simple part of
+   that, and .checkout-account-code-boxes's own justify-content for the rest. */
 #checkout-account-code { text-align: center; }
 
-/* Reuses .checkout-account-email-echo's font/size/letter-spacing/color
-   wholesale (see that markup's own comment on why) -- this override only
-   drops the base class's flex/space-between layout (meant for pairing the
-   email with an inline action button, which this step doesn't do: Resend/
-   Modify Email both live in their own row below instead) in favor of
-   simple centered text. */
-.checkout-account-code-email-line { display: block; text-align: center; }
+/* The masked address inline inside #checkout-account-code-intro's own
+   sentence (see that element's own markup comment -- setTextWithMaskedEmail()
+   builds this <span> at runtime, never the real address) -- same monospace/
+   size/letter-spacing/muted-color treatment the email already had as its
+   own separate line before, just inline now. May wrap onto its own line on
+   a narrow screen along with the rest of the sentence -- deliberately not
+   nowrap here (unlike the boxes/links below), since the whole point is
+   that it's allowed to. */
+.checkout-account-code-masked-email {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
 
 /* Six individually-boxed digit inputs rather than one plain text field, so
    each character's own state (filled/empty, focus) is visible at a glance
@@ -1023,27 +1031,66 @@
 .checkout-account-code-box:focus-visible { outline: 2px solid var(--accent-bronze-light); outline-offset: 2px; }
 .checkout-account-code-box:disabled { color: var(--text-muted); cursor: not-allowed; opacity: 0.6; }
 
-/* Same centering treatment as #checkout-account-create-submit-btn above --
-   the shared status line (margin:0.7rem 0 0, .promo-message's own default
-   in css/style.css) already sits centered via the parent's text-align. */
-#checkout-account-code-submit-btn { display: block; margin: 1rem auto 0; }
+/* No submit button any more -- the 6th digit's own auto-submit was always
+   the real way this step is submitted (see js/account.js's own comment on
+   removing it). The shared status line (margin:0.7rem 0 0, .promo-message's
+   own default in css/style.css) already sits centered via the parent's
+   text-align, no extra rule needed for it here.
 
-/* Resend code (left) / Modify Email (right) -- its own row, not inline with
-   the email line above (see .checkout-account-code-email-line's own
-   comment). Capped to the same width the boxes row above actually
-   measures out to (6 boxes + 5 gaps, both breakpoints) so the two rows'
-   edges line up instead of this one stretching edge-to-edge of the form. */
-.checkout-account-code-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.2rem;
-  max-width: 17.5rem;
-  margin: 1rem auto 0;
+   Two plain-text lines instead -- "Didn't get it? Resend code" / "Wrong
+   address? Change email" -- each a muted static prompt followed by one
+   inline, underlined link for the actual action. Reads as a sentence, not
+   a form field, which is also why these aren't .checkout-account-link-btn
+   (that class's all-caps/bordered treatment is for standalone actions, not
+   a link sitting mid-sentence). */
+.checkout-account-code-helper-line {
+  margin: 0.6rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
 }
-@media (max-width: 420px) {
-  .checkout-account-code-actions { max-width: 15.5rem; }
+
+/* Real padding (not a negative-margin "expand without taking up space"
+   trick) is what gives this a genuine >=44px tap target on mobile (WCAG
+   2.5.5) -- BUG FIX: a negative margin here used to cancel that padding's
+   own layout space, which let it visually overlap the SIBLING helper
+   line's own link underneath (close enough together, at ~0.6rem apart,
+   that the two expanded hit areas collided) -- Playwright caught this
+   directly: clicking Resend intercepted-by-pointer-events'd into Modify
+   Email's own expanded box instead. Real padding pushes each paragraph's
+   own rendered height out to make room instead, so the two lines can
+   never collide no matter how large this padding is. nowrap: the link's
+   OWN words never break across two lines (unlike the sentence around it,
+   which is free to wrap) -- a link reading as two visually disconnected
+   fragments would be confusing to tap correctly. */
+.checkout-account-inline-link {
+  display: inline-block;
+  background: none;
+  border: none;
+  padding: 0.95rem 0.3rem;
+  font: inherit;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.3s ease;
 }
+@media (hover: hover) and (pointer: fine) {
+  .checkout-account-inline-link:hover:not(:disabled) { color: var(--accent-bronze-light); }
+}
+/* Greyed out while the resend cooldown runs (BUG FIX 4) -- muted color, no
+   underline, not-allowed cursor; the native `disabled` attribute already
+   makes it genuinely unclickable, aria-disabled is the explicit screen-
+   reader-facing mirror of that same state. */
+.checkout-account-inline-link:disabled {
+  color: var(--text-muted);
+  opacity: 0.55;
+  text-decoration: none;
+  cursor: not-allowed;
+}
+.checkout-account-inline-link:focus-visible { outline: 2px solid var(--accent-bronze-light); outline-offset: 2px; }
 
 /* Every primary action button centered EXCEPT the small text-link-style
    actions (Modify Email, Forgot password?), which keep their own right-
