@@ -235,10 +235,14 @@ interface AuthEmailCopy {
   heading: string;
   bodyText: string;
   // Link-based emails (recovery/email_change/invite/default) set ctaLabel;
-  // the code-based signup email sets codeNote instead -- buildAuthEmail()'s
-  // own isCodeEmail branch picks the one actually relevant, never both.
+  // the code-based signup email sets codeNote/copyHint instead --
+  // buildAuthEmail()'s own isCodeEmail branch picks the ones actually
+  // relevant, never both sets at once.
   ctaLabel?: string;
   codeNote?: string;
+  // Short line shown right under the code box (HTML) / right after the bare
+  // code (plain text) -- see buildAuthEmail()'s own actionHtml/text array.
+  copyHint?: string;
 }
 
 // Covers every email_action_type this project's own code actually triggers
@@ -280,6 +284,10 @@ function authEmailCopy(actionType: string, isFr: boolean): AuthEmailCopy {
     // just below (no "click the button" wording, since there is no button).
     case "signup":
       return {
+        // Overridden with the actual code prefixed on, per buildAuthEmail()
+        // below (subject can't be built here -- this function has no access
+        // to the token) -- this fallback is never what actually gets sent,
+        // just a placeholder so the AuthEmailCopy shape stays the same.
         subject: isFr ? "Votre code de vérification Effluve Paris" : "Your Effluve Paris verification code",
         heading: isFr ? "Voici votre code de vérification" : "Here is your verification code",
         bodyText: isFr
@@ -288,6 +296,9 @@ function authEmailCopy(actionType: string, isFr: boolean): AuthEmailCopy {
         codeNote: isFr
           ? "Ce code expire dans 10 minutes. Si vous n'avez pas créé de compte, ignorez cet e-mail."
           : "This code expires in 10 minutes. If you didn't create an account, you can ignore this email.",
+        copyHint: isFr
+          ? "Copiez ce code et collez-le sur la page de vérification."
+          : "Copy this code and paste it on the verification page.",
       };
     case "invite":
       return {
@@ -324,11 +335,19 @@ function buildAuthEmail(
 ): { subject: string; html: string; text: string } {
   const isFr = language === "fr";
   const copy = authEmailCopy(actionType, isFr);
-  // "signup" renders the 6-digit code itself, big/letter-spaced/monospace,
-  // with NO button or link anywhere in the email (the whole point of this
-  // change -- see this file's header comment) -- every other action type
-  // keeps the original clickable-button layout.
+  // "signup" renders the 6-digit code itself, big/monospace, with NO button
+  // or link anywhere in the email (the whole point of this change -- see
+  // this file's header comment) -- every other action type keeps the
+  // original clickable-button layout.
   const isCodeEmail = actionType === "signup";
+  // The code itself leads the subject line (and the preheader just below)
+  // so it's visible straight from the notification/inbox list and phones can
+  // offer to autofill it -- authEmailCopy()'s own "signup" subject is just a
+  // placeholder never actually sent, since it has no access to the token.
+  const subject = isCodeEmail
+    ? (isFr ? `${token} est votre code de vérification Effluve Paris` : `${token} is your Effluve Paris verification code`)
+    : copy.subject;
+  const preheaderText = isCodeEmail ? `${token} ${copy.bodyText}` : copy.bodyText;
   const labels = {
     terms: isFr ? "CGV" : "Terms of Sale",
     privacy: isFr ? "Confidentialité" : "Privacy Policy",
@@ -351,13 +370,19 @@ function buildAuthEmail(
 
   // Code box (signup) vs. the original clickable button (every other
   // action type) -- same outer table/cell shape either way (so the rest of
-  // the card's spacing doesn't shift), just a plain letter-spaced <span>
-  // with no href instead of an <a>.
+  // the card's spacing doesn't shift). The code itself is ONE plain text
+  // node in a single <span>, no href, no per-digit markup -- deliberately NO
+  // letter-spacing (some mail apps insert real whitespace between the
+  // rendered characters on copy when it's present, which breaks pasting the
+  // code straight into the verification page); a large font-size + the same
+  // monospace font gives the same "legible, evenly-spaced" look without
+  // that risk. user-select/-webkit-user-select: all means one tap or click
+  // anywhere on the code selects the whole thing in clients that support it.
   const actionHtml = isCodeEmail
     ? `<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
                   <tr>
                     <td style="background:#0a0908;border:1px solid #9c6b2e;padding:20px 36px;" align="center">
-                      <span style="display:inline-block;font-family:'IBM Plex Mono',Consolas,monospace;font-size:34px;font-weight:600;letter-spacing:0.5em;color:#d8b27c;">${escapeHtml(token || "")}</span>
+                      <span style="display:inline-block;font-family:'IBM Plex Mono',Consolas,monospace;font-size:40px;font-weight:600;color:#d8b27c;user-select:all;-webkit-user-select:all;">${escapeHtml(token || "")}</span>
                     </td>
                   </tr>
                 </table>`
@@ -387,7 +412,7 @@ function buildAuthEmail(
     </style>
   </head>
   <body style="margin:0;padding:0;background:#0a0908;font-family:'Manrope',Arial,sans-serif;color:#ede7dd;">
-    <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${escapeHtml(copy.bodyText)}</div>
+    <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${escapeHtml(preheaderText)}</div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0908" class="email-bg" style="background:#0a0908;">
       <tr>
         <td align="center" style="padding:40px 16px;">
@@ -413,6 +438,7 @@ function buildAuthEmail(
                 <h1 style="margin:0 0 16px;font-size:20px;font-weight:600;color:#ede7dd;">${escapeHtml(copy.heading)}</h1>
                 <p style="margin:0 0 28px;font-size:14px;line-height:1.6;color:#ede7dd;">${escapeHtml(copy.bodyText)}</p>
                 ${actionHtml}
+                ${isCodeEmail && copy.copyHint ? `<p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#ede7dd;">${escapeHtml(copy.copyHint)}</p>` : ""}
                 <p style="margin:28px 0 0;font-size:12px;line-height:1.6;color:#8f887c;">${escapeHtml(noteText)}</p>
               </td>
             </tr>
@@ -435,13 +461,16 @@ function buildAuthEmail(
     "",
     copy.bodyText,
     "",
+    // actionText alone, on its own line -- the bare code for a signup
+    // email, with nothing else sharing that line to copy/paste along with it.
     actionText,
     "",
+    ...(isCodeEmail && copy.copyHint ? [copy.copyHint, ""] : []),
     noteText,
     "",
     "---",
     legalFooterText,
   ].join("\n");
 
-  return { subject: copy.subject, html, text };
+  return { subject, html, text };
 }

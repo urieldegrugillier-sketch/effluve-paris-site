@@ -144,10 +144,25 @@ function installSupabaseMock() {
         ? { id: 'test-uid', first_name: '', last_name: '', marketing_opt_in: true }
         : null);
     },
+    // trackAbandonedCheckout() (js/checkout-page.js) fire-and-forgets this
+    // the moment the Account step resolves -- never awaited by its own
+    // caller, but it still has to exist as a real function or that call
+    // throws synchronously (TypeError: ... is not a function) the instant
+    // any checkout spec reaches that point.
+    async rpc() { return { data: null, error: null }; },
     functions: {
-      invoke: async (name) => (name === 'check-email-exists'
-        ? { data: { exists: !!window.__mock.emailExists }, error: null }
-        : { data: null, error: null })
+      // create-checkout-session (checkout.html's Payment step, see
+      // initStripePayment() in js/checkout-page.js) -- a fixed fake
+      // clientSecret/paymentIntentId is enough for specs that only need to
+      // reach/navigate the Payment step with tests/stripe-mock.js's own fake
+      // Stripe.js installed; nothing here actually charges anything.
+      invoke: async (name) => {
+        if (name === 'check-email-exists') return { data: { exists: !!window.__mock.emailExists }, error: null };
+        if (name === 'create-checkout-session') {
+          return { data: { clientSecret: 'pi_mock_secret_test', paymentIntentId: 'pi_mock_test' }, error: null };
+        }
+        return { data: null, error: null };
+      }
     }
   };
 }

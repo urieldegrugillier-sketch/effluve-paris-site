@@ -156,6 +156,26 @@
     sectionEls[step].summary.textContent = summaryText;
   }
 
+  // Clears a step's own "reached" status plus every step AFTER it in
+  // STEP_ORDER, relocking their headers (back to 'pending', not just hidden)
+  // unless one of them happens to be the section currently open -- used
+  // whenever a step's own data has genuinely changed since it was last
+  // validated (a different shipping address, a changed account identity),
+  // so a later step that already looked reachable (e.g. Payment, once
+  // completedFlags.payment is set true below) doesn't stay navigable on
+  // stale data. Reopening a step and closing it again WITHOUT this ever
+  // firing (the common "just double-checking" path) leaves every later step
+  // exactly as reachable as it was -- see openAccordionSection() above,
+  // which only ever demotes the one section it's actually collapsing.
+  function invalidateForward(step) {
+    const idx = STEP_ORDER.indexOf(step);
+    STEP_ORDER.slice(idx + 1).forEach((s) => {
+      completedFlags[s] = false;
+      if (sectionState[s] !== 'active') sectionState[s] = 'pending';
+    });
+    applyAccordionState();
+  }
+
   // Clicking a header only ever re-opens an already-completed (collapsed)
   // section -- pending headers are disabled outright, and clicking the
   // currently-active section's own header is a harmless no-op (nothing to
@@ -195,7 +215,7 @@
   // field on this form (see updateShippingNextBtnState()'s own comment).
   const shippingPhoneWidget = window.MonarkPhoneInput
     ? window.MonarkPhoneInput.mount(document.getElementById('checkout-shipping-phone'), {
-      onChange: () => { shippingPhoneError.hidden = true; }
+      onChange: () => { shippingPhoneError.hidden = true; invalidateForward('shipping'); }
     })
     : null;
 
@@ -291,11 +311,7 @@
       // 'completed'). Not reset unconditionally: Cancel resolves the exact
       // same session it started with (identityChanged false), and that needs
       // to leave Shipping/Payment's progress alone entirely.
-      if (identityChanged) {
-        completedFlags.shipping = false;
-        completedFlags.payment = false;
-        sectionState.payment = 'pending';
-      }
+      if (identityChanged) invalidateForward('account');
       await prefillShippingFromAccount(session);
       completeAccordionSection('account', accountSummaryText(session));
       openAccordionSection('shipping');
@@ -333,6 +349,32 @@
   const summaryEl = document.getElementById('checkout-summary');
   const form = document.getElementById('checkout-form');
   const submitBtn = document.getElementById('checkout-submit-btn');
+  // Declared up here (not down by the checkbox's own 'change' listener,
+  // where this used to live) so updateSubmitBtnState() -- called from
+  // renderSummary() below, including its own very first invocation at page
+  // load -- can read termsCheckbox.checked without a temporal-dead-zone
+  // crash from referencing a `const` declared later in the file.
+  const termsCheckbox = document.getElementById('checkout-terms-checkbox');
+  const termsError = document.getElementById('checkout-terms-error');
+  // Place Order stays genuinely unusable (disabled + aria-disabled, same
+  // muted/not-allowed styling every other disabled button on this page
+  // already gets via .checkout-submit:disabled, see css/checkout.css) until
+  // EVERY one of its independent gating conditions clears at once: a
+  // non-empty cart, the Terms checkbox ticked, the Payment Element actually
+  // ready (stripeClientSecret set by a successful initStripePayment(), see
+  // that function below), and no submission already in flight. Each
+  // condition re-runs this from its own trigger (cart:updated via
+  // renderSummary(), the checkbox's own 'change' listener, initStripePayment()/
+  // teardownStripePaymentElement(), and the submit handler's own try/finally)
+  // instead of only ever being recomputed from one call site, so the
+  // button's enabled state is always a live reflection of all four, not just
+  // whichever one last happened to touch it.
+  let submitInProgress = false;
+  function updateSubmitBtnState() {
+    const disabled = !cart.getCart().length || !termsCheckbox.checked || !stripeClientSecret || submitInProgress;
+    submitBtn.disabled = disabled;
+    submitBtn.setAttribute('aria-disabled', String(disabled));
+  }
   const formState = document.getElementById('checkout-form-state');
   const confirmation = document.getElementById('checkout-confirmation');
   const confirmationTotal = document.getElementById('checkout-confirmation-total');
@@ -410,7 +452,14 @@
     shippingNextBtn.disabled = !shippingFields.every(({ input }) => input.value.trim());
   }
   shippingFields.forEach(({ input, error }) => {
-    input.addEventListener('input', () => { error.hidden = true; updateShippingNextBtnState(); });
+    input.addEventListener('input', () => {
+      error.hidden = true;
+      updateShippingNextBtnState();
+      // Shipping's own data just changed -- Payment (if it was already
+      // reachable from a previous visit to this step) locks again until
+      // Next Step re-validates, see invalidateForward()'s own comment.
+      invalidateForward('shipping');
+    });
   });
 
   // Only France and Belgium are actually shippable/supported (both with free
@@ -454,6 +503,7 @@
     // this just clears the now-stale error rather than leaving it displayed
     // against the old country.
     postalError.hidden = true;
+    invalidateForward('shipping');
   });
 
   // Real-device bug: manually select Belgium, then trigger Chrome's saved-
@@ -600,12 +650,21 @@
   function shippingSummaryText() {
     const name = `${form.querySelector('[name="firstName"]').value.trim()} ${form.querySelector('[name="lastName"]').value.trim()}`.trim();
     const city = form.querySelector('[name="city"]').value.trim();
-    return t('checkout.accordionShippingSummary', { name, city });
+    const postal = form.querySelector('[name="postal"]').value.trim();
+    return t('checkout.accordionShippingSummary', { name, postal, city });
   }
 
   shippingNextBtn.addEventListener('click', () => {
     if (!validateShippingForm()) return;
     completeAccordionSection('shipping', shippingSummaryText());
+    // Marks Payment reachable again (a no-op the very first time, since it
+    // was already false -- but required on every RE-validation too, undoing
+    // whatever invalidateForward('shipping') cleared when the user edited a
+    // field after reopening this step) -- see that function's own comment.
+    // Payment itself otherwise never gets a "completed" summary line of its
+    // own (it's the last step; see completeAccordionSection() callers), just
+    // this reachability flag.
+    completedFlags.payment = true;
     openAccordionSection('payment');
     // Flipped on regardless of whether the cart happens to be empty right
     // now -- see the empty-cart state block further below, which is what
@@ -811,6 +870,7 @@
       } else {
         await stripeElements.fetchUpdates();
       }
+      updateSubmitBtnState();
     })();
     try {
       await stripeInitPromise;
@@ -1174,14 +1234,14 @@
       mobileCartEl.innerHTML = '';
       mobileTotalsEl.innerHTML = emptyHtml;
       billingRecapEl.innerHTML = '';
-      submitBtn.disabled = true;
+      updateSubmitBtnState();
       promoForm.hidden = true;
       mobilePromoForm.hidden = true;
       billingPromoBox.hidden = true;
       return;
     }
 
-    submitBtn.disabled = false;
+    updateSubmitBtnState();
     promoForm.hidden = false;
     mobilePromoForm.hidden = false;
     billingPromoBox.hidden = false;
@@ -1333,9 +1393,7 @@
     document.addEventListener('monark:langchange', () => renderCartTimer(window.MonarkCartTimer.getState()));
   }
 
-  const termsCheckbox = document.getElementById('checkout-terms-checkbox');
-  const termsError = document.getElementById('checkout-terms-error');
-  termsCheckbox.addEventListener('change', () => { termsError.hidden = true; });
+  termsCheckbox.addEventListener('change', () => { termsError.hidden = true; updateSubmitBtnState(); });
 
   // ---------------- Empty-cart state (Payment step) ----------------
   // Shows the top-of-page banner in place of a meaningfully usable checkout
@@ -1379,6 +1437,7 @@
     stripeElements = null;
     stripeClientSecret = null;
     stripePaymentIntentId = null;
+    updateSubmitBtnState();
   }
 
   function handleCartEmptyTransition() {
@@ -1586,8 +1645,14 @@
     // Disabled for the duration of the awaits below -- these are all real
     // network calls now (not the instant, synchronous mock this button was
     // originally built against), so without this a second click before they
-    // resolve could fire a duplicate charge/order.
-    submitBtn.disabled = true;
+    // resolve could fire a duplicate charge/order. Routed through the same
+    // updateSubmitBtnState() every other gating condition uses (not a bare
+    // submitBtn.disabled = true) so this combines with, rather than
+    // overrides, the cart/terms/payment-ready checks -- a stray re-render
+    // mid-submit (e.g. a 'cart:updated' from another tab) can't accidentally
+    // re-enable the button while a charge is still in flight.
+    submitInProgress = true;
+    updateSubmitBtnState();
     try {
       // Real payment confirmation. redirect: 'if_required' keeps this
       // embedded (no full-page navigation) for card payments, which
@@ -1649,7 +1714,8 @@
       // (see completeOrder()).
       await completeOrder(session, { quantity: items[0].quantity, finalTotal, appliedCode, firstNameVal, lastNameVal });
     } finally {
-      submitBtn.disabled = false;
+      submitInProgress = false;
+      updateSubmitBtnState();
     }
   });
 })();

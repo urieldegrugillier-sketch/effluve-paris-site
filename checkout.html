@@ -46,7 +46,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;0,6..96,800;0,6..96,900;1,6..96,400&family=Manrope:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=block" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=20261105e">
-<link rel="stylesheet" href="css/checkout.css?v=20261115b">
+<link rel="stylesheet" href="css/checkout.css?v=20261115c">
 </head>
 <body class="shop-page">
 
@@ -206,12 +206,14 @@
                  below. -->
             <section class="checkout-accordion-section checkout-mobile-summary-section" id="checkout-section-mobile-summary">
               <button type="button" class="checkout-accordion-header" id="checkout-mobile-summary-header" aria-expanded="false" aria-controls="checkout-mobile-summary-body">
-                <span class="checkout-accordion-header-text">
-                  <span class="checkout-accordion-title" data-i18n="checkout.mobileOrderSummaryHeading">Payment</span>
+                <span class="checkout-accordion-header-row">
+                  <span class="checkout-accordion-header-text">
+                    <span class="checkout-accordion-title" data-i18n="checkout.mobileOrderSummaryHeading">Payment</span>
+                  </span>
+                  <svg class="checkout-accordion-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <path d="M2 4L7 9L12 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
                 </span>
-                <svg class="checkout-accordion-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                  <path d="M2 4L7 9L12 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
               </button>
               <div class="checkout-accordion-body" id="checkout-mobile-summary-body" hidden>
                 <div id="checkout-mobile-totals"><!-- populated by inline script below --></div>
@@ -244,14 +246,16 @@
 
             <section class="checkout-accordion-section" id="checkout-section-account" data-step="account">
               <button type="button" class="checkout-accordion-header" id="checkout-account-header" aria-expanded="true" aria-controls="checkout-account-body">
-                <span class="checkout-accordion-header-text">
-                  <span class="checkout-accordion-step-num">1</span>
-                  <span class="checkout-accordion-title" data-i18n="common.account">Account</span>
+                <span class="checkout-accordion-header-row">
+                  <span class="checkout-accordion-header-text">
+                    <span class="checkout-accordion-step-num">1</span>
+                    <span class="checkout-accordion-title" data-i18n="common.account">Account</span>
+                  </span>
+                  <svg class="checkout-accordion-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <path d="M2 4L7 9L12 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
                 </span>
                 <span class="checkout-accordion-summary" id="checkout-account-header-summary"></span>
-                <svg class="checkout-accordion-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                  <path d="M2 4L7 9L12 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
               </button>
               <div class="checkout-accordion-body" id="checkout-account-body">
                 <!-- Filled by window.MonarkAccount.mountAccountGate() below --
@@ -275,14 +279,16 @@
             <form id="checkout-form" novalidate>
               <section class="checkout-accordion-section" id="checkout-section-shipping" data-step="shipping">
                 <button type="button" class="checkout-accordion-header" id="checkout-shipping-header" aria-expanded="false" aria-controls="checkout-shipping-body" disabled>
-                  <span class="checkout-accordion-header-text">
-                    <span class="checkout-accordion-step-num">2</span>
-                    <span class="checkout-accordion-title" data-i18n="checkout.shippingInformation">Shipping Information</span>
+                  <span class="checkout-accordion-header-row">
+                    <span class="checkout-accordion-header-text">
+                      <span class="checkout-accordion-step-num">2</span>
+                      <span class="checkout-accordion-title" data-i18n="checkout.shippingInformation">Shipping Information</span>
+                    </span>
+                    <svg class="checkout-accordion-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <path d="M2 4L7 9L12 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
                   </span>
                   <span class="checkout-accordion-summary" id="checkout-shipping-header-summary"></span>
-                  <svg class="checkout-accordion-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                    <path d="M2 4L7 9L12 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
                 </button>
                 <div class="checkout-accordion-body" id="checkout-shipping-body" hidden>
                   <div class="checkout-field-row">
@@ -404,14 +410,16 @@
 
               <section class="checkout-accordion-section" id="checkout-section-payment" data-step="payment">
                 <button type="button" class="checkout-accordion-header" id="checkout-payment-header" aria-expanded="false" aria-controls="checkout-payment-body" disabled>
-                  <span class="checkout-accordion-header-text">
-                    <span class="checkout-accordion-step-num">3</span>
-                    <span class="checkout-accordion-title" data-i18n="checkout.payment">Payment</span>
+                  <span class="checkout-accordion-header-row">
+                    <span class="checkout-accordion-header-text">
+                      <span class="checkout-accordion-step-num">3</span>
+                      <span class="checkout-accordion-title" data-i18n="checkout.payment">Payment</span>
+                    </span>
+                    <svg class="checkout-accordion-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                      <path d="M2 4L7 9L12 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
                   </span>
                   <span class="checkout-accordion-summary" id="checkout-payment-header-summary"></span>
-                  <svg class="checkout-accordion-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                    <path d="M2 4L7 9L12 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
                 </button>
                 <div class="checkout-accordion-body" id="checkout-payment-body" hidden>
                   <!-- Stripe Payment Request Button (Apple Pay/Google Pay/Link) --
@@ -608,7 +616,7 @@
 <script src="js/analytics.js?v=20261027"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js?v=20260822"></script>
-<script src="js/i18n.js?v=20261115b"></script>
+<script src="js/i18n.js?v=20261115c"></script>
 <script src="js/nav-cta-page-aware.js?v=20261014c"></script>
 <!-- Loaded here, ahead of the big inline script below -- that script's own
      renderSummary() (which needs window.MonarkPromoCountdown to render the
@@ -628,7 +636,7 @@
 <script src="js/places-autocomplete.js?v=20260824"></script>
 <script src="https://js.stripe.com/v3/"></script>
 <script src="js/stripe-client.js?v=20260822"></script>
-<script src="js/checkout-page.js?v=20261104a"></script>
+<script src="js/checkout-page.js?v=20261115a"></script>
 <script src="js/promo-banner.js?v=20260822"></script>
 <script src="js/cookie-consent.js?v=20261027"></script>
 <script src="js/email-popup.js?v=20260822"></script>

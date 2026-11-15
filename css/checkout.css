@@ -1281,8 +1281,7 @@
 
 .checkout-accordion-header {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
   width: 100%;
   background: none;
   border: none;
@@ -1292,6 +1291,11 @@
   color: inherit;
 }
 .checkout-accordion-header:disabled { cursor: default; }
+
+/* Title + chevron on their own row -- the collapsed-step summary (point 3,
+   .checkout-accordion-summary below) is its own full-width line underneath,
+   not squeezed into this row anymore. */
+.checkout-accordion-header-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; }
 
 .checkout-accordion-header-text { display: flex; align-items: center; gap: 0.8rem; flex: 0 0 auto; }
 
@@ -1327,10 +1331,16 @@
    than an equally-inviting heading the user can't actually act on yet. */
 .checkout-accordion-header:disabled .checkout-accordion-title { color: var(--text-muted); }
 
+/* Collapsed-step recap (point 3) -- its own full-width second line under the
+   title row, not a truncated fragment squeezed in next to it. :empty hides
+   it outright (no stray gap/margin) for Payment, which never gets a summary
+   (see checkout-page.js's own comment on why), and for any step before it's
+   first been completed. */
 .checkout-accordion-summary {
-  flex: 1 1 auto;
-  min-width: 0;
-  text-align: right;
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  text-align: left;
   font-family: var(--font-mono);
   font-size: 0.72rem;
   letter-spacing: 0.03em;
@@ -1339,6 +1349,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.checkout-accordion-summary:empty { display: none; }
 
 .checkout-accordion-chevron { flex-shrink: 0; color: var(--text-muted); transition: transform 0.3s ease; }
 .checkout-accordion-header[aria-expanded="true"] .checkout-accordion-chevron { transform: rotate(180deg); }

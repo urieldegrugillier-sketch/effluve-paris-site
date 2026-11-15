@@ -441,7 +441,7 @@
         statusGuest: 'Checking out as {email} (Guest)',
         nextStep: 'Next Step',
         accordionAccountSummaryGuest: '{email} (Guest)',
-        accordionShippingSummary: 'Shipping to: {name}, {city}',
+        accordionShippingSummary: 'Shipping to: {name}, {postal} {city}',
         // Label text changed from "Address Line 2 (optional)" -- literally
         // contained "Address", which Chrome's autofill heuristic reads as
         // part of its field classification via the <label> this input is
@@ -1091,7 +1091,7 @@
         statusGuest: "Commande en tant qu'invité : {email}",
         nextStep: 'Étape Suivante',
         accordionAccountSummaryGuest: '{email} (Invité)',
-        accordionShippingSummary: 'Livraison à : {name}, {city}',
+        accordionShippingSummary: 'Livraison à : {name}, {postal} {city}',
         addressLine2: "Bâtiment, étage, code d'accès… (facultatif)",
         phone: 'Numéro de Téléphone (facultatif)',
         termsLabel: "J'accepte les <a href=\"cgv.html\" target=\"_blank\" rel=\"noopener\">Conditions Générales de Vente</a>.",
