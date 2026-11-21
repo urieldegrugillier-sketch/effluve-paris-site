@@ -77,26 +77,40 @@ Pointing an actual deployment at `dist/` (or copying its contents over
 `css/`/`js/` at deploy time) is a separate step, left for whatever
 hosting/deploy process is set up later.
 
-## Preview the signup verification email
+## Preview the transactional emails
 
-`scripts/send-test-auth-email.mjs` builds the signup code email with the
-production builder (`supabase/functions/send-auth-email/email.ts`) and a fake
-code `123456`, then sends it through Resend to the test inbox. It does not
-touch Supabase users or the production hook. Requires Node 24+.
+`scripts/send-test-emails.mjs` builds every transactional email the site sends
+with the production builders (`supabase/functions/*/email.ts`) and fake data
+(fake order ref, address, tracking number and codes; real product name, photo
+and price; see `scripts/test-emails/catalog.mjs`), then sends them through
+Resend to the test inbox with the subject prefixed `[TEST] `, pausing between
+sends. It never touches Supabase, Stripe, Ship24 or real orders. Requires
+Node 24+.
+
+Emails: `signup-code`, `password-recovery`, `email-change`, `auth-fallback`,
+`order-confirmation`, `order-internal-notification` (always French, as in
+production), `shipped`, `shipped-correction`, `delivered`, `cart-reminder-1`,
+`cart-reminder-2`.
 
 The Resend API key is read from `RESEND_API_KEY`, or from a gitignored `.env`
 file at the repo root containing `RESEND_API_KEY=re_...`. It is never printed.
 
 ```
-npm run test:auth-email               # French
-npm run test:auth-email -- --lang=en  # English
+npm run test:emails                          # all, French
+npm run test:emails -- --lang=en             # all, English
+npm run test:emails -- --only=delivered      # a single one
+npm run test:emails -- --list                # list the names
+npm run test:emails -- --dry-run             # build all, send nothing
+npm run test:auth-email                      # shortcut for --only=signup-code
 ```
 
 Windows cmd, key set for this one command only (runs in a child shell, so the
 variable does not stay in your session):
 
 ```
-cmd /C "set RESEND_API_KEY=re_your_key_here&& npm run test:auth-email"
+cmd /C "set RESEND_API_KEY=re_your_key_here&& npm run test:emails"
+cmd /C "set RESEND_API_KEY=re_your_key_here&& npm run test:emails -- --lang=en"
+cmd /C "set RESEND_API_KEY=re_your_key_here&& npm run test:emails -- --only=order-confirmation"
 ```
 
 Set `TEST_EMAIL_TO` to send to a different address.

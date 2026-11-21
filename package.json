@@ -6,7 +6,8 @@
   "scripts": {
     "build": "node scripts/build.js",
     "test": "playwright test",
-    "test:auth-email": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/send-test-auth-email.mjs"
+    "test:emails": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/send-test-emails.mjs",
+    "test:auth-email": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/send-test-emails.mjs --only=signup-code"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",
