@@ -77,6 +77,30 @@ Pointing an actual deployment at `dist/` (or copying its contents over
 `css/`/`js/` at deploy time) is a separate step, left for whatever
 hosting/deploy process is set up later.
 
+## Preview the signup verification email
+
+`scripts/send-test-auth-email.mjs` builds the signup code email with the
+production builder (`supabase/functions/send-auth-email/email.ts`) and a fake
+code `123456`, then sends it through Resend to the test inbox. It does not
+touch Supabase users or the production hook. Requires Node 24+.
+
+The Resend API key is read from `RESEND_API_KEY`, or from a gitignored `.env`
+file at the repo root containing `RESEND_API_KEY=re_...`. It is never printed.
+
+```
+npm run test:auth-email               # French
+npm run test:auth-email -- --lang=en  # English
+```
+
+Windows cmd, key set for this one command only (runs in a child shell, so the
+variable does not stay in your session):
+
+```
+cmd /C "set RESEND_API_KEY=re_your_key_here&& npm run test:auth-email"
+```
+
+Set `TEST_EMAIL_TO` to send to a different address.
+
 ## Before launch — placeholders to replace
 
 - `https://effluve-paris.fr` — appears in every page's `<link rel="canonical">`,

@@ -1,4 +1,4 @@
-// Effluve Paris — admin.html's own privileged action: mark an order shipped
+// Effluve Paris: admin.html's own privileged action: mark an order shipped
 // (or correct an already-shipped order's tracking number) and send the
 // matching customer email. Called from js/admin.js via
 // supabase.functions.invoke('mark-order-shipped', ...), NOT a direct
@@ -567,6 +567,7 @@ function buildShippingEmail(details: ShippingEmailDetails): { subject: string; h
       [data-ogsc] body, [data-ogsc] .email-bg { background-color: #0a0908 !important; }
       [data-ogsc] .email-card { background-color: #141210 !important; }
       [data-ogsc] h1, [data-ogsc] p, [data-ogsc] td, [data-ogsc] span, [data-ogsc] a { color: #ede7dd !important; }
+      .item-link:hover { text-decoration: underline !important; }
     </style>
   </head>
   <body style="margin:0;padding:0;background:#0a0908;font-family:'Manrope',Arial,sans-serif;color:#ede7dd;">
@@ -594,7 +595,7 @@ function buildShippingEmail(details: ShippingEmailDetails): { subject: string; h
                       <a href="${PRODUCT_URL}"><img src="${PRODUCT_THUMB_URL}" width="120" height="120" alt="${productName}" style="display:block;border:0;outline:none;width:120px;height:120px;border-radius:4px;"></a>
                     </td>
                     <td valign="top">
-                      <p style="margin:0 0 10px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;">${productNameNatural} | ${ref}</p>
+                      <p style="margin:0 0 10px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;"><a href="${PRODUCT_URL}" class="item-link" style="color:#d8b27c;text-decoration:none;"><span style="color:#d8b27c;">${productNameNatural} | ${ref}</span></a></p>
                       <p style="margin:0 0 4px;font-size:12px;line-height:1.4;color:#8f887c;">${trackingLabel}</p>
                       <p style="margin:0;font-size:22px;font-weight:700;line-height:1.15;color:#ede7dd;">${trackingNumberHtml}</p>
                       ${carrierNameHtml}
@@ -638,6 +639,7 @@ function buildShippingEmail(details: ShippingEmailDetails): { subject: string; h
     introText,
     "",
     `${details.productName} | ${ref}`,
+    PRODUCT_URL,
     `${trackingLabel}: ${details.trackingNumber}${trackingUrl ? ` (${trackingUrl})` : ""}`,
     ...(carrierNameText ? [carrierNameText] : []),
     "",

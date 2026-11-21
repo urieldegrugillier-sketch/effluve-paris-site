@@ -1,4 +1,4 @@
-// MONARK — Stripe webhook: the authoritative, server-side source of truth
+// MONARK: Stripe webhook: the authoritative, server-side source of truth
 // for order completion. Previously the ONLY thing that ever wrote a
 // public.orders row was js/account.js's recordOrder(), called client-side
 // right after Stripe confirms payment in the browser -- if that tab closed,
@@ -1061,7 +1061,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
   const productNameNatural = productName.replace(/\s\|\s/g, ", ");
   const orderDate = formatOrderDate(details.createdAt, isFr);
 
-  // "|" not "—" -- matches the sitewide separator convention (e.g.
+  // "|" not an em dash -- matches the sitewide separator convention (e.g.
   // js/cart.js's own PRODUCT.name, "MONARK Eau de Parfum | 100ml") rather
   // than an em dash, which wasn't used anywhere else on the site.
   const subject = isFr
@@ -1278,6 +1278,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
       [data-ogsc] body, [data-ogsc] .email-bg { background-color: #0a0908 !important; }
       [data-ogsc] .email-card { background-color: #141210 !important; }
       [data-ogsc] h1, [data-ogsc] p, [data-ogsc] td, [data-ogsc] span, [data-ogsc] a { color: #ede7dd !important; }
+      .item-link:hover { text-decoration: underline !important; }
     </style>
   </head>
   <body style="margin:0;padding:0;background:#0a0908;font-family:'Manrope',Arial,sans-serif;color:#ede7dd;">
@@ -1349,7 +1350,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
                       <a href="${PRODUCT_URL}"><img src="${PRODUCT_THUMB_URL}" width="120" height="120" alt="${productName}" style="display:block;border:0;outline:none;width:120px;height:120px;border-radius:4px;"></a>
                     </td>
                     <td valign="top">
-                      <p style="margin:0 0 4px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;">${productNameNatural} | ${details.referenceNumber}</p>
+                      <p style="margin:0 0 4px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;"><a href="${PRODUCT_URL}" class="item-link" style="color:#d8b27c;text-decoration:none;"><span style="color:#d8b27c;">${productNameNatural} | ${details.referenceNumber}</span></a></p>
                       <p style="margin:0 0 10px;font-size:12px;line-height:1.4;color:#8f887c;">${quantityLine}</p>
                       <p style="margin:0;font-size:22px;font-weight:700;line-height:1.15;color:#ede7dd;">${totalFormatted}</p>
                     </td>
@@ -1446,6 +1447,7 @@ function buildConfirmationEmail(details: ConfirmationEmailDetails): { subject: s
     `${labels.reference}: ${details.referenceNumber}`,
     `${labels.date}: ${orderDate}`,
     `${labels.product}: ${details.productName}`,
+    PRODUCT_URL,
     `${labels.quantity}: ${details.quantity}`,
     `${labels.shippingFee}: ${shippingFeeFormatted} (${labels.free})`,
     `${labels.vat}: ${vatAmountFormatted} (${labels.free})`,

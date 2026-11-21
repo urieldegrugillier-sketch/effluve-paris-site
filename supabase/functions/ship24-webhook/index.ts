@@ -1,4 +1,4 @@
-// Effluve Paris — Ship24 delivery webhook. Ship24 pushes a tracking update
+// Effluve Paris: Ship24 delivery webhook. Ship24 pushes a tracking update
 // here every time something changes on a tracker this project created (see
 // supabase/functions/mark-order-shipped's own createShip24Tracker(), which
 // creates one right after an order is marked shipped and stores the
@@ -378,6 +378,7 @@ function buildDeliveredEmail(details: DeliveredEmailDetails): { subject: string;
       [data-ogsc] body, [data-ogsc] .email-bg { background-color: #0a0908 !important; }
       [data-ogsc] .email-card { background-color: #141210 !important; }
       [data-ogsc] h1, [data-ogsc] p, [data-ogsc] td, [data-ogsc] span, [data-ogsc] a { color: #ede7dd !important; }
+      .item-link:hover { text-decoration: underline !important; }
     </style>
   </head>
   <body style="margin:0;padding:0;background:#0a0908;font-family:'Manrope',Arial,sans-serif;color:#ede7dd;">
@@ -405,7 +406,7 @@ function buildDeliveredEmail(details: DeliveredEmailDetails): { subject: string;
                       <a href="${PRODUCT_URL}"><img src="${PRODUCT_THUMB_URL}" width="120" height="120" alt="${productName}" style="display:block;border:0;outline:none;width:120px;height:120px;border-radius:4px;"></a>
                     </td>
                     <td valign="top">
-                      <p style="margin:0 0 10px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;">${productNameNatural} | ${ref}</p>
+                      <p style="margin:0 0 10px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;"><a href="${PRODUCT_URL}" class="item-link" style="color:#d8b27c;text-decoration:none;"><span style="color:#d8b27c;">${productNameNatural} | ${ref}</span></a></p>
                       <p style="margin:0 0 4px;font-size:12px;line-height:1.4;color:#8f887c;">${deliveredLabel}</p>
                       <p style="margin:0;font-size:22px;font-weight:700;line-height:1.15;color:#ede7dd;">${escapeHtml(deliveredDateLabel)}</p>
                     </td>
@@ -440,8 +441,8 @@ function buildDeliveredEmail(details: DeliveredEmailDetails): { subject: string;
 </html>`;
 
   const text = isFr
-    ? `${greeting.replace(/,$/, "")},\n\n${heading}\n\nVotre commande ${ref} (${productNameNatural}) a été livrée avec succès. Nous espérons qu'elle vous plaira !\n\n${deliveredLabel} : ${deliveredDateLabel}\n\n${signOff}\nEffluve Paris\n\n${replyNoteText}\n${whatsappNoteText}\n\n${legalFooterText}`
-    : `${greeting.replace(/,$/, "")},\n\n${heading}\n\nYour order ${ref} (${productNameNatural}) has been delivered successfully. We hope you love it!\n\n${deliveredLabel}: ${deliveredDateLabel}\n\n${signOff}\nEffluve Paris\n\n${replyNoteText}\n${whatsappNoteText}\n\n${legalFooterText}`;
+    ? `${greeting.replace(/,$/, "")},\n\n${heading}\n\nVotre commande ${ref} (${productNameNatural}) a été livrée avec succès. Nous espérons qu'elle vous plaira !\n\n${details.productName} | ${ref}\n${PRODUCT_URL}\n\n${deliveredLabel} : ${deliveredDateLabel}\n\n${signOff}\nEffluve Paris\n\n${replyNoteText}\n${whatsappNoteText}\n\n${legalFooterText}`
+    : `${greeting.replace(/,$/, "")},\n\n${heading}\n\nYour order ${ref} (${productNameNatural}) has been delivered successfully. We hope you love it!\n\n${details.productName} | ${ref}\n${PRODUCT_URL}\n\n${deliveredLabel}: ${deliveredDateLabel}\n\n${signOff}\nEffluve Paris\n\n${replyNoteText}\n${whatsappNoteText}\n\n${legalFooterText}`;
 
   return { subject, html, text };
 }

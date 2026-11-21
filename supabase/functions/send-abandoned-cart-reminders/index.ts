@@ -1,4 +1,4 @@
-// MONARK — Abandoned-cart reminder emails: a two-stage nudge for a checkout
+// MONARK: Abandoned-cart reminder emails: a two-stage nudge for a checkout
 // that started (email captured at the Account step, and/or a Stripe
 // PaymentIntent created at the Payment step -- see public.abandoned_checkouts'
 // own migration for exactly what "started" means here) but never reached a
@@ -350,6 +350,7 @@ function buildReminderEmail(content: ReminderEmailContent): { subject: string; h
       [data-ogsc] body, [data-ogsc] .email-bg { background-color: #0a0908 !important; }
       [data-ogsc] .email-card { background-color: #141210 !important; }
       [data-ogsc] h1, [data-ogsc] p, [data-ogsc] td, [data-ogsc] span, [data-ogsc] a { color: #ede7dd !important; }
+      .item-link:hover { text-decoration: underline !important; }
     </style>
   </head>
   <body style="margin:0;padding:0;background:#0a0908;font-family:'Manrope',Arial,sans-serif;color:#ede7dd;">
@@ -384,7 +385,7 @@ function buildReminderEmail(content: ReminderEmailContent): { subject: string; h
                       <a href="${PRODUCT_URL}"><img src="${PRODUCT_THUMB_URL}" width="120" height="120" alt="${escapeHtml(PRODUCT_NAME)}" style="display:block;border:0;outline:none;width:120px;height:120px;border-radius:4px;"></a>
                     </td>
                     <td valign="top">
-                      <p style="margin:0;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;">${escapeHtml(PRODUCT_NAME)}</p>
+                      <p style="margin:0;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;"><a href="${PRODUCT_URL}" class="item-link" style="color:#d8b27c;text-decoration:none;"><span style="color:#d8b27c;">${escapeHtml(PRODUCT_NAME)}</span></a></p>
                     </td>
                   </tr>
                 </table>
@@ -415,6 +416,7 @@ function buildReminderEmail(content: ReminderEmailContent): { subject: string; h
     ...content.bodyText,
     "",
     `${PRODUCT_NAME}`,
+    PRODUCT_URL,
     "",
     `${content.ctaLabel}: ${PRODUCT_URL}`,
     "",
