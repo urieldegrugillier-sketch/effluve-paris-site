@@ -18,7 +18,7 @@
 // .env file at the repo root (line: RESEND_API_KEY=re_...). It is never
 // printed. Optional TEST_EMAIL_TO overrides the recipient.
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as auth from "../supabase/functions/send-auth-email/email.ts";
@@ -42,10 +42,54 @@ function argValue(name) {
 }
 const hasFlag = (name) => process.argv.slice(2).includes(`--${name}`);
 
+// Real site prices for the previews, from js/cart.js PRODUCT (the values the
+// site displays). Production reads products.price / products.original_price
+// from the database instead.
+function readSitePrices() {
+  const src = readFileSync(resolve(ROOT, "js/cart.js"), "utf8");
+  const price = Number((src.match(/\bprice:\s*([\d.]+)/) || [])[1]);
+  const originalPrice = Number((src.match(/\boriginalPrice:\s*([\d.]+)/) || [])[1]);
+  if (!(price > 0) || !(originalPrice > 0)) {
+    console.error("Could not read PRODUCT.price / PRODUCT.originalPrice from js/cart.js.");
+    process.exit(1);
+  }
+  return { price, originalPrice };
+}
+
+// The cart reminders' reassurance row (REASSURANCE_ITEMS in
+// send-abandoned-cart-reminders/email.ts) must say exactly what the site's
+// trust bar says (js/i18n.js, trustBar.* in the en and fr blocks).
+function checkReassuranceSync() {
+  const src = readFileSync(resolve(ROOT, "js/i18n.js"), "utf8");
+  const frStart = src.search(/^\s{4}fr:\s*\{/m);
+  const blockOf = (part) => {
+    const m = part.match(/trustBar:\s*\{([\s\S]*?)\}/);
+    const out = {};
+    if (m) for (const [, k, v] of m[1].matchAll(/(\w+):\s*'([^']*)'/g)) out[k] = v;
+    return out;
+  };
+  const site = { en: blockOf(src.slice(0, frStart)), fr: blockOf(src.slice(frStart)) };
+  const keys = ["shipping", "returns", "payment"];
+  const problems = [];
+  cart.REASSURANCE_ITEMS.forEach((item, i) => {
+    for (const lang of ["fr", "en"]) {
+      const k = keys[i];
+      if (site[lang][k] !== item[lang].label) problems.push(`${lang} trustBar.${k}: site "${site[lang][k]}" vs email "${item[lang].label}"`);
+      if (site[lang][`${k}Desc`] !== item[lang].desc) problems.push(`${lang} trustBar.${k}Desc: site "${site[lang][`${k}Desc`]}" vs email "${item[lang].desc}"`);
+    }
+  });
+  if (problems.length) {
+    console.error("Reassurance wording is out of sync between js/i18n.js and REASSURANCE_ITEMS:");
+    for (const p of problems) console.error(`  ${p}`);
+    process.exit(1);
+  }
+}
+
+checkReassuranceSync();
 const language = argValue("lang") === "en" ? "en" : "fr";
 const only = argValue("only");
 const dryRun = hasFlag("dry-run");
-const catalog = emailCatalog(language, { auth, order, shipped, delivered, cart });
+const catalog = emailCatalog(language, { auth, order, shipped, delivered, cart }, readSitePrices());
 
 if (hasFlag("list")) {
   for (const e of catalog) console.log(e.name);

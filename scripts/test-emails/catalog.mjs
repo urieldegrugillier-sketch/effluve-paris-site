@@ -6,9 +6,13 @@
 // so the same catalog can also be run against other copies of the builders,
 // e.g. to check that a refactor kept the output byte-identical.
 
-// Real product name and price (js/cart.js PRODUCT), fake everything else.
+// Real product name, fake everything else. Prices are passed in by the
+// caller (scripts/send-test-emails.mjs reads them from js/cart.js PRODUCT).
 const PRODUCT_NAME = "MONARK Eau de Parfum | 100ml";
-const PRICE = 149;
+const DEFAULT_PRICES = { price: 149, originalPrice: 189 };
+const FAKE_PROMO = { code: "MONARK10", percent: 10 };
+const FAKE_PHONE = "+33 612345678";
+const FAKE_PAYMENT_METHOD = "Visa •••• 4242";
 const FAKE_ORDER_REF = "TEST7K2M";
 const FAKE_CUSTOMER = {
   email: "camille.martin@example.com",
@@ -28,10 +32,15 @@ const FAKE_LINK = "https://effluve-paris.fr/account.html";
  * @param {{ auth: any, order: any, shipped: any, delivered: any, cart: any }} m
  *   the email.ts modules of send-auth-email, stripe-webhook,
  *   mark-order-shipped, ship24-webhook and send-abandoned-cart-reminders.
+ * @param {{ price: number, originalPrice: number }} [prices] real site prices
  * @returns {{ name: string, build: () => { subject: string, html: string, text: string } }[]}
  */
-export function emailCatalog(lang, m) {
+export function emailCatalog(lang, m, prices = DEFAULT_PRICES) {
   const now = new Date().toISOString();
+  const PRICE = prices.price;
+  // Same rounding as create-checkout-session: cents, then the code's percentage.
+  const promoTotal = Math.round(Math.round(PRICE * 100) * (1 - FAKE_PROMO.percent / 100)) / 100;
+  const cartPricing = (quantity) => ({ quantity, unitPrice: prices.price, originalPrice: prices.originalPrice });
   const shippedBase = {
     language: lang,
     firstName: "Camille",
@@ -88,19 +97,28 @@ export function emailCatalog(lang, m) {
       // Internal owner notification: always French in production.
       name: "order-internal-notification",
       build: () =>
+        // With a fake promo code applied, so the discount row shows.
         m.order.buildInternalOrderNotificationEmail({
           referenceNumber: FAKE_ORDER_REF,
+          createdAt: now,
           productName: PRODUCT_NAME,
           quantity: 1,
-          total: PRICE,
+          unitPrice: PRICE,
+          subtotal: PRICE,
+          discount: Math.round((PRICE - promoTotal) * 100) / 100,
+          promoCode: FAKE_PROMO.code,
+          total: promoTotal,
           customerEmail: FAKE_CUSTOMER.email,
+          customerPhone: FAKE_PHONE,
+          isGuest: true,
+          customerLanguage: lang,
           shippingName: FAKE_CUSTOMER.name,
           shippingAddressLine1: FAKE_CUSTOMER.line1,
           shippingAddressLine2: FAKE_CUSTOMER.line2,
           shippingCity: FAKE_CUSTOMER.city,
           shippingPostalCode: FAKE_CUSTOMER.postalCode,
           shippingCountry: FAKE_CUSTOMER.country,
-          promoCode: "",
+          paymentMethod: FAKE_PAYMENT_METHOD,
         }),
     },
     // mark-order-shipped
@@ -119,7 +137,9 @@ export function emailCatalog(lang, m) {
         }),
     },
     // send-abandoned-cart-reminders
-    { name: "cart-reminder-1", build: () => m.cart.buildStage1Email(lang) },
-    { name: "cart-reminder-2", build: () => m.cart.buildStage2Email(lang, FAKE_DISCOUNT_CODE) },
+    { name: "cart-reminder-1", build: () => m.cart.buildStage1Email(lang, cartPricing(1)) },
+    { name: "cart-reminder-1-qty2", build: () => m.cart.buildStage1Email(lang, cartPricing(2)) },
+    { name: "cart-reminder-2", build: () => m.cart.buildStage2Email(lang, FAKE_DISCOUNT_CODE, cartPricing(1)) },
+    { name: "cart-reminder-2-qty2", build: () => m.cart.buildStage2Email(lang, FAKE_DISCOUNT_CODE, cartPricing(2)) },
   ];
 }

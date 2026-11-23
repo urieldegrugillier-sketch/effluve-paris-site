@@ -318,10 +318,17 @@
   // Account -> Shipping transition it's called right after.
   function trackAbandonedCheckout(session) {
     if (!session || !session.email) return;
+    // Cart quantity at this moment, so the reminder emails can show it (see
+    // 20261123000000_abandoned_checkout_quantity_and_original_price.sql).
+    // window.MonarkCart (not this file's own `cart` const, declared further
+    // down) so this is safe even if the account gate resolves immediately.
+    const cartItems = window.MonarkCart ? window.MonarkCart.getCart() : [];
+    const cartQuantity = cartItems.length ? cartItems[0].quantity : null;
     window.MonarkSupabase.rpc('track_abandoned_checkout', {
       p_email: session.email,
       p_language: stripeLocale(),
-      p_user_id: (!session.isGuest && window.MonarkAccount.getCurrentUserId) ? window.MonarkAccount.getCurrentUserId() : null
+      p_user_id: (!session.isGuest && window.MonarkAccount.getCurrentUserId) ? window.MonarkAccount.getCurrentUserId() : null,
+      p_quantity: cartQuantity
     }).then(({ error }) => {
       if (error) console.error('trackAbandonedCheckout:', error.message);
     });
@@ -890,7 +897,13 @@
           shippingAddressLine2: form.querySelector('[name="extraDetails"]').value.trim() || undefined,
           shippingCity: form.querySelector('[name="city"]').value.trim() || undefined,
           shippingPostalCode: form.querySelector('[name="postal"]').value.trim() || undefined,
-          shippingCountry: form.querySelector('[name="country"]').value || undefined
+          shippingCountry: form.querySelector('[name="country"]').value || undefined,
+          // Shown only in the internal new-order email (so the parcel label
+          // can carry a contact number), never in a customer-facing one.
+          // International format from the phone widget: "+33 612345678".
+          shippingPhone: (shippingPhoneWidget && shippingPhoneWidget.getValue().number)
+            ? `+${shippingPhoneWidget.getValue().dialCode} ${shippingPhoneWidget.getValue().number}`
+            : undefined
         }
       });
       if (error || !data || !data.clientSecret) {

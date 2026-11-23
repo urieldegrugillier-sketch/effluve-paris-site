@@ -31,6 +31,7 @@ import {
   DISCOUNT_EXPIRES_DAYS,
   buildStage1Email,
   buildStage2Email,
+  type CartPricing,
 } from "./email.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -83,8 +84,16 @@ Deno.serve(async (req) => {
     // skipping the sends entirely over.
   }
 
-  const stage1 = await processStage1(supabaseAdmin);
-  const stage2 = await processStage2(supabaseAdmin);
+  // Both reminders show the cart's price, read from the same products row
+  // checkout charges from. Without it there is nothing correct to show, so
+  // this run sends nothing; the rows stay pending and the next tick retries.
+  const prices = await loadProductPrices(supabaseAdmin);
+  if (!prices) {
+    return Response.json({ error: "product price unavailable" }, { status: 500 });
+  }
+
+  const stage1 = await processStage1(supabaseAdmin, prices);
+  const stage2 = await processStage2(supabaseAdmin, prices);
 
   return Response.json({ stage1, stage2 });
 });
@@ -94,6 +103,39 @@ interface AbandonedRow {
   email: string;
   language: string;
   discount_code: string | null;
+  // Cart quantity (see 20261123000000_abandoned_checkout_quantity_and_original_price.sql);
+  // null/absent on rows tracked before that migration, treated as 1.
+  quantity?: number | null;
+}
+
+interface ProductPrices {
+  unitPrice: number;
+  originalPrice: number | null;
+}
+
+// products.price (charged at checkout) and products.original_price (the
+// site's struck-through reference price). select("*") so a database where
+// the original_price migration hasn't run yet still works (no reference
+// price, the discount email then only counts the code's own saving).
+async function loadProductPrices(supabaseAdmin: ReturnType<typeof createClient>): Promise<ProductPrices | null> {
+  const { data, error } = await supabaseAdmin.from("products").select("*").limit(1).maybeSingle();
+  const product = data as { price?: number | string | null; original_price?: number | string | null } | null;
+  const unitPrice = Number(product?.price);
+  if (error || !product || !Number.isFinite(unitPrice) || unitPrice <= 0) {
+    console.error("send-abandoned-cart-reminders: product price lookup failed:", error?.message || "no usable products.price");
+    return null;
+  }
+  const original = Number(product.original_price);
+  return { unitPrice, originalPrice: Number.isFinite(original) && original > 0 ? original : null };
+}
+
+function pricingFor(row: AbandonedRow, prices: ProductPrices): CartPricing {
+  const quantity = Number(row.quantity);
+  return {
+    quantity: Number.isInteger(quantity) && quantity >= 1 ? quantity : 1,
+    unitPrice: prices.unitPrice,
+    originalPrice: prices.originalPrice,
+  };
 }
 
 interface StageResult {
@@ -111,11 +153,13 @@ interface StageResult {
 // own orders.email_sent (see that function's own comment on why a stuck
 // false is the deliberate, accepted failure mode, not a blocker).
 // ============================================================================
-async function processStage1(supabaseAdmin: ReturnType<typeof createClient>): Promise<StageResult> {
+async function processStage1(supabaseAdmin: ReturnType<typeof createClient>, prices: ProductPrices): Promise<StageResult> {
   const cutoff = new Date(Date.now() - STAGE1_DELAY_MINUTES * 60 * 1000).toISOString();
   const { data: rows, error } = await supabaseAdmin
     .from("abandoned_checkouts")
-    .select("id, email, language, discount_code")
+    // "*" rather than a column list so quantity is picked up once the
+    // migration adding it has run, without failing before that.
+    .select("*")
     .is("reminder_1_sent_at", null)
     .is("converted_at", null)
     .lte("last_activity_at", cutoff)
@@ -131,7 +175,7 @@ async function processStage1(supabaseAdmin: ReturnType<typeof createClient>): Pr
   for (const row of (rows || []) as AbandonedRow[]) {
     try {
       const language = row.language === "en" ? "en" : "fr";
-      const { subject, html, text } = buildStage1Email(language);
+      const { subject, html, text } = buildStage1Email(language, pricingFor(row, prices));
       await sendReminderEmail(row.email, subject, html, text);
       const { error: updateError } = await supabaseAdmin
         .from("abandoned_checkouts")
@@ -169,11 +213,11 @@ async function processStage1(supabaseAdmin: ReturnType<typeof createClient>): Pr
 //     a per-customer code minted only at send time, mailed only to that one
 //     address, has no such exposure.
 // ============================================================================
-async function processStage2(supabaseAdmin: ReturnType<typeof createClient>): Promise<StageResult> {
+async function processStage2(supabaseAdmin: ReturnType<typeof createClient>, prices: ProductPrices): Promise<StageResult> {
   const cutoff = new Date(Date.now() - STAGE2_DELAY_MINUTES * 60 * 1000).toISOString();
   const { data: rows, error } = await supabaseAdmin
     .from("abandoned_checkouts")
-    .select("id, email, language, discount_code")
+    .select("*")
     .not("reminder_1_sent_at", "is", null)
     .is("reminder_2_sent_at", null)
     .is("converted_at", null)
@@ -195,7 +239,7 @@ async function processStage2(supabaseAdmin: ReturnType<typeof createClient>): Pr
       // failed) rather than minting a second, orphaned promo_codes row for
       // the same abandoned cart -- see ensureDiscountCode()'s own comment.
       const discountCode = await ensureDiscountCode(supabaseAdmin, row);
-      const { subject, html, text } = buildStage2Email(language, discountCode);
+      const { subject, html, text } = buildStage2Email(language, discountCode, pricingFor(row, prices));
       await sendReminderEmail(row.email, subject, html, text);
       const { error: updateError } = await supabaseAdmin
         .from("abandoned_checkouts")

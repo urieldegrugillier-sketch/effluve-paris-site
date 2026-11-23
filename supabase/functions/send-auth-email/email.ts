@@ -32,13 +32,26 @@ interface AuthEmailCopy {
   heading: string;
   bodyText: string;
   // Link-based emails (recovery/email_change/invite/default) set ctaLabel;
-  // the code-based signup email sets codeIntro/codeNote/copyHint instead.
+  // the code-based signup email sets codeIntro/codeExpiry/codeNote instead.
   ctaLabel?: string;
   // Sentence placed right before the code ("Your verification code is:").
   // Helps Gmail's native "Copy code" detection recognise the code.
   codeIntro?: string;
+  // Line right under the code box, same style as codeIntro.
+  codeExpiry?: string;
+  // Grey note at the bottom (replaces the generic ignore note).
   codeNote?: string;
-  copyHint?: string;
+}
+
+// Hidden inbox-preview snippet: the preheader sentence, followed by an
+// invisible filler (combining grapheme joiner + zero-width non-joiner +
+// non-breaking space, repeated) that fills the rest of the preview line, so
+// Gmail/Apple Mail/Outlook stop there instead of appending the logo's alt
+// text or the start of the body. Every email sets its own sentence, always
+// different from its subject.
+const PREHEADER_FILLER = "&#847;&zwnj;&nbsp;".repeat(100);
+export function preheaderHtml(text: string): string {
+  return `<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${escapeHtml(text)}${PREHEADER_FILLER}</div>`;
 }
 
 // Covers every email_action_type this project's own code triggers (see
@@ -54,7 +67,9 @@ function authEmailCopy(actionType: string, isFr: boolean): AuthEmailCopy {
         : "You requested a password reset for your Effluve Paris account. Click the button below to choose a new password.";
       return {
         subject: isFr ? "Réinitialisez votre mot de passe" : "Reset your password",
-        preheader: bodyText,
+        preheader: isFr
+          ? "Choisissez un nouveau mot de passe pour votre compte Effluve Paris."
+          : "Choose a new password for your Effluve Paris account.",
         heading: isFr ? "Réinitialisation du mot de passe" : "Password reset",
         bodyText,
         ctaLabel: isFr ? "Réinitialiser mon mot de passe" : "Reset my password",
@@ -66,7 +81,9 @@ function authEmailCopy(actionType: string, isFr: boolean): AuthEmailCopy {
         : "Click the button below to confirm your new Effluve Paris email address.";
       return {
         subject: isFr ? "Confirmez votre nouvelle adresse e-mail" : "Confirm your new email address",
-        preheader: bodyText,
+        preheader: isFr
+          ? "Un clic suffit pour valider le changement d'adresse de votre compte."
+          : "One click is all it takes to validate your account's new address.",
         heading: isFr ? "Confirmation de votre nouvel e-mail" : "Confirm your new email",
         bodyText,
         ctaLabel: isFr ? "Confirmer mon e-mail" : "Confirm my email",
@@ -87,12 +104,10 @@ function authEmailCopy(actionType: string, isFr: boolean): AuthEmailCopy {
         // French typography: a space before the colon. Plain space here (the
         // HTML version swaps it for &nbsp; so the colon never wraps alone).
         codeIntro: isFr ? "Votre code de vérification est :" : "Your verification code is:",
+        codeExpiry: isFr ? "Ce code expire dans 10 minutes." : "This code expires in 10 minutes.",
         codeNote: isFr
-          ? "Ce code expire dans 10 minutes. Si vous n'avez pas créé de compte, ignorez cet e-mail."
-          : "This code expires in 10 minutes. If you didn't create an account, you can ignore this email.",
-        copyHint: isFr
-          ? "Copiez ce code et collez-le sur la page de vérification."
-          : "Copy this code and paste it on the verification page.",
+          ? "Si vous n'avez pas créé de compte, ignorez cet e-mail."
+          : "If you didn't create an account, you can ignore this email.",
       };
     case "invite": {
       const bodyText = isFr
@@ -100,7 +115,9 @@ function authEmailCopy(actionType: string, isFr: boolean): AuthEmailCopy {
         : "Thank you for signing up. Click the button below to confirm your email address and activate your account.";
       return {
         subject: isFr ? "Confirmez votre compte Effluve Paris" : "Confirm your Effluve Paris account",
-        preheader: bodyText,
+        preheader: isFr
+          ? "Plus qu'une étape pour activer votre compte."
+          : "Just one step left to activate your account.",
         heading: isFr ? "Bienvenue chez Effluve Paris" : "Welcome to Effluve Paris",
         bodyText,
         ctaLabel: isFr ? "Confirmer mon compte" : "Confirm my account",
@@ -113,7 +130,9 @@ function authEmailCopy(actionType: string, isFr: boolean): AuthEmailCopy {
         : "Click the button below to confirm this request.";
       return {
         subject: isFr ? "Confirmez votre demande" : "Confirm your request",
-        preheader: bodyText,
+        preheader: isFr
+          ? "Une confirmation est nécessaire pour finaliser votre demande."
+          : "A confirmation is needed to complete your request.",
         heading: isFr ? "Confirmation requise" : "Confirmation required",
         bodyText,
         ctaLabel: isFr ? "Confirmer" : "Confirm",
@@ -158,7 +177,7 @@ export function buildAuthEmail(
   //      link, no letter-spacing (some clients insert real spaces on copy
   //      when letter-spacing is set, which breaks pasting). user-select: all
   //      makes one tap or click select the whole code where supported.
-  //   3. the copy hint line.
+  //   3. the expiry line, same style as the intro sentence.
   // 28px monospace with tighter padding keeps it elegant on desktop while
   // staying comfortably readable on a phone (the box is ~170px wide, far
   // under any mobile viewport). No script and no fake "copy" button: email
@@ -199,7 +218,7 @@ export function buildAuthEmail(
     </style>
   </head>
   <body style="margin:0;padding:0;background:#0a0908;font-family:'Manrope',Arial,sans-serif;color:#ede7dd;">
-    <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${escapeHtml(copy.preheader)}</div>
+    ${preheaderHtml(copy.preheader)}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0908" class="email-bg" style="background:#0a0908;">
       <tr>
         <td align="center" style="padding:40px 16px;">
@@ -214,7 +233,7 @@ export function buildAuthEmail(
                   </tr>
                   <tr>
                     <td align="center" style="padding-top:6px;">
-                      <a href="${WEBSITE_URL}"><img src="${PARIS_LOGO_URL}" width="83" height="13" alt="Paris" style="display:block;border:0;outline:none;width:83px;height:13px;"></a>
+                      <a href="${WEBSITE_URL}"><img src="${PARIS_LOGO_URL}" width="83" height="13" alt="" style="display:block;border:0;outline:none;width:83px;height:13px;"></a>
                     </td>
                   </tr>
                 </table>
@@ -225,7 +244,7 @@ export function buildAuthEmail(
                 <h1 style="margin:0 0 16px;font-size:20px;font-weight:600;color:#ede7dd;">${escapeHtml(copy.heading)}</h1>
                 <p style="margin:0 0 28px;font-size:14px;line-height:1.6;color:#ede7dd;">${escapeHtml(copy.bodyText)}</p>
                 ${actionHtml}
-                ${isCodeEmail && copy.copyHint ? `<p style="margin:14px 0 0;font-size:13px;line-height:1.5;color:#ede7dd;text-align:center;">${escapeHtml(copy.copyHint)}</p>` : ""}
+                ${isCodeEmail && copy.codeExpiry ? `<p style="margin:12px 0 0;font-size:14px;line-height:1.5;color:#ede7dd;text-align:center;">${escapeHtml(copy.codeExpiry)}</p>` : ""}
                 <p style="margin:28px 0 0;font-size:12px;line-height:1.6;color:#8f887c;">${escapeHtml(noteText)}</p>
               </td>
             </tr>
@@ -250,7 +269,7 @@ export function buildAuthEmail(
     "",
     actionText,
     "",
-    ...(isCodeEmail && copy.copyHint ? [copy.copyHint, ""] : []),
+    ...(isCodeEmail && copy.codeExpiry ? [copy.codeExpiry, ""] : []),
     noteText,
     "",
     "---",

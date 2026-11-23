@@ -54,6 +54,9 @@ interface RequestBody {
   shippingCity?: unknown;
   shippingPostalCode?: unknown;
   shippingCountry?: unknown;
+  // Shipping step's phone ("+33 612345678"), only ever shown in the
+  // internal new-order email sent to the shop owner (stripe-webhook).
+  shippingPhone?: unknown;
 }
 
 export default {
@@ -90,6 +93,8 @@ export default {
     const shippingCity = asTrimmedString(body.shippingCity);
     const shippingPostalCode = asTrimmedString(body.shippingPostalCode);
     const shippingCountry = asTrimmedString(body.shippingCountry);
+    // Capped well under Stripe's 500-char metadata value limit.
+    const shippingPhone = asTrimmedString(body.shippingPhone).slice(0, 40);
 
     // Server-side price + stock lookup -- the amount charged is never taken
     // from the client, and now neither is stock availability. products is
@@ -194,6 +199,7 @@ export default {
     if (shippingCity) metadata.shipping_city = shippingCity;
     if (shippingPostalCode) metadata.shipping_postal_code = shippingPostalCode;
     if (shippingCountry) metadata.shipping_country = shippingCountry;
+    if (shippingPhone) metadata.shipping_phone = shippingPhone;
 
     try {
       let paymentIntent: Stripe.PaymentIntent;
@@ -239,6 +245,9 @@ export default {
           p_language: language || "fr",
           p_user_id: userId || null,
           p_payment_intent_id: paymentIntent.id,
+          // Server-clamped quantity actually being charged (see
+          // 20261123000000_abandoned_checkout_quantity_and_original_price.sql).
+          p_quantity: quantity,
         });
         if (trackError) {
           console.error("create-checkout-session: track_abandoned_checkout failed:", trackError.message);

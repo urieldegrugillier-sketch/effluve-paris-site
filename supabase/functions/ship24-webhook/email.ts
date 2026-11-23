@@ -28,6 +28,17 @@ export function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
+// Hidden inbox-preview snippet: the preheader sentence, followed by an
+// invisible filler (combining grapheme joiner + zero-width non-joiner +
+// non-breaking space, repeated) that fills the rest of the preview line, so
+// Gmail/Apple Mail/Outlook stop there instead of appending the logo's alt
+// text or the start of the body. Every email sets its own sentence, always
+// different from its subject.
+const PREHEADER_FILLER = "&#847;&zwnj;&nbsp;".repeat(100);
+export function preheaderHtml(text: string): string {
+  return `<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${escapeHtml(text)}${PREHEADER_FILLER}</div>`;
+}
+
 export interface DeliveredEmailDetails {
   language: "fr" | "en";
   firstName: string;
@@ -49,9 +60,10 @@ export function buildDeliveredEmail(details: DeliveredEmailDetails): { subject: 
   });
 
   const subject = isFr ? `Votre commande a été livrée | ${ref}` : `Your order has been delivered | ${ref}`;
+  // Own sentence, never a repeat of the subject (see preheaderHtml()).
   const preheader = isFr
-    ? `Votre commande Effluve Paris ${ref} a été livrée.`
-    : `Your Effluve Paris order ${ref} has been delivered.`;
+    ? "Votre parfum est arrivé, nous espérons qu'il vous plaira."
+    : "Your fragrance has arrived, we hope you love it.";
 
   const firstName = details.firstName ? escapeHtml(details.firstName) : "";
   const greeting = firstName ? (isFr ? `Bonjour ${firstName},` : `Hello ${firstName},`) : isFr ? "Bonjour," : "Hello,";
@@ -114,7 +126,7 @@ export function buildDeliveredEmail(details: DeliveredEmailDetails): { subject: 
     </style>
   </head>
   <body style="margin:0;padding:0;background:#0a0908;font-family:'Manrope',Arial,sans-serif;color:#ede7dd;">
-    <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${preheader}</div>
+    ${preheaderHtml(preheader)}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0908" class="email-bg" style="background:#0a0908;">
       <tr>
         <td align="center" style="padding:40px 16px;">
@@ -123,7 +135,7 @@ export function buildDeliveredEmail(details: DeliveredEmailDetails): { subject: 
               <td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #2a2620;">
                 <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
                   <tr><td align="center"><a href="${WEBSITE_URL}"><img src="${LOGO_URL}" width="220" height="36" alt="Effluve Paris" style="display:block;border:0;outline:none;width:220px;height:36px;"></a></td></tr>
-                  <tr><td align="center" style="padding-top:6px;"><a href="${WEBSITE_URL}"><img src="${PARIS_LOGO_URL}" width="83" height="13" alt="Paris" style="display:block;border:0;outline:none;width:83px;height:13px;"></a></td></tr>
+                  <tr><td align="center" style="padding-top:6px;"><a href="${WEBSITE_URL}"><img src="${PARIS_LOGO_URL}" width="83" height="13" alt="" style="display:block;border:0;outline:none;width:83px;height:13px;"></a></td></tr>
                 </table>
               </td>
             </tr>

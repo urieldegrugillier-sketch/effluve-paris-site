@@ -258,13 +258,14 @@ async function reconcileOrder(
       userId: existing.user_id,
       createdAt: existing.created_at,
     });
-    await sendInternalOrderNotification(supabaseAdmin, metadata, existing.id, {
+    await sendInternalOrderNotification(supabaseAdmin, paymentIntent, existing.id, {
       referenceNumber,
       productName: existing.product_name,
       quantity: existing.quantity,
       total: existing.total,
       guestEmail: existing.guest_email,
       userId: existing.user_id,
+      createdAt: existing.created_at,
     });
     await sendTelegramOrderNotification(existing.id, {
       referenceNumber,
@@ -346,13 +347,14 @@ async function reconcileOrder(
       userId: (row.user_id as string) || null,
       createdAt: inserted.created_at,
     });
-    await sendInternalOrderNotification(supabaseAdmin, metadata, inserted.id, {
+    await sendInternalOrderNotification(supabaseAdmin, paymentIntent, inserted.id, {
       referenceNumber,
       productName,
       quantity,
       total,
       guestEmail: (row.guest_email as string) || null,
       userId: (row.user_id as string) || null,
+      createdAt: inserted.created_at,
     });
     await sendTelegramOrderNotification(inserted.id, { referenceNumber, productName, quantity, total });
     return;
@@ -397,13 +399,14 @@ async function reconcileOrder(
         userId: raceWinner.user_id,
         createdAt: raceWinner.created_at,
       });
-      await sendInternalOrderNotification(supabaseAdmin, metadata, raceWinner.id, {
+      await sendInternalOrderNotification(supabaseAdmin, paymentIntent, raceWinner.id, {
         referenceNumber: finalReference,
         productName: raceWinner.product_name,
         quantity: raceWinner.quantity,
         total: raceWinner.total,
         guestEmail: raceWinner.guest_email,
         userId: raceWinner.user_id,
+        createdAt: raceWinner.created_at,
       });
       await sendTelegramOrderNotification(raceWinner.id, {
         referenceNumber: finalReference,
@@ -564,14 +567,52 @@ interface InternalNotificationInput {
   total: number;
   guestEmail: string | null;
   userId: string | null;
+  createdAt: string;
+}
+
+// "Visa •••• 4242": card brand + last 4 digits only, nothing else from the
+// PaymentMethod. Best-effort: any Stripe error just yields "" (the email
+// then says "Non renseigné"), never blocks the notification.
+async function paymentMethodSummary(paymentIntent: Stripe.PaymentIntent): Promise<string> {
+  const pm = paymentIntent.payment_method;
+  if (!pm || !STRIPE_SECRET_KEY) return "";
+  try {
+    const method = typeof pm === "string"
+      ? await new Stripe(STRIPE_SECRET_KEY, { httpClient: Stripe.createFetchHttpClient() }).paymentMethods.retrieve(pm)
+      : pm;
+    const card = method.card;
+    if (!card) return method.type || "";
+    const brand = card.brand ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1) : "Carte";
+    return card.last4 ? `${brand} •••• ${card.last4}` : brand;
+  } catch (err) {
+    console.error("stripe-webhook: could not read payment method for the internal notification:", err instanceof Error ? err.message : err);
+    return "";
+  }
+}
+
+// Shipping step phone (metadata.shipping_phone, sent by create-checkout-
+// session), falling back to the account's own phone for a logged-in
+// customer. "" when neither exists. Best-effort, never throws.
+async function resolveCustomerPhone(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  metadata: Record<string, string>,
+  userId: string | null,
+): Promise<string> {
+  if (metadata.shipping_phone) return metadata.shipping_phone;
+  if (!userId) return "";
+  const { data, error } = await supabaseAdmin.from("profiles").select("phone, dial_code").eq("id", userId).maybeSingle();
+  const profile = data as { phone?: string | null; dial_code?: string | null } | null;
+  if (error || !profile || !profile.phone) return "";
+  return profile.dial_code ? `+${profile.dial_code} ${profile.phone}` : String(profile.phone);
 }
 
 async function sendInternalOrderNotification(
   supabaseAdmin: ReturnType<typeof createClient>,
-  metadata: Record<string, string>,
+  paymentIntent: Stripe.PaymentIntent,
   orderId: string,
   order: InternalNotificationInput,
 ) {
+  const metadata = paymentIntent.metadata || {};
   if (!RESEND_API_KEY) {
     console.error("stripe-webhook: RESEND_API_KEY is not configured -- skipping internal order notification for order", orderId);
     return;
@@ -582,12 +623,23 @@ async function sendInternalOrderNotification(
   // function's own code path (never modifies it, never depends on it
   // having run first or succeeded).
   const customerEmail = await resolveCustomerEmail(supabaseAdmin, metadata, order);
+  const promoCode = metadata.promo_code || "";
+  const { subtotal, discount, unitPrice } = await computePriceBreakdown(supabaseAdmin, order.quantity, order.total, promoCode);
   const { subject, html, text } = buildInternalOrderNotificationEmail({
     referenceNumber: order.referenceNumber,
+    createdAt: order.createdAt || new Date().toISOString(),
     productName: order.productName,
     quantity: order.quantity,
+    unitPrice,
+    subtotal,
+    discount,
+    promoCode,
     total: order.total,
     customerEmail: customerEmail || "",
+    customerPhone: await resolveCustomerPhone(supabaseAdmin, metadata, order.userId),
+    isGuest: !order.userId,
+    customerLanguage: metadata.language === "en" ? "en" : "fr",
+    paymentMethod: await paymentMethodSummary(paymentIntent),
     // Same metadata fields shippingFieldsFromMetadata() persists onto the
     // row -- read directly here rather than re-fetched from the row, same
     // "already have it in hand at this exact synchronous point" reasoning
@@ -598,7 +650,6 @@ async function sendInternalOrderNotification(
     shippingCity: metadata.shipping_city || "",
     shippingPostalCode: metadata.shipping_postal_code || "",
     shippingCountry: metadata.shipping_country || "",
-    promoCode: metadata.promo_code || "",
   });
 
   try {
@@ -722,17 +773,18 @@ async function computePriceBreakdown(
   quantity: number,
   total: number,
   promoCode: string,
-): Promise<{ subtotal: number; discount: number }> {
+): Promise<{ subtotal: number; discount: number; unitPrice: number }> {
   const { data: product, error } = await supabaseAdmin.from("products").select("price").limit(1).maybeSingle();
   if (error || !product) {
     console.error("stripe-webhook: product price lookup failed while building confirmation email price breakdown:", error?.message);
-    return { subtotal: total, discount: 0 };
+    return { subtotal: total, discount: 0, unitPrice: Math.round((total / Math.max(1, quantity)) * 100) / 100 };
   }
-  const rawSubtotal = Math.round(product.price * quantity * 100) / 100;
+  const unitPrice = Number(product.price);
+  const rawSubtotal = Math.round(unitPrice * quantity * 100) / 100;
   if (promoCode && rawSubtotal > total) {
-    return { subtotal: rawSubtotal, discount: Math.round((rawSubtotal - total) * 100) / 100 };
+    return { subtotal: rawSubtotal, discount: Math.round((rawSubtotal - total) * 100) / 100, unitPrice };
   }
-  return { subtotal: total, discount: 0 };
+  return { subtotal: total, discount: 0, unitPrice };
 }
 
 // customer_email (set by create-checkout-session for both guest and

@@ -73,55 +73,112 @@ export const VAT_RATE = 0.2;
 
 export interface InternalNotificationDetails {
   referenceNumber: string;
+  // ISO timestamp of the order row (orders.created_at).
+  createdAt: string;
   productName: string;
   quantity: number;
+  // Current products.price; subtotal = unitPrice x quantity before any code.
+  unitPrice: number;
+  subtotal: number;
+  // Amount taken off by promoCode (0 when none, or when not derivable).
+  discount: number;
+  promoCode: string;
+  // Amount actually charged by Stripe.
   total: number;
   customerEmail: string;
+  // "+33 612345678" from the checkout's Shipping step, or the account's own
+  // phone as a fallback; "" when neither exists.
+  customerPhone: string;
+  isGuest: boolean;
+  // Customer's site language at checkout (the language of their emails).
+  customerLanguage: "fr" | "en";
   shippingName: string;
   shippingAddressLine1: string;
   shippingAddressLine2: string;
   shippingCity: string;
   shippingPostalCode: string;
   shippingCountry: string;
-  promoCode: string;
+  // "Visa •••• 4242" (brand + last 4 only, from Stripe), or "" if unknown.
+  paymentMethod: string;
 }
 
-// Same dark card/logo header as the customer-facing emails (see
-// buildConfirmationEmail()'s own comment for why each visual choice is what
-// it is) reused for brand consistency -- no WhatsApp/reply footer, no legal
-// footer: none of that means anything to an internal reader. One plain text
-// link to admin.html though (see ADMIN_URL) -- not the fuller bronze
-// .cta-button treatment customer emails use (this reader already knows
-// what the site looks like; a quiet link is enough), just something to tap
-// straight into the Orders tab from a phone instead of this email being a
-// dead end.
-export function buildInternalOrderNotificationEmail(details: InternalNotificationDetails): { subject: string; html: string; text: string } {
-  const subject = `Nouvelle commande payée | ${details.referenceNumber}`;
+// "23 novembre 2026 à 14:32", always in Paris time (the edge runtime is UTC).
+export function formatParisDateTime(isoString: string): string {
+  const d = new Date(isoString);
+  const date = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris" }).format(d);
+  const time = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }).format(d);
+  return `${date} à ${time}`;
+}
 
-  const addressLines = [
+// Internal "new paid order" alert sent to the shop owner (French only).
+// Same visual language as the customer confirmation (buildConfirmationEmail()
+// below: dark card, logo header, photo-left/text-right product block,
+// 13px label/value recap rows, bronze CTA), but with everything needed to
+// prepare and ship the parcel: price breakdown, customer contact details,
+// payment method, and the shipping address laid out as it should appear on
+// the label. No reply/WhatsApp/legal footer: that's for customers.
+export function buildInternalOrderNotificationEmail(details: InternalNotificationDetails): { subject: string; html: string; text: string } {
+  const ref = details.referenceNumber || "-";
+  const subject = `Nouvelle commande payée | ${ref}`;
+  const missing = "Non renseigné";
+  const productName = escapeHtml(details.productName);
+  const productNameNatural = productName.replace(/\s\|\s/g, ", ");
+  const orderDateTime = formatParisDateTime(details.createdAt);
+  const totalFormatted = formatMoney(details.total);
+  const preheader = `À préparer : ${details.quantity} × ${details.productName.replace(/\s\|\s/g, ", ")}${details.shippingName ? ` pour ${details.shippingName}` : ""}${details.shippingCity ? `, ${details.shippingCity}` : ""}.`;
+
+  // Label layout: name, street, complement, "postal code + CITY", COUNTRY,
+  // one item per line, the way it should be written on the parcel.
+  const labelLines = [
     details.shippingName,
     details.shippingAddressLine1,
     details.shippingAddressLine2,
-    [details.shippingPostalCode, details.shippingCity].filter(Boolean).join(" "),
-    details.shippingCountry,
+    [details.shippingPostalCode, details.shippingCity.toUpperCase()].filter(Boolean).join(" "),
+    details.shippingCountry ? countryLabel(details.shippingCountry, true).toUpperCase() : "",
   ].filter(Boolean);
-  const addressHtml = addressLines.length ? addressLines.map(escapeHtml).join("<br>") : "Non renseignée";
-  const addressText = addressLines.length ? addressLines.join(", ") : "Non renseignée";
+  const hasAddress = Boolean(details.shippingAddressLine1 && details.shippingCity);
 
-  const rows: [string, string][] = [
-    ["Référence", details.referenceNumber || "-"],
-    ["Produit", `${details.productName} × ${details.quantity}`],
-    ["Total", formatMoney(details.total)],
-    ["Client", details.customerEmail || "-"],
-  ];
-  if (details.promoCode) rows.push(["Code promo", details.promoCode]);
-
-  const rowsHtml = rows.map(([label, value]) => `
+  const row = (label: string, valueHtml: string, last = false) => `
                   <tr>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#8f887c;">${escapeHtml(label)}</td>
-                    <td style="padding:10px 0;border-bottom:1px solid #2a2620;font-size:13px;color:#ede7dd;text-align:right;">${escapeHtml(value)}</td>
-                  </tr>`).join("");
-  const rowsText = rows.map(([label, value]) => `${label} : ${value}`).join("\n");
+                    <td style="padding:10px 0;${last ? "" : "border-bottom:1px solid #2a2620;"}font-size:13px;color:#8f887c;">${label}</td>
+                    <td style="padding:10px 0;${last ? "" : "border-bottom:1px solid #2a2620;"}font-size:13px;color:#ede7dd;text-align:right;">${valueHtml}</td>
+                  </tr>`;
+  const sectionTitle = (title: string) =>
+    `<h2 style="margin:0 0 12px;font-size:14px;font-weight:600;color:#d8b27c;text-transform:uppercase;letter-spacing:0.05em;">${title}</h2>`;
+  const linkStyle = "color:#ede7dd;text-decoration:underline;";
+
+  const orderRowsHtml = [
+    row("Date et heure", escapeHtml(orderDateTime)),
+    row("Prix unitaire", formatMoney(details.unitPrice)),
+    row("Quantité", String(details.quantity)),
+    row("Sous-total", formatMoney(details.subtotal)),
+    row("Livraison", `<span style="text-decoration:line-through;color:#8f887c;">${formatMoney(SHIPPING_FEE)}</span> Offerte`),
+    details.promoCode
+      ? row(`Code promo (${escapeHtml(details.promoCode)})`, details.discount > 0 ? `&minus;${formatMoney(details.discount)}` : "Appliqué")
+      : row("Code promo", "Aucun"),
+    `
+                  <tr>
+                    <td style="padding:10px 0;font-size:13px;color:#8f887c;">Total payé</td>
+                    <td style="padding:10px 0;font-size:13px;color:#d8b27c;text-align:right;font-weight:600;">${totalFormatted}</td>
+                  </tr>`,
+  ].join("");
+
+  const customerRowsHtml = [
+    row("Nom", details.shippingName ? escapeHtml(details.shippingName) : missing),
+    row("E-mail", details.customerEmail ? `<a href="mailto:${escapeHtml(details.customerEmail)}" style="${linkStyle}">${escapeHtml(details.customerEmail)}</a>` : missing),
+    row("Téléphone", details.customerPhone ? `<a href="tel:${escapeHtml(details.customerPhone.replace(/\s+/g, ""))}" style="${linkStyle}">${escapeHtml(details.customerPhone)}</a>` : missing),
+    row("Type", details.isGuest ? "Invité" : "Compte client"),
+    row("Langue", details.customerLanguage === "en" ? "Anglais" : "Français"),
+    row("Paiement", details.paymentMethod ? escapeHtml(details.paymentMethod) : missing, true),
+  ].join("");
+
+  const labelHtml = hasAddress
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border-collapse:collapse;">
+                  <tr>
+                    <td style="padding:16px 18px;background:#0a0908;border:1px solid #9c6b2e;font-family:'IBM Plex Mono',Consolas,'Courier New',monospace;font-size:14px;line-height:1.6;color:#ede7dd;">${labelLines.map(escapeHtml).join("<br>")}${details.customerPhone ? `<br>${escapeHtml(details.customerPhone)}` : ""}</td>
+                  </tr>
+                </table>`
+    : `<p style="margin:0 0 24px;font-size:13px;line-height:1.6;color:#ede7dd;">${missing}</p>`;
 
   const html = `<!doctype html>
 <html lang="fr">
@@ -134,10 +191,12 @@ export function buildInternalOrderNotificationEmail(details: InternalNotificatio
       :root { color-scheme: light dark; supported-color-schemes: light dark; }
       [data-ogsc] body, [data-ogsc] .email-bg { background-color: #0a0908 !important; }
       [data-ogsc] .email-card { background-color: #141210 !important; }
-      [data-ogsc] h1, [data-ogsc] h2, [data-ogsc] p, [data-ogsc] td, [data-ogsc] span { color: #ede7dd !important; }
+      [data-ogsc] h1, [data-ogsc] h2, [data-ogsc] p, [data-ogsc] td, [data-ogsc] span, [data-ogsc] a { color: #ede7dd !important; }
+      .item-link:hover { text-decoration: underline !important; }
     </style>
   </head>
   <body style="margin:0;padding:0;background:#0a0908;font-family:'Manrope',Arial,sans-serif;color:#ede7dd;">
+    ${preheaderHtml(preheader)}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0908" class="email-bg" style="background:#0a0908;">
       <tr>
         <td align="center" style="padding:40px 16px;">
@@ -145,20 +204,50 @@ export function buildInternalOrderNotificationEmail(details: InternalNotificatio
             <tr>
               <td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #2a2620;">
                 <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
-                  <tr><td align="center"><img src="${LOGO_URL}" width="220" height="36" alt="Effluve Paris" style="display:block;border:0;outline:none;width:220px;height:36px;"></td></tr>
-                  <tr><td align="center" style="padding-top:6px;"><img src="${PARIS_LOGO_URL}" width="83" height="13" alt="Paris" style="display:block;border:0;outline:none;width:83px;height:13px;"></td></tr>
+                  <tr>
+                    <td align="center">
+                      <a href="${WEBSITE_URL}"><img src="${LOGO_URL}" width="220" height="36" alt="Effluve Paris" style="display:block;border:0;outline:none;width:220px;height:36px;"></a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center" style="padding-top:6px;">
+                      <a href="${WEBSITE_URL}"><img src="${PARIS_LOGO_URL}" width="83" height="13" alt="" style="display:block;border:0;outline:none;width:83px;height:13px;"></a>
+                    </td>
+                  </tr>
                 </table>
               </td>
             </tr>
             <tr>
               <td style="padding:32px;">
-                <h1 style="margin:0 0 20px;font-size:18px;font-weight:600;color:#ede7dd;">Nouvelle commande payée</h1>
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;border-collapse:collapse;">
-                  ${rowsHtml}
+                <p style="margin:0 0 4px;font-size:14px;line-height:1.6;color:#8f887c;">Commande à préparer</p>
+                <h1 style="margin:0 0 16px;font-size:20px;font-weight:600;color:#ede7dd;">Nouvelle commande payée</h1>
+                <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#ede7dd;">Commande <strong>${escapeHtml(ref)}</strong> payée le ${escapeHtml(orderDateTime)}.</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 4px;border-collapse:collapse;table-layout:fixed;">
+                  <tr>
+                    <td width="120" valign="top" style="padding:0 16px 0 0;">
+                      <a href="${PRODUCT_URL}"><img src="${PRODUCT_THUMB_URL}" width="120" height="120" alt="${productName}" style="display:block;border:0;outline:none;width:120px;height:120px;border-radius:4px;"></a>
+                    </td>
+                    <td valign="top">
+                      <p style="margin:0 0 4px;font-size:15px;font-weight:600;line-height:1.35;color:#d8b27c;"><a href="${PRODUCT_URL}" class="item-link" style="color:#d8b27c;text-decoration:none;"><span style="color:#d8b27c;">${productNameNatural} | ${escapeHtml(ref)}</span></a></p>
+                      <p style="margin:0 0 10px;font-size:12px;line-height:1.4;color:#8f887c;">Quantité : ${details.quantity} × ${formatMoney(details.unitPrice)}</p>
+                      <p style="margin:0;font-size:22px;font-weight:700;line-height:1.15;color:#ede7dd;">${totalFormatted}</p>
+                    </td>
+                  </tr>
                 </table>
-                <h2 style="margin:0 0 8px;font-size:13px;font-weight:600;color:#d8b27c;text-transform:uppercase;letter-spacing:0.05em;">Adresse de livraison</h2>
-                <p style="margin:0 0 20px;font-size:13px;line-height:1.6;color:#ede7dd;">${addressHtml}</p>
-                <p style="margin:0;font-size:13px;"><a href="${ADMIN_URL}" style="color:#d8b27c;">Voir dans l'administration &rarr;</a></p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border-collapse:collapse;">${orderRowsHtml}
+                </table>
+                ${sectionTitle("Client")}
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border-collapse:collapse;">${customerRowsHtml}
+                </table>
+                ${sectionTitle("Adresse de livraison (étiquette)")}
+                ${labelHtml}
+                <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                  <tr>
+                    <td style="background:#9c6b2e;border:1px solid #9c6b2e;" align="center">
+                      <a href="${ADMIN_URL}" style="display:inline-block;padding:14px 32px;font-family:'IBM Plex Mono',Consolas,monospace;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#000000;text-decoration:none;">Voir les commandes</a>
+                    </td>
+                  </tr>
+                </table>
               </td>
             </tr>
           </table>
@@ -171,12 +260,29 @@ export function buildInternalOrderNotificationEmail(details: InternalNotificatio
   const text = [
     "NOUVELLE COMMANDE PAYÉE",
     "",
-    rowsText,
+    `Commande ${ref} payée le ${orderDateTime}.`,
     "",
-    "Adresse de livraison :",
-    addressText,
+    `Produit : ${details.productName}`,
+    `Quantité : ${details.quantity} × ${formatMoney(details.unitPrice)}`,
+    `Sous-total : ${formatMoney(details.subtotal)}`,
+    `Livraison : ${formatMoney(SHIPPING_FEE)} (offerte)`,
+    details.promoCode
+      ? `Code promo (${details.promoCode}) : ${details.discount > 0 ? `-${formatMoney(details.discount)}` : "appliqué"}`
+      : "Code promo : aucun",
+    `Total payé : ${totalFormatted}`,
     "",
-    `Voir dans l'administration : ${ADMIN_URL}`,
+    "CLIENT",
+    `Nom : ${details.shippingName || missing}`,
+    `E-mail : ${details.customerEmail || missing}`,
+    `Téléphone : ${details.customerPhone || missing}`,
+    `Type : ${details.isGuest ? "Invité" : "Compte client"}`,
+    `Langue : ${details.customerLanguage === "en" ? "Anglais" : "Français"}`,
+    `Paiement : ${details.paymentMethod || missing}`,
+    "",
+    "ADRESSE DE LIVRAISON (ÉTIQUETTE)",
+    ...(hasAddress ? [...labelLines, ...(details.customerPhone ? [details.customerPhone] : [])] : [missing]),
+    "",
+    `Voir les commandes : ${ADMIN_URL}`,
   ].join("\n");
 
   return { subject, html, text };
@@ -215,6 +321,17 @@ export function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+// Hidden inbox-preview snippet: the preheader sentence, followed by an
+// invisible filler (combining grapheme joiner + zero-width non-joiner +
+// non-breaking space, repeated) that fills the rest of the preview line, so
+// Gmail/Apple Mail/Outlook stop there instead of appending the logo's alt
+// text or the start of the body. Every email sets its own sentence, always
+// different from its subject.
+const PREHEADER_FILLER = "&#847;&zwnj;&nbsp;".repeat(100);
+export function preheaderHtml(text: string): string {
+  return `<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${escapeHtml(text)}${PREHEADER_FILLER}</div>`;
 }
 
 // FR/BE are the only two ALLOWED_SHIPPING_COUNTRIES checkout.html's own
@@ -502,7 +619,7 @@ export function buildConfirmationEmail(details: ConfirmationEmailDetails): { sub
          alone in every client) keeps it out of the rendered body while
          still being the first text node any client reads for the preview
          snippet. -->
-    <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${preheader}</div>
+    ${preheaderHtml(preheader)}
     <!-- BUG FIX (mobile width): padding used to live directly on this
          <table style="...padding:40px 16px">, which -- in content-box sizing
          -- adds on top of width:100%, pushing the table 32px wider than its
@@ -526,7 +643,7 @@ export function buildConfirmationEmail(details: ConfirmationEmailDetails): { sub
                   </tr>
                   <tr>
                     <td align="center" style="padding-top:6px;">
-                      <a href="${WEBSITE_URL}"><img src="${PARIS_LOGO_URL}" width="83" height="13" alt="Paris" style="display:block;border:0;outline:none;width:83px;height:13px;"></a>
+                      <a href="${WEBSITE_URL}"><img src="${PARIS_LOGO_URL}" width="83" height="13" alt="" style="display:block;border:0;outline:none;width:83px;height:13px;"></a>
                     </td>
                   </tr>
                 </table>

@@ -89,8 +89,17 @@ Node 24+.
 
 Emails: `signup-code`, `password-recovery`, `email-change`, `auth-fallback`,
 `order-confirmation`, `order-internal-notification` (always French, as in
-production), `shipped`, `shipped-correction`, `delivered`, `cart-reminder-1`,
-`cart-reminder-2`.
+production, with a fake promo code applied), `shipped`, `shipped-correction`,
+`delivered`, `cart-reminder-1`, `cart-reminder-1-qty2`, `cart-reminder-2`,
+`cart-reminder-2-qty2`. Prices come from `js/cart.js` (`PRODUCT.price` /
+`PRODUCT.originalPrice`). The script refuses to run if the cart reminders'
+reassurance wording (`REASSURANCE_ITEMS` in
+`supabase/functions/send-abandoned-cart-reminders/email.ts`) no longer matches
+the site's trust bar (`trustBar.*` in `js/i18n.js`).
+
+The reassurance icons used in emails (`assets/icons/email-icon-*.png`) are
+exported from the site's trust-bar SVGs with
+`node scripts/export-email-icons.mjs`.
 
 The Resend API key is read from `RESEND_API_KEY`, or from a gitignored `.env`
 file at the repo root containing `RESEND_API_KEY=re_...`. It is never printed.
