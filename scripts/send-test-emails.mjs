@@ -85,6 +85,32 @@ function checkReassuranceSync() {
   }
 }
 
+// The shared customer footer block is duplicated in four email.ts files
+// (edge functions cannot share imports); every copy must be identical.
+function checkFooterCopies() {
+  const files = ["stripe-webhook", "mark-order-shipped", "ship24-webhook", "send-abandoned-cart-reminders"].map(
+    (fn) => `supabase/functions/${fn}/email.ts`,
+  );
+  const BEGIN = "// ===== BEGIN SHARED CUSTOMER FOOTER =====";
+  const END = "// ===== END SHARED CUSTOMER FOOTER =====";
+  const blocks = files.map((f) => {
+    const src = readFileSync(resolve(ROOT, f), "utf8").replace(/\r\n/g, "\n");
+    const a = src.indexOf(BEGIN);
+    const b = src.indexOf(END);
+    if (a === -1 || b === -1 || src.indexOf(BEGIN, a + 1) !== -1) return null;
+    return src.slice(a, b + END.length);
+  });
+  const missing = files.filter((_, i) => blocks[i] === null);
+  const differing = files.filter((_, i) => blocks[i] !== null && blocks[i] !== blocks[0]);
+  if (missing.length || differing.length) {
+    console.error("The shared customer footer block must appear once, identical, in every copy:");
+    for (const f of missing) console.error(`  missing or duplicated in ${f}`);
+    for (const f of differing) console.error(`  differs from ${files[0]}: ${f}`);
+    process.exit(1);
+  }
+}
+
+checkFooterCopies();
 checkReassuranceSync();
 const language = argValue("lang") === "en" ? "en" : "fr";
 const only = argValue("only");
@@ -130,7 +156,7 @@ for (const [i, e] of built.entries()) {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: FROM_ADDRESS, to: [to], subject: `[TEST] ${e.subject}`, html: e.html, text: e.text }),
+      body: JSON.stringify({ from: FROM_ADDRESS, reply_to: "contact@effluve-paris.fr", to: [to], subject: `[TEST] ${e.subject}`, html: e.html, text: e.text }),
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");

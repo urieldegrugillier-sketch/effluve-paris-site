@@ -97,6 +97,19 @@ reassurance wording (`REASSURANCE_ITEMS` in
 `supabase/functions/send-abandoned-cart-reminders/email.ts`) no longer matches
 the site's trust bar (`trustBar.*` in `js/i18n.js`).
 
+The customer emails tied to an order or a cart (order confirmation, shipped,
+tracking update, delivered, both cart reminders) share one footer block
+(reassurance row, reply/WhatsApp lines, legal line). Edge functions cannot
+share imports, so it is duplicated between the `BEGIN/END SHARED CUSTOMER
+FOOTER` markers in each of those four `email.ts` files: edit all four copies
+together, the script refuses to run if they differ.
+
+The cart reminder buttons link to
+`checkout.html?restore=1&qty=<qty>[&promo=<code>]&utm_...`: checkout rebuilds
+an empty cart with that quantity, applies the code through the normal promo
+flow, then removes `restore`/`qty`/`promo` from the URL (the `utm_*` params
+stay for GA4). Covered by `tests/cart-restore.spec.js`.
+
 The reassurance icons used in emails (`assets/icons/email-icon-*.png`) are
 exported from the site's trust-bar SVGs with
 `node scripts/export-email-icons.mjs`.

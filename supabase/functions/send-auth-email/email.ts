@@ -12,6 +12,8 @@
 // third-party notification mirrors. Nothing in this file logs the token.
 
 export const FROM_ADDRESS = "Effluve Paris <contact@effluve-paris.fr>";
+// Explicit reply_to on every customer email sent through Resend.
+export const REPLY_TO_ADDRESS = "contact@effluve-paris.fr";
 export const WEBSITE_URL = "https://effluve-paris.fr";
 const LOGO_URL = `${WEBSITE_URL}/assets/icons/effluve-word-dark-bg.png`;
 const PARIS_LOGO_URL = `${WEBSITE_URL}/assets/icons/paris-word-dark-bg.png`;

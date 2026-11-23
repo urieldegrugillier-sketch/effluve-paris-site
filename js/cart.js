@@ -59,6 +59,12 @@
      comment on this), so this reads the same evolving number that page's
      progress bar shows. */
   let stockRemaining = null;
+  // Resolves once that read has settled (success or not), so a caller that
+  // adds to the cart right at page load (checkout.html's cart-reminder
+  // restore link, see js/checkout-page.js) can wait for the real stock
+  // ceiling instead of adding against Infinity. See whenStockKnown().
+  let resolveStockKnown;
+  const stockKnown = new Promise((resolve) => { resolveStockKnown = resolve; });
   if (global.MonarkSupabase) {
     global.MonarkSupabase
       .from('products')
@@ -68,7 +74,16 @@
       .then(({ data, error }) => {
         if (error || !data || data.stock_remaining === null || data.stock_remaining === undefined) return;
         stockRemaining = data.stock_remaining;
-      });
+      })
+      .then(() => resolveStockKnown(), () => resolveStockKnown());
+  } else {
+    resolveStockKnown();
+  }
+
+  // Waits for the stock read above, but never longer than timeoutMs (a slow
+  // or failed read just means the usual "unknown stock" behaviour).
+  function whenStockKnown(timeoutMs = 3000) {
+    return Promise.race([stockKnown, new Promise((resolve) => setTimeout(resolve, timeoutMs))]);
   }
 
   function getStockCeiling() {
@@ -246,6 +261,7 @@
     getPromoDiscountRate,
     getDiscountAmount,
     getFinalTotal,
-    getStockRemaining: getStockCeiling
+    getStockRemaining: getStockCeiling,
+    whenStockKnown
   };
 })(window);

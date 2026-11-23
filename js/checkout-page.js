@@ -87,6 +87,30 @@
     return;
   }
 
+  // Cart-reminder email link (supabase/functions/send-abandoned-cart-reminders):
+  //   checkout.html?restore=1&qty=N[&promo=CODE]&utm_source=email&...
+  // Read once here, then restore/qty/promo are stripped from the URL right
+  // away with history.replaceState, so a reload (or a shared/bookmarked
+  // URL) never re-applies anything. utm_* params are deliberately left in
+  // place for GA4's own page_view attribution. Acted on further down by
+  // runCartRestoreRequest(), once the promo forms exist. Never reached on
+  // the ?expressSuccess=1 path above, which returns first.
+  // Upper bound mirrors create-checkout-session's own 1..50 quantity clamp.
+  const RESTORE_MAX_QTY = 50;
+  const cartRestoreRequest = (() => {
+    const params = new URLSearchParams(window.location.search);
+    const restore = params.get('restore') === '1';
+    const promo = (params.get('promo') || '').trim();
+    if (!restore && !promo && !params.has('qty')) return null;
+    const qty = Math.min(RESTORE_MAX_QTY, Math.max(1, Math.floor(Number(params.get('qty'))) || 1));
+    ['restore', 'qty', 'promo'].forEach((key) => params.delete(key));
+    const query = params.toString();
+    try {
+      window.history.replaceState(window.history.state, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash);
+    } catch (e) { /* history API unavailable: params simply stay visible */ }
+    return (restore || promo) ? { restore, qty, promo } : null;
+  })();
+
   // GA4 begin_checkout -- fires once, right here, for the normal (non-
   // express) flow: reaching this page WITH items already in the cart IS
   // "beginning checkout" in GA4's own sense. The Payment Request Button's
@@ -1350,6 +1374,7 @@
       } else {
         showPromoMessage(messageEl, t('checkout.promoInvalid'), 'error');
       }
+      return result;
     } finally {
       inputEl.disabled = false;
       submitBtn.disabled = false;
@@ -1387,6 +1412,39 @@
   // uses for its own template-string content.
   document.addEventListener('monark:langchange', renderSummary);
   renderSummary();
+
+  // Acts on the cart-reminder link captured at the top of this file
+  // (cartRestoreRequest). 1) restore=1 with an EMPTY cart (typically another
+  // device): add the product with the emailed quantity, after waiting for
+  // the live stock read so cart.addToCart() applies the usual stock clamp.
+  // A cart that already has items is left exactly as it is. 2) promo: goes
+  // through the same attemptApplyPromo() a manual entry uses (server
+  // validation via validate-promo-code, same success/error messages), so an
+  // expired or already-used code just shows the normal "invalid code" error.
+  // The message is mirrored into the mobile Paiement section's promo form
+  // too, since only one of the two is visible at a given width.
+  async function runCartRestoreRequest(request) {
+    if (request.restore && !cart.getCart().length) {
+      if (cart.whenStockKnown) await cart.whenStockKnown();
+      if (!cart.getCart().length) {
+        cart.addToCart(request.qty);
+        // begin_checkout normally fires at load with a non-empty cart (see
+        // the top of this file); a restored cart was empty at that moment.
+        if (cart.getCart().length && window.MonarkAnalytics) {
+          window.MonarkAnalytics.trackBeginCheckout(cart.PRODUCT, cart.getCart()[0].quantity, cart.getFinalTotal());
+        }
+      }
+    }
+    if (request.promo) {
+      promoInput.value = request.promo;
+      mobilePromoInput.value = request.promo;
+      billingPromoInput.value = request.promo;
+      await attemptApplyPromo(promoInput, promoMessage, promoForm.querySelector('button[type="submit"]'));
+      showPromoMessage(mobilePromoMessage, promoMessage.textContent, promoMessage.classList.contains('promo-message-success') ? 'success' : 'error');
+      if (!cart.getAppliedPromoCode()) mobilePromoInput.value = promoInput.value;
+    }
+  }
+  if (cartRestoreRequest) runCartRestoreRequest(cartRestoreRequest);
 
   // Same shared countdown js/promo-banner.js's own banner (and product.html's
   // own price-note display) subscribes to (see js/promo-countdown.js) --

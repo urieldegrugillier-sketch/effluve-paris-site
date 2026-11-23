@@ -32,6 +32,7 @@ import {
   buildStage1Email,
   buildStage2Email,
   type CartPricing,
+  REPLY_TO_ADDRESS,
 } from "./email.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -323,7 +324,7 @@ async function sendReminderEmail(to: string, subject: string, html: string, text
       Authorization: `Bearer ${RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: FROM_ADDRESS, to: [to], subject, html, text }),
+    body: JSON.stringify({ from: FROM_ADDRESS, reply_to: REPLY_TO_ADDRESS, to: [to], subject, html, text }),
   });
   if (!res.ok) {
     const errBody = await res.text().catch(() => "");

@@ -74,6 +74,7 @@ import {
   formatMoney,
   escapeHtml,
   buildConfirmationEmail,
+  REPLY_TO_ADDRESS,
 } from "./email.ts";
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
@@ -833,6 +834,7 @@ async function sendConfirmationEmail(
       },
       body: JSON.stringify({
         from: FROM_ADDRESS,
+        reply_to: REPLY_TO_ADDRESS,
         to: [details.email],
         subject,
         html,

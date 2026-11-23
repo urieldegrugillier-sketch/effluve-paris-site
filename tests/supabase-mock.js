@@ -61,7 +61,15 @@ function installSupabaseMock() {
     // a stale or unrelated session resolving while a signup code is still
     // pending). Reassigned below, once the real onAuthStateChange callback
     // is known.
-    fireAuthEvent: null
+    fireAuthEvent: null,
+    // validate-promo-code stand-in: code -> discount percent. Anything not
+    // listed comes back invalid, like an unknown/expired/used code.
+    promoCodes: {},
+    // public.products row returned to js/cart.js's stock read (null = no
+    // row, i.e. stock unknown). e.g. { stock_remaining: 3 }.
+    productRow: null,
+    // Every Edge Function invoke() as { name, body }, in call order.
+    invokeLog: []
   };
 
   const callbacks = [];
@@ -140,6 +148,7 @@ function installSupabaseMock() {
       }
     },
     from(table) {
+      if (table === 'products') return queryStub(window.__mock.productRow);
       return queryStub(table === 'profiles'
         ? { id: 'test-uid', first_name: '', last_name: '', marketing_opt_in: true }
         : null);
@@ -156,7 +165,15 @@ function installSupabaseMock() {
       // clientSecret/paymentIntentId is enough for specs that only need to
       // reach/navigate the Payment step with tests/stripe-mock.js's own fake
       // Stripe.js installed; nothing here actually charges anything.
-      invoke: async (name) => {
+      invoke: async (name, options) => {
+        const body = (options && options.body) || {};
+        window.__mock.invokeLog.push({ name, body });
+        if (name === 'validate-promo-code') {
+          const percent = window.__mock.promoCodes[String(body.code || '').toUpperCase()];
+          return typeof percent === 'number'
+            ? { data: { valid: true, discountPercent: percent }, error: null }
+            : { data: { valid: false }, error: null };
+        }
         if (name === 'check-email-exists') return { data: { exists: !!window.__mock.emailExists }, error: null };
         if (name === 'create-checkout-session') {
           return { data: { clientSecret: 'pi_mock_secret_test', paymentIntentId: 'pi_mock_test' }, error: null };

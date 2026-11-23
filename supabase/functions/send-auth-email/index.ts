@@ -63,7 +63,7 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { Webhook } from "standardwebhooks";
 // Pure, importable builder (also used by scripts/send-test-auth-email.mjs).
-import { buildAuthEmail, FROM_ADDRESS, WEBSITE_URL } from "./email.ts";
+import { buildAuthEmail, FROM_ADDRESS, REPLY_TO_ADDRESS, WEBSITE_URL } from "./email.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from: FROM_ADDRESS, to: [email], subject, html, text }),
+      body: JSON.stringify({ from: FROM_ADDRESS, reply_to: REPLY_TO_ADDRESS, to: [email], subject, html, text }),
     });
     if (!res.ok) {
       const errBody = await res.text().catch(() => "");
